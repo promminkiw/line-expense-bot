@@ -11,7 +11,7 @@ function createBot({ replyText, logger = console }) {
   }
 
   async function handleEvents(events) {
-    // ใช้ allSettled เพื่อไม่ให้ event ที่พังหนึ่งอันทำให้ event อื่นไม่ถูกตอบ
+    // ใช้ allSettled เพื่อ log error ของทุก event ที่พัง (Promise.all จะเก็บแค่ error แรก)
     const results = await Promise.allSettled(events.map(handleEvent));
     for (const result of results) {
       if (result.status === 'rejected') {
