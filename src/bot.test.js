@@ -339,6 +339,7 @@ describe('bot menu fixed replies', () => {
     await bot.handleEvent(textEvent('ช่วยเหลือ'));
 
     expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_REPLY, undefined);
+    expect(deps.allowRequest).not.toHaveBeenCalled();
   });
 
   it('does not read or change the pending clarification', async () => {
