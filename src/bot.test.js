@@ -8,6 +8,7 @@ import {
   SUMMARY_MENU_REPLY,
   NO_ENTRIES_COMMENT,
 } from './bot.js';
+import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
@@ -309,6 +310,54 @@ describe('bot text message', () => {
 
   it('uses the agreed wording for the system error message', () => {
     expect(SYSTEM_ERROR_REPLY).toBe('ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง');
+  });
+});
+
+describe('bot menu fixed replies', () => {
+  it('replies the help text without calling Claude', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ช่วยเหลือ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_REPLY, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('replies the coming soon text for the web button', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('เปิดเว็บ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', WEB_COMING_SOON_REPLY, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('answers even when the user is rate limited because it costs no Claude call', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('ช่วยเหลือ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_REPLY, undefined);
+  });
+
+  it('does not read or change the pending clarification', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ช่วยเหลือ'));
+
+    expect(deps.repository.getPendingClarification).not.toHaveBeenCalled();
+    expect(deps.repository.savePendingClarification).not.toHaveBeenCalled();
+    expect(deps.repository.clearPendingClarification).not.toHaveBeenCalled();
+  });
+
+  it('ignores a redelivered menu event', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(textEvent('ช่วยเหลือ'));
+
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 });
 

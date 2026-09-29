@@ -4,6 +4,7 @@ const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
 const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
+const { getFixedReply } = require('./menu/fixed-replies');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
@@ -118,6 +119,11 @@ function createBot({
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
+    }
+    // ปุ่มเมนูตอบข้อความคงที่ ไม่เรียก Claude จึงไม่ต้องนับ rate limit
+    const fixedReply = getFixedReply(event.message.text);
+    if (fixedReply) {
+      return { text: fixedReply };
     }
     if (!allowRequest(lineUserId)) {
       return { text: RATE_LIMITED_REPLY };
