@@ -1,9 +1,9 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message) ตามแผน docs/superpowers/plans/2026-09-29-summary-flex.md บน branch feat/step4-summary
+Goal: ขั้นที่ 1-4 เสร็จและ merge เข้า main แล้ว ขั้นต่อไปคือขั้นที่ 5 (Rich Menu)
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step4-summary เข้า main (manual check ผ่านครบแล้ว)
+- [ ] `next` เริ่ม SPEC ขั้นที่ 5 (Rich Menu: ปุ่ม สรุป / เปิดเว็บ / ช่วยเหลือ)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -24,6 +24,7 @@ Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex M
 - [x] เขียนแผนขั้นที่ 4 (2026-09-29): SQL function summarize_transactions (003), สัปดาห์ = จันทร์ถึงวันนี้, แสดง 5 หมวดรายจ่ายแรก + หมวดอื่น, "สรุป" เฉยๆ ขึ้นปุ่ม 3 ช่วง
 - [x] ขั้นที่ 4 Task 1-9 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29); Task 5 (guard stop_reason) และ Task 6 (แก้คอมเมนต์ตามที่ผู้ใช้เลือก + เพิ่ม 2 เทสต์) มี fix round 1 รอบ; final review dragon/viper/coral = With fixes -> fix wave เดียว; npm test 162/162 ใน 18 ไฟล์ (หลัง fix wave 774ae62 ด้วย)
 - [x] Manual check ขั้นที่ 4 ผ่านครบ (2026-09-29): รัน 003 สำเร็จ, ยอดจาก function ตรงกับ Table Editor, สิทธิ์ anon=false authenticated=false service_role=true; ใน LINE: สรุป ขึ้น 3 ปุ่ม, การ์ดวันนี้ยอดตรงมีคำอธิบาย, สัปดาห์นี้ 28/09-29/09, สรุป เดือนนี้ (เว้นวรรค) 01/09-29/09, ไม่มีแถวใหม่จากคำสั่งสรุป, altText ถูก, publishable key เรียก rpc ได้ 42501 permission denied (ครั้งแรกได้ [] น่าจะใช้ secret key ผิดตัว)
+- [x] merge feat/step4-summary เข้า main ในเครื่อง (merge commit 58bdb00, ยังไม่ push) npm test บน main 162/162
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
