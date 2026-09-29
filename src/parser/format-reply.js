@@ -29,4 +29,8 @@ function formatParseReply(result) {
   return ['แยกรายการได้ดังนี้ (ยังไม่บันทึก)', ...result.items.map(formatItem)].join('\n');
 }
 
-module.exports = { formatParseReply };
+function formatSavedReply(items) {
+  return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
+}
+
+module.exports = { formatParseReply, formatSavedReply };
