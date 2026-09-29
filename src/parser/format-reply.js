@@ -22,11 +22,8 @@ function formatItem(item) {
   return `- ${parts.join(' | ')}`;
 }
 
-function formatParseReply(result) {
-  if (result.status === 'clarify') {
-    return result.question;
-  }
-  return ['แยกรายการได้ดังนี้ (ยังไม่บันทึก)', ...result.items.map(formatItem)].join('\n');
+function formatSavedReply(items) {
+  return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
 }
 
-module.exports = { formatParseReply };
+module.exports = { formatSavedReply };

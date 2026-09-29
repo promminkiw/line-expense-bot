@@ -4,6 +4,8 @@ import {
   ParseError,
   PARSE_SCHEMA,
   DEFAULT_CLARIFY_QUESTION,
+  AMOUNT_TOO_LARGE_QUESTION,
+  MAX_AMOUNT,
 } from './parse-message.js';
 
 const NOW = () => new Date('2026-09-29T05:00:00Z');
@@ -52,13 +54,53 @@ describe('parseMessage request', () => {
     });
   });
 
+  it('sends earlier clarification turns before the new message', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('500000', [
+      { role: 'user', text: 'ซื้อรถ' },
+      { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+    ]);
+
+    expect(client.messages.create.mock.calls[0][0].messages).toEqual([
+      { role: 'user', content: 'ซื้อรถ' },
+      { role: 'assistant', content: 'ซื้อรถกี่บาท' },
+      { role: 'user', content: '500000' },
+    ]);
+  });
+
+  it('tells Claude to take entries only from the latest message', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กาแฟ 45');
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('Earlier turns are context only');
+  });
+
+  it('tells Claude never to ask about the date in a clarification question', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('ซื้อของ');
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('Never ask about the date');
+  });
+
   it('passes request timeout and retry limit so fallback reply fits the reply token window', async () => {
     const client = fakeClient(okPayload([item()]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });
 
     await parse('กินข้าว 60');
 
-    expect(client.messages.create.mock.calls[0][1]).toEqual({ timeout: 20000, maxRetries: 1 });
+    expect(client.messages.create.mock.calls[0][1]).toEqual({
+      timeout: 20000,
+      maxRetries: 1,
+      signal: expect.any(AbortSignal),
+    });
   });
 });
 
@@ -103,6 +145,63 @@ describe('parseMessage result', () => {
       status: 'clarify',
       question: DEFAULT_CLARIFY_QUESTION,
     });
+  });
+
+  it('tells the user the limit when any amount is above the maximum', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item(), item({ amount: MAX_AMOUNT + 1 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    expect(await parse('กินข้าว 60 ซื้อบ้าน 10000001')).toEqual({
+      status: 'clarify',
+      question: AMOUNT_TOO_LARGE_QUESTION,
+    });
+  });
+
+  it('uses the agreed wording for the amount limit message', () => {
+    expect(AMOUNT_TOO_LARGE_QUESTION).toBe(
+      'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)'
+    );
+  });
+
+  it('asks to clarify when an amount rounds to zero satang', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: 0.004 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    expect(await parse('ลูกอม 0.004')).toEqual({
+      status: 'clarify',
+      question: DEFAULT_CLARIFY_QUESTION,
+    });
+  });
+
+  it('accepts the smallest storable amount', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: 0.01 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    const result = await parse('ลูกอม 0.01');
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('accepts amount equal to the maximum', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: MAX_AMOUNT })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    const result = await parse('ซื้อบ้าน 10000000');
+
+    expect(result.status).toBe('ok');
+    expect(MAX_AMOUNT).toBe(10000000);
   });
 
   it('replaces category that does not match the item type with fallback', async () => {

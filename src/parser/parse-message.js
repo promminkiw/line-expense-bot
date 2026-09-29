@@ -2,10 +2,16 @@ const { DEFAULT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString } = require('../utils/date');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
+const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)';
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
+// SDK รอตาม retry-after ของ server ได้ไม่จำกัด จึงต้องมีเส้นตายรวมที่ตัดได้แน่นอน
+const OVERALL_TIMEOUT_MS = 30000;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
+const MAX_AMOUNT = 10000000;
 
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
@@ -56,6 +62,8 @@ function buildSystemPrompt(today) {
     `- Income categories: ${DEFAULT_CATEGORIES.income.join(', ')}`,
     '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
     '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
+    '- Never ask about the date in question. A missing date always means today.',
+    '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
     '- Otherwise set needs_clarification to false and question to "".',
   ].join('\n');
 }
@@ -94,8 +102,16 @@ function toParseResult(data, today) {
     return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
   }
 
+  if (data.items.some((item) => Number.isFinite(item.amount) && item.amount > MAX_AMOUNT)) {
+    return { status: 'clarify', question: AMOUNT_TOO_LARGE_QUESTION };
+  }
+
   const hasInvalidAmount = data.items.some(
-    (item) => !Number.isFinite(item.amount) || item.amount <= 0
+    (item) =>
+      !Number.isFinite(item.amount) ||
+      item.amount <= 0 ||
+      // คอลัมน์ numeric(12,2) ปัดเป็นสตางค์ ค่าที่ปัดแล้วเป็น 0 จะชน check amount > 0
+      Math.round(item.amount * 100) === 0
   );
   if (data.items.length === 0 || hasInvalidAmount) {
     return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
@@ -105,17 +121,25 @@ function toParseResult(data, today) {
 }
 
 function createMessageParser({ client, model, now = () => new Date() }) {
-  return async function parseMessage(text) {
+  return async function parseMessage(text, history = []) {
     const today = toBangkokDateString(now());
+    const messages = [
+      ...history.map((turn) => ({ role: turn.role, content: turn.text })),
+      { role: 'user', content: text },
+    ];
     const response = await client.messages.create(
       {
         model,
         max_tokens: 1024,
         system: buildSystemPrompt(today),
-        messages: [{ role: 'user', content: text }],
+        messages,
         output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
       },
-      { timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES }
+      {
+        timeout: REQUEST_TIMEOUT_MS,
+        maxRetries: MAX_RETRIES,
+        signal: AbortSignal.timeout(OVERALL_TIMEOUT_MS),
+      }
     );
 
     if (response.stop_reason === 'max_tokens') {
@@ -142,4 +166,11 @@ function createMessageParser({ client, model, now = () => new Date() }) {
   };
 }
 
-module.exports = { createMessageParser, ParseError, PARSE_SCHEMA, DEFAULT_CLARIFY_QUESTION };
+module.exports = {
+  createMessageParser,
+  ParseError,
+  PARSE_SCHEMA,
+  DEFAULT_CLARIFY_QUESTION,
+  AMOUNT_TOO_LARGE_QUESTION,
+  MAX_AMOUNT,
+};

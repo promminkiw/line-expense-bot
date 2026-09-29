@@ -1,30 +1,39 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และขั้นที่ 2 (Claude แยกข้อความเป็น JSON) ให้ `npm test` ผ่านครบ และ Manual check ใน LINE จริงผ่านทุกข้อ
+Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` ตัดสินใจว่าจะทดสอบ Task 8 ข้อ 7 (API key ผิด) หรือข้าม (error path มี unit test ใน src/bot.test.js แล้ว)
-- [ ] ตัดสินใจ merge branch feat/step1-2-echo-and-parser
-- [ ] เริ่ม SPEC ขั้นที่ 3
+- [ ] `next` เริ่ม SPEC ขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message)
 
 ## Done
-- [x] Task 1-8 implement และ review แล้วบน branch feat/step1-2-echo-and-parser
-- [x] final fix wave (ซ่อน stack trace, timeout/retry ของ Claude, listen error, .gitignore `.env*`, แก้คอมเมนต์)
-- [x] `npm test` ผ่าน 52 tests ใน 8 ไฟล์
-- [x] Manual check Task 8 ข้อ 1-4 ผ่านกับ Claude จริง (try-parse, 2026-09-29): API รับ output_config json_schema, แยกหลายรายการ, วันที่ "เมื่อวาน" ถูก, "ซื้อของ" ได้ clarify
-- [x] ผู้ใช้สร้าง `.env` ครบ 5 key แล้ว (ไม่ถูก track)
-- [x] Manual check Task 4 ข้อ 1-3 ผ่าน (2026-09-29): /health ok ทั้ง local และผ่าน ngrok, POST /webhook ไม่มี signature ได้ 401, LINE Verify ได้ 200
-- [x] ข้อความจริงจากแอป LINE (text 4 ข้อความ + sticker) ถึง /webhook ครบ ได้ 200 ทุกข้อความ ไม่มี redelivery (ตรวจจาก ngrok inspector)
-- [x] ผู้ใช้ยืนยันคำตอบของบอทในแอป LINE ตรงตาราง (2026-09-29): Task 8 ข้อ 5-6 และ Task 4 ข้อ 5 (sticker ไม่ตอบ) ผ่าน; Task 4 ข้อ 4 (echo) ไม่ใช้แล้วเพราะ Task 8 แทน echo
+- [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
+- [x] เปลี่ยนข้อความตอบเมื่อระบบมีปัญหาเป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` (ตอนนี้ชื่อค่าคงที่คือ SYSTEM_ERROR_REPLY ใน src/bot.js)
+- [x] ขั้นที่ 3 Task 1-9 implement + review + gate ผ่านครบด้วย Subagent-Driven (2026-09-29); Task 1, 6, 7 มี fix round 1 รอบ
+- [x] final review ทั้ง branch (dragon/viper/coral) -> fix wave เดียว: deadline 30 วินาทีของ Claude, timeout 5 วินาทีต่อ request ของ Supabase, pin test ว่า undo ลบได้เฉพาะเจ้าของ, log `Failed to send reply` พร้อม lineUserId, ปฏิเสธจำนวนเงินที่ปัดแล้วเป็น 0 สตางค์, เพิ่มคำสั่งแก้ grant ใน manual check
+- [x] `npm test` ผ่าน 101 tests ใน 13 ไฟล์ และ `node --check index.js` ผ่าน (HEAD a275dd4 + docs)
+- [x] เพิ่ม `db: { retry: false }` ใน createClient ของ index.js ตามที่ผู้ใช้สั่ง (ตรวจแล้วว่า builder ได้ retry=false, npm test 101/101)
+- [x] ต่อ Supabase จริงได้ (2026-09-29): ผู้ใช้ใส่ key ใน .env แล้ว, ทั้ง 6 ตารางตอบ status 200 rows=0 ด้วย service role (อ่านอย่างเดียว)
+- [x] Manual check ขั้นที่ 3 ผ่านครบ (2026-09-29): Task 1 Step 3 (RLS 6 ตาราง true, cascade script 0 ทุกคอลัมน์, grant service_role ครบ) และ Task 9 Step 5 ข้อ 1-9 (บันทึก+ปุ่มยกเลิก, users 1 แถว, categories 10, transactions 2 แถว line_event_id เดียวกัน, ยกเลิกลบจริง, clarify ไม่มีปุ่ม, 20000000 ไม่บันทึก, anon ได้ [], ลบ user แล้ว block/unblock สมัครใหม่พร้อม 10 หมวด)
+- [x] ข้อความตอบเมื่อจำนวนเงินเกินเพดานเป็น `จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)` (AMOUNT_TOO_LARGE_QUESTION ใน parse-message.js, test ก่อน, npm test 102/102)
+- [x] เพิ่มกฎใน system prompt ห้ามถามวันที่ตอน clarify (test ก่อน, npm test 103/103, try-parse กับ Claude จริงได้ "ซื้อของเท่าไหร่")
+- [x] บอทจำคำถามกลับ 10 นาที (ตาราง pending_clarifications ใน supabase/002_pending_clarifications.sql, เก็บสูงสุด 6 ข้อความ, ล้างเมื่อบันทึกสำเร็จ; test ก่อน, npm test 115/115; ลองกับ Claude จริง: ซื้อรถ -> 500000 ได้รายการ, -> 20000000 ได้ข้อความเพดาน)
+- [x] ผู้ใช้รัน 002_pending_clarifications.sql และลองใน LINE แล้ว (2026-09-29): ซื้อรถ -> 500000 บันทึกได้; ตรวจแล้ว pending_clarifications ถูกล้างเป็น 0 แถว, transactions 1 แถว
+- [x] review งานหลัง final review (falcon+viper) -> แก้: ล้างบริบทหลังบันทึกสำเร็จ, บันทึก/ล้างบริบทพังไม่กระทบคำตอบ, กฎ prompt ให้ดึงรายการจากข้อความล่าสุด; re-review ผ่าน; Claude จริง 4 กรณีถูก; npm test 119/119
+- [x] ผู้ใช้เลือกปล่อย Co-Authored-By "Sonnet 5.5" ของ subagent ไว้ตามเดิม
+- [x] merge feat/step3-supabase เข้า main ในเครื่อง (ยังไม่ push)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`
 - LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
 - `express.raw` ต้องอยู่ก่อน LINE middleware ถึงจะจำกัดขนาด body ได้ (SDK ใช้ Buffer จาก req.body)
-- SDK default timeout 600 วินาทีนานเกินไปสำหรับ reply token ของ LINE
+- SDK default timeout 600 วินาทีนานเกินไปสำหรับ reply token ของ LINE; Anthropic SDK ทำตาม retry-after โดยไม่มีเพดาน ต้องใส่ `signal: AbortSignal.timeout(...)`
+- postgrest-js retry GET/HEAD เองเมื่อเจอ TimeoutError (ข้ามเฉพาะ AbortError) และรอ Retry-After ของ 503 โดยไม่มีเพดาน -> ปิดได้ด้วย `db: { retry: false }`
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
-- backlog ขั้น 3 จาก review: dedupe ด้วย webhookEventId, rate limit ต่อผู้ใช้สำหรับเรียก Claude, เพดานจำนวนเงิน, ใส่ user id ใน log, กรอง event.source.type (group), dotenv quiet, trim input ของ try-parse
+- subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
+- Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
+- backlog ที่ยังเหลือ: loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
