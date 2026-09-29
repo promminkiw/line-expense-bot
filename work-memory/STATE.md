@@ -3,9 +3,7 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และขั้นที่ 2 (Claude แยกข้อความเป็น JSON) ให้ `npm test` ผ่านครบ และ Manual check ใน LINE จริงผ่านทุกข้อ
 
 ## Next
-- [ ] `next` ตัดสินใจว่าจะทดสอบ Task 8 ข้อ 7 (API key ผิด) หรือข้าม (error path มี unit test ใน src/bot.test.js แล้ว)
-- [ ] ตัดสินใจ merge branch feat/step1-2-echo-and-parser
-- [ ] เริ่ม SPEC ขั้นที่ 3
+- [ ] `next` เริ่ม SPEC ขั้นที่ 3 (Supabase + RLS บันทึกข้อมูลจริง)
 
 ## Done
 - [x] Task 1-8 implement และ review แล้วบน branch feat/step1-2-echo-and-parser
@@ -16,6 +14,8 @@ Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และข�
 - [x] Manual check Task 4 ข้อ 1-3 ผ่าน (2026-09-29): /health ok ทั้ง local และผ่าน ngrok, POST /webhook ไม่มี signature ได้ 401, LINE Verify ได้ 200
 - [x] ข้อความจริงจากแอป LINE (text 4 ข้อความ + sticker) ถึง /webhook ครบ ได้ 200 ทุกข้อความ ไม่มี redelivery (ตรวจจาก ngrok inspector)
 - [x] ผู้ใช้ยืนยันคำตอบของบอทในแอป LINE ตรงตาราง (2026-09-29): Task 8 ข้อ 5-6 และ Task 4 ข้อ 5 (sticker ไม่ตอบ) ผ่าน; Task 4 ข้อ 4 (echo) ไม่ใช้แล้วเพราะ Task 8 แทน echo
+- [x] merge feat/step1-2-echo-and-parser เข้า main ในเครื่อง (2026-09-29, merge commit 2b5f77d, ยังไม่ push) `npm test` บน main ผ่าน 52 tests
+- [x] Task 8 ข้อ 7 ผ่าน (2026-09-29): ใช้ key ผิด บอทตอบ `ขออภัย ระบบอ่านข้อความไม่สำเร็จ ...` และ terminal มี log `Failed to parse message`; ผู้ใช้ใส่ key จริงคืนแล้ว -> Manual check ขั้นที่ 1-2 ผ่านครบ
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
