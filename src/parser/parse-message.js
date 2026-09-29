@@ -5,6 +5,8 @@ const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการแล�
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
+// SDK รอตาม retry-after ของ server ได้ไม่จำกัด จึงต้องมีเส้นตายรวมที่ตัดได้แน่นอน
+const OVERALL_TIMEOUT_MS = 30000;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
@@ -98,7 +100,12 @@ function toParseResult(data, today) {
   }
 
   const hasInvalidAmount = data.items.some(
-    (item) => !Number.isFinite(item.amount) || item.amount <= 0 || item.amount > MAX_AMOUNT
+    (item) =>
+      !Number.isFinite(item.amount) ||
+      item.amount <= 0 ||
+      item.amount > MAX_AMOUNT ||
+      // คอลัมน์ numeric(12,2) ปัดเป็นสตางค์ ค่าที่ปัดแล้วเป็น 0 จะชน check amount > 0
+      Math.round(item.amount * 100) === 0
   );
   if (data.items.length === 0 || hasInvalidAmount) {
     return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
@@ -118,7 +125,11 @@ function createMessageParser({ client, model, now = () => new Date() }) {
         messages: [{ role: 'user', content: text }],
         output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
       },
-      { timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES }
+      {
+        timeout: REQUEST_TIMEOUT_MS,
+        maxRetries: MAX_RETRIES,
+        signal: AbortSignal.timeout(OVERALL_TIMEOUT_MS),
+      }
     );
 
     if (response.stop_reason === 'max_tokens') {

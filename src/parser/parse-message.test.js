@@ -59,7 +59,11 @@ describe('parseMessage request', () => {
 
     await parse('กินข้าว 60');
 
-    expect(client.messages.create.mock.calls[0][1]).toEqual({ timeout: 20000, maxRetries: 1 });
+    expect(client.messages.create.mock.calls[0][1]).toEqual({
+      timeout: 20000,
+      maxRetries: 1,
+      signal: expect.any(AbortSignal),
+    });
   });
 });
 
@@ -117,6 +121,31 @@ describe('parseMessage result', () => {
       status: 'clarify',
       question: DEFAULT_CLARIFY_QUESTION,
     });
+  });
+
+  it('asks to clarify when an amount rounds to zero satang', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: 0.004 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    expect(await parse('ลูกอม 0.004')).toEqual({
+      status: 'clarify',
+      question: DEFAULT_CLARIFY_QUESTION,
+    });
+  });
+
+  it('accepts the smallest storable amount', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: 0.01 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    const result = await parse('ลูกอม 0.01');
+
+    expect(result.status).toBe('ok');
   });
 
   it('accepts amount equal to the maximum', async () => {
