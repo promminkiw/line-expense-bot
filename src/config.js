@@ -1,4 +1,5 @@
-const REQUIRED_KEYS = ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN'];
+const REQUIRED_KEYS = ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN', 'ANTHROPIC_API_KEY'];
+const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
 
 function loadConfig(env) {
   const missing = REQUIRED_KEYS.filter((key) => !env[key]);
@@ -10,6 +11,8 @@ function loadConfig(env) {
     port: Number(env.PORT) || 3000,
     lineChannelSecret: env.LINE_CHANNEL_SECRET,
     lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN,
+    anthropicApiKey: env.ANTHROPIC_API_KEY,
+    claudeModel: env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL,
   };
 }
 

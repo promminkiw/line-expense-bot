@@ -1,13 +1,28 @@
+const { formatParseReply } = require('./parser/format-reply');
+
+const PARSE_FAILED_REPLY = 'ขออภัย ระบบอ่านข้อความไม่สำเร็จ ลองพิมพ์ใหม่อีกครั้ง เช่น "กินข้าว 60"';
+
 function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
-function createBot({ replyText, logger = console }) {
+function createBot({ replyText, parseMessage, logger = console }) {
+  async function buildReply(text) {
+    try {
+      const result = await parseMessage(text);
+      return formatParseReply(result);
+    } catch (err) {
+      logger.error('Failed to parse message', err);
+      return PARSE_FAILED_REPLY;
+    }
+  }
+
   async function handleEvent(event) {
     if (!isTextMessage(event)) {
       return;
     }
-    await replyText(event.replyToken, event.message.text);
+    const reply = await buildReply(event.message.text);
+    await replyText(event.replyToken, reply);
   }
 
   async function handleEvents(events) {
@@ -23,4 +38,4 @@ function createBot({ replyText, logger = console }) {
   return { handleEvent, handleEvents };
 }
 
-module.exports = { createBot };
+module.exports = { createBot, PARSE_FAILED_REPLY };

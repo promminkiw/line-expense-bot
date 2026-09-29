@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "try-parse": "node scripts/try-parse.js"
   },
   "keywords": [],
   "author": "",
