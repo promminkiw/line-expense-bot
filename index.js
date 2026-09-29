@@ -27,6 +27,8 @@ const parseMessage = createMessageParser({ client: anthropic, model: config.clau
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
   global: { fetch: createFetchWithTimeout(SUPABASE_TIMEOUT_MS) },
+  // ปิด retry ของ postgrest เพราะจะลองซ้ำหลัง timeout จนเกินเวลาของ reply token
+  db: { retry: false },
 });
 const repository = createRepository(supabase);
 const users = createUserService({

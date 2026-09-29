@@ -3,9 +3,8 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินใจ: เพิ่ม `db: { retry: false }` ใน createClient ของ index.js ไหม (final re-review บอกว่า timeout 5 วินาทีของ Supabase ยังไม่จำกัดเวลาจริง เพราะ postgrest retry เองได้ถึง ~27 วินาทีต่อการอ่าน) - ต้องทำก่อน deploy
-- [ ] ผู้ใช้ทำ manual check Task 1 Step 3 ข้อ 1-8 (สร้าง Supabase project, รัน schema, ตรวจ RLS/cascade/grant, ใส่ SUPABASE_URL และ SUPABASE_SERVICE_ROLE_KEY ใน .env)
-- [ ] ผู้ใช้ทำ manual check Task 9 Step 5 ข้อ 1-9 กับ LINE และ Supabase จริง
+- [ ] `next` ผู้ใช้ยืนยันผล manual check Task 1 Step 3 ข้อ 3-5 ใน SQL Editor (rowsecurity ทั้ง 6 ตาราง, สคริปต์ cascade ได้ 0 ทุกคอลัมน์, grant ของ service_role ครบ)
+- [ ] ผู้ใช้ทำ manual check Task 9 Step 5 ข้อ 1-9 กับ LINE และ Supabase จริง (ต้อง restart `npm start`)
 - [ ] ผู้ใช้ตัดสินใจเรื่อง Co-Authored-By: commit ของ subagent ลงท้าย "Claude Sonnet 5.5" แต่แผนเขียน "Opus 5.5" (แก้ต้องเขียนประวัติ git ใหม่)
 - [ ] ตัดสินใจ merge feat/step3-supabase เข้า main (หลัง manual check ผ่าน)
 
@@ -15,12 +14,14 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] ขั้นที่ 3 Task 1-9 implement + review + gate ผ่านครบด้วย Subagent-Driven (2026-09-29); Task 1, 6, 7 มี fix round 1 รอบ
 - [x] final review ทั้ง branch (dragon/viper/coral) -> fix wave เดียว: deadline 30 วินาทีของ Claude, timeout 5 วินาทีต่อ request ของ Supabase, pin test ว่า undo ลบได้เฉพาะเจ้าของ, log `Failed to send reply` พร้อม lineUserId, ปฏิเสธจำนวนเงินที่ปัดแล้วเป็น 0 สตางค์, เพิ่มคำสั่งแก้ grant ใน manual check
 - [x] `npm test` ผ่าน 101 tests ใน 13 ไฟล์ และ `node --check index.js` ผ่าน (HEAD a275dd4 + docs)
+- [x] เพิ่ม `db: { retry: false }` ใน createClient ของ index.js ตามที่ผู้ใช้สั่ง (ตรวจแล้วว่า builder ได้ retry=false, npm test 101/101)
+- [x] ต่อ Supabase จริงได้ (2026-09-29): ผู้ใช้ใส่ key ใน .env แล้ว, ทั้ง 6 ตารางตอบ status 200 rows=0 ด้วย service role (อ่านอย่างเดียว)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
-- ไม่มี Postgres/Supabase ในเครื่อง: SQL และ query จริงยังไม่เคยรัน ต้องรอผู้ใช้ทำ manual check
 
 ## Learned
+- SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`
 - LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
