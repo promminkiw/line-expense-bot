@@ -327,6 +327,25 @@ describe('repository.summarizeTransactions', () => {
     ]);
   });
 
+  it('returns numbers unchanged when PostgREST sends numbers', async () => {
+    const { supabase } = fakeSupabase({
+      data: [{ type: 'income', category: 'เงินเดือน', total: 25000, entry_count: 1 }],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    expect(rows).toEqual([{ type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 }]);
+  });
+
+  it('returns an empty array when the range has no entries', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    const rows = await createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    expect(rows).toEqual([]);
+  });
+
   it('throws DatabaseError when Supabase returns an error', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 

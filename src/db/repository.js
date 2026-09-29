@@ -117,7 +117,7 @@ function createRepository(supabase) {
       p_to: to,
     });
     throwIfError('summarizeTransactions', error);
-    // numeric และ bigint จาก Postgres อาจมาเป็น string จึงแปลงเป็น number ที่นี่ที่เดียว
+    // แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
     return data.map((row) => ({
       type: row.type,
       category: row.category,
