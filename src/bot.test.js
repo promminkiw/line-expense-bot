@@ -373,6 +373,9 @@ describe('bot summary command', () => {
     await bot.handleEvent(textEvent('สรุปวันนี้'));
 
     expect(deps.replyFlex).toHaveBeenCalled();
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(JSON.stringify(flex)).not.toContain('overloaded');
+    expect(flex.altText).toBe('สรุปวันนี้ (29/09): รายรับ 0 บาท รายจ่าย 105 บาท');
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to comment summary',
       { userId: 'user-1' },

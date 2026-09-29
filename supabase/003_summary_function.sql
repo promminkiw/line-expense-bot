@@ -15,6 +15,6 @@ as $$
   order by t.type, sum(t.amount) desc, c.name
 $$;
 
--- function ใหม่ใน Postgres เรียกได้ทุก role โดยค่าเริ่มต้น จึงต้องปิดไม่ให้ anon key เรียกดูยอดของใครได้
+-- function ใหม่ใน Postgres เรียกได้ทุก role โดยค่าเริ่มต้น จึงปิดไว้อีกชั้นนอกจาก RLS และต้องคงไว้ถ้าเปลี่ยนเป็น security definer
 revoke execute on function public.summarize_transactions(uuid, date, date) from public, anon, authenticated;
 grant execute on function public.summarize_transactions(uuid, date, date) to service_role;
