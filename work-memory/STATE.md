@@ -16,6 +16,7 @@ Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และข�
 - [x] ผู้ใช้ยืนยันคำตอบของบอทในแอป LINE ตรงตาราง (2026-09-29): Task 8 ข้อ 5-6 และ Task 4 ข้อ 5 (sticker ไม่ตอบ) ผ่าน; Task 4 ข้อ 4 (echo) ไม่ใช้แล้วเพราะ Task 8 แทน echo
 - [x] merge feat/step1-2-echo-and-parser เข้า main ในเครื่อง (2026-09-29, merge commit 2b5f77d, ยังไม่ push) `npm test` บน main ผ่าน 52 tests
 - [x] Task 8 ข้อ 7 ผ่าน (2026-09-29): ใช้ key ผิด บอทตอบ `ขออภัย ระบบอ่านข้อความไม่สำเร็จ ...` และ terminal มี log `Failed to parse message`; ผู้ใช้ใส่ key จริงคืนแล้ว -> Manual check ขั้นที่ 1-2 ผ่านครบ
+- [x] เปลี่ยน PARSE_FAILED_REPLY ใน src/bot.js เป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` ตามที่ผู้ใช้ขอ (test ก่อน, `npm test` ผ่าน 53 tests, commit แล้ว; ยังไม่ได้ลองในแอป LINE ต้อง restart `npm start` ก่อน)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง

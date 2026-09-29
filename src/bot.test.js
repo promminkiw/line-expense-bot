@@ -50,6 +50,10 @@ describe('bot.handleEvent', () => {
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to parse message', expect.any(Error));
   });
 
+  it('uses the agreed wording for the fallback message', () => {
+    expect(PARSE_FAILED_REPLY).toBe('ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง');
+  });
+
   it('ignores sticker messages without calling Claude', async () => {
     const { deps, bot } = setup();
 

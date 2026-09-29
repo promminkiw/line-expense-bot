@@ -1,6 +1,6 @@
 const { formatParseReply } = require('./parser/format-reply');
 
-const PARSE_FAILED_REPLY = 'ขออภัย ระบบอ่านข้อความไม่สำเร็จ ลองพิมพ์ใหม่อีกครั้ง เช่น "กินข้าว 60"';
+const PARSE_FAILED_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 
 function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
