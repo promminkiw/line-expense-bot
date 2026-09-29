@@ -11,8 +11,10 @@ const SUMMARY = {
   entryCount: 2,
 };
 
-function fakeClient(content) {
-  return { messages: { create: vi.fn().mockResolvedValue({ content }) } };
+function fakeClient(content, stopReason = 'end_turn') {
+  return {
+    messages: { create: vi.fn().mockResolvedValue({ content, stop_reason: stopReason }) },
+  };
 }
 
 describe('createSummaryCommenter', () => {
@@ -43,6 +45,36 @@ describe('createSummaryCommenter', () => {
     await createSummaryCommenter({ client, model: 'm' })({ ...SUMMARY, otherExpenseTotal: 75 });
 
     expect(client.messages.create.mock.calls[0][0].messages[0].content).toContain('- หมวดอื่น: 75 บาท');
+  });
+
+  it('throws when the comment is truncated', async () => {
+    const client = fakeClient([{ type: 'text', text: 'วันนี้ใช้' }], 'max_tokens');
+
+    await expect(createSummaryCommenter({ client, model: 'm' })(SUMMARY)).rejects.toThrow(
+      'Claude comment was truncated'
+    );
+  });
+
+  it('throws when Claude refuses', async () => {
+    const client = fakeClient([{ type: 'text', text: 'x' }], 'refusal');
+
+    await expect(createSummaryCommenter({ client, model: 'm' })(SUMMARY)).rejects.toThrow(
+      'Claude refused to comment'
+    );
+  });
+
+  it('omits the category heading when there are no expenses', async () => {
+    const client = fakeClient([{ type: 'text', text: 'ok' }]);
+
+    await createSummaryCommenter({ client, model: 'm' })({
+      ...SUMMARY,
+      expenseTotal: 0,
+      topExpenses: [],
+    });
+
+    expect(client.messages.create.mock.calls[0][0].messages[0].content).not.toContain(
+      'รายจ่ายตามหมวด'
+    );
   });
 
   it('throws when Claude returns no text', async () => {

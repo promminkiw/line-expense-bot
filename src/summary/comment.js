@@ -16,9 +16,13 @@ function describeSummary(summary) {
     `รายรับ: ${formatAmount(summary.incomeTotal)} บาท`,
     `รายจ่าย: ${formatAmount(summary.expenseTotal)} บาท`,
     `คงเหลือ: ${formatAmount(summary.net)} บาท`,
-    'รายจ่ายตามหมวด:',
-    ...summary.topExpenses.map((entry) => `- ${entry.category}: ${formatAmount(entry.total)} บาท`),
   ];
+  if (summary.topExpenses.length > 0) {
+    lines.push(
+      'รายจ่ายตามหมวด:',
+      ...summary.topExpenses.map((entry) => `- ${entry.category}: ${formatAmount(entry.total)} บาท`)
+    );
+  }
   if (summary.otherExpenseTotal > 0) {
     lines.push(`- หมวดอื่น: ${formatAmount(summary.otherExpenseTotal)} บาท`);
   }
@@ -40,6 +44,12 @@ function createSummaryCommenter({ client, model }) {
         signal: AbortSignal.timeout(COMMENT_TIMEOUT_MS),
       }
     );
+    if (response.stop_reason === 'max_tokens') {
+      throw new Error('Claude comment was truncated');
+    }
+    if (response.stop_reason === 'refusal') {
+      throw new Error('Claude refused to comment');
+    }
     const textBlock = response.content.find((block) => block.type === 'text');
     const comment = textBlock ? textBlock.text.trim() : '';
     if (!comment) {
