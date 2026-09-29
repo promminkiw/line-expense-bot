@@ -1,4 +1,10 @@
-const REQUIRED_KEYS = ['LINE_CHANNEL_SECRET', 'LINE_CHANNEL_ACCESS_TOKEN', 'ANTHROPIC_API_KEY'];
+const REQUIRED_KEYS = [
+  'LINE_CHANNEL_SECRET',
+  'LINE_CHANNEL_ACCESS_TOKEN',
+  'ANTHROPIC_API_KEY',
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+];
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
 
 function loadConfig(env) {
@@ -13,6 +19,8 @@ function loadConfig(env) {
     lineChannelAccessToken: env.LINE_CHANNEL_ACCESS_TOKEN,
     anthropicApiKey: env.ANTHROPIC_API_KEY,
     claudeModel: env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL,
+    supabaseUrl: env.SUPABASE_URL,
+    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   };
 }
 
