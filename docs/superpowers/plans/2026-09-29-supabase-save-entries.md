@@ -170,9 +170,39 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 | 1 | เว็บ Supabase > กด `New project` ตั้งชื่อ `line-expense-bot` ตั้ง Database Password (เก็บไว้) เลือก Region `Southeast Asia (Singapore)` แล้วกด `Create new project` | รอ 1-2 นาที แล้วเห็นหน้า dashboard ของ project |
 | 2 | เมนูซ้าย `SQL Editor` > `New query` > วางเนื้อหาทั้งไฟล์ `supabase/schema.sql` > กด `Run` | ขึ้น `Success. No rows returned` |
 | 3 | ใน SQL Editor รัน `select tablename, rowsecurity from pg_tables where schemaname = 'public' order by tablename;` | 6 แถว: `budgets`, `categories`, `line_events`, `recurring_rules`, `transactions`, `users` และทุกแถว `rowsecurity` = `true` |
-| 4 | กดปุ่ม `Connect` ด้านบน (หรือ `Project Settings` > `Data API`) copy `Project URL` | ได้ค่ารูปแบบ `https://<ref>.supabase.co` |
-| 5 | `Project Settings` > `API Keys` copy key ฝั่ง server: `Secret key` (ขึ้นต้น `sb_secret_`) หรือ `service_role` ในแท็บ Legacy | ได้ key ยาว 1 ค่า (ห้ามส่งให้ใคร ห้าม commit) |
-| 6 | เปิด `.env` เพิ่ม 2 บรรทัด `SUPABASE_URL=<ค่าจากข้อ 4>` และ `SUPABASE_SERVICE_ROLE_KEY=<ค่าจากข้อ 5>` แล้ว save | `.env` มีครบ 7 key; `git status` ไม่แสดง `.env` |
+| 4 | ใน SQL Editor กด New query แล้ววางและ Run สคริปต์ตรวจ cascade ด้านล่างทั้งก้อน (สคริปต์สร้างข้อมูลทดสอบของ user ชื่อ cascade-test แล้วลบ user นั้น) | ตารางผลลัพธ์ 1 แถว ทุกคอลัมน์ (categories, line_events, transactions, budgets, recurring_rules) เป็น 0 และไม่มี error |
+| 5 | ใน SQL Editor รัน `select table_name, string_agg(privilege_type, ', ' order by privilege_type) as privileges from information_schema.role_table_grants where grantee = 'service_role' and table_schema = 'public' group by table_name order by table_name;` | 6 แถว (ตารางเดียวกับข้อ 3) และทุกแถวในคอลัมน์ privileges มี DELETE, INSERT, SELECT, UPDATE |
+| 6 | กดปุ่ม `Connect` ด้านบน (หรือ `Project Settings` > `Data API`) copy `Project URL` | ได้ค่ารูปแบบ `https://<ref>.supabase.co` |
+| 7 | `Project Settings` > `API Keys` copy key ฝั่ง server: `Secret key` (ขึ้นต้น `sb_secret_`) หรือ `service_role` ในแท็บ Legacy | ได้ key ยาว 1 ค่า (ห้ามส่งให้ใคร ห้าม commit) |
+| 8 | เปิด `.env` เพิ่ม 2 บรรทัด `SUPABASE_URL=<ค่าจากข้อ 6>` และ `SUPABASE_SERVICE_ROLE_KEY=<ค่าจากข้อ 7>` แล้ว save | `.env` มีครบ 7 key; `git status` ไม่แสดง `.env` |
+
+สคริปต์ตรวจ cascade สำหรับข้อ 4:
+
+```sql
+insert into public.users (line_user_id, display_name) values ('cascade-test', 'cascade-test');
+insert into public.categories (user_id, name, type)
+  select id, 'cascade-test', 'expense' from public.users where line_user_id = 'cascade-test';
+insert into public.line_events (webhook_event_id, user_id)
+  select 'cascade-test-event', id from public.users where line_user_id = 'cascade-test';
+insert into public.transactions (user_id, type, category_id, amount, note, occurred_on, line_event_id)
+  select c.user_id, 'expense', c.id, 1, 'cascade-test', current_date, 'cascade-test-event'
+  from public.categories c where c.name = 'cascade-test';
+insert into public.budgets (user_id, category_id, month, amount)
+  select c.user_id, c.id, date_trunc('month', current_date)::date, 1
+  from public.categories c where c.name = 'cascade-test';
+insert into public.recurring_rules (user_id, type, category_id, amount, note, day_of_month)
+  select c.user_id, 'expense', c.id, 1, 'cascade-test', 1
+  from public.categories c where c.name = 'cascade-test';
+
+delete from public.users where line_user_id = 'cascade-test';
+
+select
+  (select count(*) from public.categories where name = 'cascade-test') as categories,
+  (select count(*) from public.line_events where webhook_event_id = 'cascade-test-event') as line_events,
+  (select count(*) from public.transactions where note = 'cascade-test') as transactions,
+  (select count(*) from public.budgets b where not exists (select 1 from public.users u where u.id = b.user_id)) as budgets,
+  (select count(*) from public.recurring_rules where note = 'cascade-test') as recurring_rules;
+```
 
 ---
 
