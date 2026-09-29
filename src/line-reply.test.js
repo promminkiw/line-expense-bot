@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createReplyText } from './line-reply.js';
+import { createReplyText, createReplyFlex } from './line-reply.js';
 
 describe('createReplyText', () => {
   it('sends one text message with the reply token', async () => {
@@ -34,5 +34,22 @@ describe('createReplyText', () => {
     const replyText = createReplyText(client);
 
     await expect(replyText('bad', 'hi')).rejects.toThrow('Invalid reply token');
+  });
+});
+
+describe('createReplyFlex', () => {
+  it('sends the flex message with the reply token', async () => {
+    const client = { replyMessage: vi.fn().mockResolvedValue({}) };
+    const flex = { type: 'flex', altText: 'สรุป', contents: { type: 'bubble' } };
+
+    await createReplyFlex(client)('token-1', flex);
+
+    expect(client.replyMessage).toHaveBeenCalledWith({ replyToken: 'token-1', messages: [flex] });
+  });
+
+  it('propagates LINE API errors', async () => {
+    const client = { replyMessage: vi.fn().mockRejectedValue(new Error('Invalid reply token')) };
+
+    await expect(createReplyFlex(client)('bad', {})).rejects.toThrow('Invalid reply token');
   });
 });
