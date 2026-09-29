@@ -72,6 +72,15 @@ describe('repository.createUser', () => {
       ['single'],
     ]);
   });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).createUser({ lineUserId: 'U1', displayName: 'Aom' });
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database createUser failed: boom');
+  });
 });
 
 describe('repository.seedDefaultCategories', () => {
@@ -88,6 +97,15 @@ describe('repository.seedDefaultCategories', () => {
     expect(rows).toHaveLength(10);
     expect(rows).toContainEqual({ user_id: 'user-1', type: 'expense', name: 'อาหาร' });
     expect(rows).toContainEqual({ user_id: 'user-1', type: 'income', name: 'อื่นๆ' });
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).seedDefaultCategories('user-1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database seedDefaultCategories failed: boom');
   });
 });
 
@@ -115,6 +133,15 @@ describe('repository.getCategoryIds', () => {
       ['eq', 'user_id', 'user-1'],
     ]);
   });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).getCategoryIds('user-1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database getCategoryIds failed: boom');
+  });
 });
 
 describe('repository.claimEvent', () => {
@@ -137,6 +164,15 @@ describe('repository.claimEvent', () => {
     const { supabase } = fakeSupabase({ data: [], error: null });
 
     expect(await createRepository(supabase).claimEvent('ev1', 'user-1')).toBe(false);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).claimEvent('ev1', 'user-1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database claimEvent failed: boom');
   });
 });
 
@@ -175,5 +211,14 @@ describe('repository.deleteTransactionsByEvent', () => {
       ['eq', 'user_id', 'user-1'],
       ['eq', 'line_event_id', 'ev1'],
     ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).deleteTransactionsByEvent('user-1', 'ev1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database deleteTransactionsByEvent failed: boom');
   });
 });
