@@ -1,10 +1,21 @@
 const { formatSavedReply } = require('./parser/format-reply');
 const { toTransactionRows } = require('./db/transaction-rows');
+const { parseSummaryCommand } = require('./summary/command');
+const { getPeriodRange } = require('./summary/period');
+const { buildSummary } = require('./summary/summary');
+const { buildSummaryFlex } = require('./summary/flex');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
+const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
+const SUMMARY_PERIOD_BUTTONS = [
+  { label: 'วันนี้', text: 'สรุปวันนี้' },
+  { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
+  { label: 'เดือนนี้', text: 'สรุปเดือนนี้' },
+];
 const UNDO_ACTION = 'undo';
 // เกิน 10 นาทีถือว่าเป็นเรื่องใหม่ กันไม่ให้ข้อความใหม่ถูกรวมกับคำถามเก่าโดยไม่ตั้งใจ
 const PENDING_TTL_MS = 10 * 60 * 1000;
@@ -33,9 +44,19 @@ function buildUndoQuickReply(webhookEventId) {
   ];
 }
 
+// ใช้ message action เพื่อให้กดปุ่มแล้วได้ผลเหมือนพิมพ์คำสั่งเอง (Rich Menu ขั้นที่ 5 ใช้ข้อความชุดเดียวกัน)
+function buildSummaryQuickReply() {
+  return SUMMARY_PERIOD_BUTTONS.map((button) => ({
+    type: 'action',
+    action: { type: 'message', label: button.label, text: button.text },
+  }));
+}
+
 function createBot({
   replyText,
+  replyFlex,
   parseMessage,
+  commentSummary,
   repository,
   users,
   allowRequest,
@@ -67,6 +88,30 @@ function createBot({
     }
   }
 
+  async function commentOn(summary, userId) {
+    if (summary.entryCount === 0) {
+      return NO_ENTRIES_COMMENT;
+    }
+    try {
+      return await commentSummary(summary);
+    } catch (err) {
+      // คำอธิบายเป็นส่วนเสริม ยอดจาก SQL ยังส่งได้แม้ Claude ตอบไม่สำเร็จ
+      logger.error('Failed to comment summary', { userId }, err);
+      return '';
+    }
+  }
+
+  async function handleSummary(command, userId) {
+    if (command === 'menu') {
+      return { text: SUMMARY_MENU_REPLY, quickReply: buildSummaryQuickReply() };
+    }
+    const range = getPeriodRange(command, new Date(now()));
+    const rows = await repository.summarizeTransactions(userId, range.from, range.to);
+    const summary = buildSummary(rows, range.label);
+    const comment = await commentOn(summary, userId);
+    return { flex: buildSummaryFlex(summary, comment) };
+  }
+
   async function handleText(event, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
@@ -76,6 +121,10 @@ function createBot({
     }
     if (!allowRequest(lineUserId)) {
       return { text: RATE_LIMITED_REPLY };
+    }
+    const summaryCommand = parseSummaryCommand(event.message.text);
+    if (summaryCommand) {
+      return handleSummary(summaryCommand, userId);
     }
     const history = await loadHistory(userId);
     const result = await parseMessage(event.message.text, history);
@@ -146,7 +195,11 @@ function createBot({
     }
     if (reply) {
       try {
-        await replyText(event.replyToken, reply.text, reply.quickReply);
+        if (reply.flex) {
+          await replyFlex(event.replyToken, reply.flex);
+        } else {
+          await replyText(event.replyToken, reply.text, reply.quickReply);
+        }
       } catch (err) {
         logger.error('Failed to send reply', { lineUserId, eventType: event.type }, err);
       }
@@ -172,4 +225,6 @@ module.exports = {
   RATE_LIMITED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
+  SUMMARY_MENU_REPLY,
+  NO_ENTRIES_COMMENT,
 };
