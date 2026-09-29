@@ -3,7 +3,9 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message) ตามแผน docs/superpowers/plans/2026-09-29-summary-flex.md บน branch feat/step4-summary
 
 ## Next
-- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 4 และเลือกวิธีลงมือ (Subagent-Driven หรือ Inline)
+- [ ] `next` ผู้ใช้รัน supabase/003_summary_function.sql ใน SQL Editor แล้วทำ manual check แผนขั้นที่ 4 Task 1 Step 3 ข้อ 1-3 (ข้อ 3 ต้องได้ anon=false, authenticated=false, service_role=true)
+- [ ] ผู้ใช้ restart `npm start` แล้วทำ manual check Task 9 Step 5 ข้อ 1-7 (ข้อ 7 ต้องได้ permission denied)
+- [ ] ตัดสินใจ merge feat/step4-summary เข้า main หลัง manual check ผ่าน
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -22,11 +24,14 @@ Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex M
 - [x] ผู้ใช้เลือกปล่อย Co-Authored-By "Sonnet 5.5" ของ subagent ไว้ตามเดิม
 - [x] merge feat/step3-supabase เข้า main ในเครื่อง (ยังไม่ push)
 - [x] เขียนแผนขั้นที่ 4 (2026-09-29): SQL function summarize_transactions (003), สัปดาห์ = จันทร์ถึงวันนี้, แสดง 5 หมวดรายจ่ายแรก + หมวดอื่น, "สรุป" เฉยๆ ขึ้นปุ่ม 3 ช่วง
+- [x] ขั้นที่ 4 Task 1-9 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29); Task 5 (guard stop_reason) และ Task 6 (แก้คอมเมนต์ตามที่ผู้ใช้เลือก + เพิ่ม 2 เทสต์) มี fix round 1 รอบ; final review dragon/viper/coral = With fixes -> fix wave เดียว; npm test 162/162 ใน 18 ไฟล์ (หลัง fix wave 774ae62 ด้วย)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
+- supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`

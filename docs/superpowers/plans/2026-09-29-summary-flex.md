@@ -1426,3 +1426,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - ยังไม่มีการเทียบกับงบประมาณรายหมวด (ขั้นที่ 7)
 - สรุปได้แค่ 3 ช่วงที่กำหนด ยังเลือกช่วงวันที่เองไม่ได้ (หน้าเว็บ LIFF ขั้นที่ 6)
 - คำอธิบายจาก Claude อาจไม่เหมือนกันทุกครั้ง และอาจว่างถ้า Claude ตอบไม่ทัน 15 วินาที
+
+---
+
+## สิ่งที่เปลี่ยนจากแผนระหว่างลงมือทำ
+
+- `src/summary/comment.js`: throw `Claude comment was truncated` เมื่อ `stop_reason` เป็น `max_tokens` และ `Claude refused to comment` เมื่อเป็น `refusal` (ก่อนอ่านข้อความ) และไม่ใส่หัวข้อ `รายจ่ายตามหมวด:` ใน prompt เมื่อไม่มีรายจ่าย; `comment.test.js` มี 7 tests (แผน 4)
+- `src/db/repository.js`: คอมเมนต์เหนือการแปลง number เปลี่ยนเป็น "แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน" (ผู้ใช้เลือกแก้ เพราะ PostgREST ส่งเป็นตัวเลข); เพิ่มเทสต์กรณีตัวเลขเป็น number และช่วงที่ไม่มีรายการ (รวม 4 tests ใน describe นี้ แผน 2)
+- `supabase/003_summary_function.sql` และ `supabase/schema.sql`: ปรับคอมเมนต์ (revoke เป็นด่านที่สองนอกจาก RLS; ลำดับรัน schema -> 002 -> 003)
+- `src/bot.test.js`: เทสต์กรณี Claude พังตรวจเพิ่มว่าการ์ดไม่มีข้อความ error
+- Manual check ข้อ 6: altText จริงไม่มีช่องว่างหน้าเครื่องหมาย `:` (`สรุปวันนี้ (29/09): รายรับ ... บาท รายจ่าย ... บาท`)
+- คำอธิบายจาก Claude อาจว่างได้อีกกรณี คือเมื่อ Claude ตอบถูกตัดหรือปฏิเสธ (log `Failed to comment summary`)
