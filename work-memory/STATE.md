@@ -1,9 +1,9 @@
 # STATE
 Updated: 2026-09-29
-Goal: ขั้นที่ 1-4 เสร็จและ merge เข้า main แล้ว ขั้นต่อไปคือขั้นที่ 5 (Rich Menu)
+Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpowers/plans/2026-09-29-rich-menu.md บน branch feat/step5-rich-menu
 
 ## Next
-- [ ] `next` เริ่ม SPEC ขั้นที่ 5 (Rich Menu: ปุ่ม สรุป / เปิดเว็บ / ช่วยเหลือ)
+- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step5-rich-menu เข้า main (manual check ผ่านครบแล้ว)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -25,11 +25,16 @@ Goal: ขั้นที่ 1-4 เสร็จและ merge เข้า main
 - [x] ขั้นที่ 4 Task 1-9 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29); Task 5 (guard stop_reason) และ Task 6 (แก้คอมเมนต์ตามที่ผู้ใช้เลือก + เพิ่ม 2 เทสต์) มี fix round 1 รอบ; final review dragon/viper/coral = With fixes -> fix wave เดียว; npm test 162/162 ใน 18 ไฟล์ (หลัง fix wave 774ae62 ด้วย)
 - [x] Manual check ขั้นที่ 4 ผ่านครบ (2026-09-29): รัน 003 สำเร็จ, ยอดจาก function ตรงกับ Table Editor, สิทธิ์ anon=false authenticated=false service_role=true; ใน LINE: สรุป ขึ้น 3 ปุ่ม, การ์ดวันนี้ยอดตรงมีคำอธิบาย, สัปดาห์นี้ 28/09-29/09, สรุป เดือนนี้ (เว้นวรรค) 01/09-29/09, ไม่มีแถวใหม่จากคำสั่งสรุป, altText ถูก, publishable key เรียก rpc ได้ 42501 permission denied (ครั้งแรกได้ [] น่าจะใช้ secret key ผิดตัว)
 - [x] merge feat/step4-summary เข้า main ในเครื่อง (merge commit 58bdb00, ยังไม่ push) npm test บน main 162/162
+- [x] เขียนแผนขั้นที่ 5 (2026-09-29): สร้างเมนูใน OA Manager, ปุ่มเปิดเว็บตอบกำลังพัฒนาจนกว่าจะมี LIFF, ใช้ข้อความช่วยเหลือที่ร่างไว้
+- [x] ขั้นที่ 5 Task 1-2 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29): src/menu/fixed-replies.js และบอทตอบ ช่วยเหลือ/เปิดเว็บ หลัง dedupe ก่อน rate limit ไม่เรียก Claude; final review (dragon) = With fixes; npm test 172/172 ใน 19 ไฟล์
+- [x] ข้อความช่วยเหลือเปลี่ยนเป็นแบบแบ่งหัวข้อพร้อม emoji ตามที่ผู้ใช้ขอ (ผู้ใช้อนุญาต emoji เฉพาะข้อความนี้; falcon Approved; npm test 172/172)
+- [x] Manual check ขั้นที่ 5 ผ่านครบ (2026-09-29): สร้าง Rich Menu ใน OA Manager ด้วยรูป 2500x843 ที่สร้างด้วย PowerShell (OA Manager ไม่มีปุ่มสร้างภาพ), เมนูขึ้น 3 ช่อง, สรุป ขึ้นปุ่ม 3 ช่วง, ช่วยเหลือ ได้ข้อความใหม่, เปิดเว็บ ได้ข้อความกำลังพัฒนา, ไม่มีแถวใหม่ใน transactions, พับ/กางเมนูได้
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
@@ -42,4 +47,4 @@ Goal: ขั้นที่ 1-4 เสร็จและ merge เข้า main
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
 - subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
 - Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
-- backlog ที่ยังเหลือ: loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
+- backlog ที่ยังเหลือ: ขั้นที่ 6 ต้องเปลี่ยนปุ่มเปิดเว็บใน OA Manager เป็นลิงก์ LIFF และเอา WEB_COMING_SOON_REPLY ออก, ปุ่มสรุปยังนับ rate limit แม้ reply เมนูไม่เรียก Claude, loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
