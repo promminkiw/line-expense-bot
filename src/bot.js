@@ -84,7 +84,7 @@ function createBot({ replyText, parseMessage, repository, users, allowRequest, l
   }
 
   async function handleEvent(event) {
-    // รับเฉพาะแชต 1:1 เพราะต้องรู้ว่าบันทึกให้ผู้ใช้คนไหน
+    // ข้อมูลการเงินเป็นเรื่องส่วนตัว ห้ามตอบลงกลุ่มหรือห้องแชต
     if (!isFromUser(event)) {
       return;
     }
@@ -97,7 +97,11 @@ function createBot({ replyText, parseMessage, repository, users, allowRequest, l
       reply = event.type === 'follow' ? null : { text: SYSTEM_ERROR_REPLY };
     }
     if (reply) {
-      await replyText(event.replyToken, reply.text, reply.quickReply);
+      try {
+        await replyText(event.replyToken, reply.text, reply.quickReply);
+      } catch (err) {
+        logger.error('Failed to send reply', { lineUserId, eventType: event.type }, err);
+      }
     }
   }
 

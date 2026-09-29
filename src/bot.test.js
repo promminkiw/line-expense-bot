@@ -200,8 +200,19 @@ describe('bot undo postback', () => {
 
     await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
 
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
     expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_DONE_REPLY, undefined);
+  });
+
+  it('resolves the owner from the event sender, not from postback data', async () => {
+    const ensureUser = vi.fn(async (id) => (id === 'U1' ? 'user-1' : 'user-other'));
+    const { deps, bot } = setup({ users: { ensureUser, loadCategoryIds: vi.fn() } });
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev1&user=U2'));
+
+    expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
+    expect(ensureUser).not.toHaveBeenCalledWith('U2');
   });
 
   it('tells the user when nothing was deleted', async () => {
@@ -237,6 +248,10 @@ describe('bot.handleEvents', () => {
     ]);
 
     expect(replyText).toHaveBeenCalledWith('r2', 'q', undefined);
-    expect(deps.logger.error).toHaveBeenCalledWith('Failed to handle event', expect.any(Error));
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to send reply',
+      { lineUserId: 'U1', eventType: 'message' },
+      expect.any(Error)
+    );
   });
 });
