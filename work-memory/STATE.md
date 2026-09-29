@@ -1,9 +1,9 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpowers/plans/2026-09-29-rich-menu.md บน branch feat/step5-rich-menu
+Goal: ขั้นที่ 1-5 เสร็จและ merge เข้า main แล้ว ขั้นต่อไปคือขั้นที่ 6 (หน้าเว็บ LIFF)
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step5-rich-menu เข้า main (manual check ผ่านครบแล้ว)
+- [ ] `next` เริ่ม SPEC ขั้นที่ 6 (LIFF เว็บ: ดู/แก้/ลบรายการ, กราฟตามหมวด, กรองตามเดือน, export CSV)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -29,6 +29,7 @@ Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpow
 - [x] ขั้นที่ 5 Task 1-2 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29): src/menu/fixed-replies.js และบอทตอบ ช่วยเหลือ/เปิดเว็บ หลัง dedupe ก่อน rate limit ไม่เรียก Claude; final review (dragon) = With fixes; npm test 172/172 ใน 19 ไฟล์
 - [x] ข้อความช่วยเหลือเปลี่ยนเป็นแบบแบ่งหัวข้อพร้อม emoji ตามที่ผู้ใช้ขอ (ผู้ใช้อนุญาต emoji เฉพาะข้อความนี้; falcon Approved; npm test 172/172)
 - [x] Manual check ขั้นที่ 5 ผ่านครบ (2026-09-29): สร้าง Rich Menu ใน OA Manager ด้วยรูป 2500x843 ที่สร้างด้วย PowerShell (OA Manager ไม่มีปุ่มสร้างภาพ), เมนูขึ้น 3 ช่อง, สรุป ขึ้นปุ่ม 3 ช่วง, ช่วยเหลือ ได้ข้อความใหม่, เปิดเว็บ ได้ข้อความกำลังพัฒนา, ไม่มีแถวใหม่ใน transactions, พับ/กางเมนูได้
+- [x] merge feat/step5-rich-menu เข้า main ในเครื่อง (merge commit 960be2e, ยังไม่ push) npm test บน main 172/172
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
