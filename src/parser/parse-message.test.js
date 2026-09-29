@@ -54,6 +54,16 @@ describe('parseMessage request', () => {
     });
   });
 
+  it('tells Claude never to ask about the date in a clarification question', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('ซื้อของ');
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('Never ask about the date');
+  });
+
   it('passes request timeout and retry limit so fallback reply fits the reply token window', async () => {
     const client = fakeClient(okPayload([item()]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });
