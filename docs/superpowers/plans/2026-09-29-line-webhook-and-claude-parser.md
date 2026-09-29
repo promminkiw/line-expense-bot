@@ -1573,3 +1573,15 @@ git commit -m "feat: reply with Claude-parsed entries instead of echo" -m "Co-Au
 - การถามกลับยังไม่จำบริบท: คำตอบของผู้ใช้หลังบอทถามจะถูกแยกเป็นข้อความใหม่ (ต้องมี state ใน DB — ขั้นที่ 3)
 - Quick Reply "ยกเลิก/แก้ไข" ต้องมีรายการที่บันทึกแล้วก่อน — ขั้นที่ 3
 - หมวดหมู่ยังเป็นชุด default ในโค้ด — ขั้นที่ 3 ย้ายไปตาราง `categories` ต่อผู้ใช้
+
+---
+
+## สิ่งที่เปลี่ยนจากแผนระหว่างลงมือทำ
+
+- `src/app.js`: ใช้ `express.raw` จำกัด 1mb + ตอบ 413, และ error handler ตอบข้อความทั่วไป (401 / 413 / 400 / 4xx อื่น "Bad request" / 500 "Internal error") ไม่ปล่อย stack trace
+- `src/bot.js`: ปรับถ้อยคำคอมเมนต์เรื่อง allSettled
+- `src/parser/parse-message.js`: เพิ่มการตรวจ refusal, shape ของ response และวันที่ตามปฏิทิน; ส่ง request options `{ timeout: 20000, maxRetries: 1 }` ให้ `messages.create`
+- `index.js`: จัดการ error ตอน listen (log แล้วตั้ง `process.exitCode = 1`)
+- `.gitignore`: ignore `.env*` แต่เก็บ `.env.example` ไว้ใน git
+- จำนวนเทสต์ต่างจากแผน ตอนนี้รวม 52 tests: app 11, bot 6, config 4, line-reply 2, categories 5, format-reply 4, parse-message 17, date 3
+- Task 4 Manual check ข้อ 4 (บอท echo สวัสดี) ถูกแทนที่ด้วย Task 8 ข้อ 5 ที่ HEAD
