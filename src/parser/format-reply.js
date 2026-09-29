@@ -26,4 +26,4 @@ function formatSavedReply(items) {
   return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
 }
 
-module.exports = { formatSavedReply };
+module.exports = { formatSavedReply, formatAmount };
