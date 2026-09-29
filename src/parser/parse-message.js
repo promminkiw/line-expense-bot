@@ -2,11 +2,14 @@ const { DEFAULT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString } = require('../utils/date');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
+// reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
+const REQUEST_TIMEOUT_MS = 20000;
+const MAX_RETRIES = 1;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
-// SDK บังคับ additionalProperties เป็น false ทุก object จึงประกาศไว้ตั้งแต่ต้น
+// messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เองทุก object
 const PARSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -104,13 +107,16 @@ function toParseResult(data, today) {
 function createMessageParser({ client, model, now = () => new Date() }) {
   return async function parseMessage(text) {
     const today = toBangkokDateString(now());
-    const response = await client.messages.create({
-      model,
-      max_tokens: 1024,
-      system: buildSystemPrompt(today),
-      messages: [{ role: 'user', content: text }],
-      output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
-    });
+    const response = await client.messages.create(
+      {
+        model,
+        max_tokens: 1024,
+        system: buildSystemPrompt(today),
+        messages: [{ role: 'user', content: text }],
+        output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
+      },
+      { timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES }
+    );
 
     if (response.stop_reason === 'max_tokens') {
       throw new ParseError('Claude response was truncated');

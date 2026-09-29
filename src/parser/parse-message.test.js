@@ -51,6 +51,15 @@ describe('parseMessage request', () => {
       format: { type: 'json_schema', schema: PARSE_SCHEMA },
     });
   });
+
+  it('passes request timeout and retry limit so fallback reply fits the reply token window', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กินข้าว 60');
+
+    expect(client.messages.create.mock.calls[0][1]).toEqual({ timeout: 20000, maxRetries: 1 });
+  });
 });
 
 describe('parseMessage result', () => {

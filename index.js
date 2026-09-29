@@ -21,6 +21,11 @@ const app = createApp({
   handleEvents: bot.handleEvents,
 });
 
-app.listen(config.port, () => {
+app.listen(config.port, (err) => {
+  if (err) {
+    console.error('Failed to start server', err);
+    process.exitCode = 1;
+    return;
+  }
   console.log(`Server listening on port ${config.port}`);
 });

@@ -102,6 +102,38 @@ describe('POST /webhook', () => {
     expect(handleEvents).not.toHaveBeenCalled();
   });
 
+  it('returns 415 without stack trace when content-encoding is unsupported', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'xyz' },
+      body: '{}',
+    });
+    const text = await res.text();
+
+    expect(res.status).toBe(415);
+    expect(text).not.toContain(' at ');
+    expect(text).not.toContain('node_modules');
+    expect(text).not.toContain('.js:');
+  });
+
+  it('returns 400 without stack trace when gzip body is corrupt', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+      body: 'not gzip data',
+    });
+    const text = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(text).not.toContain(' at ');
+    expect(text).not.toContain('node_modules');
+    expect(text).not.toContain('.js:');
+  });
+
   it('responds 200 without waiting for handleEvents to finish', async () => {
     const handleEvents = vi.fn(() => new Promise(() => {}));
     const baseUrl = await start(handleEvents);

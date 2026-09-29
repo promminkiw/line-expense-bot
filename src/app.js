@@ -10,7 +10,7 @@ function createApp({ channelSecret, handleEvents, logger = console }) {
 
   // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature
   app.post('/webhook', express.raw({ type: () => true, limit: '1mb' }), middleware({ channelSecret }), (req, res) => {
-    // ตอบ 200 ก่อนประมวลผล เพราะ LINE จะ timeout และส่งซ้ำถ้ารอนาน
+    // ตอบ 200 ก่อนประมวลผล เพราะ LINE มี timeout ของ webhook สั้น
     res.sendStatus(200);
     const events = req.body.events || [];
     Promise.resolve()
@@ -31,7 +31,17 @@ function createApp({ channelSecret, handleEvents, logger = console }) {
       res.status(400).send('Invalid body');
       return;
     }
-    next(err);
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    const status = err.status || err.statusCode;
+    if (Number.isInteger(status) && status >= 400 && status < 500) {
+      res.status(status).send('Bad request');
+      return;
+    }
+    logger.error('Unhandled request error', err);
+    res.status(500).send('Internal error');
   });
 
   return app;
