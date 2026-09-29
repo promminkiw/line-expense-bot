@@ -7,6 +7,9 @@ const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+// กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
+const MAX_AMOUNT = 10000000;
+
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เองทุก object
@@ -95,7 +98,7 @@ function toParseResult(data, today) {
   }
 
   const hasInvalidAmount = data.items.some(
-    (item) => !Number.isFinite(item.amount) || item.amount <= 0
+    (item) => !Number.isFinite(item.amount) || item.amount <= 0 || item.amount > MAX_AMOUNT
   );
   if (data.items.length === 0 || hasInvalidAmount) {
     return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
@@ -142,4 +145,10 @@ function createMessageParser({ client, model, now = () => new Date() }) {
   };
 }
 
-module.exports = { createMessageParser, ParseError, PARSE_SCHEMA, DEFAULT_CLARIFY_QUESTION };
+module.exports = {
+  createMessageParser,
+  ParseError,
+  PARSE_SCHEMA,
+  DEFAULT_CLARIFY_QUESTION,
+  MAX_AMOUNT,
+};

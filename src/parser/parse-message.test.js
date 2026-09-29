@@ -4,6 +4,7 @@ import {
   ParseError,
   PARSE_SCHEMA,
   DEFAULT_CLARIFY_QUESTION,
+  MAX_AMOUNT,
 } from './parse-message.js';
 
 const NOW = () => new Date('2026-09-29T05:00:00Z');
@@ -103,6 +104,32 @@ describe('parseMessage result', () => {
       status: 'clarify',
       question: DEFAULT_CLARIFY_QUESTION,
     });
+  });
+
+  it('asks to clarify when any amount is above the maximum', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: MAX_AMOUNT + 1 })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    expect(await parse('ซื้อบ้าน 10000001')).toEqual({
+      status: 'clarify',
+      question: DEFAULT_CLARIFY_QUESTION,
+    });
+  });
+
+  it('accepts amount equal to the maximum', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ amount: MAX_AMOUNT })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    const result = await parse('ซื้อบ้าน 10000000');
+
+    expect(result.status).toBe('ok');
+    expect(MAX_AMOUNT).toBe(10000000);
   });
 
   it('replaces category that does not match the item type with fallback', async () => {
