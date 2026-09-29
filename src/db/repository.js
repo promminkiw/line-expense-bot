@@ -110,7 +110,24 @@ function createRepository(supabase) {
     throwIfError('clearPendingClarification', error);
   }
 
+  async function summarizeTransactions(userId, from, to) {
+    const { data, error } = await supabase.rpc('summarize_transactions', {
+      p_user_id: userId,
+      p_from: from,
+      p_to: to,
+    });
+    throwIfError('summarizeTransactions', error);
+    // numeric และ bigint จาก Postgres อาจมาเป็น string จึงแปลงเป็น number ที่นี่ที่เดียว
+    return data.map((row) => ({
+      type: row.type,
+      category: row.category,
+      total: Number(row.total),
+      entryCount: Number(row.entry_count),
+    }));
+  }
+
   return {
+    summarizeTransactions,
     getPendingClarification,
     savePendingClarification,
     clearPendingClarification,
