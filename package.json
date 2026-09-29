@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "start": "node index.js",
+    "test": "vitest run",
+    "try-parse": "node scripts/try-parse.js"
   },
   "keywords": [],
   "author": "",
