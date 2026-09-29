@@ -1914,3 +1914,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - `npm run try-parse` ต้องมี key ของ Supabase ใน `.env` ด้วย เพราะใช้ `loadConfig` ตัวเดียวกัน
 - การกันบันทึกซ้ำจาก redelivery ทดสอบได้แค่ด้วย unit test เพราะสั่งให้ LINE ส่ง event ซ้ำเองไม่ได้
 - event จาก group/room ถูกข้ามโดยไม่ตอบอะไร
+
+---
+
+## สิ่งที่เปลี่ยนจากแผนระหว่างลงมือทำ
+
+- Task 1 Step 3: เพิ่มข้อ 4 (สคริปต์ตรวจ cascade ตอนลบ user) และข้อ 5 (ตรวจ grant ของ service_role พร้อมคำสั่งแก้) ข้อเดิม 4-6 เลื่อนเป็น 6-8
+- `src/db/repository.test.js`: เพิ่มเทสต์ DatabaseError ให้ครบทุก method (เดิมแผนมีแค่ 2 จาก 7)
+- `src/users.test.js`: เพิ่ม 4 เทสต์ว่า error ของ repository ถูกส่งต่อ ไม่ถูกกลืน
+- `src/parser/parse-message.js`: เพิ่ม `OVERALL_TIMEOUT_MS = 30000` ส่งเป็น `signal` ให้ Claude และปฏิเสธจำนวนเงินที่ปัดแล้วเป็น 0 สตางค์ (เช่น 0.004)
+- `src/db/fetch-with-timeout.js` (ไฟล์ใหม่) และ `index.js`: timeout 5000 ms ต่อ request ของ Supabase ผ่าน `global.fetch`
+- `src/bot.js`: ครอบ `replyText` ด้วย try/catch ที่ log `Failed to send reply` พร้อม `{ lineUserId, eventType }`; แก้เหตุผลในคอมเมนต์เรื่องรับเฉพาะแชต 1:1
+- `src/bot.test.js`: pin ว่า undo หาเจ้าของจากผู้ส่ง event ไม่ใช่จาก postback data
+- จำนวนเทสต์ต่างจากแผน: รวม 101 tests ใน 13 ไฟล์
+- ยังค้าง (รอผู้ใช้ตัดสินใจ): `db: { retry: false }` ใน `createClient` เพราะ postgrest-js retry TimeoutError เอง ทำให้ timeout 5 วินาทียังไม่จำกัดเวลารวมจริง

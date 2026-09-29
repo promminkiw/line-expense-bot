@@ -3,8 +3,8 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 3 และเลือกวิธีลงมือ (Subagent-Driven หรือ Inline)
-- [ ] ลงมือ Task 1-9 ของแผนขั้นที่ 3 (Task 1 Step 3 และ Task 9 Step 5 ผู้ใช้ทำเอง)
+- [ ] `next` ทำ Subagent-Driven ต่อ: ดู .superpowers/sdd/progress.md ส่วน 'PLAN step3' (หยุดกลางทางเพราะ usage limit) - อ่านผล T2/T6, รัน gate T3/T4/T5, แก้ข้อ viper ของ T1 (เพิ่มขั้นตรวจ cascade ตอนลบ user และตรวจ grant ของ service_role ใน manual Step 3)
+- [ ] Task 7 -> 8 -> 9 ของแผนขั้นที่ 3 (Task 1 Step 3 และ Task 9 Step 5 ผู้ใช้ทำเอง)
 
 ## Done
 - [x] Task 1-8 implement และ review แล้วบน branch feat/step1-2-echo-and-parser
@@ -19,6 +19,7 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] Task 8 ข้อ 7 ผ่าน (2026-09-29): ใช้ key ผิด บอทตอบ `ขออภัย ระบบอ่านข้อความไม่สำเร็จ ...` และ terminal มี log `Failed to parse message`; ผู้ใช้ใส่ key จริงคืนแล้ว -> Manual check ขั้นที่ 1-2 ผ่านครบ
 - [x] เปลี่ยน PARSE_FAILED_REPLY ใน src/bot.js เป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` ตามที่ผู้ใช้ขอ (test ก่อน, `npm test` ผ่าน 53 tests, commit แล้ว; ยังไม่ได้ลองในแอป LINE ต้อง restart `npm start` ก่อน)
 - [x] เขียนแผนขั้นที่ 3 (2026-09-29): ผู้ใช้เลือกสร้างครบ 5 ตาราง + line_events, บันทึก + ปุ่มยกเลิก (แก้ไขไปขั้น 6), กันบันทึกซ้ำ, เพดาน 10 ล้านบาท, ข้าม group + user id ใน log, rate limit 10 ข้อความ/60 วินาที, สร้างตารางผ่าน SQL Editor
+- [x] Subagent-Driven ขั้นที่ 3: Task 1, 3, 4, 5, 6 implement + commit แล้ว; review ผ่าน T3/T4/T5, T1 falcon ผ่านแต่ viper ขอเพิ่มขั้นตรวจ cascade
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
