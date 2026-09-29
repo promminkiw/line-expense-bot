@@ -5,12 +5,13 @@ const { createClient } = require('@supabase/supabase-js');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 const { createBot } = require('./src/bot');
-const { createReplyText } = require('./src/line-reply');
+const { createReplyText, createReplyFlex } = require('./src/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
 const { createRepository } = require('./src/db/repository');
 const { createUserService } = require('./src/users');
 const { createRateLimiter } = require('./src/rate-limit');
 const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
+const { createSummaryCommenter } = require('./src/summary/comment');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
@@ -22,6 +23,7 @@ const lineClient = new messagingApi.MessagingApiClient({
 });
 const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const parseMessage = createMessageParser({ client: anthropic, model: config.claudeModel });
+const commentSummary = createSummaryCommenter({ client: anthropic, model: config.claudeModel });
 
 // server ใช้ service role key ตรงๆ ไม่มีการ login จึงไม่ต้องเก็บหรือต่ออายุ session
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
@@ -40,7 +42,9 @@ const allowRequest = createRateLimiter(RATE_LIMIT);
 
 const bot = createBot({
   replyText: createReplyText(lineClient),
+  replyFlex: createReplyFlex(lineClient),
   parseMessage,
+  commentSummary,
   repository,
   users,
   allowRequest,
