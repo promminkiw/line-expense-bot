@@ -6,6 +6,10 @@ const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกิน�
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const UNDO_ACTION = 'undo';
+// เกิน 10 นาทีถือว่าเป็นเรื่องใหม่ กันไม่ให้ข้อความใหม่ถูกรวมกับคำถามเก่าโดยไม่ตั้งใจ
+const PENDING_TTL_MS = 10 * 60 * 1000;
+// จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
+const MAX_HISTORY_MESSAGES = 6;
 
 function isFromUser(event) {
   return Boolean(event.source && event.source.type === 'user' && event.source.userId);
@@ -29,7 +33,23 @@ function buildUndoQuickReply(webhookEventId) {
   ];
 }
 
-function createBot({ replyText, parseMessage, repository, users, allowRequest, logger = console }) {
+function createBot({
+  replyText,
+  parseMessage,
+  repository,
+  users,
+  allowRequest,
+  now = () => Date.now(),
+  logger = console,
+}) {
+  async function loadHistory(userId) {
+    const pending = await repository.getPendingClarification(userId);
+    if (!pending || now() - Date.parse(pending.updatedAt) > PENDING_TTL_MS) {
+      return [];
+    }
+    return pending.messages;
+  }
+
   async function handleText(event, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
@@ -40,9 +60,19 @@ function createBot({ replyText, parseMessage, repository, users, allowRequest, l
     if (!allowRequest(lineUserId)) {
       return { text: RATE_LIMITED_REPLY };
     }
-    const result = await parseMessage(event.message.text);
+    const history = await loadHistory(userId);
+    const result = await parseMessage(event.message.text, history);
     if (result.status === 'clarify') {
+      const messages = [
+        ...history,
+        { role: 'user', text: event.message.text },
+        { role: 'assistant', text: result.question },
+      ].slice(-MAX_HISTORY_MESSAGES);
+      await repository.savePendingClarification(userId, messages);
       return { text: result.question };
+    }
+    if (history.length > 0) {
+      await repository.clearPendingClarification(userId);
     }
     const categoryIds = await users.loadCategoryIds(userId);
     const rows = toTransactionRows({

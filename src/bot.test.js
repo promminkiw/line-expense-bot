@@ -7,7 +7,9 @@ import {
   UNDO_NOT_FOUND_REPLY,
 } from './bot.js';
 
-const FOOD_ITEM = { type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
+const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
+
+const FOOD_ITEM ={ type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
 
 const UNDO_QUICK_REPLY = [
   {
@@ -42,7 +44,11 @@ function setup(overrides = {}) {
       claimEvent: vi.fn().mockResolvedValue(true),
       insertTransactions: vi.fn().mockResolvedValue(),
       deleteTransactionsByEvent: vi.fn().mockResolvedValue(2),
+      getPendingClarification: vi.fn().mockResolvedValue(null),
+      savePendingClarification: vi.fn().mockResolvedValue(),
+      clearPendingClarification: vi.fn().mockResolvedValue(),
     },
+    now: () => NOW_MS,
     users: {
       ensureUser: vi.fn().mockResolvedValue('user-1'),
       loadCategoryIds: vi.fn().mockResolvedValue(
@@ -67,7 +73,7 @@ describe('bot text message', () => {
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60');
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
         user_id: 'user-1',
@@ -95,6 +101,76 @@ describe('bot text message', () => {
 
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r1', 'กี่บาท?', undefined);
+  });
+
+  it('remembers the message and the question while waiting for an answer', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'ซื้อรถกี่บาท' });
+    const { deps, bot } = setup({ parseMessage });
+
+    await bot.handleEvent(textEvent('ซื้อรถ'));
+
+    expect(deps.repository.savePendingClarification).toHaveBeenCalledWith('user-1', [
+      { role: 'user', text: 'ซื้อรถ' },
+      { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+    ]);
+  });
+
+  it('sends the pending conversation with the answer, then forgets it after saving', async () => {
+    const history = [
+      { role: 'user', text: 'ซื้อรถ' },
+      { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+    ];
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: history,
+      updatedAt: new Date(NOW_MS - 60 * 1000).toISOString(),
+    });
+
+    await bot.handleEvent(textEvent('500000'));
+
+    expect(deps.repository.getPendingClarification).toHaveBeenCalledWith('user-1');
+    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history);
+    expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('ignores a pending conversation older than 10 minutes', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: [
+        { role: 'user', text: 'ซื้อรถ' },
+        { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+      ],
+      updatedAt: new Date(NOW_MS - 10 * 60 * 1000 - 1).toISOString(),
+    });
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+  });
+
+  it('keeps only the last 6 turns while the user keeps being asked', async () => {
+    const history = [1, 2, 3].flatMap((n) => [
+      { role: 'user', text: `u${n}` },
+      { role: 'assistant', text: `a${n}` },
+    ]);
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'a4' });
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: history,
+      updatedAt: new Date(NOW_MS).toISOString(),
+    });
+
+    await bot.handleEvent(textEvent('u4'));
+
+    expect(deps.repository.savePendingClarification).toHaveBeenCalledWith('user-1', [
+      { role: 'user', text: 'u2' },
+      { role: 'assistant', text: 'a2' },
+      { role: 'user', text: 'u3' },
+      { role: 'assistant', text: 'a3' },
+      { role: 'user', text: 'u4' },
+      { role: 'assistant', text: 'a4' },
+    ]);
   });
 
   it('ignores a redelivered event that was already claimed', async () => {

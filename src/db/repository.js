@@ -84,7 +84,36 @@ function createRepository(supabase) {
     return count;
   }
 
+  async function getPendingClarification(userId) {
+    const { data, error } = await supabase
+      .from('pending_clarifications')
+      .select('messages, updated_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+    throwIfError('getPendingClarification', error);
+    return data ? { messages: data.messages, updatedAt: data.updated_at } : null;
+  }
+
+  async function savePendingClarification(userId, messages) {
+    // ส่ง updated_at เองทุกครั้ง เพราะค่า default ใช้ตอน insert เท่านั้น ไม่ใช้ตอน upsert ทับแถวเดิม
+    const { error } = await supabase
+      .from('pending_clarifications')
+      .upsert(
+        { user_id: userId, messages, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    throwIfError('savePendingClarification', error);
+  }
+
+  async function clearPendingClarification(userId) {
+    const { error } = await supabase.from('pending_clarifications').delete().eq('user_id', userId);
+    throwIfError('clearPendingClarification', error);
+  }
+
   return {
+    getPendingClarification,
+    savePendingClarification,
+    clearPendingClarification,
     findUserIdByLineId,
     createUser,
     seedDefaultCategories,

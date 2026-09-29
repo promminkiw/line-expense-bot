@@ -120,14 +120,18 @@ function toParseResult(data, today) {
 }
 
 function createMessageParser({ client, model, now = () => new Date() }) {
-  return async function parseMessage(text) {
+  return async function parseMessage(text, history = []) {
     const today = toBangkokDateString(now());
+    const messages = [
+      ...history.map((turn) => ({ role: turn.role, content: turn.text })),
+      { role: 'user', content: text },
+    ];
     const response = await client.messages.create(
       {
         model,
         max_tokens: 1024,
         system: buildSystemPrompt(today),
-        messages: [{ role: 'user', content: text }],
+        messages,
         output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
       },
       {

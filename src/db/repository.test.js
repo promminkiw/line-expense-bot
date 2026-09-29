@@ -222,3 +222,88 @@ describe('repository.deleteTransactionsByEvent', () => {
     await expect(promise).rejects.toThrow('Database deleteTransactionsByEvent failed: boom');
   });
 });
+
+describe('repository.getPendingClarification', () => {
+  it('returns messages and updatedAt for this user', async () => {
+    const messages = [{ role: 'user', text: 'ซื้อรถ' }];
+    const { supabase, calls } = fakeSupabase({
+      data: { messages, updated_at: '2026-09-29T05:00:00Z' },
+      error: null,
+    });
+
+    const pending = await createRepository(supabase).getPendingClarification('user-1');
+
+    expect(pending).toEqual({ messages, updatedAt: '2026-09-29T05:00:00Z' });
+    expect(calls).toEqual([
+      ['from', 'pending_clarifications'],
+      ['select', 'messages, updated_at'],
+      ['eq', 'user_id', 'user-1'],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('returns null when nothing is pending', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createRepository(supabase).getPendingClarification('user-1')).toBeNull();
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).getPendingClarification('user-1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database getPendingClarification failed: boom');
+  });
+});
+
+describe('repository.savePendingClarification', () => {
+  it('upserts messages by user_id with a fresh updated_at', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+    const messages = [{ role: 'user', text: 'ซื้อรถ' }];
+
+    await createRepository(supabase).savePendingClarification('user-1', messages);
+
+    expect(calls).toEqual([
+      ['from', 'pending_clarifications'],
+      [
+        'upsert',
+        { user_id: 'user-1', messages, updated_at: expect.any(String) },
+        { onConflict: 'user_id' },
+      ],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).savePendingClarification('user-1', []);
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database savePendingClarification failed: boom');
+  });
+});
+
+describe('repository.clearPendingClarification', () => {
+  it('deletes only this user row', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).clearPendingClarification('user-1');
+
+    expect(calls).toEqual([
+      ['from', 'pending_clarifications'],
+      ['delete'],
+      ['eq', 'user_id', 'user-1'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).clearPendingClarification('user-1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database clearPendingClarification failed: boom');
+  });
+});

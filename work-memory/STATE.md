@@ -3,7 +3,7 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` ผู้ใช้ restart `npm start` แล้วลองใน LINE: `ซื้อรถ 20000000` ต้องได้ข้อความเพดานใหม่, `ซื้อของ` ต้องไม่ถามวันที่
+- [ ] `next` ผู้ใช้รัน supabase/002_pending_clarifications.sql ใน SQL Editor, restart `npm start`, แล้วลองใน LINE: `ซื้อรถ` -> ตอบ `500000` ต้องบันทึก; `ซื้อรถ` -> `20000000` ต้องได้ข้อความเพดาน
 - [ ] ผู้ใช้ตัดสินใจเรื่อง Co-Authored-By: commit ของ subagent ลงท้าย "Claude Sonnet 5.5" แต่แผนเขียน "Opus 5.5" (แก้ต้องเขียนประวัติ git ใหม่)
 - [ ] ตัดสินใจ merge feat/step3-supabase เข้า main (หลัง manual check ผ่าน)
 
@@ -18,6 +18,7 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] Manual check ขั้นที่ 3 ผ่านครบ (2026-09-29): Task 1 Step 3 (RLS 6 ตาราง true, cascade script 0 ทุกคอลัมน์, grant service_role ครบ) และ Task 9 Step 5 ข้อ 1-9 (บันทึก+ปุ่มยกเลิก, users 1 แถว, categories 10, transactions 2 แถว line_event_id เดียวกัน, ยกเลิกลบจริง, clarify ไม่มีปุ่ม, 20000000 ไม่บันทึก, anon ได้ [], ลบ user แล้ว block/unblock สมัครใหม่พร้อม 10 หมวด)
 - [x] ข้อความตอบเมื่อจำนวนเงินเกินเพดานเป็น `จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)` (AMOUNT_TOO_LARGE_QUESTION ใน parse-message.js, test ก่อน, npm test 102/102)
 - [x] เพิ่มกฎใน system prompt ห้ามถามวันที่ตอน clarify (test ก่อน, npm test 103/103, try-parse กับ Claude จริงได้ "ซื้อของเท่าไหร่")
+- [x] บอทจำคำถามกลับ 10 นาที (ตาราง pending_clarifications ใน supabase/002_pending_clarifications.sql, เก็บสูงสุด 6 ข้อความ, ล้างเมื่อบันทึกสำเร็จ; test ก่อน, npm test 115/115; ลองกับ Claude จริง: ซื้อรถ -> 500000 ได้รายการ, -> 20000000 ได้ข้อความเพดาน)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง

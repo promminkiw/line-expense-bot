@@ -54,6 +54,22 @@ describe('parseMessage request', () => {
     });
   });
 
+  it('sends earlier clarification turns before the new message', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('500000', [
+      { role: 'user', text: 'ซื้อรถ' },
+      { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+    ]);
+
+    expect(client.messages.create.mock.calls[0][0].messages).toEqual([
+      { role: 'user', content: 'ซื้อรถ' },
+      { role: 'assistant', content: 'ซื้อรถกี่บาท' },
+      { role: 'user', content: '500000' },
+    ]);
+  });
+
   it('tells Claude never to ask about the date in a clarification question', async () => {
     const client = fakeClient(okPayload([item()]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });
