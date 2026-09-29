@@ -4,6 +4,7 @@ import {
   ParseError,
   PARSE_SCHEMA,
   DEFAULT_CLARIFY_QUESTION,
+  AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
 } from './parse-message.js';
 
@@ -110,17 +111,23 @@ describe('parseMessage result', () => {
     });
   });
 
-  it('asks to clarify when any amount is above the maximum', async () => {
+  it('tells the user the limit when any amount is above the maximum', async () => {
     const parse = createMessageParser({
-      client: fakeClient(okPayload([item({ amount: MAX_AMOUNT + 1 })])),
+      client: fakeClient(okPayload([item(), item({ amount: MAX_AMOUNT + 1 })])),
       model: 'm',
       now: NOW,
     });
 
-    expect(await parse('ซื้อบ้าน 10000001')).toEqual({
+    expect(await parse('กินข้าว 60 ซื้อบ้าน 10000001')).toEqual({
       status: 'clarify',
-      question: DEFAULT_CLARIFY_QUESTION,
+      question: AMOUNT_TOO_LARGE_QUESTION,
     });
+  });
+
+  it('uses the agreed wording for the amount limit message', () => {
+    expect(AMOUNT_TOO_LARGE_QUESTION).toBe(
+      'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)'
+    );
   });
 
   it('asks to clarify when an amount rounds to zero satang', async () => {

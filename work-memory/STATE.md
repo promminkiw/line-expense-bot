@@ -3,7 +3,7 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` เปลี่ยนข้อความตอบเมื่อจำนวนเงินเกินเพดาน (ผู้ใช้ขอ "จำนวนเงินเกินเพดานที่กำหนด") - รอผู้ใช้เลือกว่าจะใส่ตัวเลข 10,000,000 ด้วยไหม
+- [ ] `next` ผู้ใช้ restart `npm start` แล้วลองส่ง `ซื้อรถ 20000000` ใน LINE ต้องได้ข้อความเพดานใหม่
 - [ ] (เล็ก) บอทถามวันที่ตอน clarify ทั้งที่ไม่ระบุวันควรใช้วันนี้ - ปรับ prompt ถ้าผู้ใช้ต้องการ
 - [ ] ผู้ใช้ตัดสินใจเรื่อง Co-Authored-By: commit ของ subagent ลงท้าย "Claude Sonnet 5.5" แต่แผนเขียน "Opus 5.5" (แก้ต้องเขียนประวัติ git ใหม่)
 - [ ] ตัดสินใจ merge feat/step3-supabase เข้า main (หลัง manual check ผ่าน)
@@ -17,6 +17,7 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] เพิ่ม `db: { retry: false }` ใน createClient ของ index.js ตามที่ผู้ใช้สั่ง (ตรวจแล้วว่า builder ได้ retry=false, npm test 101/101)
 - [x] ต่อ Supabase จริงได้ (2026-09-29): ผู้ใช้ใส่ key ใน .env แล้ว, ทั้ง 6 ตารางตอบ status 200 rows=0 ด้วย service role (อ่านอย่างเดียว)
 - [x] Manual check ขั้นที่ 3 ผ่านครบ (2026-09-29): Task 1 Step 3 (RLS 6 ตาราง true, cascade script 0 ทุกคอลัมน์, grant service_role ครบ) และ Task 9 Step 5 ข้อ 1-9 (บันทึก+ปุ่มยกเลิก, users 1 แถว, categories 10, transactions 2 แถว line_event_id เดียวกัน, ยกเลิกลบจริง, clarify ไม่มีปุ่ม, 20000000 ไม่บันทึก, anon ได้ [], ลบ user แล้ว block/unblock สมัครใหม่พร้อม 10 หมวด)
+- [x] ข้อความตอบเมื่อจำนวนเงินเกินเพดานเป็น `จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)` (AMOUNT_TOO_LARGE_QUESTION ใน parse-message.js, test ก่อน, npm test 102/102)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง

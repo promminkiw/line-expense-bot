@@ -2,6 +2,7 @@ const { DEFAULT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString } = require('../utils/date');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
+const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)';
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
@@ -99,11 +100,14 @@ function toParseResult(data, today) {
     return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
   }
 
+  if (data.items.some((item) => Number.isFinite(item.amount) && item.amount > MAX_AMOUNT)) {
+    return { status: 'clarify', question: AMOUNT_TOO_LARGE_QUESTION };
+  }
+
   const hasInvalidAmount = data.items.some(
     (item) =>
       !Number.isFinite(item.amount) ||
       item.amount <= 0 ||
-      item.amount > MAX_AMOUNT ||
       // คอลัมน์ numeric(12,2) ปัดเป็นสตางค์ ค่าที่ปัดแล้วเป็น 0 จะชน check amount > 0
       Math.round(item.amount * 100) === 0
   );
@@ -161,5 +165,6 @@ module.exports = {
   ParseError,
   PARSE_SCHEMA,
   DEFAULT_CLARIFY_QUESTION,
+  AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
 };
