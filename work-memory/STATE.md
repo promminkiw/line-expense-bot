@@ -3,8 +3,7 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step3-supabase เข้า main และจะให้ reviewer ตรวจงานที่ทำหลัง final review (ข้อความเพดาน, prompt วันที่, จำบริบท) ไหม
-- [ ] ผู้ใช้ตัดสินใจเรื่อง Co-Authored-By: commit ของ subagent ลงท้าย "Claude Sonnet 5.5" แต่แผนเขียน "Opus 5.5" (แก้ต้องเขียนประวัติ git ใหม่)
+- [ ] `next` เริ่ม SPEC ขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -19,6 +18,9 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] เพิ่มกฎใน system prompt ห้ามถามวันที่ตอน clarify (test ก่อน, npm test 103/103, try-parse กับ Claude จริงได้ "ซื้อของเท่าไหร่")
 - [x] บอทจำคำถามกลับ 10 นาที (ตาราง pending_clarifications ใน supabase/002_pending_clarifications.sql, เก็บสูงสุด 6 ข้อความ, ล้างเมื่อบันทึกสำเร็จ; test ก่อน, npm test 115/115; ลองกับ Claude จริง: ซื้อรถ -> 500000 ได้รายการ, -> 20000000 ได้ข้อความเพดาน)
 - [x] ผู้ใช้รัน 002_pending_clarifications.sql และลองใน LINE แล้ว (2026-09-29): ซื้อรถ -> 500000 บันทึกได้; ตรวจแล้ว pending_clarifications ถูกล้างเป็น 0 แถว, transactions 1 แถว
+- [x] review งานหลัง final review (falcon+viper) -> แก้: ล้างบริบทหลังบันทึกสำเร็จ, บันทึก/ล้างบริบทพังไม่กระทบคำตอบ, กฎ prompt ให้ดึงรายการจากข้อความล่าสุด; re-review ผ่าน; Claude จริง 4 กรณีถูก; npm test 119/119
+- [x] ผู้ใช้เลือกปล่อย Co-Authored-By "Sonnet 5.5" ของ subagent ไว้ตามเดิม
+- [x] merge feat/step3-supabase เข้า main ในเครื่อง (ยังไม่ push)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
@@ -34,4 +36,4 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
 - subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
 - Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
-- backlog ที่ยังเหลือ: dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
+- backlog ที่ยังเหลือ: loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
