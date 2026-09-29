@@ -3,7 +3,8 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpowers/plans/2026-09-29-rich-menu.md บน branch feat/step5-rich-menu
 
 ## Next
-- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 5 และเลือกวิธีลงมือ
+- [ ] `next` ผู้ใช้ทำ Task 3 ของแผนขั้นที่ 5: สร้าง Rich Menu ใน LINE OA Manager (3 ปุ่มส่งข้อความ สรุป / เปิดเว็บ / ช่วยเหลือ) แล้วทำ manual check 6 ข้อ
+- [ ] ตัดสินใจ merge feat/step5-rich-menu เข้า main หลัง manual check ผ่าน
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -26,11 +27,13 @@ Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpow
 - [x] Manual check ขั้นที่ 4 ผ่านครบ (2026-09-29): รัน 003 สำเร็จ, ยอดจาก function ตรงกับ Table Editor, สิทธิ์ anon=false authenticated=false service_role=true; ใน LINE: สรุป ขึ้น 3 ปุ่ม, การ์ดวันนี้ยอดตรงมีคำอธิบาย, สัปดาห์นี้ 28/09-29/09, สรุป เดือนนี้ (เว้นวรรค) 01/09-29/09, ไม่มีแถวใหม่จากคำสั่งสรุป, altText ถูก, publishable key เรียก rpc ได้ 42501 permission denied (ครั้งแรกได้ [] น่าจะใช้ secret key ผิดตัว)
 - [x] merge feat/step4-summary เข้า main ในเครื่อง (merge commit 58bdb00, ยังไม่ push) npm test บน main 162/162
 - [x] เขียนแผนขั้นที่ 5 (2026-09-29): สร้างเมนูใน OA Manager, ปุ่มเปิดเว็บตอบกำลังพัฒนาจนกว่าจะมี LIFF, ใช้ข้อความช่วยเหลือที่ร่างไว้
+- [x] ขั้นที่ 5 Task 1-2 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29): src/menu/fixed-replies.js และบอทตอบ ช่วยเหลือ/เปิดเว็บ หลัง dedupe ก่อน rate limit ไม่เรียก Claude; final review (dragon) = With fixes; npm test 172/172 ใน 19 ไฟล์
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
@@ -43,4 +46,4 @@ Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpow
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
 - subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
 - Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
-- backlog ที่ยังเหลือ: loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
+- backlog ที่ยังเหลือ: ข้อความช่วยเหลือยังไม่บอกว่าปุ่มยกเลิกหายเมื่อส่งข้อความถัดไป (ทบทวนในขั้นที่ 6), ปุ่มสรุปยังนับ rate limit แม้ reply เมนูไม่เรียก Claude, loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
