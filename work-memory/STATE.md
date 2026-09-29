@@ -3,8 +3,7 @@ Updated: 2026-09-29
 Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpowers/plans/2026-09-29-rich-menu.md บน branch feat/step5-rich-menu
 
 ## Next
-- [ ] `next` ผู้ใช้ทำ Task 3 ของแผนขั้นที่ 5: สร้าง Rich Menu ใน LINE OA Manager (3 ปุ่มส่งข้อความ สรุป / เปิดเว็บ / ช่วยเหลือ) แล้วทำ manual check 6 ข้อ
-- [ ] ตัดสินใจ merge feat/step5-rich-menu เข้า main หลัง manual check ผ่าน
+- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step5-rich-menu เข้า main (manual check ผ่านครบแล้ว)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -28,6 +27,8 @@ Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpow
 - [x] merge feat/step4-summary เข้า main ในเครื่อง (merge commit 58bdb00, ยังไม่ push) npm test บน main 162/162
 - [x] เขียนแผนขั้นที่ 5 (2026-09-29): สร้างเมนูใน OA Manager, ปุ่มเปิดเว็บตอบกำลังพัฒนาจนกว่าจะมี LIFF, ใช้ข้อความช่วยเหลือที่ร่างไว้
 - [x] ขั้นที่ 5 Task 1-2 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29): src/menu/fixed-replies.js และบอทตอบ ช่วยเหลือ/เปิดเว็บ หลัง dedupe ก่อน rate limit ไม่เรียก Claude; final review (dragon) = With fixes; npm test 172/172 ใน 19 ไฟล์
+- [x] ข้อความช่วยเหลือเปลี่ยนเป็นแบบแบ่งหัวข้อพร้อม emoji ตามที่ผู้ใช้ขอ (ผู้ใช้อนุญาต emoji เฉพาะข้อความนี้; falcon Approved; npm test 172/172)
+- [x] Manual check ขั้นที่ 5 ผ่านครบ (2026-09-29): สร้าง Rich Menu ใน OA Manager ด้วยรูป 2500x843 ที่สร้างด้วย PowerShell (OA Manager ไม่มีปุ่มสร้างภาพ), เมนูขึ้น 3 ช่อง, สรุป ขึ้นปุ่ม 3 ช่วง, ช่วยเหลือ ได้ข้อความใหม่, เปิดเว็บ ได้ข้อความกำลังพัฒนา, ไม่มีแถวใหม่ใน transactions, พับ/กางเมนูได้
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
@@ -46,4 +47,4 @@ Goal: ทำขั้นที่ 5 (Rich Menu) ตามแผน docs/superpow
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
 - subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
 - Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
-- backlog ที่ยังเหลือ: ข้อความช่วยเหลือยังไม่บอกว่าปุ่มยกเลิกหายเมื่อส่งข้อความถัดไป (ทบทวนในขั้นที่ 6), ปุ่มสรุปยังนับ rate limit แม้ reply เมนูไม่เรียก Claude, loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
+- backlog ที่ยังเหลือ: ขั้นที่ 6 ต้องเปลี่ยนปุ่มเปิดเว็บใน OA Manager เป็นลิงก์ LIFF และเอา WEB_COMING_SOON_REPLY ออก, ปุ่มสรุปยังนับ rate limit แม้ reply เมนูไม่เรียก Claude, loadHistory อ่านบริบทพังแล้วตอบ system error (ควรถือเป็นไม่มีบริบท), dotenv quiet, trim input ของ try-parse, deadline รวมทั้ง handler, timeout ของ getProfile, minor อื่นใน .superpowers/sdd/step3-deferred-minors.md
