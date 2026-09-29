@@ -119,9 +119,60 @@ describe('parseMessage result', () => {
 
     expect(result.items[0].date).toBe('2026-09-29');
   });
+
+  it('replaces impossible calendar date with today in Bangkok', async () => {
+    for (const badDate of ['2026-02-29', '2026-13-01']) {
+      const parse = createMessageParser({
+        client: fakeClient(okPayload([item({ date: badDate })])),
+        model: 'm',
+        now: NOW,
+      });
+
+      const result = await parse('กินข้าว 60');
+
+      expect(result.items[0].date).toBe('2026-09-29');
+    }
+  });
 });
 
 describe('parseMessage errors', () => {
+  it('throws ParseError when stop_reason is refusal', async () => {
+    const parse = createMessageParser({
+      client: fakeClient({ needs_clarification: false }, { stopReason: 'refusal' }),
+      model: 'm',
+      now: NOW,
+    });
+
+    await expect(parse('x')).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it('throws ParseError when JSON does not match schema shape', async () => {
+    for (const payload of [null, [], { needs_clarification: false }, { needs_clarification: false, items: [null] }]) {
+      const parse = createMessageParser({ client: fakeClient(payload), model: 'm', now: NOW });
+
+      await expect(parse('x')).rejects.toBeInstanceOf(ParseError);
+    }
+  });
+
+  it('throws ParseError when item type is unknown', async () => {
+    const parse = createMessageParser({
+      client: fakeClient(okPayload([item({ type: 'transfer' })])),
+      model: 'm',
+      now: NOW,
+    });
+
+    await expect(parse('x')).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it('throws ParseError when response has no text block', async () => {
+    const client = {
+      messages: { create: vi.fn().mockResolvedValue({ stop_reason: 'end_turn', content: [] }) },
+    };
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await expect(parse('x')).rejects.toBeInstanceOf(ParseError);
+  });
+
   it('throws ParseError when Claude text is not JSON', async () => {
     const parse = createMessageParser({
       client: fakeClient(null, { rawText: 'not json' }),

@@ -6,7 +6,7 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
-// structured outputs บังคับให้ทุก field อยู่ใน required และปิด additionalProperties
+// SDK บังคับ additionalProperties เป็น false ทุก object จึงประกาศไว้ตั้งแต่ต้น
 const PARSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -57,18 +57,37 @@ function buildSystemPrompt(today) {
   ].join('\n');
 }
 
+function isValidCalendarDate(value) {
+  if (!ISO_DATE_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function hasValidShape(data) {
+  return (
+    isPlainObject(data) &&
+    typeof data.needs_clarification === 'boolean' &&
+    Array.isArray(data.items) &&
+    data.items.every((entry) => isPlainObject(entry) && ['expense', 'income'].includes(entry.type))
+  );
+}
+
 function normalizeItem(item, today) {
   return {
     type: item.type,
     category: normalizeCategory(item.type, item.category),
     amount: item.amount,
-    date: ISO_DATE_PATTERN.test(item.date) ? item.date : today,
+    date: isValidCalendarDate(item.date) ? item.date : today,
     note: item.note,
   };
 }
 
 function toParseResult(data, today) {
-  if (data.needs_clarification) {
+  if (data.needs_clarification === true) {
     return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
   }
 
@@ -96,6 +115,9 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     if (response.stop_reason === 'max_tokens') {
       throw new ParseError('Claude response was truncated');
     }
+    if (response.stop_reason === 'refusal') {
+      throw new ParseError('Claude refused to answer');
+    }
     const textBlock = response.content.find((block) => block.type === 'text');
     if (!textBlock) {
       throw new ParseError('Claude response has no text block');
@@ -106,6 +128,9 @@ function createMessageParser({ client, model, now = () => new Date() }) {
       data = JSON.parse(textBlock.text);
     } catch {
       throw new ParseError('Claude response is not valid JSON');
+    }
+    if (!hasValidShape(data)) {
+      throw new ParseError('Claude response does not match the expected shape');
     }
     return toParseResult(data, today);
   };
