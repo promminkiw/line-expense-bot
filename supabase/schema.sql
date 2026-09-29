@@ -1,4 +1,4 @@
--- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางทั้งหมดของขั้นที่ 3
+-- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางหลักของขั้นที่ 3 แล้วรัน 002_pending_clarifications.sql ต่อ
 
 create table public.users (
   id uuid primary key default gen_random_uuid(),

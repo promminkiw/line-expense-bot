@@ -9,7 +9,7 @@ import {
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
-const FOOD_ITEM ={ type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
+const FOOD_ITEM = { type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
 
 const UNDO_QUICK_REPLY = [
   {
@@ -132,6 +132,60 @@ describe('bot text message', () => {
     expect(deps.parseMessage).toHaveBeenCalledWith('500000', history);
     expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('keeps the pending conversation when saving the entries fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: [
+        { role: 'user', text: 'ซื้อรถ' },
+        { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+      ],
+      updatedAt: new Date(NOW_MS).toISOString(),
+    });
+    deps.repository.insertTransactions.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('500000'));
+
+    expect(deps.repository.clearPendingClarification).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('still replies saved and logs when forgetting the pending conversation fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: [
+        { role: 'user', text: 'ซื้อรถ' },
+        { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+      ],
+      updatedAt: new Date(NOW_MS).toISOString(),
+    });
+    deps.repository.clearPendingClarification.mockRejectedValue(new Error('timeout'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r1', expect.stringContaining('บันทึกแล้ว'), UNDO_QUICK_REPLY);
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to clear pending clarification',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
+  });
+
+  it('still asks the question and logs when remembering the conversation fails', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'ซื้อรถกี่บาท' });
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.savePendingClarification.mockRejectedValue(new Error('timeout'));
+
+    await bot.handleEvent(textEvent('ซื้อรถ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ซื้อรถกี่บาท', undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to save pending clarification',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
   });
 
   it('ignores a pending conversation older than 10 minutes', async () => {

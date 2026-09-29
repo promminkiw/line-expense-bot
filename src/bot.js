@@ -50,6 +50,23 @@ function createBot({
     return pending.messages;
   }
 
+  // การจำบริบทเป็นตัวช่วย ถ้า DB พังตรงนี้ยังตอบผู้ใช้ตามปกติได้
+  async function rememberConversation(userId, messages) {
+    try {
+      await repository.savePendingClarification(userId, messages);
+    } catch (err) {
+      logger.error('Failed to save pending clarification', { userId }, err);
+    }
+  }
+
+  async function forgetConversation(userId) {
+    try {
+      await repository.clearPendingClarification(userId);
+    } catch (err) {
+      logger.error('Failed to clear pending clarification', { userId }, err);
+    }
+  }
+
   async function handleText(event, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
@@ -68,11 +85,8 @@ function createBot({
         { role: 'user', text: event.message.text },
         { role: 'assistant', text: result.question },
       ].slice(-MAX_HISTORY_MESSAGES);
-      await repository.savePendingClarification(userId, messages);
+      await rememberConversation(userId, messages);
       return { text: result.question };
-    }
-    if (history.length > 0) {
-      await repository.clearPendingClarification(userId);
     }
     const categoryIds = await users.loadCategoryIds(userId);
     const rows = toTransactionRows({
@@ -82,6 +96,10 @@ function createBot({
       webhookEventId: event.webhookEventId,
     });
     await repository.insertTransactions(rows);
+    // ล้างหลังบันทึกสำเร็จ ถ้าบันทึกพังผู้ใช้ส่งคำตอบซ้ำได้โดยบริบทยังอยู่
+    if (history.length > 0) {
+      await forgetConversation(userId);
+    }
     return {
       text: formatSavedReply(result.items),
       quickReply: buildUndoQuickReply(event.webhookEventId),

@@ -63,6 +63,7 @@ function buildSystemPrompt(today) {
     '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
     '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
     '- Never ask about the date in question. A missing date always means today.',
+    '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
     '- Otherwise set needs_clarification to false and question to "".',
   ].join('\n');
 }
