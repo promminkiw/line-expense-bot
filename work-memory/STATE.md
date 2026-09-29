@@ -1,9 +1,10 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และขั้นที่ 2 (Claude แยกข้อความเป็น JSON) ให้ `npm test` ผ่านครบ และ Manual check ใน LINE จริงผ่านทุกข้อ
+Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
 
 ## Next
-- [ ] `next` เริ่ม SPEC ขั้นที่ 3 (Supabase + RLS บันทึกข้อมูลจริง)
+- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 3 และเลือกวิธีลงมือ (Subagent-Driven หรือ Inline)
+- [ ] ลงมือ Task 1-9 ของแผนขั้นที่ 3 (Task 1 Step 3 และ Task 9 Step 5 ผู้ใช้ทำเอง)
 
 ## Done
 - [x] Task 1-8 implement และ review แล้วบน branch feat/step1-2-echo-and-parser
@@ -17,6 +18,7 @@ Goal: ทำขั้นที่ 1 (echo bot ผ่าน ngrok) และข�
 - [x] merge feat/step1-2-echo-and-parser เข้า main ในเครื่อง (2026-09-29, merge commit 2b5f77d, ยังไม่ push) `npm test` บน main ผ่าน 52 tests
 - [x] Task 8 ข้อ 7 ผ่าน (2026-09-29): ใช้ key ผิด บอทตอบ `ขออภัย ระบบอ่านข้อความไม่สำเร็จ ...` และ terminal มี log `Failed to parse message`; ผู้ใช้ใส่ key จริงคืนแล้ว -> Manual check ขั้นที่ 1-2 ผ่านครบ
 - [x] เปลี่ยน PARSE_FAILED_REPLY ใน src/bot.js เป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` ตามที่ผู้ใช้ขอ (test ก่อน, `npm test` ผ่าน 53 tests, commit แล้ว; ยังไม่ได้ลองในแอป LINE ต้อง restart `npm start` ก่อน)
+- [x] เขียนแผนขั้นที่ 3 (2026-09-29): ผู้ใช้เลือกสร้างครบ 5 ตาราง + line_events, บันทึก + ปุ่มยกเลิก (แก้ไขไปขั้น 6), กันบันทึกซ้ำ, เพดาน 10 ล้านบาท, ข้าม group + user id ใน log, rate limit 10 ข้อความ/60 วินาที, สร้างตารางผ่าน SQL Editor
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
