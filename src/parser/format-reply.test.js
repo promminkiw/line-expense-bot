@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSavedReply } from './format-reply.js';
+import { formatSavedReply, formatAmount } from './format-reply.js';
 
 describe('formatSavedReply', () => {
   it('starts with saved header and lists every item', () => {
@@ -23,5 +23,12 @@ describe('formatSavedReply', () => {
     ]);
 
     expect(reply).toContain('1,250.5 บาท');
+  });
+});
+
+describe('formatAmount', () => {
+  it('adds thousands separators and keeps up to two decimals', () => {
+    expect(formatAmount(25000)).toBe('25,000');
+    expect(formatAmount(1250.5)).toBe('1,250.5');
   });
 });

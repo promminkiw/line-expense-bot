@@ -1,9 +1,9 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
+Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message) ตามแผน docs/superpowers/plans/2026-09-29-summary-flex.md บน branch feat/step4-summary
 
 ## Next
-- [ ] `next` เริ่ม SPEC ขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message)
+- [ ] `next` ผู้ใช้ตัดสินใจ merge feat/step4-summary เข้า main (manual check ผ่านครบแล้ว)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -21,11 +21,16 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] review งานหลัง final review (falcon+viper) -> แก้: ล้างบริบทหลังบันทึกสำเร็จ, บันทึก/ล้างบริบทพังไม่กระทบคำตอบ, กฎ prompt ให้ดึงรายการจากข้อความล่าสุด; re-review ผ่าน; Claude จริง 4 กรณีถูก; npm test 119/119
 - [x] ผู้ใช้เลือกปล่อย Co-Authored-By "Sonnet 5.5" ของ subagent ไว้ตามเดิม
 - [x] merge feat/step3-supabase เข้า main ในเครื่อง (ยังไม่ push)
+- [x] เขียนแผนขั้นที่ 4 (2026-09-29): SQL function summarize_transactions (003), สัปดาห์ = จันทร์ถึงวันนี้, แสดง 5 หมวดรายจ่ายแรก + หมวดอื่น, "สรุป" เฉยๆ ขึ้นปุ่ม 3 ช่วง
+- [x] ขั้นที่ 4 Task 1-9 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-29); Task 5 (guard stop_reason) และ Task 6 (แก้คอมเมนต์ตามที่ผู้ใช้เลือก + เพิ่ม 2 เทสต์) มี fix round 1 รอบ; final review dragon/viper/coral = With fixes -> fix wave เดียว; npm test 162/162 ใน 18 ไฟล์ (หลัง fix wave 774ae62 ด้วย)
+- [x] Manual check ขั้นที่ 4 ผ่านครบ (2026-09-29): รัน 003 สำเร็จ, ยอดจาก function ตรงกับ Table Editor, สิทธิ์ anon=false authenticated=false service_role=true; ใน LINE: สรุป ขึ้น 3 ปุ่ม, การ์ดวันนี้ยอดตรงมีคำอธิบาย, สัปดาห์นี้ 28/09-29/09, สรุป เดือนนี้ (เว้นวรรค) 01/09-29/09, ไม่มีแถวใหม่จากคำสั่งสรุป, altText ถูก, publishable key เรียก rpc ได้ 42501 permission denied (ครั้งแรกได้ [] น่าจะใช้ secret key ผิดตัว)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
+- supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`

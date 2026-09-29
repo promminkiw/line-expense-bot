@@ -5,6 +5,8 @@ import {
   RATE_LIMITED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
+  SUMMARY_MENU_REPLY,
+  NO_ENTRIES_COMMENT,
 } from './bot.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
@@ -16,6 +18,12 @@ const UNDO_QUICK_REPLY = [
     type: 'action',
     action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev1', displayText: 'ยกเลิก' },
   },
+];
+
+const SUMMARY_QUICK_REPLY = [
+  { type: 'action', action: { type: 'message', label: 'วันนี้', text: 'สรุปวันนี้' } },
+  { type: 'action', action: { type: 'message', label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' } },
+  { type: 'action', action: { type: 'message', label: 'เดือนนี้', text: 'สรุปเดือนนี้' } },
 ];
 
 function textEvent(text, { replyToken = 'r1', eventId = 'ev1', source = { type: 'user', userId: 'U1' } } = {}) {
@@ -39,7 +47,9 @@ function followEvent() {
 function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
+    replyFlex: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
+    commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
     repository: {
       claimEvent: vi.fn().mockResolvedValue(true),
       insertTransactions: vi.fn().mockResolvedValue(),
@@ -47,6 +57,9 @@ function setup(overrides = {}) {
       getPendingClarification: vi.fn().mockResolvedValue(null),
       savePendingClarification: vi.fn().mockResolvedValue(),
       clearPendingClarification: vi.fn().mockResolvedValue(),
+      summarizeTransactions: vi
+        .fn()
+        .mockResolvedValue([{ type: 'expense', category: 'อาหาร', total: 105, entryCount: 2 }]),
     },
     now: () => NOW_MS,
     users: {
@@ -296,6 +309,107 @@ describe('bot text message', () => {
 
   it('uses the agreed wording for the system error message', () => {
     expect(SYSTEM_ERROR_REPLY).toBe('ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง');
+  });
+});
+
+describe('bot summary command', () => {
+  it('shows the period buttons for a plain summary request without calling Claude', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SUMMARY_MENU_REPLY, SUMMARY_QUICK_REPLY);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.summarizeTransactions).not.toHaveBeenCalled();
+  });
+
+  it('replies a summary card for today using SQL totals and the Claude comment', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-29', '2026-09-29');
+    expect(deps.commentSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'วันนี้ (29/09)', expenseTotal: 105, entryCount: 2 })
+    );
+    const [replyToken, flex] = deps.replyFlex.mock.calls[0];
+    expect(replyToken).toBe('r1');
+    expect(flex.type).toBe('flex');
+    expect(flex.altText).toBe('สรุปวันนี้ (29/09): รายรับ 0 บาท รายจ่าย 105 บาท');
+    expect(JSON.stringify(flex)).toContain('วันนี้ใช้กับอาหารเป็นหลัก');
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('uses Monday to today for this week even with spaces in the command', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป สัปดาห์นี้'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-28', '2026-09-29');
+  });
+
+  it('uses the first of the month to today for this month', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุปเดือนนี้'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-01', '2026-09-29');
+  });
+
+  it('skips Claude and says there are no entries when the period is empty', async () => {
+    const { deps, bot } = setup();
+    deps.repository.summarizeTransactions.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.commentSummary).not.toHaveBeenCalled();
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).toContain(NO_ENTRIES_COMMENT);
+  });
+
+  it('still replies the card without a comment when Claude fails', async () => {
+    const { deps, bot } = setup({ commentSummary: vi.fn().mockRejectedValue(new Error('overloaded')) });
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.replyFlex).toHaveBeenCalled();
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(JSON.stringify(flex)).not.toContain('overloaded');
+    expect(flex.altText).toBe('สรุปวันนี้ (29/09): รายรับ 0 บาท รายจ่าย 105 บาท');
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to comment summary',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
+  });
+
+  it('replies system error when the summary query fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.summarizeTransactions.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+
+  it('does not read or change the pending clarification', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.repository.getPendingClarification).not.toHaveBeenCalled();
+    expect(deps.repository.savePendingClarification).not.toHaveBeenCalled();
+    expect(deps.repository.clearPendingClarification).not.toHaveBeenCalled();
+  });
+
+  it('still applies the rate limit before summarizing', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.repository.summarizeTransactions).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r1', RATE_LIMITED_REPLY, undefined);
   });
 });
 

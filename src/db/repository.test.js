@@ -23,6 +23,10 @@ function fakeSupabase(result) {
       calls.push(['from', table]);
       return builder;
     }),
+    rpc: vi.fn((name, params) => {
+      calls.push(['rpc', name, params]);
+      return builder;
+    }),
   };
   return { supabase, calls };
 }
@@ -305,5 +309,49 @@ describe('repository.clearPendingClarification', () => {
 
     await expect(promise).rejects.toBeInstanceOf(DatabaseError);
     await expect(promise).rejects.toThrow('Database clearPendingClarification failed: boom');
+  });
+});
+
+describe('repository.summarizeTransactions', () => {
+  it('calls the SQL function for this user and date range and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [{ type: 'expense', category: 'อาหาร', total: '105.50', entry_count: '2' }],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    expect(rows).toEqual([{ type: 'expense', category: 'อาหาร', total: 105.5, entryCount: 2 }]);
+    expect(calls).toEqual([
+      ['rpc', 'summarize_transactions', { p_user_id: 'user-1', p_from: '2026-09-01', p_to: '2026-09-29' }],
+    ]);
+  });
+
+  it('returns numbers unchanged when PostgREST sends numbers', async () => {
+    const { supabase } = fakeSupabase({
+      data: [{ type: 'income', category: 'เงินเดือน', total: 25000, entry_count: 1 }],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    expect(rows).toEqual([{ type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 }]);
+  });
+
+  it('returns an empty array when the range has no entries', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    const rows = await createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    expect(rows).toEqual([]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).summarizeTransactions('user-1', '2026-09-01', '2026-09-29');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database summarizeTransactions failed: boom');
   });
 });

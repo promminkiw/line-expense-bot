@@ -8,4 +8,10 @@ function createReplyText(client) {
   };
 }
 
-module.exports = { createReplyText };
+function createReplyFlex(client) {
+  return async function replyFlex(replyToken, flexMessage) {
+    await client.replyMessage({ replyToken, messages: [flexMessage] });
+  };
+}
+
+module.exports = { createReplyText, createReplyFlex };
