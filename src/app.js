@@ -8,8 +8,8 @@ function createApp({ channelSecret, handleEvents, logger = console }) {
     res.json({ status: 'ok' });
   });
 
-  // ห้ามใส่ express.json() ก่อน middleware นี้ เพราะต้องใช้ raw body ตรวจ signature
-  app.post('/webhook', middleware({ channelSecret }), (req, res) => {
+  // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature
+  app.post('/webhook', express.raw({ type: () => true, limit: '1mb' }), middleware({ channelSecret }), (req, res) => {
     // ตอบ 200 ก่อนประมวลผล เพราะ LINE จะ timeout และส่งซ้ำถ้ารอนาน
     res.sendStatus(200);
     const events = req.body.events || [];
@@ -21,6 +21,10 @@ function createApp({ channelSecret, handleEvents, logger = console }) {
   app.use((err, req, res, next) => {
     if (err instanceof SignatureValidationFailed) {
       res.status(401).send('Invalid signature');
+      return;
+    }
+    if (err.type === 'entity.too.large') {
+      res.status(413).send('Payload too large');
       return;
     }
     if (err instanceof JSONParseError) {

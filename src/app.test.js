@@ -92,6 +92,16 @@ describe('POST /webhook', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 413 and skips handleEvents when body exceeds size limit', async () => {
+    const handleEvents = vi.fn();
+    const baseUrl = await start(handleEvents);
+
+    const res = await postWebhook(baseUrl, 'x'.repeat(1024 * 1024 + 1), 'any-signature');
+
+    expect(res.status).toBe(413);
+    expect(handleEvents).not.toHaveBeenCalled();
+  });
+
   it('responds 200 without waiting for handleEvents to finish', async () => {
     const handleEvents = vi.fn(() => new Promise(() => {}));
     const baseUrl = await start(handleEvents);
