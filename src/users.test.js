@@ -44,6 +44,33 @@ describe('userService.ensureUser', () => {
       expect.any(Error)
     );
   });
+
+  it('rejects when findUserIdByLineId fails and does not call LINE', async () => {
+    const { getDisplayName, service } = setup({
+      findUserIdByLineId: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(service.ensureUser('U1')).rejects.toThrow('db down');
+    expect(getDisplayName).not.toHaveBeenCalled();
+  });
+
+  it('rejects and does not seed when createUser fails', async () => {
+    const { repository, service } = setup({
+      createUser: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(service.ensureUser('U1')).rejects.toThrow('db down');
+    expect(repository.seedDefaultCategories).not.toHaveBeenCalled();
+  });
+
+  it('rejects when seedDefaultCategories fails after createUser succeeded', async () => {
+    const { repository, service } = setup({
+      seedDefaultCategories: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(service.ensureUser('U1')).rejects.toThrow('db down');
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom' });
+  });
 });
 
 describe('userService.loadCategoryIds', () => {
@@ -67,5 +94,14 @@ describe('userService.loadCategoryIds', () => {
 
     expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
     expect(ids.get('expense:อาหาร')).toBe('c1');
+  });
+
+  it('rejects when seeding fails', async () => {
+    const { service } = setup({
+      getCategoryIds: vi.fn().mockResolvedValue(new Map()),
+      seedDefaultCategories: vi.fn().mockRejectedValue(new Error('db down')),
+    });
+
+    await expect(service.loadCategoryIds('user-1')).rejects.toThrow('db down');
   });
 });
