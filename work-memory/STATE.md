@@ -1,9 +1,9 @@
 # STATE
 Updated: 2026-09-29
-Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บันทึกรายการจริง, สมัครผู้ใช้อัตโนมัติ) ตามแผน docs/superpowers/plans/2026-09-29-supabase-save-entries.md บน branch feat/step3-supabase
+Goal: ทำขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message) ตามแผน docs/superpowers/plans/2026-09-29-summary-flex.md บน branch feat/step4-summary
 
 ## Next
-- [ ] `next` เริ่ม SPEC ขั้นที่ 4 (สรุปผลด้วย SQL + Flex Message)
+- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 4 และเลือกวิธีลงมือ (Subagent-Driven หรือ Inline)
 
 ## Done
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
@@ -21,6 +21,7 @@ Goal: ทำขั้นที่ 3 (ตาราง Supabase + RLS, บัน�
 - [x] review งานหลัง final review (falcon+viper) -> แก้: ล้างบริบทหลังบันทึกสำเร็จ, บันทึก/ล้างบริบทพังไม่กระทบคำตอบ, กฎ prompt ให้ดึงรายการจากข้อความล่าสุด; re-review ผ่าน; Claude จริง 4 กรณีถูก; npm test 119/119
 - [x] ผู้ใช้เลือกปล่อย Co-Authored-By "Sonnet 5.5" ของ subagent ไว้ตามเดิม
 - [x] merge feat/step3-supabase เข้า main ในเครื่อง (ยังไม่ push)
+- [x] เขียนแผนขั้นที่ 4 (2026-09-29): SQL function summarize_transactions (003), สัปดาห์ = จันทร์ถึงวันนี้, แสดง 5 หมวดรายจ่ายแรก + หมวดอื่น, "สรุป" เฉยๆ ขึ้นปุ่ม 3 ช่วง
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
