@@ -1,12 +1,13 @@
 # STATE
 Updated: 2026-09-30
-Goal: ทำขั้นที่ 6b (กราฟตามหมวด + export CSV + แก้รายการเกิน max-rows) ตามแผน docs/superpowers/plans/2026-09-30-liff-chart-csv.md บน branch feat/step6b-chart-csv
+Goal: ขั้นที่ 6b เสร็จและ merge เข้า main แล้ว; รอผู้ใช้เลือกงานถัดไป
 
 ## Next
-- [ ] `next` merge feat/step6b-chart-csv เข้า main ในเครื่อง (รอผู้ใช้ยืนยัน)
+- [ ] `next` ผู้ใช้เลือกงานถัดไป: ticket ที่เลื่อนไว้ด้านล่าง หรือขั้นถัดไปตาม SPEC.md
 - [ ] ticket ที่เลื่อนไว้ (ผู้ใช้ตัดสินว่าจะทำเมื่อไร): liff-export-ux-polish (กด Export ก่อนหน้าโหลดเสร็จแล้วเงียบ, share เล็กแสดง 0%, สถานะหลังเปลี่ยนเดือน, เดือนว่าง, ข้อความว่างซ้ำ, ขอบปุ่ม 1.6:1), export-paging-maxrows-guard, export-links-housekeeping (ลบลิงก์เก่า + rate limit), exports-fallback-404, shared-type-labels
 
 ## Done
+- [x] merge feat/step6b-chart-csv เข้า main ในเครื่อง (merge commit c5655e3, ยังไม่ push) npm test บน main 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน
 - [x] Task 9 ของ 6b ผ่าน (2026-09-30): รัน 004 แล้ว, npm start ใหม่, manual check 9 ข้อในแอป LINE ผ่านครบ (กราฟ/ปุ่มสลับ/เดือนว่าง/ยอดตรงกับ สรุป เดือนนี้, Export เปิด Safari ดาวน์โหลดได้ ไม่โดน 410 ก่อน, ไฟล์ภาษาไทยอ่านได้ เรียงเก่าไปใหม่, เปิดลิงก์ซ้ำได้ 410, export_links มีแค่ token_hash และ used_at มีค่า); ตรวจ RLS ด้วย publishable key GET /rest/v1/export_links ได้ [] (ครั้งแรกได้ Invalid API key/requested path is invalid จาก key และ URL ที่ใส่ผิด)
 - [x] ขั้นที่ 6b Task 1-8 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-30), HEAD 6d81691 + docs; npm test 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน; fix round: Task 4 (month ที่ไม่ใช่ string ได้ 400), Task 5 (%-escape พังได้ 410 ไม่ log, HEAD ได้ 405 ไม่ใช้ลิงก์), Task 7 (ผู้ใช้เลือกปุ่มสลับ aria-pressed แทน role="tab"); final review dragon/viper/panda/coral = With fixes -> fix wave เดียว F1-F9 (เทสต์ tab/CR, BOM เป็น escape, เทสต์ chartRows, ข้อความ 500/สถานะ export, คอมเมนต์, header schema.sql, หัวข้อ "สิ่งที่เปลี่ยนจากแผนหลัง review" ในแผน); ข้อเล็กและ ruling อยู่ใน .superpowers/sdd/step6b-minors.md และ ledger .superpowers/sdd/progress.md
 - [x] เขียนแผนขั้นที่ 6b (2026-09-30, commit 0c96984) บน branch feat/step6b-chart-csv (แยกจาก main e9d4102): ผู้ใช้เลือก กราฟแท่งแนวนอนทำด้วย HTML/CSS, แท็บ รายจ่าย/รายรับ เปิดมาเป็นรายจ่าย, CSV ผ่านลิงก์ใช้ครั้งเดียว 5 นาทีเปิดใน Safari (liff.openWindow external) เก็บ hash ในตาราง export_links, CSV เฉพาะเดือนที่เลือก; ค่าเริ่มต้น: ยอดรวม/กราฟจาก summarize_transactions, หมายเหตุเมื่อรายการถูกตัด, CSV UTF-8 BOM หัวตารางภาษาไทย กัน CSV injection; 8 tasks + Task 9 ผู้ใช้
