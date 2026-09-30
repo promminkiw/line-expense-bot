@@ -4,6 +4,8 @@ const REQUIRED_KEYS = [
   'ANTHROPIC_API_KEY',
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'LIFF_ID',
+  'LINE_LOGIN_CHANNEL_ID',
 ];
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
 
@@ -21,6 +23,8 @@ function loadConfig(env) {
     claudeModel: env.CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL,
     supabaseUrl: env.SUPABASE_URL,
     supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    liffId: env.LIFF_ID,
+    lineLoginChannelId: env.LINE_LOGIN_CHANNEL_ID,
   };
 }
 
