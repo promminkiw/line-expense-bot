@@ -1,6 +1,22 @@
 const { DEFAULT_CATEGORIES } = require('../parser/categories');
 const { categoryKey } = require('./transaction-rows');
 
+const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id';
+// PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
+const EXPORT_PAGE_SIZE = 1000;
+
+// แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
+function toTransaction(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    amount: Number(row.amount),
+    note: row.note,
+    occurredOn: row.occurred_on,
+    categoryId: row.category_id,
+  };
+}
+
 class DatabaseError extends Error {
   constructor(operation, cause) {
     super(`Database ${operation} failed: ${cause.message}`);
@@ -127,24 +143,58 @@ function createRepository(supabase) {
   }
 
   async function listTransactions(userId, from, to) {
-    const { data, error } = await supabase
+    const { data, count, error } = await supabase
       .from('transactions')
-      .select('id, type, amount, note, occurred_on, category_id')
+      .select(TRANSACTION_COLUMNS, { count: 'exact' })
       .eq('user_id', userId)
       .gte('occurred_on', from)
       .lte('occurred_on', to)
       .order('occurred_on', { ascending: false })
       .order('created_at', { ascending: false });
     throwIfError('listTransactions', error);
-    // แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
-    return data.map((row) => ({
-      id: row.id,
-      type: row.type,
-      amount: Number(row.amount),
-      note: row.note,
-      occurredOn: row.occurred_on,
-      categoryId: row.category_id,
-    }));
+    return { transactions: data.map(toTransaction), totalCount: count };
+  }
+
+  async function listAllTransactions(userId, from, to) {
+    const rows = [];
+    for (let start = 0; ; start += EXPORT_PAGE_SIZE) {
+      // เรียงด้วย id ด้วยเพื่อให้ลำดับคงที่ระหว่างหน้า ไม่ให้แถวซ้ำหรือหาย
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(TRANSACTION_COLUMNS)
+        .eq('user_id', userId)
+        .gte('occurred_on', from)
+        .lte('occurred_on', to)
+        .order('occurred_on', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(start, start + EXPORT_PAGE_SIZE - 1);
+      throwIfError('listAllTransactions', error);
+      rows.push(...data.map(toTransaction));
+      if (data.length < EXPORT_PAGE_SIZE) {
+        return rows;
+      }
+    }
+  }
+
+  async function createExportLink({ tokenHash, userId, month, expiresAt }) {
+    const { error } = await supabase
+      .from('export_links')
+      .insert({ token_hash: tokenHash, user_id: userId, month, expires_at: expiresAt });
+    throwIfError('createExportLink', error);
+  }
+
+  // update แบบมีเงื่อนไขในคำสั่งเดียว กันลิงก์เดียวถูกใช้สองครั้งพร้อมกัน
+  async function claimExportLink(tokenHash, nowIso) {
+    const { data, error } = await supabase
+      .from('export_links')
+      .update({ used_at: nowIso })
+      .eq('token_hash', tokenHash)
+      .is('used_at', null)
+      .gt('expires_at', nowIso)
+      .select('user_id, month');
+    throwIfError('claimExportLink', error);
+    return data.length > 0 ? { userId: data[0].user_id, month: data[0].month } : null;
   }
 
   async function listCategories(userId) {
@@ -188,6 +238,9 @@ function createRepository(supabase) {
 
   return {
     listTransactions,
+    listAllTransactions,
+    createExportLink,
+    claimExportLink,
     listCategories,
     updateTransaction,
     deleteTransaction,
