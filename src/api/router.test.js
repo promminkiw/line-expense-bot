@@ -36,7 +36,9 @@ function setup(overrides = {}) {
       updateTransaction: vi.fn().mockResolvedValue(true),
       deleteTransaction: vi.fn().mockResolvedValue(true),
       createExportLink: vi.fn().mockResolvedValue(),
+      deleteExpiredExportLinks: vi.fn().mockResolvedValue(),
     },
+    allowExport: vi.fn().mockReturnValue(true),
     liffId: 'liff-123',
     logger: { error: vi.fn() },
     now: () => new Date('2026-09-30T03:00:00.000Z'),
@@ -345,6 +347,49 @@ describe('POST /api/exports', () => {
 
     expect(res.status).toBe(401);
     expect(deps.repository.createExportLink).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 without storing a link when this user exports too often', async () => {
+    const deps = setup({ allowExport: vi.fn().mockReturnValue(false) });
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: '2026-09' } });
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ error: 'Too many requests' });
+    expect(deps.allowExport).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.deleteExpiredExportLinks).not.toHaveBeenCalled();
+    expect(deps.repository.createExportLink).not.toHaveBeenCalled();
+  });
+
+  it('does not count an invalid month against the export limit', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/exports', { method: 'POST', body: { month: '2026-13' } });
+
+    expect(deps.allowExport).not.toHaveBeenCalled();
+  });
+
+  it('removes this user expired links before storing the new one', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/exports', { method: 'POST', body: { month: '2026-09' } });
+
+    expect(deps.repository.deleteExpiredExportLinks).toHaveBeenCalledWith('user-1', '2026-09-30T03:00:00.000Z');
+  });
+
+  it('still issues the link and logs when removing old links fails', async () => {
+    const deps = setup();
+    deps.repository.deleteExpiredExportLinks.mockRejectedValue(new Error('boom'));
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: '2026-09' } });
+
+    expect(res.status).toBe(201);
+    expect(deps.repository.createExportLink).toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith('Export link cleanup failed', expect.any(Error));
   });
 });
 

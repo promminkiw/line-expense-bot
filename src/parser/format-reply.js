@@ -1,4 +1,4 @@
-const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
+const { TYPE_LABELS } = require('../utils/type-labels');
 
 function formatAmount(amount) {
   return amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
