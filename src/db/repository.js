@@ -142,6 +142,28 @@ function createRepository(supabase) {
     }));
   }
 
+  async function getBudgetStatus(userId, month) {
+    const { data, error } = await supabase.rpc('budget_status', { p_user_id: userId, p_month: `${month}-01` });
+    throwIfError('getBudgetStatus', error);
+    return data.map((row) => ({
+      categoryId: row.category_id,
+      category: row.category,
+      budget: row.budget === null ? null : Number(row.budget),
+      spent: Number(row.spent),
+    }));
+  }
+
+  // แถวของเดือนนี้ทับค่าเดิมของเดือนเดียวกัน ส่วนเดือนก่อนหน้ายังใช้งบเดิม
+  async function setBudget({ userId, categoryId, month, amount }) {
+    const { error } = await supabase
+      .from('budgets')
+      .upsert(
+        { user_id: userId, category_id: categoryId, month: `${month}-01`, amount },
+        { onConflict: 'user_id,category_id,month' }
+      );
+    throwIfError('setBudget', error);
+  }
+
   async function listTransactions(userId, from, to) {
     const { data, count, error } = await supabase
       .from('transactions')
@@ -260,6 +282,8 @@ function createRepository(supabase) {
     updateTransaction,
     deleteTransaction,
     summarizeTransactions,
+    getBudgetStatus,
+    setBudget,
     getPendingClarification,
     savePendingClarification,
     clearPendingClarification,
