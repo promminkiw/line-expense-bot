@@ -1,12 +1,13 @@
 # STATE
 Updated: 2026-09-30
-Goal: ticket liff-export-ux-polish เสร็จและ merge เข้า main แล้ว; รอผู้ใช้เลือกงานถัดไป
+Goal: ticket ฝั่ง server จาก 6b เสร็จและ merge เข้า main แล้ว; ถัดไปขั้นที่ 7 งบประมาณ + แจ้งเตือน
 
 ## Next
-- [ ] `next` ผู้ใช้เลือกงานถัดไป: ticket ที่เหลือ (export-paging-maxrows-guard, export-links-housekeeping, exports-fallback-404, shared-type-labels) หรือขั้นที่ 7 งบประมาณ + แจ้งเตือน
-- [ ] ticket ที่เลื่อนไว้ (ผู้ใช้ตัดสินว่าจะทำเมื่อไร): export-paging-maxrows-guard, export-links-housekeeping (ลบลิงก์เก่า + rate limit), exports-fallback-404, shared-type-labels
+- [ ] `next` ขั้นที่ 7 งบประมาณ + แจ้งเตือน (ถามรายละเอียดแล้วเขียนแผนก่อน)
+- [ ] minor ที่ยังไม่ทำ (viper, ไม่บล็อก): allowExport มีค่า default ให้ผ่านทุกครั้ง ถ้าลบบรรทัดใน index.js limit จะหายเงียบๆ; test 404 ของ /exports ไม่เช็ก nosniff; ไม่มี test HEAD บน path ที่ไม่ตรง; offset paging อาจซ้ำ/ข้ามแถวถ้ามีคนเขียนระหว่าง export (มีมาแต่เดิม)
 
 ## Done
+- [x] ticket ฝั่ง server 4 ข้อ (2026-09-30, fix/server-tickets 9102959 + eea585d): listAllTransactions อ่านจนครบตาม count ของหน้าแรก (หน้าถัดไปไม่ขอ count กัน 416 ตอนมีคนลบแถว) หยุดเมื่อหน้าว่าง; POST /api/exports ลบลิงก์หมดอายุของผู้ใช้ก่อนออกลิงก์ใหม่ (ลบไม่ได้ log แล้วไปต่อ) และจำกัด 5 ครั้ง/นาที/ผู้ใช้ ตอบ 429 หน้าเว็บขึ้น กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่; /exports path อื่นได้ 404 ข้อความ ไม่พบหน้านี้ + no-store, nosniff ทุกคำตอบ, เฉพาะ URIError เป็น 410 และ HEAD ที่ escape พังได้ 405; TYPE_LABELS ฝั่ง server รวมที่ src/utils/type-labels.js (หน้าเว็บเก็บของตัวเอง); เทสต์ก่อนทุกข้อ, npm test 320/320; viper Ready; ผู้ใช้ restart แล้วลองในแอป LINE: Export ดาวน์โหลดได้, ครั้งที่ 6 ใน 1 นาทีขึ้นข้อความ กด Export ถี่เกินไป (ผ่าน); การลบลิงก์หมดอายุกับ Supabase จริงผู้ใช้เลือกไม่ทดสอบ (มีแค่ unit test รูปคำสั่ง); merge เข้า main ในเครื่อง ยังไม่ push
 - [x] ticket liff-export-ux-polish (2026-09-30, 462f0e3 บน fix/liff-export-ux-polish, ผู้ใช้ลองในแอป LINE ผ่าน 5 ข้อ, merge เข้า main ในเครื่องแล้ว ยังไม่ push): ผู้ใช้เลือก <1% + แท่งขั้นต่ำ 2px และซ่อนกล่องสรุปเมื่อเดือนไม่มีรายการ; ค่าเริ่มต้น: ปุ่ม Export disabled จน boot สร้าง api, เดือนว่างขึ้น เลือกเดือนก่อนกด Export CSV, ไม่เขียนสถานะ export ของเดือนเก่าทับ, ขอบปุ่มสลับ #767676; เทสต์ก่อน (RED 5 -> GREEN), npm test 306/306; panda Ready (minor: boot พังแล้วปุ่มเทาไม่มีคำอธิบายเฉพาะ, ปุ่มเทาชั่วครู่หลังเปลี่ยนเดือนระหว่าง export)
 - [x] merge feat/step6b-chart-csv เข้า main ในเครื่อง (merge commit c5655e3, ยังไม่ push) npm test บน main 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน
 - [x] Task 9 ของ 6b ผ่าน (2026-09-30): รัน 004 แล้ว, npm start ใหม่, manual check 9 ข้อในแอป LINE ผ่านครบ (กราฟ/ปุ่มสลับ/เดือนว่าง/ยอดตรงกับ สรุป เดือนนี้, Export เปิด Safari ดาวน์โหลดได้ ไม่โดน 410 ก่อน, ไฟล์ภาษาไทยอ่านได้ เรียงเก่าไปใหม่, เปิดลิงก์ซ้ำได้ 410, export_links มีแค่ token_hash และ used_at มีค่า); ตรวจ RLS ด้วย publishable key GET /rest/v1/export_links ได้ [] (ครั้งแรกได้ Invalid API key/requested path is invalid จาก key และ URL ที่ใส่ผิด)
