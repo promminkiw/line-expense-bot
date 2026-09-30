@@ -158,7 +158,7 @@ function createRepository(supabase) {
   async function listAllTransactions(userId, from, to) {
     const rows = [];
     for (let start = 0; ; start += EXPORT_PAGE_SIZE) {
-      // เรียงด้วย id ด้วยเพื่อให้ลำดับคงที่ระหว่างหน้า ไม่ให้แถวซ้ำหรือหาย
+      // เรียงด้วย id ด้วยเพื่อให้ลำดับคงที่ระหว่างหน้า
       const { data, error } = await supabase
         .from('transactions')
         .select(TRANSACTION_COLUMNS)

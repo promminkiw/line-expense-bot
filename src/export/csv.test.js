@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildTransactionsCsv, exportFileName } from './csv.js';
 
-const BOM = '﻿';
+const BOM = '\ufeff';
 const HEADER = 'วันที่,ประเภท,หมวด,จำนวนเงิน,โน้ต';
 
 function row(overrides = {}) {
@@ -46,6 +46,15 @@ describe('buildTransactionsCsv', () => {
     expect(csv).toContain(",'+1\r\n");
     expect(csv).toContain(",'-5\r\n");
     expect(csv).toContain(",'@cmd\r\n");
+  });
+});
+
+describe('formula prefix for tab and carriage return', () => {
+  it('prefixes cells that start with a tab or carriage return', () => {
+    const csv = buildTransactionsCsv([row({ note: '\tx' }), row({ note: '\rx' })]);
+
+    expect(csv).toContain(",'\tx\r\n");
+    expect(csv).toContain(`,"'\rx"\r\n`);
   });
 });
 

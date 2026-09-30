@@ -90,7 +90,7 @@ describe('GET /exports/:token', () => {
     const res = await fetch(`${base}/${createLinkToken().token}`);
 
     expect(res.status).toBe(500);
-    expect(await res.text()).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(await res.text()).toBe('Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง');
     expect(deps.logger.error).toHaveBeenCalledWith('Export failed', error);
   });
 

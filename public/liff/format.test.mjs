@@ -137,6 +137,30 @@ describe('chartRows', () => {
     expect(chartRows(summary, 'income')).toEqual([{ category: 'เงินเดือน', total: 25000, share: 100, width: 100 }]);
   });
 
+  it('drops rows whose total is 0', () => {
+    const rows = chartRows(
+      [
+        { type: 'expense', category: 'อาหาร', total: 100, entryCount: 1 },
+        { type: 'expense', category: 'เดินทาง', total: 0, entryCount: 0 },
+      ],
+      'expense'
+    );
+
+    expect(rows.map((row) => row.category)).toEqual(['อาหาร']);
+  });
+
+  it('orders equal totals by Thai category name', () => {
+    const rows = chartRows(
+      [
+        { type: 'expense', category: 'ข้าว', total: 100, entryCount: 1 },
+        { type: 'expense', category: 'กาแฟ', total: 100, entryCount: 1 },
+      ],
+      'expense'
+    );
+
+    expect(rows.map((row) => row.category)).toEqual(['กาแฟ', 'ข้าว']);
+  });
+
   it('returns an empty list when the type has no entries', () => {
     expect(chartRows([], 'expense')).toEqual([]);
   });

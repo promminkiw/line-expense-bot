@@ -4,13 +4,13 @@ const { hashLinkToken, isLinkToken } = require('./link-token');
 const { buildTransactionsCsv, exportFileName } = require('./csv');
 
 const EXPIRED_MESSAGE = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
-const FAILED_MESSAGE = 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
+const FAILED_MESSAGE = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
 
 function sendText(res, status, text) {
   res.status(status).type('text/plain; charset=utf-8').set('Cache-Control', 'no-store').send(text);
 }
 
-// เปิดใน Safari ซึ่งส่ง ID token ไม่ได้ จึงใช้ลิงก์ใช้ครั้งเดียวแทนการยืนยันตัวตน
+// เปิดใน browser ภายนอกซึ่งส่ง ID token ไม่ได้ จึงใช้ลิงก์ใช้ครั้งเดียวแทนการยืนยันตัวตน
 function createExportRouter({ repository, now = () => new Date(), logger = console }) {
   const router = express.Router();
 

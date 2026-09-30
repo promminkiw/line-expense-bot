@@ -1,7 +1,7 @@
 const HEADER = ['วันที่', 'ประเภท', 'หมวด', 'จำนวนเงิน', 'โน้ต'];
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // BOM ทำให้ Excel เปิดไฟล์เป็น UTF-8 และแสดงภาษาไทยถูก
-const BOM = '﻿';
+const BOM = '\ufeff';
 // ข้อความที่ขึ้นต้นด้วยอักขระเหล่านี้ spreadsheet อาจรันเป็นสูตร (CSV injection)
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
 

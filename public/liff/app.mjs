@@ -306,7 +306,7 @@ els.exportButton.addEventListener('click', async () => {
     const { path } = await api.createExport(els.month.value);
     // browser ในแอป LINE ดาวน์โหลดไฟล์ไม่ได้ จึงเปิดลิงก์ใน browser ภายนอก
     liff.openWindow({ url: new URL(path, window.location.origin).href, external: true });
-    els.exportStatus.textContent = 'เปิดลิงก์ดาวน์โหลดใน browser แล้ว ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที';
+    els.exportStatus.textContent = 'ส่งลิงก์ไปเปิดใน browser แล้ว ถ้าไม่เห็นหน้าดาวน์โหลด กด Export CSV ใหม่ (ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที)';
   } catch (err) {
     els.exportStatus.textContent = describeExportFailure(err instanceof ApiError ? err.status : undefined);
   } finally {
