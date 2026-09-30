@@ -83,4 +83,21 @@ describe('createApi', () => {
     expect(fetchImpl.mock.calls[0][1].signal).toBe(signal);
     timeoutSpy.mockRestore();
   });
+
+  it('asks for the budgets of one month', async () => {
+    const fetchImpl = fakeFetch(200, { budgets: [] });
+
+    expect(await setup(fetchImpl).listBudgets('2026-09')).toEqual({ budgets: [] });
+    expect(fetchImpl.mock.calls[0][0]).toBe('/api/budgets?month=2026-09');
+  });
+
+  it('sets a budget with PUT', async () => {
+    const fetchImpl = fakeFetch(204, null);
+
+    expect(await setup(fetchImpl).setBudget('c1', { month: '2026-09', amount: null })).toBeNull();
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe('/api/budgets/c1');
+    expect(options.method).toBe('PUT');
+    expect(JSON.parse(options.body)).toEqual({ month: '2026-09', amount: null });
+  });
 });

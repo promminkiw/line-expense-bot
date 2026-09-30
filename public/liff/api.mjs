@@ -36,5 +36,8 @@ export function createApi({ fetchImpl, getIdToken }) {
       request(`/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
     deleteTransaction: (id) => request(`/transactions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     createExport: (month) => request('/exports', { method: 'POST', body: JSON.stringify({ month }) }),
+    listBudgets: (month) => request(`/budgets?month=${encodeURIComponent(month)}`),
+    setBudget: (categoryId, body) =>
+      request(`/budgets/${encodeURIComponent(categoryId)}`, { method: 'PUT', body: JSON.stringify(body) }),
   };
 }
