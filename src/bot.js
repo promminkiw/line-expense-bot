@@ -5,6 +5,7 @@ const { getPeriodRange } = require('./summary/period');
 const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
 const { getFixedReply } = require('./menu/fixed-replies');
+const { budgetMonths, findBudgetAlerts, formatBudgetAlerts } = require('./budget/alerts');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
@@ -90,6 +91,22 @@ function createBot({
     }
   }
 
+  // การเตือนงบเป็นส่วนเสริม ถ้าเช็กไม่ได้ยังตอบว่าบันทึกแล้วตามปกติ
+  async function checkBudgets(userId, rows) {
+    const months = budgetMonths(rows);
+    if (months.length === 0) {
+      return '';
+    }
+    try {
+      const statuses = await Promise.all(months.map((month) => repository.getBudgetStatus(userId, month)));
+      const statusByMonth = new Map(months.map((month, index) => [month, statuses[index]]));
+      return formatBudgetAlerts(findBudgetAlerts(rows, statusByMonth));
+    } catch (err) {
+      logger.error('Failed to check budgets', { userId }, err);
+      return '';
+    }
+  }
+
   async function commentOn(summary, userId) {
     if (summary.entryCount === 0) {
       return NO_ENTRIES_COMMENT;
@@ -156,8 +173,10 @@ function createBot({
     if (history.length > 0) {
       await forgetConversation(userId);
     }
+    const saved = formatSavedReply(result.items);
+    const alerts = await checkBudgets(userId, rows);
     return {
-      text: formatSavedReply(result.items),
+      text: alerts ? `${saved}\n\n${alerts}` : saved,
       quickReply: buildUndoQuickReply(event.webhookEventId),
     };
   }

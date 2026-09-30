@@ -61,6 +61,7 @@ function setup(overrides = {}) {
       summarizeTransactions: vi
         .fn()
         .mockResolvedValue([{ type: 'expense', category: 'อาหาร', total: 105, entryCount: 2 }]),
+      getBudgetStatus: vi.fn().mockResolvedValue([]),
     },
     now: () => NOW_MS,
     users: {
@@ -559,5 +560,65 @@ describe('bot.handleEvents', () => {
       { lineUserId: 'U1', eventType: 'message' },
       expect.any(Error)
     );
+  });
+});
+
+describe('bot budget alerts', () => {
+  const SAVED = 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว';
+
+  it('adds the alert under the saved reply when the entry crosses 80 percent', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getBudgetStatus.mockResolvedValue([
+      { categoryId: 'cat-food', category: 'อาหาร', budget: 5000, spent: 4030 },
+    ]);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
+      UNDO_QUICK_REPLY
+    );
+  });
+
+  it('checks the budget after saving so the new entry is counted', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.repository.insertTransactions.mock.invocationCallOrder[0]).toBeLessThan(
+      deps.repository.getBudgetStatus.mock.invocationCallOrder[0]
+    );
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVED, UNDO_QUICK_REPLY);
+  });
+
+  it('still replies saved without an alert and logs when the budget check fails', async () => {
+    const { deps, bot } = setup();
+    const error = new Error('db down');
+    deps.repository.getBudgetStatus.mockRejectedValue(error);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVED, UNDO_QUICK_REPLY);
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to check budgets', { userId: 'user-1' }, error);
+  });
+
+  it('does not check budgets for income', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({
+      status: 'ok',
+      items: [{ type: 'income', category: 'อื่นๆ', amount: 500, date: '2026-09-29', note: '' }],
+    });
+    const { deps, bot } = setup({
+      parseMessage,
+      users: {
+        ensureUser: vi.fn().mockResolvedValue('user-1'),
+        loadCategoryIds: vi.fn().mockResolvedValue(new Map([['income:อื่นๆ', 'cat-income-other']])),
+      },
+    });
+
+    await bot.handleEvent(textEvent('ได้เงิน 500'));
+
+    expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
   });
 });
