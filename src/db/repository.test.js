@@ -379,6 +379,17 @@ describe('repository.listTransactions', () => {
     ]);
   });
 
+  it('returns number amounts when PostgREST sends numbers', async () => {
+    const { supabase } = fakeSupabase({
+      data: [{ id: 't1', type: 'expense', amount: 60.5, note: null, occurred_on: '2026-09-29', category_id: 'c1' }],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(rows[0].amount).toBe(60.5);
+  });
+
   it('throws DatabaseError when Supabase returns an error', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 

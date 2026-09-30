@@ -136,7 +136,7 @@ function createRepository(supabase) {
       .order('occurred_on', { ascending: false })
       .order('created_at', { ascending: false });
     throwIfError('listTransactions', error);
-    // amount มาเป็น string จาก numeric จึงแปลงเป็น number
+    // แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
     return data.map((row) => ({
       id: row.id,
       type: row.type,
