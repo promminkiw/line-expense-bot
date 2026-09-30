@@ -3,12 +3,12 @@ Updated: 2026-09-30
 Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืนยันตัวตน, ดู/กรองเดือน/แก้/ลบ) ตามแผน docs/superpowers/plans/2026-09-30-liff-transactions.md บน branch feat/step6-liff; 6b (กราฟ + CSV) ทีหลัง
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินว่าจะ merge feat/step6-liff เข้า main ตอนนี้ไหม และจะให้แก้ minor ที่ค้างก่อนไหม: (1) app.mjs openEditor ไม่เช็กว่ายังแก้รายการเดิมอยู่หลัง await ensureCategories (กรณีหายาก หมวดของ A อาจไปลง B) (2) คอมเมนต์ router.js:15 บอก text/plain แต่จริงเป็น text/html (3) ปุ่ม กำลังลบ... จางเพราะ opacity ของปุ่ม disabled
-- [ ] merge feat/step6-liff เข้า main (Task 9 ผ่านแล้ว)
-- [ ] ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
+- [ ] `next` ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
 - [ ] ขั้นที่ 6b: กราฟตามหมวด + export CSV
 
 ## Done
+- [x] แก้ minor ที่ค้างของ 6a ตามที่ผู้ใช้สั่ง (ec1504a): guard editor เปิดค้างหลังโหลดหมวด, คอมเมนต์ router.js, ปุ่ม กำลังลบ... ไม่จาง; npm test 259/259
+- [x] merge feat/step6-liff เข้า main ในเครื่อง (ยังไม่ push)
 - [x] Task 9 ของ 6a ผ่าน (2026-09-30): สร้าง LINE Login channel + LIFF app (Endpoint https://populace-gong-fossil.ngrok-free.dev/liff/, scope openid), .env ครบ 9 key, manual check 10 ข้อผ่าน (เปิดเว็บตอบลิงก์, หน้าเว็บตรงกับ Supabase, เดือนว่าง 0 บาท, แก้จำนวนเงิน, เปลี่ยนเป็นรายรับ type=income, 20000000 ถูก browser กัน, modal ยืนยันลบ + ลบจริง, API ไม่มี token ได้ Unauthorized, Rich Menu ช่อง B เป็นลิงก์ LIFF แล้ว), หน้าไม่เด้งหลังแก้รายการล่าง; ทดสอบเปิดค้างเกิน 1 ชั่วโมง ผู้ใช้เลือกไม่ทดสอบ
 - [x] ระหว่าง Task 9: แก้ ngrok free แทรกหน้าเตือน (ERR_NGROK_6024) กับ fetch ไป /api -> ส่ง header ngrok-skip-browser-warning (be668a8); ผู้ใช้ขอเปลี่ยนปุ่มลบแบบกดสองครั้งเป็น modal ยืนยันที่ออกแบบเอง (32964c9) falcon+panda ผ่าน; npm test 259/259 ใน 24 ไฟล์
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
