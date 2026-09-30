@@ -88,14 +88,24 @@ export function chartRows(summary, type) {
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category, 'th'));
   const sum = rows.reduce((acc, row) => acc + row.total, 0);
   const max = rows.length > 0 ? rows[0].total : 0;
-  return rows.map((row) => ({
-    category: row.category,
-    total: row.total,
+  return rows.map((row) => {
+    const percent = (row.total / sum) * 100;
     // ปัดเป็นจำนวนเต็มให้อ่านง่าย ผลรวมอาจไม่ครบ 100 พอดี
-    share: Math.round((row.total / sum) * 100),
-    // แท่งที่ยอดสูงสุดยาวเต็ม แท่งอื่นเทียบกับแท่งนี้
-    width: (row.total / max) * 100,
-  }));
+    const share = Math.round(percent);
+    return {
+      category: row.category,
+      total: row.total,
+      share,
+      // หมวดที่มียอดจริงแต่ปัดแล้วเป็น 0 ต้องไม่ดูเหมือนไม่มียอด
+      shareText: percent < 1 ? '<1%' : `${share}%`,
+      // แท่งที่ยอดสูงสุดยาวเต็ม แท่งอื่นเทียบกับแท่งนี้
+      width: (row.total / max) * 100,
+    };
+  });
+}
+
+export function hasChartData(summary) {
+  return summary.some((row) => row.total > 0);
 }
 
 export function describeExportFailure(status) {

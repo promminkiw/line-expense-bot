@@ -9,6 +9,7 @@ import {
   describeDeleteTarget,
   summaryTotals,
   chartRows,
+  hasChartData,
   describeExportFailure,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
@@ -127,14 +128,28 @@ describe('chartRows', () => {
 
   it('keeps one type, sorts by total and gives share and bar width', () => {
     expect(chartRows(summary, 'expense')).toEqual([
-      { category: 'อาหาร', total: 3000, share: 60, width: 100 },
-      { category: 'เดินทาง', total: 1500, share: 30, width: 50 },
-      { category: 'ช้อปปิ้ง', total: 500, share: 10, width: (500 / 3000) * 100 },
+      { category: 'อาหาร', total: 3000, share: 60, shareText: '60%', width: 100 },
+      { category: 'เดินทาง', total: 1500, share: 30, shareText: '30%', width: 50 },
+      { category: 'ช้อปปิ้ง', total: 500, share: 10, shareText: '10%', width: (500 / 3000) * 100 },
     ]);
   });
 
   it('returns the other type on its own', () => {
-    expect(chartRows(summary, 'income')).toEqual([{ category: 'เงินเดือน', total: 25000, share: 100, width: 100 }]);
+    expect(chartRows(summary, 'income')).toEqual([
+      { category: 'เงินเดือน', total: 25000, share: 100, shareText: '100%', width: 100 },
+    ]);
+  });
+
+  it('shows less than one percent instead of 0% for a tiny category', () => {
+    const rows = chartRows(
+      [
+        { type: 'expense', category: 'อาหาร', total: 1000, entryCount: 1 },
+        { type: 'expense', category: 'ขนม', total: 4, entryCount: 1 },
+      ],
+      'expense'
+    );
+
+    expect(rows[1].shareText).toBe('<1%');
   });
 
   it('drops rows whose total is 0', () => {
@@ -163,6 +178,17 @@ describe('chartRows', () => {
 
   it('returns an empty list when the type has no entries', () => {
     expect(chartRows([], 'expense')).toEqual([]);
+  });
+});
+
+describe('hasChartData', () => {
+  it('is false for a month without entries', () => {
+    expect(hasChartData([])).toBe(false);
+    expect(hasChartData([{ type: 'expense', category: 'อาหาร', total: 0, entryCount: 0 }])).toBe(false);
+  });
+
+  it('is true when either type has an amount', () => {
+    expect(hasChartData([{ type: 'income', category: 'เงินเดือน', total: 100, entryCount: 1 }])).toBe(true);
   });
 });
 
