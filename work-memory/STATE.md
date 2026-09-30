@@ -3,11 +3,12 @@ Updated: 2026-09-30
 Goal: ทำขั้นที่ 6b (กราฟตามหมวด + export CSV + แก้รายการเกิน max-rows) ตามแผน docs/superpowers/plans/2026-09-30-liff-chart-csv.md บน branch feat/step6b-chart-csv
 
 ## Next
-- [ ] `next` ผู้ใช้เลือกวิธีลงมือแผน 6b (Subagent-Driven แนะนำ หรือ Inline) แล้วเริ่ม Task 1, 2, 3, 6 พร้อมกัน
-- [ ] Task 9 ของแผน 6b (ผู้ใช้): รัน supabase/004_export_links.sql, npm start ใหม่, manual check 9 ข้อในแอป LINE
+- [ ] `next` Task 9 ของแผน 6b (ผู้ใช้): รัน supabase/004_export_links.sql, Ctrl+C แล้ว npm start ใหม่, manual check 9 ข้อในแอป LINE + Step 3 ตรวจ RLS export_links ด้วย anon key ต้องได้ []; จุดที่ต้องดูเป็นพิเศษ: หน้าเตือน ngrok ใน browser ภายนอก (กด Visit Site), Safari ยิง GET ซ้ำตอนดาวน์โหลดแล้วได้ 410 หรือไม่
 - [ ] merge feat/step6b-chart-csv เข้า main หลัง Task 9 ผ่าน
+- [ ] ticket ที่เลื่อนไว้ (ผู้ใช้ตัดสินว่าจะทำเมื่อไร): liff-export-ux-polish (กด Export ก่อนหน้าโหลดเสร็จแล้วเงียบ, share เล็กแสดง 0%, สถานะหลังเปลี่ยนเดือน, เดือนว่าง, ข้อความว่างซ้ำ, ขอบปุ่ม 1.6:1), export-paging-maxrows-guard, export-links-housekeeping (ลบลิงก์เก่า + rate limit), exports-fallback-404, shared-type-labels
 
 ## Done
+- [x] ขั้นที่ 6b Task 1-8 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-30), HEAD 6d81691 + docs; npm test 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน; fix round: Task 4 (month ที่ไม่ใช่ string ได้ 400), Task 5 (%-escape พังได้ 410 ไม่ log, HEAD ได้ 405 ไม่ใช้ลิงก์), Task 7 (ผู้ใช้เลือกปุ่มสลับ aria-pressed แทน role="tab"); final review dragon/viper/panda/coral = With fixes -> fix wave เดียว F1-F9 (เทสต์ tab/CR, BOM เป็น escape, เทสต์ chartRows, ข้อความ 500/สถานะ export, คอมเมนต์, header schema.sql, หัวข้อ "สิ่งที่เปลี่ยนจากแผนหลัง review" ในแผน); ข้อเล็กและ ruling อยู่ใน .superpowers/sdd/step6b-minors.md และ ledger .superpowers/sdd/progress.md
 - [x] เขียนแผนขั้นที่ 6b (2026-09-30, commit 0c96984) บน branch feat/step6b-chart-csv (แยกจาก main e9d4102): ผู้ใช้เลือก กราฟแท่งแนวนอนทำด้วย HTML/CSS, แท็บ รายจ่าย/รายรับ เปิดมาเป็นรายจ่าย, CSV ผ่านลิงก์ใช้ครั้งเดียว 5 นาทีเปิดใน Safari (liff.openWindow external) เก็บ hash ในตาราง export_links, CSV เฉพาะเดือนที่เลือก; ค่าเริ่มต้น: ยอดรวม/กราฟจาก summarize_transactions, หมายเหตุเมื่อรายการถูกตัด, CSV UTF-8 BOM หัวตารางภาษาไทย กัน CSV injection; 8 tasks + Task 9 ผู้ใช้
 - [x] แก้ minor ที่ค้างของ 6a ตามที่ผู้ใช้สั่ง (ec1504a): guard editor เปิดค้างหลังโหลดหมวด, คอมเมนต์ router.js, ปุ่ม กำลังลบ... ไม่จาง; npm test 259/259
 - [x] merge feat/step6-liff เข้า main ในเครื่อง (ยังไม่ push)
@@ -46,6 +47,8 @@ Goal: ทำขั้นที่ 6b (กราฟตามหมวด + export
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- Express 5 (router 2.2.0) ตอบ HEAD ด้วย handler ของ GET และ decodeParam ที่พังโยน URIError (status 400) ที่มีค่า param ใน message -> route ที่มีผลข้างเคียงต้องกัน HEAD และห้าม log error นี้ถ้า param เป็นความลับ
+- gate-default.sh ไม่พิมพ์อะไรเมื่อผ่าน ต้องรัน vitest กับไฟล์ของ task แยกเพื่อยืนยันว่ามีเทสต์รันจริง
 - แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
