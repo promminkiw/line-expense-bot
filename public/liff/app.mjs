@@ -1,4 +1,4 @@
-import { createApi, ApiError } from './api.mjs';
+import { createApi, ApiError, REQUEST_TIMEOUT_MS } from './api.mjs';
 import {
   formatBaht,
   formatThaiDate,
@@ -104,11 +104,14 @@ function render(transactions) {
 }
 
 // ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ status เสมอ
-async function loadMonth() {
+// reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
+async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
-  els.list.replaceChildren();
-  els.totals.hidden = true;
-  setStatus('กำลังโหลด...');
+  if (reset) {
+    els.list.replaceChildren();
+    els.totals.hidden = true;
+    setStatus('กำลังโหลด...');
+  }
   try {
     const { transactions } = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
@@ -118,22 +121,42 @@ async function loadMonth() {
   }
 }
 
-function openEditor(item) {
+async function ensureCategories() {
+  if (categories.length === 0) {
+    try {
+      ({ categories } = await api.listCategories());
+      fillCategoryOptions();
+    } catch {
+      // ปล่อยให้ categories ว่าง แล้วผู้เรียกแสดงข้อความผิดพลาด
+    }
+  }
+  return categories.length > 0;
+}
+
+async function openEditor(item) {
   editing = item;
   confirmDelete = false;
   els.deleteButton.textContent = 'ลบ';
   els.amount.value = String(item.amount);
-  els.category.value = item.categoryId;
   els.date.value = item.occurredOn;
   els.note.value = item.note || '';
   els.error.hidden = true;
+  els.saveButton.disabled = categories.length === 0;
   els.editor.showModal();
+  if (!(await ensureCategories())) {
+    els.error.textContent = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
+    els.error.hidden = false;
+    return;
+  }
+  els.category.value = item.categoryId;
+  els.saveButton.disabled = busy;
 }
 
 function setBusy(isBusy, kind) {
   busy = isBusy;
-  els.saveButton.disabled = isBusy;
+  els.saveButton.disabled = isBusy || categories.length === 0;
   els.deleteButton.disabled = isBusy;
+  els.cancelButton.disabled = isBusy;
   els.error.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
   els.error.hidden = !isBusy;
 }
@@ -188,11 +211,15 @@ els.deleteButton.addEventListener('click', () => {
 });
 
 els.cancelButton.addEventListener('click', () => els.editor.close());
-els.month.addEventListener('change', loadMonth);
+// กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
+els.editor.addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
+});
+els.month.addEventListener('change', () => loadMonth({ reset: true }));
 
 async function boot() {
   try {
-    const config = await (await fetch('/api/config')).json();
+    const config = await (await fetch('/api/config', { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })).json();
     await liff.init({ liffId: config.liffId });
     if (!liff.isLoggedIn()) {
       liff.login();
@@ -202,7 +229,7 @@ async function boot() {
     els.month.value = currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
-    await loadMonth();
+    await loadMonth({ reset: true });
   } catch (err) {
     showLoadError(err);
   }

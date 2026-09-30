@@ -52,4 +52,16 @@ describe('createApi', () => {
     await expect(promise).rejects.toBeInstanceOf(ApiError);
     await expect(promise).rejects.toMatchObject({ status: 401 });
   });
+
+  it('passes a 15 second timeout signal to fetch', async () => {
+    const signal = new AbortController().signal;
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(signal);
+    const fetchImpl = fakeFetch(200, { categories: [] });
+
+    await setup(fetchImpl).listCategories();
+
+    expect(timeoutSpy).toHaveBeenCalledWith(15000);
+    expect(fetchImpl.mock.calls[0][1].signal).toBe(signal);
+    timeoutSpy.mockRestore();
+  });
 });

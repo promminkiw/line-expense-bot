@@ -1,3 +1,6 @@
+// กันหน้าเว็บค้างที่ "กำลังโหลด" ตลอดเมื่อเครือข่ายช้าหรือ server ไม่ตอบ
+export const REQUEST_TIMEOUT_MS = 15000;
+
 export class ApiError extends Error {
   constructor(status) {
     super(`API request failed with status ${status}`);
@@ -11,6 +14,7 @@ export function createApi({ fetchImpl, getIdToken }) {
     const response = await fetchImpl(`/api${path}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getIdToken()}` },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new ApiError(response.status);
