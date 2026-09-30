@@ -4,7 +4,6 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
-  totals,
   groupCategoryOptions,
   describeEditFailure,
   describeDeleteTarget,
@@ -47,18 +46,6 @@ describe('groupByDate', () => {
       { date: '2026-09-29', items: [items[0], items[1]] },
       { date: '2026-09-28', items: [items[2]] },
     ]);
-  });
-});
-
-describe('totals', () => {
-  it('sums income and expense in satang', () => {
-    expect(
-      totals([
-        { type: 'expense', amount: 0.1 },
-        { type: 'expense', amount: 0.2 },
-        { type: 'income', amount: 25000 },
-      ])
-    ).toEqual({ income: 25000, expense: 0.3 });
   });
 });
 

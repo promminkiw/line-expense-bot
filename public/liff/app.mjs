@@ -6,7 +6,9 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
-  totals,
+  summaryTotals,
+  chartRows,
+  describeExportFailure,
   groupCategoryOptions,
   describeEditFailure,
   LOGIN_REQUIRED_MESSAGE,
@@ -17,6 +19,13 @@ const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรั
 const els = {
   month: document.getElementById('month'),
   totals: document.getElementById('totals'),
+  truncated: document.getElementById('truncated'),
+  exportButton: document.getElementById('export-button'),
+  exportStatus: document.getElementById('export-status'),
+  chart: document.getElementById('chart'),
+  chartRows: document.getElementById('chart-rows'),
+  chartEmpty: document.getElementById('chart-empty'),
+  tabs: document.querySelectorAll('#chart [role="tab"]'),
   status: document.getElementById('status'),
   list: document.getElementById('list'),
   editor: document.getElementById('editor'),
@@ -43,6 +52,9 @@ let api;
 let categories = [];
 let editing = null;
 let busy = false;
+let chartType = 'expense';
+let lastSummary = [];
+let exporting = false;
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -91,10 +103,46 @@ function renderRow(item) {
   return row;
 }
 
-function render(transactions) {
-  const sum = totals(transactions);
+function renderChart() {
+  for (const tab of els.tabs) {
+    tab.setAttribute('aria-selected', String(tab.dataset.type === chartType));
+  }
+  const rows = chartRows(lastSummary, chartType);
+  els.chartRows.replaceChildren();
+  els.chart.hidden = false;
+  if (rows.length === 0) {
+    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนนี้' : 'ยังไม่มีรายรับในเดือนนี้';
+    els.chartEmpty.hidden = false;
+    return;
+  }
+  els.chartEmpty.hidden = true;
+  for (const row of rows) {
+    const item = document.createElement('li');
+    item.className = `chart-row ${chartType}`;
+    const label = document.createElement('span');
+    label.className = 'chart-label';
+    label.textContent = row.category;
+    const value = document.createElement('span');
+    value.className = 'chart-value';
+    value.textContent = `${formatBaht(row.total)} · ${row.share}%`;
+    const track = document.createElement('div');
+    track.className = 'chart-track';
+    const fill = document.createElement('div');
+    fill.className = 'chart-fill';
+    fill.style.width = `${row.width}%`;
+    track.append(fill);
+    item.append(label, value, track);
+    els.chartRows.append(item);
+  }
+}
+
+function render({ transactions, summary, truncated }) {
+  const sum = summaryTotals(summary);
   els.totals.textContent = `รายรับ ${formatBaht(sum.income)} · รายจ่าย ${formatBaht(sum.expense)}`;
   els.totals.hidden = false;
+  els.truncated.hidden = !truncated;
+  lastSummary = summary;
+  renderChart();
   els.list.replaceChildren();
   if (transactions.length === 0) {
     setStatus('ยังไม่มีรายการในเดือนนี้');
@@ -119,12 +167,15 @@ async function loadMonth({ reset = false } = {}) {
   if (reset) {
     els.list.replaceChildren();
     els.totals.hidden = true;
+    els.truncated.hidden = true;
+    els.chart.hidden = true;
+    els.exportStatus.textContent = '';
     setStatus('กำลังโหลด...');
   }
   try {
-    const { transactions } = await api.listTransactions(month);
+    const data = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
-    if (month === els.month.value) render(transactions);
+    if (month === els.month.value) render(data);
   } catch (err) {
     if (month === els.month.value) showLoadError(err);
   }
@@ -238,6 +289,31 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
+
+for (const tab of els.tabs) {
+  tab.addEventListener('click', () => {
+    chartType = tab.dataset.type;
+    renderChart();
+  });
+}
+
+els.exportButton.addEventListener('click', async () => {
+  if (exporting || !api) return;
+  exporting = true;
+  els.exportButton.disabled = true;
+  els.exportStatus.textContent = 'กำลังเตรียมไฟล์...';
+  try {
+    const { path } = await api.createExport(els.month.value);
+    // browser ในแอป LINE ดาวน์โหลดไฟล์ไม่ได้ จึงเปิดลิงก์ใน browser ภายนอก
+    liff.openWindow({ url: new URL(path, window.location.origin).href, external: true });
+    els.exportStatus.textContent = 'เปิดลิงก์ดาวน์โหลดใน browser แล้ว ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที';
+  } catch (err) {
+    els.exportStatus.textContent = describeExportFailure(err instanceof ApiError ? err.status : undefined);
+  } finally {
+    exporting = false;
+    els.exportButton.disabled = false;
+  }
+});
 
 async function boot() {
   try {

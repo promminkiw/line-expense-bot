@@ -34,21 +34,6 @@ export function groupByDate(transactions) {
   return groups;
 }
 
-// รวมเป็นสตางค์เพื่อไม่ให้ทศนิยมของ JavaScript คลาดเคลื่อน
-export function totals(transactions) {
-  let income = 0;
-  let expense = 0;
-  for (const item of transactions) {
-    const satang = Math.round(item.amount * 100);
-    if (item.type === 'income') {
-      income += satang;
-    } else {
-      expense += satang;
-    }
-  }
-  return { income: income / 100, expense: expense / 100 };
-}
-
 export function groupCategoryOptions(categories) {
   return {
     expense: categories.filter((category) => category.type === 'expense'),
