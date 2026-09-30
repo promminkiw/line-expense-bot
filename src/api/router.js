@@ -13,7 +13,7 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
   const router = express.Router();
 
   // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router ไม่หลุดเป็น HTML
-  router.use(express.json());
+  router.use(express.json({ limit: '10kb' }));
 
   router.get('/config', (req, res) => {
     res.json({ liffId });

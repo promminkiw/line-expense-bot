@@ -268,6 +268,20 @@ describe('error handling', () => {
     expect(text).not.toContain('at JSON.parse');
   });
 
+  it('returns 413 JSON for a body over 10kb', async () => {
+    const base = await start(setup());
+
+    const res = await fetch(`${base}/transactions/${ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: 'x'.repeat(11 * 1024) }),
+    });
+
+    expect(res.status).toBe(413);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(await res.json()).toEqual({ error: 'Invalid body' });
+  });
+
   it('returns 404 JSON for an unknown api path', async () => {
     const base = await start(setup());
 
