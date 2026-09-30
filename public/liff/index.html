@@ -39,6 +39,17 @@
       </div>
     </form>
   </dialog>
+  <dialog id="confirm-delete" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-category" class="confirm-category"></p>
+    <p id="confirm-amount" class="confirm-amount"></p>
+    <p id="confirm-date" class="confirm-detail"></p>
+    <p id="confirm-note" class="confirm-detail" hidden></p>
+    <div class="actions">
+      <button type="button" id="confirm-cancel" autofocus>ยกเลิก</button>
+      <button type="button" id="confirm-ok" class="danger-solid">ลบ</button>
+    </div>
+  </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>
 </body>

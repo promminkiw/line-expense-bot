@@ -7,6 +7,7 @@ import {
   totals,
   groupCategoryOptions,
   describeEditFailure,
+  describeDeleteTarget,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -84,5 +85,28 @@ describe('describeEditFailure', () => {
     expect(describeEditFailure(500, 'save')).toEqual({ message: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง', closeAndReload: false });
     expect(describeEditFailure(undefined, 'delete').message).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(describeEditFailure(400, 'delete').message).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+});
+
+describe('describeDeleteTarget', () => {
+  it('describes an expense with a minus sign', () => {
+    const item = { type: 'expense', amount: 60, categoryName: 'อาหาร', occurredOn: '2026-09-05', note: 'ข้าวมันไก่' };
+
+    expect(describeDeleteTarget(item)).toEqual({
+      title: 'ลบรายการนี้?',
+      category: 'อาหาร',
+      amount: '-60 บาท',
+      date: '05/09',
+      note: 'ข้าวมันไก่',
+    });
+  });
+
+  it('describes an income with a plus sign and no note', () => {
+    const item = { type: 'income', amount: 75, categoryName: 'เงินเดือน', occurredOn: '2026-09-30' };
+
+    const result = describeDeleteTarget(item);
+
+    expect(result.amount).toBe('+75 บาท');
+    expect(result.note).toBe('');
   });
 });

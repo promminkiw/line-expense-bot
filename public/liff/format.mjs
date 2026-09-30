@@ -2,6 +2,10 @@ export function formatBaht(amount) {
   return `${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} บาท`;
 }
 
+export function formatSignedBaht(item) {
+  return `${item.type === 'income' ? '+' : '-'}${formatBaht(item.amount)}`;
+}
+
 export function formatThaiDate(isoDate) {
   const [, month, day] = isoDate.split('-');
   return `${day}/${month}`;
@@ -66,4 +70,14 @@ export function describeEditFailure(status, action) {
   }
   const failed = action === 'delete' ? 'ลบไม่สำเร็จ' : 'บันทึกไม่สำเร็จ';
   return { message: `${failed} ลองใหม่อีกครั้ง`, closeAndReload: false };
+}
+
+export function describeDeleteTarget(item) {
+  return {
+    title: 'ลบรายการนี้?',
+    category: item.categoryName,
+    amount: formatSignedBaht(item),
+    date: formatThaiDate(item.occurredOn),
+    note: item.note || '',
+  };
 }

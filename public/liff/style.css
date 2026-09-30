@@ -19,4 +19,10 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .actions .primary { background: #13853a; border-color: #13853a; color: #fff; }
 .actions .danger { color: #c62828; border-color: #c62828; }
 .row-button { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 12px; border: none; border-radius: 8px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.actions .danger-solid { background: #c62828; border-color: #c62828; color: #fff; }
+.actions button { min-height: 44px; }
+.confirm-category { margin: 12px 0 0; font-size: 18px; font-weight: 600; }
+.confirm-amount { margin: 4px 0 0; font-size: 18px; }
+.confirm-detail { margin: 4px 0 0; font-size: 14px; color: #555; overflow-wrap: anywhere; }
+#confirm-delete h2 { margin: 0; font-size: 18px; }
 .actions button:disabled { opacity: 0.6; }

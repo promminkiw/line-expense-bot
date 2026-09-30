@@ -1,6 +1,8 @@
 import { createApi, ApiError, REQUEST_TIMEOUT_MS, NGROK_SKIP_WARNING_HEADERS } from './api.mjs';
 import {
   formatBaht,
+  formatSignedBaht,
+  describeDeleteTarget,
   formatThaiDate,
   currentMonth,
   groupByDate,
@@ -27,12 +29,19 @@ const els = {
   deleteButton: document.getElementById('delete-button'),
   saveButton: document.querySelector('#edit-form button[type="submit"]'),
   cancelButton: document.getElementById('cancel-button'),
+  confirm: document.getElementById('confirm-delete'),
+  confirmTitle: document.getElementById('confirm-title'),
+  confirmCategory: document.getElementById('confirm-category'),
+  confirmAmount: document.getElementById('confirm-amount'),
+  confirmDate: document.getElementById('confirm-date'),
+  confirmNote: document.getElementById('confirm-note'),
+  confirmCancel: document.getElementById('confirm-cancel'),
+  confirmOk: document.getElementById('confirm-ok'),
 };
 
 let api;
 let categories = [];
 let editing = null;
-let confirmDelete = false;
 let busy = false;
 
 function setStatus(text) {
@@ -75,7 +84,7 @@ function renderRow(item) {
   label.textContent = item.note ? `${item.categoryName} · ${item.note}` : item.categoryName;
   const amount = document.createElement('span');
   amount.className = 'amount';
-  amount.textContent = `${item.type === 'income' ? '+' : '-'}${formatBaht(item.amount)}`;
+  amount.textContent = formatSignedBaht(item);
   button.append(label, amount);
   button.addEventListener('click', () => openEditor(item));
   row.append(button);
@@ -135,8 +144,6 @@ async function ensureCategories() {
 
 async function openEditor(item) {
   editing = item;
-  confirmDelete = false;
-  els.deleteButton.textContent = 'ลบ';
   els.amount.value = String(item.amount);
   els.date.value = item.occurredOn;
   els.note.value = item.note || '';
@@ -157,6 +164,9 @@ function setBusy(isBusy, kind) {
   els.saveButton.disabled = isBusy || categories.length === 0;
   els.deleteButton.disabled = isBusy;
   els.cancelButton.disabled = isBusy;
+  els.confirmCancel.disabled = isBusy;
+  els.confirmOk.disabled = isBusy;
+  els.confirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
   els.error.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
   els.error.hidden = !isBusy;
 }
@@ -172,6 +182,7 @@ async function runEdit(action, kind) {
   } finally {
     setBusy(false);
   }
+  els.confirm.close();
   if (!failure) {
     els.editor.close();
     await loadMonth();
@@ -200,14 +211,22 @@ els.form.addEventListener('submit', (event) => {
   );
 });
 
-// กดสองครั้งเพื่อลบ กันการลบโดยไม่ตั้งใจโดยไม่ต้องใช้ confirm ของเบราว์เซอร์
+// ใช้ dialog ของเราเองแทน confirm ของเบราว์เซอร์ เพื่อแสดงรายละเอียดรายการที่จะลบ
 els.deleteButton.addEventListener('click', () => {
-  if (!confirmDelete) {
-    confirmDelete = true;
-    els.deleteButton.textContent = 'ยืนยันลบ';
-    return;
-  }
-  runEdit(() => api.deleteTransaction(editing.id), 'delete');
+  const target = describeDeleteTarget(editing);
+  els.confirmTitle.textContent = target.title;
+  els.confirmCategory.textContent = target.category;
+  els.confirmAmount.textContent = target.amount;
+  els.confirmDate.textContent = target.date;
+  els.confirmNote.textContent = target.note;
+  els.confirmNote.hidden = !target.note;
+  els.confirm.showModal();
+});
+
+els.confirmCancel.addEventListener('click', () => els.confirm.close());
+els.confirmOk.addEventListener('click', () => runEdit(() => api.deleteTransaction(editing.id), 'delete'));
+els.confirm.addEventListener('cancel', (event) => {
+  if (busy) event.preventDefault();
 });
 
 els.cancelButton.addEventListener('click', () => els.editor.close());
