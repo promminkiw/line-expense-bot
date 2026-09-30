@@ -1,9 +1,12 @@
 # STATE
-Updated: 2026-09-29
+Updated: 2026-09-30
 Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืนยันตัวตน, ดู/กรองเดือน/แก้/ลบ) ตามแผน docs/superpowers/plans/2026-09-30-liff-transactions.md บน branch feat/step6-liff; 6b (กราฟ + CSV) ทีหลัง
 
 ## Next
-- [ ] `next` ผู้ใช้อ่านแผนขั้นที่ 6a และเลือกวิธีลงมือ
+- [ ] `next` ผู้ใช้ตัดสินว่าจะให้แก้ 2 minor ก่อน Task 9 ไหม: (1) app.mjs openEditor ไม่เช็กว่ายังแก้รายการเดิมอยู่หลัง await ensureCategories (กรณีหายาก หมวดของ A อาจไปลง B) (2) คอมเมนต์ router.js:15 บอก text/plain แต่จริงเป็น text/html
+- [ ] ผู้ใช้ทำ Task 9 ของแผน 6a: สร้าง LINE Login channel + LIFF app, เพิ่ม LIFF_ID และ LINE_LOGIN_CHANNEL_ID ใน .env (ถ้าไม่มี server และ npm run try-parse จะ start ไม่ได้), npm start ใหม่, manual check 10 ข้อ; เพิ่มเติมจาก review: ถ้าหน้าเว็บขึ้นให้เปิดจาก LINE อีกครั้ง ให้หา log `API auth rejected` ใน console ของ server (บอกเหตุผลจาก LINE เช่น channel id ผิด), ลองเปิดหน้าค้างไว้เกิน 1 ชั่วโมงแล้วบันทึก, ลองแก้รายการท้ายเดือนแล้วดูว่าหน้าไม่เด้งขึ้นบน
+- [ ] merge feat/step6-liff เข้า main หลัง Task 9 ผ่าน
+- [ ] ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
 - [ ] ขั้นที่ 6b: กราฟตามหมวด + export CSV
 
 ## Done
@@ -32,6 +35,9 @@ Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืน�
 - [x] Manual check ขั้นที่ 5 ผ่านครบ (2026-09-29): สร้าง Rich Menu ใน OA Manager ด้วยรูป 2500x843 ที่สร้างด้วย PowerShell (OA Manager ไม่มีปุ่มสร้างภาพ), เมนูขึ้น 3 ช่อง, สรุป ขึ้นปุ่ม 3 ช่วง, ช่วยเหลือ ได้ข้อความใหม่, เปิดเว็บ ได้ข้อความกำลังพัฒนา, ไม่มีแถวใหม่ใน transactions, พับ/กางเมนูได้
 - [x] merge feat/step5-rich-menu เข้า main ในเครื่อง (merge commit 960be2e, ยังไม่ push) npm test บน main 172/172
 - [x] เขียนแผนขั้นที่ 6a (2026-09-30): แบ่ง 6a/6b, HTML+JS ธรรมดา (public/liff, .mjs), ngrok ของผู้ใช้ URL คงที่อยู่แล้ว, แก้ได้ จำนวนเงิน/หมวด/วันที่/โน้ต (ประเภทตามหมวด)
+- [x] ขั้นที่ 6a Task 1-8 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-30), HEAD fe2ae19; npm test 256/256 ใน 24 ไฟล์, node --check index.js ผ่าน; final review dragon/viper/panda = With fixes -> fix wave เดียว (log เหตุผลที่ LINE ปฏิเสธ token, LINE 5xx/429 เป็น 500, timeout 15 วินาทีฝั่งหน้าเว็บ, ไม่ล้าง list ตอน reload หลังแก้, ลองโหลดหมวดใหม่ใน editor, ปิด dialog ไม่ได้ระหว่างบันทึก)
+- [x] สิ่งที่ผู้ใช้ตัดสินระหว่าง 6a (ต่างจากแผน): หน้าเว็บจัดการ error/สี AA/แถวเป็นปุ่ม, เพิ่มเทสต์ AuthError+timeout, ใช้ isValidCalendarDate ร่วมกันใน src/utils/date.js (แตะ parse-message.js), router parse JSON เอง (limit 10kb, error 4xx เป็น JSON, 404 JSON) และ app mount `/api` โดยไม่มี express.json ข้างนอก
+- [x] ข้อเล็กที่เลื่อนไว้ของ 6a อยู่ใน .superpowers/sdd/step6a-minors.md และ ledger .superpowers/sdd/progress.md (เช่น serve *.test.mjs, API สร้าง user ให้คนที่ยังไม่เพิ่มเพื่อนบอท, หน้าเว็บไม่มี retry button)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
@@ -42,6 +48,8 @@ Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืน�
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
+- ใน vitest ถ้าเทสต์ `import` class แต่โค้ด `require` module เดียวกัน จะได้คนละ instance ทำให้ `instanceof` เป็น false -> เทสต์ต้องโหลดด้วย `createRequire(import.meta.url)` (router.test.js)
+- Express router ที่ต่อหลัง `express.json()` ข้างนอกจะไม่ได้รับ error ของ body-parser -> ถ้าต้องการให้ API ตอบ JSON เสมอ ต้อง parse ใน router เอง
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`
 - LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
 - `express.raw` ต้องอยู่ก่อน LINE middleware ถึงจะจำกัดขนาด body ได้ (SDK ใช้ Buffer จาก req.body)
