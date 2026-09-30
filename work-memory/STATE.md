@@ -1,11 +1,16 @@
 # STATE
-Updated: 2026-09-29
-Goal: ขั้นที่ 1-5 เสร็จและ merge เข้า main แล้ว ขั้นต่อไปคือขั้นที่ 6 (หน้าเว็บ LIFF)
+Updated: 2026-09-30
+Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืนยันตัวตน, ดู/กรองเดือน/แก้/ลบ) ตามแผน docs/superpowers/plans/2026-09-30-liff-transactions.md บน branch feat/step6-liff; 6b (กราฟ + CSV) ทีหลัง
 
 ## Next
-- [ ] `next` เริ่ม SPEC ขั้นที่ 6 (LIFF เว็บ: ดู/แก้/ลบรายการ, กราฟตามหมวด, กรองตามเดือน, export CSV)
+- [ ] `next` ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
+- [ ] ขั้นที่ 6b: กราฟตามหมวด + export CSV
 
 ## Done
+- [x] แก้ minor ที่ค้างของ 6a ตามที่ผู้ใช้สั่ง (ec1504a): guard editor เปิดค้างหลังโหลดหมวด, คอมเมนต์ router.js, ปุ่ม กำลังลบ... ไม่จาง; npm test 259/259
+- [x] merge feat/step6-liff เข้า main ในเครื่อง (ยังไม่ push)
+- [x] Task 9 ของ 6a ผ่าน (2026-09-30): สร้าง LINE Login channel + LIFF app (Endpoint https://populace-gong-fossil.ngrok-free.dev/liff/, scope openid), .env ครบ 9 key, manual check 10 ข้อผ่าน (เปิดเว็บตอบลิงก์, หน้าเว็บตรงกับ Supabase, เดือนว่าง 0 บาท, แก้จำนวนเงิน, เปลี่ยนเป็นรายรับ type=income, 20000000 ถูก browser กัน, modal ยืนยันลบ + ลบจริง, API ไม่มี token ได้ Unauthorized, Rich Menu ช่อง B เป็นลิงก์ LIFF แล้ว), หน้าไม่เด้งหลังแก้รายการล่าง; ทดสอบเปิดค้างเกิน 1 ชั่วโมง ผู้ใช้เลือกไม่ทดสอบ
+- [x] ระหว่าง Task 9: แก้ ngrok free แทรกหน้าเตือน (ERR_NGROK_6024) กับ fetch ไป /api -> ส่ง header ngrok-skip-browser-warning (be668a8); ผู้ใช้ขอเปลี่ยนปุ่มลบแบบกดสองครั้งเป็น modal ยืนยันที่ออกแบบเอง (32964c9) falcon+panda ผ่าน; npm test 259/259 ใน 24 ไฟล์
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
 - [x] เปลี่ยนข้อความตอบเมื่อระบบมีปัญหาเป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` (ตอนนี้ชื่อค่าคงที่คือ SYSTEM_ERROR_REPLY ใน src/bot.js)
 - [x] ขั้นที่ 3 Task 1-9 implement + review + gate ผ่านครบด้วย Subagent-Driven (2026-09-29); Task 1, 6, 7 มี fix round 1 รอบ
@@ -30,6 +35,10 @@ Goal: ขั้นที่ 1-5 เสร็จและ merge เข้า main
 - [x] ข้อความช่วยเหลือเปลี่ยนเป็นแบบแบ่งหัวข้อพร้อม emoji ตามที่ผู้ใช้ขอ (ผู้ใช้อนุญาต emoji เฉพาะข้อความนี้; falcon Approved; npm test 172/172)
 - [x] Manual check ขั้นที่ 5 ผ่านครบ (2026-09-29): สร้าง Rich Menu ใน OA Manager ด้วยรูป 2500x843 ที่สร้างด้วย PowerShell (OA Manager ไม่มีปุ่มสร้างภาพ), เมนูขึ้น 3 ช่อง, สรุป ขึ้นปุ่ม 3 ช่วง, ช่วยเหลือ ได้ข้อความใหม่, เปิดเว็บ ได้ข้อความกำลังพัฒนา, ไม่มีแถวใหม่ใน transactions, พับ/กางเมนูได้
 - [x] merge feat/step5-rich-menu เข้า main ในเครื่อง (merge commit 960be2e, ยังไม่ push) npm test บน main 172/172
+- [x] เขียนแผนขั้นที่ 6a (2026-09-30): แบ่ง 6a/6b, HTML+JS ธรรมดา (public/liff, .mjs), ngrok ของผู้ใช้ URL คงที่อยู่แล้ว, แก้ได้ จำนวนเงิน/หมวด/วันที่/โน้ต (ประเภทตามหมวด)
+- [x] ขั้นที่ 6a Task 1-8 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-30), HEAD fe2ae19; npm test 256/256 ใน 24 ไฟล์, node --check index.js ผ่าน; final review dragon/viper/panda = With fixes -> fix wave เดียว (log เหตุผลที่ LINE ปฏิเสธ token, LINE 5xx/429 เป็น 500, timeout 15 วินาทีฝั่งหน้าเว็บ, ไม่ล้าง list ตอน reload หลังแก้, ลองโหลดหมวดใหม่ใน editor, ปิด dialog ไม่ได้ระหว่างบันทึก)
+- [x] สิ่งที่ผู้ใช้ตัดสินระหว่าง 6a (ต่างจากแผน): หน้าเว็บจัดการ error/สี AA/แถวเป็นปุ่ม, เพิ่มเทสต์ AuthError+timeout, ใช้ isValidCalendarDate ร่วมกันใน src/utils/date.js (แตะ parse-message.js), router parse JSON เอง (limit 10kb, error 4xx เป็น JSON, 404 JSON) และ app mount `/api` โดยไม่มี express.json ข้างนอก
+- [x] ข้อเล็กที่เลื่อนไว้ของ 6a อยู่ใน .superpowers/sdd/step6a-minors.md และ ledger .superpowers/sdd/progress.md (เช่น serve *.test.mjs, API สร้าง user ให้คนที่ยังไม่เพิ่มเพื่อนบอท, หน้าเว็บไม่มี retry button)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
@@ -39,7 +48,10 @@ Goal: ขั้นที่ 1-5 เสร็จและ merge เข้า main
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
+- ngrok แบบฟรีแทรกหน้าเตือน HTML ให้ request ที่ดูเหมือนมาจาก browser (ไม่ส่งต่อมาที่ server และไม่โผล่ใน inspector) -> fetch จากหน้าเว็บต้องส่ง header ngrok-skip-browser-warning; เช็กได้จาก http://127.0.0.1:4040/api/requests/http
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
+- ใน vitest ถ้าเทสต์ `import` class แต่โค้ด `require` module เดียวกัน จะได้คนละ instance ทำให้ `instanceof` เป็น false -> เทสต์ต้องโหลดด้วย `createRequire(import.meta.url)` (router.test.js)
+- Express router ที่ต่อหลัง `express.json()` ข้างนอกจะไม่ได้รับ error ของ body-parser -> ถ้าต้องการให้ API ตอบ JSON เสมอ ต้อง parse ใน router เอง
 - winget ติดตั้ง ngrok แต่ไม่เพิ่มเข้า PATH -> เรียกด้วย path เต็ม `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Ngrok.Ngrok_Microsoft.Winget.Source_8wekyb3d8bbwe\ngrok.exe`
 - LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
 - `express.raw` ต้องอยู่ก่อน LINE middleware ถึงจะจำกัดขนาด body ได้ (SDK ใช้ Buffer จาก req.body)

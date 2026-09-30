@@ -12,6 +12,8 @@ const { createUserService } = require('./src/users');
 const { createRateLimiter } = require('./src/rate-limit');
 const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
+const { createIdTokenVerifier } = require('./src/api/verify-id-token');
+const { createApiRouter } = require('./src/api/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
@@ -48,10 +50,18 @@ const bot = createBot({
   repository,
   users,
   allowRequest,
+  liffUrl: `https://liff.line.me/${config.liffId}`,
+});
+const apiRouter = createApiRouter({
+  verifyIdToken: createIdTokenVerifier({ channelId: config.lineLoginChannelId }),
+  users,
+  repository,
+  liffId: config.liffId,
 });
 const app = createApp({
   channelSecret: config.lineChannelSecret,
   handleEvents: bot.handleEvents,
+  apiRouter,
 });
 
 app.listen(config.port, (err) => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import crypto from 'node:crypto';
 import { createApp } from './app.js';
+import { createApiRouter } from './api/router.js';
 
 const SECRET = 'test-channel-secret';
 
@@ -10,8 +11,8 @@ function sign(body) {
 
 let server;
 
-async function start(handleEvents, logger = { error: vi.fn() }) {
-  const app = createApp({ channelSecret: SECRET, handleEvents, logger });
+async function start(handleEvents, logger = { error: vi.fn() }, apiRouter) {
+  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter });
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -155,5 +156,83 @@ describe('POST /webhook', () => {
     await vi.waitFor(() =>
       expect(logger.error).toHaveBeenCalledWith('Failed to handle events', expect.any(Error))
     );
+  });
+});
+
+describe('GET /liff/', () => {
+  it('serves the LIFF page', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff/`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('id="app"');
+  });
+
+  it('serves page modules as JavaScript', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff/app.mjs`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('javascript');
+  });
+
+  it('redirects /liff to /liff/ so relative asset paths resolve', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff`, { redirect: 'manual' });
+
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe('/liff/');
+  });
+});
+
+describe('/api', () => {
+  function buildApiRouter() {
+    return createApiRouter({
+      verifyIdToken: vi.fn().mockResolvedValue('U1'),
+      users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
+      repository: { listCategories: vi.fn().mockResolvedValue([]) },
+      liffId: 'liff-123',
+      logger: { error: vi.fn() },
+    });
+  }
+
+  it('mounts the API router under /api', async () => {
+    const baseUrl = await start(vi.fn(), { error: vi.fn() }, buildApiRouter());
+
+    const res = await fetch(`${baseUrl}/api/config`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ liffId: 'liff-123' });
+  });
+
+  it('answers malformed JSON bodies with JSON, not the app text handler', async () => {
+    const baseUrl = await start(vi.fn(), { error: vi.fn() }, buildApiRouter());
+
+    const res = await fetch(`${baseUrl}/api/transactions/x`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{bad',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(await res.json()).toEqual({ error: 'Invalid body' });
+  });
+
+  it('rejects JSON bodies larger than 10kb with a JSON error', async () => {
+    const baseUrl = await start(vi.fn(), { error: vi.fn() }, buildApiRouter());
+
+    const res = await fetch(`${baseUrl}/api/transactions/x`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: 'x'.repeat(11 * 1024) }),
+    });
+
+    expect(res.status).toBe(413);
+    expect(res.headers.get('content-type')).toContain('application/json');
   });
 });

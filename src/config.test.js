@@ -7,10 +7,12 @@ const VALID_ENV = {
   ANTHROPIC_API_KEY: 'sk-ant-test',
   SUPABASE_URL: 'https://abc.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test',
+  LIFF_ID: '1234567890-AbCdEfGh',
+  LINE_LOGIN_CHANNEL_ID: '1234567890',
 };
 
 describe('loadConfig', () => {
-  it('returns LINE, Claude and Supabase settings from env', () => {
+  it('returns LINE, Claude, Supabase and LIFF settings from env', () => {
     const config = loadConfig({ ...VALID_ENV, PORT: '4000', CLAUDE_MODEL: 'claude-sonnet-5-5' });
 
     expect(config).toEqual({
@@ -21,6 +23,8 @@ describe('loadConfig', () => {
       claudeModel: 'claude-sonnet-5-5',
       supabaseUrl: 'https://abc.supabase.co',
       supabaseServiceRoleKey: 'sb_secret_test',
+      liffId: '1234567890-AbCdEfGh',
+      lineLoginChannelId: '1234567890',
     });
   });
 
@@ -33,13 +37,13 @@ describe('loadConfig', () => {
 
   it('throws listing every missing key', () => {
     expect(() => loadConfig({})).toThrow(
-      'Missing environment variables: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY'
+      'Missing environment variables: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, LIFF_ID, LINE_LOGIN_CHANNEL_ID'
     );
   });
 
   it('treats empty string as missing', () => {
-    expect(() => loadConfig({ ...VALID_ENV, SUPABASE_SERVICE_ROLE_KEY: '' })).toThrow(
-      'Missing environment variables: SUPABASE_SERVICE_ROLE_KEY'
+    expect(() => loadConfig({ ...VALID_ENV, LINE_LOGIN_CHANNEL_ID: '' })).toThrow(
+      'Missing environment variables: LINE_LOGIN_CHANNEL_ID'
     );
   });
 });

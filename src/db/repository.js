@@ -126,7 +126,71 @@ function createRepository(supabase) {
     }));
   }
 
+  async function listTransactions(userId, from, to) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, type, amount, note, occurred_on, category_id')
+      .eq('user_id', userId)
+      .gte('occurred_on', from)
+      .lte('occurred_on', to)
+      .order('occurred_on', { ascending: false })
+      .order('created_at', { ascending: false });
+    throwIfError('listTransactions', error);
+    // แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
+    return data.map((row) => ({
+      id: row.id,
+      type: row.type,
+      amount: Number(row.amount),
+      note: row.note,
+      occurredOn: row.occurred_on,
+      categoryId: row.category_id,
+    }));
+  }
+
+  async function listCategories(userId) {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name, type')
+      .eq('user_id', userId)
+      .order('type')
+      .order('name');
+    throwIfError('listCategories', error);
+    return data.map((row) => ({ id: row.id, name: row.name, type: row.type }));
+  }
+
+  async function updateTransaction(userId, id, fields) {
+    // select('id') ทำให้รู้ว่ามีแถวถูกแก้จริงไหม
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({
+        type: fields.type,
+        amount: fields.amount,
+        category_id: fields.categoryId,
+        occurred_on: fields.occurredOn,
+        note: fields.note,
+      })
+      .eq('user_id', userId)
+      .eq('id', id)
+      .select('id');
+    throwIfError('updateTransaction', error);
+    return data.length > 0;
+  }
+
+  async function deleteTransaction(userId, id) {
+    const { count, error } = await supabase
+      .from('transactions')
+      .delete({ count: 'exact' })
+      .eq('user_id', userId)
+      .eq('id', id);
+    throwIfError('deleteTransaction', error);
+    return count > 0;
+  }
+
   return {
+    listTransactions,
+    listCategories,
+    updateTransaction,
+    deleteTransaction,
     summarizeTransactions,
     getPendingClarification,
     savePendingClarification,
