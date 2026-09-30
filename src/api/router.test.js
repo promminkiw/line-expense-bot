@@ -326,6 +326,17 @@ describe('POST /api/exports', () => {
     expect(deps.repository.createExportLink).not.toHaveBeenCalled();
   });
 
+  it('returns 400 for a non-string month without storing a link', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: ['2026-09'] } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid month' });
+    expect(deps.repository.createExportLink).not.toHaveBeenCalled();
+  });
+
   it('requires a verified token', async () => {
     const deps = setup();
     const base = await start(deps);

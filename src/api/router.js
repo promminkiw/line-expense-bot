@@ -106,7 +106,7 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
 
   router.post('/exports', async (req, res) => {
     const month = req.body && req.body.month;
-    if (!parseMonth(month)) {
+    if (typeof month !== 'string' || !parseMonth(month)) {
       res.status(400).json({ error: 'Invalid month' });
       return;
     }
