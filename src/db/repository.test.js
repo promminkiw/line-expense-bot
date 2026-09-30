@@ -5,7 +5,7 @@ import { createRepository, DatabaseError } from './repository.js';
 function fakeSupabase(result) {
   const calls = [];
   const builder = {};
-  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order']) {
+  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order', 'range', 'is', 'gt']) {
     builder[method] = vi.fn((...args) => {
       calls.push([method, ...args]);
       return builder;
@@ -25,6 +25,27 @@ function fakeSupabase(result) {
     }),
     rpc: vi.fn((name, params) => {
       calls.push(['rpc', name, params]);
+      return builder;
+    }),
+  };
+  return { supabase, calls };
+}
+
+// เหมือน fakeSupabase แต่ await แต่ละครั้งได้ผลลัพธ์ถัดไป ใช้กับ query ที่อ่านทีละหน้า
+function fakeSupabasePages(results) {
+  const calls = [];
+  let index = 0;
+  const builder = {};
+  for (const method of ['select', 'eq', 'gte', 'lte', 'order', 'range']) {
+    builder[method] = vi.fn((...args) => {
+      calls.push([method, ...args]);
+      return builder;
+    });
+  }
+  builder.then = (resolve, reject) => Promise.resolve(results[index++]).then(resolve, reject);
+  const supabase = {
+    from: vi.fn((table) => {
+      calls.push(['from', table]);
       return builder;
     }),
   };
@@ -357,20 +378,24 @@ describe('repository.summarizeTransactions', () => {
 });
 
 describe('repository.listTransactions', () => {
-  it('reads this user rows in the date range, newest first', async () => {
+  it('reads this user rows in the date range, newest first, with the total count', async () => {
     const { supabase, calls } = fakeSupabase({
       data: [{ id: 't1', type: 'expense', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-09-29', category_id: 'c1' }],
+      count: 1,
       error: null,
     });
 
-    const rows = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
+    const result = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
 
-    expect(rows).toEqual([
-      { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c1' },
-    ]);
+    expect(result).toEqual({
+      transactions: [
+        { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c1' },
+      ],
+      totalCount: 1,
+    });
     expect(calls).toEqual([
       ['from', 'transactions'],
-      ['select', 'id, type, amount, note, occurred_on, category_id'],
+      ['select', 'id, type, amount, note, occurred_on, category_id', { count: 'exact' }],
       ['eq', 'user_id', 'user-1'],
       ['gte', 'occurred_on', '2026-09-01'],
       ['lte', 'occurred_on', '2026-09-30'],
@@ -382,20 +407,145 @@ describe('repository.listTransactions', () => {
   it('returns number amounts when PostgREST sends numbers', async () => {
     const { supabase } = fakeSupabase({
       data: [{ id: 't1', type: 'expense', amount: 60.5, note: null, occurred_on: '2026-09-29', category_id: 'c1' }],
+      count: 1,
       error: null,
     });
 
-    const rows = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
+    const { transactions } = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
 
-    expect(rows[0].amount).toBe(60.5);
+    expect(transactions[0].amount).toBe(60.5);
+  });
+
+  it('reports a total count larger than the rows returned', async () => {
+    const { supabase } = fakeSupabase({
+      data: [{ id: 't1', type: 'expense', amount: 1, note: '', occurred_on: '2026-09-29', category_id: 'c1' }],
+      count: 1500,
+      error: null,
+    });
+
+    const { totalCount } = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(totalCount).toBe(1500);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).listTransactions('user-1', 'a', 'b');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database listTransactions failed: boom');
+  });
+});
+
+describe('repository.listAllTransactions', () => {
+  const dbRow = { id: 't1', type: 'expense', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-09-01', category_id: 'c1' };
+
+  it('reads this user rows oldest first in pages of 1000 until a short page', async () => {
+    const fullPage = Array.from({ length: 1000 }, () => dbRow);
+    const { supabase, calls } = fakeSupabasePages([
+      { data: fullPage, error: null },
+      { data: [dbRow], error: null },
+    ]);
+
+    const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(rows).toHaveLength(1001);
+    expect(rows[0]).toEqual({ id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1' });
+    expect(calls.slice(0, 9)).toEqual([
+      ['from', 'transactions'],
+      ['select', 'id, type, amount, note, occurred_on, category_id'],
+      ['eq', 'user_id', 'user-1'],
+      ['gte', 'occurred_on', '2026-09-01'],
+      ['lte', 'occurred_on', '2026-09-30'],
+      ['order', 'occurred_on', { ascending: true }],
+      ['order', 'created_at', { ascending: true }],
+      ['order', 'id', { ascending: true }],
+      ['range', 0, 999],
+    ]);
+    expect(calls[17]).toEqual(['range', 1000, 1999]);
+    expect(calls).toHaveLength(18);
+  });
+
+  it('stops after one page when the month has fewer than 1000 rows', async () => {
+    const { supabase, calls } = fakeSupabasePages([{ data: [], error: null }]);
+
+    expect(await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30')).toEqual([]);
+    expect(calls.filter((call) => call[0] === 'range')).toEqual([['range', 0, 999]]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabasePages([{ data: null, error: { message: 'boom' } }]);
+
+    const promise = createRepository(supabase).listAllTransactions('user-1', 'a', 'b');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database listAllTransactions failed: boom');
+  });
+});
+
+describe('repository.createExportLink', () => {
+  it('stores the token hash for this user and month', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).createExportLink({
+      tokenHash: 'hash-1',
+      userId: 'user-1',
+      month: '2026-09',
+      expiresAt: '2026-09-30T03:05:00.000Z',
+    });
+
+    expect(calls).toEqual([
+      ['from', 'export_links'],
+      ['insert', { token_hash: 'hash-1', user_id: 'user-1', month: '2026-09', expires_at: '2026-09-30T03:05:00.000Z' }],
+    ]);
   });
 
   it('throws DatabaseError when Supabase returns an error', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 
-    await expect(createRepository(supabase).listTransactions('user-1', 'a', 'b')).rejects.toThrow(
-      'Database listTransactions failed: boom'
-    );
+    const promise = createRepository(supabase).createExportLink({
+      tokenHash: 'h',
+      userId: 'u',
+      month: '2026-09',
+      expiresAt: 'x',
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database createExportLink failed: boom');
+  });
+});
+
+describe('repository.claimExportLink', () => {
+  it('marks an unused, unexpired link as used in one update and returns its owner and month', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ user_id: 'user-1', month: '2026-09' }], error: null });
+
+    const link = await createRepository(supabase).claimExportLink('hash-1', '2026-09-30T03:01:00.000Z');
+
+    expect(link).toEqual({ userId: 'user-1', month: '2026-09' });
+    expect(calls).toEqual([
+      ['from', 'export_links'],
+      ['update', { used_at: '2026-09-30T03:01:00.000Z' }],
+      ['eq', 'token_hash', 'hash-1'],
+      ['is', 'used_at', null],
+      ['gt', 'expires_at', '2026-09-30T03:01:00.000Z'],
+      ['select', 'user_id, month'],
+    ]);
+  });
+
+  it('returns null when no link matched', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).claimExportLink('hash-1', '2026-09-30T03:01:00.000Z')).toBeNull();
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).claimExportLink('hash-1', 'x');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database claimExportLink failed: boom');
   });
 });
 

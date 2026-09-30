@@ -61,6 +61,17 @@ describe('createApi', () => {
     await expect(promise).rejects.toMatchObject({ status: 401 });
   });
 
+  it('asks for an export link of one month with POST', async () => {
+    const fetchImpl = fakeFetch(201, { path: '/exports/abc' });
+
+    expect(await setup(fetchImpl).createExport('2026-09')).toEqual({ path: '/exports/abc' });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe('/api/exports');
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(options.body)).toEqual({ month: '2026-09' });
+    expect(options.headers.Authorization).toBe('Bearer token-1');
+  });
+
   it('passes a 15 second timeout signal to fetch', async () => {
     const signal = new AbortController().signal;
     const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(signal);

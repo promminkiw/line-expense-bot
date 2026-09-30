@@ -34,21 +34,6 @@ export function groupByDate(transactions) {
   return groups;
 }
 
-// รวมเป็นสตางค์เพื่อไม่ให้ทศนิยมของ JavaScript คลาดเคลื่อน
-export function totals(transactions) {
-  let income = 0;
-  let expense = 0;
-  for (const item of transactions) {
-    const satang = Math.round(item.amount * 100);
-    if (item.type === 'income') {
-      income += satang;
-    } else {
-      expense += satang;
-    }
-  }
-  return { income: income / 100, expense: expense / 100 };
-}
-
 export function groupCategoryOptions(categories) {
   return {
     expense: categories.filter((category) => category.type === 'expense'),
@@ -80,4 +65,39 @@ export function describeDeleteTarget(item) {
     date: formatThaiDate(item.occurredOn),
     note: item.note || '',
   };
+}
+
+// ยอดรวมมาจาก SQL เพื่อให้ตรงกับที่บอทสรุป และนับครบแม้รายการที่แสดงถูกตัด
+export function summaryTotals(summary) {
+  let income = 0;
+  let expense = 0;
+  for (const row of summary) {
+    const satang = Math.round(row.total * 100);
+    if (row.type === 'income') {
+      income += satang;
+    } else {
+      expense += satang;
+    }
+  }
+  return { income: income / 100, expense: expense / 100 };
+}
+
+export function chartRows(summary, type) {
+  const rows = summary
+    .filter((row) => row.type === type && row.total > 0)
+    .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category, 'th'));
+  const sum = rows.reduce((acc, row) => acc + row.total, 0);
+  const max = rows.length > 0 ? rows[0].total : 0;
+  return rows.map((row) => ({
+    category: row.category,
+    total: row.total,
+    // ปัดเป็นจำนวนเต็มให้อ่านง่าย ผลรวมอาจไม่ครบ 100 พอดี
+    share: Math.round((row.total / sum) * 100),
+    // แท่งที่ยอดสูงสุดยาวเต็ม แท่งอื่นเทียบกับแท่งนี้
+    width: (row.total / max) * 100,
+  }));
+}
+
+export function describeExportFailure(status) {
+  return status === 401 ? LOGIN_REQUIRED_MESSAGE : 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
 }

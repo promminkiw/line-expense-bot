@@ -1,6 +1,7 @@
 const express = require('express');
 const { AuthError } = require('./verify-id-token');
 const { parseMonth, validateTransactionUpdate } = require('./validate');
+const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -9,7 +10,7 @@ function readBearerToken(req) {
   return header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
 }
 
-function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console }) {
+function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console, now = () => new Date() }) {
   const router = express.Router();
 
   // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ข้อความจาก error handler ของ app
@@ -48,13 +49,17 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
       res.status(400).json({ error: 'Invalid month' });
       return;
     }
-    const [transactions, categories] = await Promise.all([
+    const [{ transactions, totalCount }, categories, summary] = await Promise.all([
       repository.listTransactions(req.userId, range.from, range.to),
       repository.listCategories(req.userId),
+      repository.summarizeTransactions(req.userId, range.from, range.to),
     ]);
     const names = new Map(categories.map((category) => [category.id, category.name]));
     res.json({
       transactions: transactions.map((item) => ({ ...item, categoryName: names.get(item.categoryId) || '' })),
+      // ยอดรวมและกราฟใช้ summary จาก SQL จึงนับครบแม้รายการที่ส่งมาถูกตัดตาม max-rows
+      summary,
+      truncated: totalCount > transactions.length,
     });
   });
 
@@ -97,6 +102,23 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
       return;
     }
     res.status(204).end();
+  });
+
+  router.post('/exports', async (req, res) => {
+    const month = req.body && req.body.month;
+    if (typeof month !== 'string' || !parseMonth(month)) {
+      res.status(400).json({ error: 'Invalid month' });
+      return;
+    }
+    const { token, tokenHash } = createLinkToken();
+    await repository.createExportLink({
+      tokenHash,
+      userId: req.userId,
+      month,
+      expiresAt: new Date(now().getTime() + EXPORT_LINK_TTL_MS).toISOString(),
+    });
+    // ส่งกลับแค่ path ให้หน้าเว็บต่อ origin เอง เพราะ server ไม่รู้โดเมนของ ngrok
+    res.status(201).json({ path: `/exports/${token}` });
   });
 
   router.use((req, res) => {

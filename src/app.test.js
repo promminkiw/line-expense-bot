@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import crypto from 'node:crypto';
 import { createApp } from './app.js';
 import { createApiRouter } from './api/router.js';
+import { createExportRouter } from './export/router.js';
 
 const SECRET = 'test-channel-secret';
 
@@ -11,8 +12,8 @@ function sign(body) {
 
 let server;
 
-async function start(handleEvents, logger = { error: vi.fn() }, apiRouter) {
-  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter });
+async function start(handleEvents, logger = { error: vi.fn() }, apiRouter, exportRouter) {
+  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter, exportRouter });
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -234,5 +235,26 @@ describe('/api', () => {
 
     expect(res.status).toBe(413);
     expect(res.headers.get('content-type')).toContain('application/json');
+  });
+});
+
+describe('/exports', () => {
+  it('mounts the export router under /exports', async () => {
+    const repository = { claimExportLink: vi.fn(), listAllTransactions: vi.fn(), listCategories: vi.fn() };
+    const baseUrl = await start(vi.fn(), undefined, undefined, createExportRouter({ repository }));
+
+    const res = await fetch(`${baseUrl}/exports/not-a-token`);
+
+    expect(res.status).toBe(410);
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    expect(repository.claimExportLink).not.toHaveBeenCalled();
+  });
+
+  it('is not mounted when no export router is given', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/exports/not-a-token`);
+
+    expect(res.status).toBe(404);
   });
 });

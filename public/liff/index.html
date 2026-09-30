@@ -13,6 +13,22 @@
       <input type="month" id="month" aria-label="เลือกเดือน">
     </header>
     <p id="totals" class="totals" hidden></p>
+    <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV</p>
+    <div class="export">
+      <button type="button" id="export-button">Export CSV</button>
+      <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
+    </div>
+    <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
+      <div class="chart-head">
+        <h2 id="chart-title">สรุปตามหมวด</h2>
+        <div class="tabs" role="group" aria-label="ประเภทกราฟ">
+          <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
+          <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
+        </div>
+      </div>
+      <ul id="chart-rows" class="chart-rows"></ul>
+      <p id="chart-empty" class="chart-empty" hidden></p>
+    </section>
     <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
     <ul id="list" class="list"></ul>
   </main>

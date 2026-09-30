@@ -1,12 +1,15 @@
 # STATE
 Updated: 2026-09-30
-Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืนยันตัวตน, ดู/กรองเดือน/แก้/ลบ) ตามแผน docs/superpowers/plans/2026-09-30-liff-transactions.md บน branch feat/step6-liff; 6b (กราฟ + CSV) ทีหลัง
+Goal: ทำขั้นที่ 6b (กราฟตามหมวด + export CSV + แก้รายการเกิน max-rows) ตามแผน docs/superpowers/plans/2026-09-30-liff-chart-csv.md บน branch feat/step6b-chart-csv
 
 ## Next
-- [ ] `next` ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
-- [ ] ขั้นที่ 6b: กราฟตามหมวด + export CSV
+- [ ] `next` merge feat/step6b-chart-csv เข้า main ในเครื่อง (รอผู้ใช้ยืนยัน)
+- [ ] ticket ที่เลื่อนไว้ (ผู้ใช้ตัดสินว่าจะทำเมื่อไร): liff-export-ux-polish (กด Export ก่อนหน้าโหลดเสร็จแล้วเงียบ, share เล็กแสดง 0%, สถานะหลังเปลี่ยนเดือน, เดือนว่าง, ข้อความว่างซ้ำ, ขอบปุ่ม 1.6:1), export-paging-maxrows-guard, export-links-housekeeping (ลบลิงก์เก่า + rate limit), exports-fallback-404, shared-type-labels
 
 ## Done
+- [x] Task 9 ของ 6b ผ่าน (2026-09-30): รัน 004 แล้ว, npm start ใหม่, manual check 9 ข้อในแอป LINE ผ่านครบ (กราฟ/ปุ่มสลับ/เดือนว่าง/ยอดตรงกับ สรุป เดือนนี้, Export เปิด Safari ดาวน์โหลดได้ ไม่โดน 410 ก่อน, ไฟล์ภาษาไทยอ่านได้ เรียงเก่าไปใหม่, เปิดลิงก์ซ้ำได้ 410, export_links มีแค่ token_hash และ used_at มีค่า); ตรวจ RLS ด้วย publishable key GET /rest/v1/export_links ได้ [] (ครั้งแรกได้ Invalid API key/requested path is invalid จาก key และ URL ที่ใส่ผิด)
+- [x] ขั้นที่ 6b Task 1-8 implement + review + gate ผ่านด้วย Subagent-Driven (2026-09-30), HEAD 6d81691 + docs; npm test 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน; fix round: Task 4 (month ที่ไม่ใช่ string ได้ 400), Task 5 (%-escape พังได้ 410 ไม่ log, HEAD ได้ 405 ไม่ใช้ลิงก์), Task 7 (ผู้ใช้เลือกปุ่มสลับ aria-pressed แทน role="tab"); final review dragon/viper/panda/coral = With fixes -> fix wave เดียว F1-F9 (เทสต์ tab/CR, BOM เป็น escape, เทสต์ chartRows, ข้อความ 500/สถานะ export, คอมเมนต์, header schema.sql, หัวข้อ "สิ่งที่เปลี่ยนจากแผนหลัง review" ในแผน); ข้อเล็กและ ruling อยู่ใน .superpowers/sdd/step6b-minors.md และ ledger .superpowers/sdd/progress.md
+- [x] เขียนแผนขั้นที่ 6b (2026-09-30, commit 0c96984) บน branch feat/step6b-chart-csv (แยกจาก main e9d4102): ผู้ใช้เลือก กราฟแท่งแนวนอนทำด้วย HTML/CSS, แท็บ รายจ่าย/รายรับ เปิดมาเป็นรายจ่าย, CSV ผ่านลิงก์ใช้ครั้งเดียว 5 นาทีเปิดใน Safari (liff.openWindow external) เก็บ hash ในตาราง export_links, CSV เฉพาะเดือนที่เลือก; ค่าเริ่มต้น: ยอดรวม/กราฟจาก summarize_transactions, หมายเหตุเมื่อรายการถูกตัด, CSV UTF-8 BOM หัวตารางภาษาไทย กัน CSV injection; 8 tasks + Task 9 ผู้ใช้
 - [x] แก้ minor ที่ค้างของ 6a ตามที่ผู้ใช้สั่ง (ec1504a): guard editor เปิดค้างหลังโหลดหมวด, คอมเมนต์ router.js, ปุ่ม กำลังลบ... ไม่จาง; npm test 259/259
 - [x] merge feat/step6-liff เข้า main ในเครื่อง (ยังไม่ push)
 - [x] Task 9 ของ 6a ผ่าน (2026-09-30): สร้าง LINE Login channel + LIFF app (Endpoint https://populace-gong-fossil.ngrok-free.dev/liff/, scope openid), .env ครบ 9 key, manual check 10 ข้อผ่าน (เปิดเว็บตอบลิงก์, หน้าเว็บตรงกับ Supabase, เดือนว่าง 0 บาท, แก้จำนวนเงิน, เปลี่ยนเป็นรายรับ type=income, 20000000 ถูก browser กัน, modal ยืนยันลบ + ลบจริง, API ไม่มี token ได้ Unauthorized, Rich Menu ช่อง B เป็นลิงก์ LIFF แล้ว), หน้าไม่เด้งหลังแก้รายการล่าง; ทดสอบเปิดค้างเกิน 1 ชั่วโมง ผู้ใช้เลือกไม่ทดสอบ
@@ -44,6 +47,8 @@ Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืน�
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
+- Express 5 (router 2.2.0) ตอบ HEAD ด้วย handler ของ GET และ decodeParam ที่พังโยน URIError (status 400) ที่มีค่า param ใน message -> route ที่มีผลข้างเคียงต้องกัน HEAD และห้าม log error นี้ถ้า param เป็นความลับ
+- gate-default.sh ไม่พิมพ์อะไรเมื่อผ่าน ต้องรัน vitest กับไฟล์ของ task แยกเพื่อยืนยันว่ามีเทสต์รันจริง
 - แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
