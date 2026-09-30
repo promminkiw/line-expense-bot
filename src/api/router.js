@@ -12,7 +12,7 @@ function readBearerToken(req) {
 function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console }) {
   const router = express.Router();
 
-  // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router ไม่หลุดเป็น HTML
+  // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ text/plain ของ app
   router.use(express.json({ limit: '10kb' }));
 
   router.get('/config', (req, res) => {
@@ -27,6 +27,10 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
       next();
     } catch (err) {
       if (err instanceof AuthError) {
+        // log เฉพาะเหตุผลที่ LINE ปฏิเสธ ไม่ log token
+        if (readBearerToken(req)) {
+          logger.error('API auth rejected', { path: req.path, reason: err.message });
+        }
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }

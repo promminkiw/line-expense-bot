@@ -79,6 +79,28 @@ describe('authentication', () => {
     expect(deps.users.ensureUser).not.toHaveBeenCalled();
   });
 
+  it('logs the LINE rejection reason when the token is refused', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/categories', { token: 'bad' });
+
+    expect(deps.logger.error).toHaveBeenCalledWith('API auth rejected', {
+      path: '/categories',
+      reason: 'bad token',
+    });
+    expect(JSON.stringify(deps.logger.error.mock.calls)).not.toContain('Bearer');
+  });
+
+  it('does not log when the token is missing', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/categories', { token: null });
+
+    expect(deps.logger.error).not.toHaveBeenCalled();
+  });
+
   it('returns 401 when LINE rejects the token', async () => {
     const deps = setup();
     const base = await start(deps);

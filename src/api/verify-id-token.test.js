@@ -40,6 +40,38 @@ describe('createIdTokenVerifier', () => {
     await expect(promise).rejects.toBeInstanceOf(AuthError);
   });
 
+  it('includes LINE error_description in the rejection', async () => {
+    const verify = createIdTokenVerifier({
+      channelId: '1',
+      fetchImpl: fakeFetch(400, { error: 'invalid_request', error_description: 'Invalid IdToken Audience.' }),
+    });
+
+    await expect(verify('token')).rejects.toThrow('ID token rejected with status 400: Invalid IdToken Audience.');
+  });
+
+  it('tolerates a non-JSON rejection body', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => {
+        throw new SyntaxError('bad json');
+      },
+    });
+    const verify = createIdTokenVerifier({ channelId: '1', fetchImpl });
+
+    const promise = verify('token');
+    await expect(promise).rejects.toThrow('ID token rejected with status 400');
+    await expect(promise).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it.each([500, 503, 429])('treats LINE status %i as a server error, not AuthError', async (status) => {
+    const verify = createIdTokenVerifier({ channelId: '1', fetchImpl: fakeFetch(status, {}) });
+
+    const promise = verify('token');
+    await expect(promise).rejects.toThrow(`status ${status}`);
+    await expect(promise).rejects.not.toBeInstanceOf(AuthError);
+  });
+
   it('rejects when LINE answers 401', async () => {
     const verify = createIdTokenVerifier({ channelId: '1', fetchImpl: fakeFetch(401, {}) });
 

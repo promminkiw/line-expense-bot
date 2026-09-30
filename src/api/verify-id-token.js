@@ -9,6 +9,15 @@ class AuthError extends Error {
   }
 }
 
+async function readErrorDescription(response) {
+  try {
+    const body = await response.json();
+    return typeof body?.error_description === 'string' ? body.error_description : '';
+  } catch {
+    return '';
+  }
+}
+
 function createIdTokenVerifier({ channelId, fetchImpl = fetch }) {
   return async function verifyIdToken(idToken) {
     if (!idToken) {
@@ -21,7 +30,12 @@ function createIdTokenVerifier({ channelId, fetchImpl = fetch }) {
       signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
     });
     if (!response.ok) {
-      throw new AuthError(`ID token rejected with status ${response.status}`);
+      // LINE ล่มหรือจำกัดอัตราไม่ใช่ความผิดของ token จึงไม่ให้กลายเป็น 401
+      if (response.status >= 500 || response.status === 429) {
+        throw new Error(`LINE verify unavailable, status ${response.status}`);
+      }
+      const reason = await readErrorDescription(response);
+      throw new AuthError(`ID token rejected with status ${response.status}${reason ? `: ${reason}` : ''}`);
     }
     const payload = await response.json();
     if (!payload.sub) {
