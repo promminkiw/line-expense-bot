@@ -51,3 +51,19 @@ export function groupCategoryOptions(categories) {
     income: categories.filter((category) => category.type === 'income'),
   };
 }
+
+export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
+
+export function describeEditFailure(status, action) {
+  if (status === 401) {
+    return { message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false };
+  }
+  if (status === 404) {
+    return { message: 'ไม่พบรายการนี้แล้ว', closeAndReload: true };
+  }
+  if (status === 400 && action === 'save') {
+    return { message: 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่อีกครั้ง', closeAndReload: false };
+  }
+  const failed = action === 'delete' ? 'ลบไม่สำเร็จ' : 'บันทึกไม่สำเร็จ';
+  return { message: `${failed} ลองใหม่อีกครั้ง`, closeAndReload: false };
+}

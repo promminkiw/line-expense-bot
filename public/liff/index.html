@@ -13,7 +13,7 @@
       <input type="month" id="month" aria-label="เลือกเดือน">
     </header>
     <p id="totals" class="totals" hidden></p>
-    <p id="status" class="status">กำลังโหลด...</p>
+    <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
     <ul id="list" class="list"></ul>
   </main>
   <dialog id="editor">
@@ -31,7 +31,7 @@
       <label>โน้ต
         <input id="edit-note" type="text" maxlength="200">
       </label>
-      <p id="edit-error" class="error" hidden></p>
+      <p id="edit-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="delete-button" class="danger">ลบ</button>
         <button type="button" id="cancel-button">ปิด</button>

@@ -6,6 +6,8 @@ import {
   groupByDate,
   totals,
   groupCategoryOptions,
+  describeEditFailure,
+  LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
@@ -23,6 +25,7 @@ const els = {
   note: document.getElementById('edit-note'),
   error: document.getElementById('edit-error'),
   deleteButton: document.getElementById('delete-button'),
+  saveButton: document.querySelector('#edit-form button[type="submit"]'),
   cancelButton: document.getElementById('cancel-button'),
 };
 
@@ -30,6 +33,7 @@ let api;
 let categories = [];
 let editing = null;
 let confirmDelete = false;
+let busy = false;
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -39,7 +43,7 @@ function setStatus(text) {
 function showLoadError(err) {
   setStatus(
     err instanceof ApiError && err.status === 401
-      ? 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง'
+      ? LOGIN_REQUIRED_MESSAGE
       : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง'
   );
 }
@@ -64,13 +68,17 @@ function fillCategoryOptions() {
 function renderRow(item) {
   const row = document.createElement('li');
   row.className = `row ${item.type}`;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'row-button';
   const label = document.createElement('span');
   label.textContent = item.note ? `${item.categoryName} · ${item.note}` : item.categoryName;
   const amount = document.createElement('span');
   amount.className = 'amount';
   amount.textContent = `${item.type === 'income' ? '+' : '-'}${formatBaht(item.amount)}`;
-  row.append(label, amount);
-  row.addEventListener('click', () => openEditor(item));
+  button.append(label, amount);
+  button.addEventListener('click', () => openEditor(item));
+  row.append(button);
   return row;
 }
 
@@ -95,10 +103,19 @@ function render(transactions) {
   }
 }
 
+// ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ status เสมอ
 async function loadMonth() {
+  const month = els.month.value;
+  els.list.replaceChildren();
+  els.totals.hidden = true;
   setStatus('กำลังโหลด...');
-  const { transactions } = await api.listTransactions(els.month.value);
-  render(transactions);
+  try {
+    const { transactions } = await api.listTransactions(month);
+    // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
+    if (month === els.month.value) render(transactions);
+  } catch (err) {
+    if (month === els.month.value) showLoadError(err);
+  }
 }
 
 function openEditor(item) {
@@ -113,18 +130,38 @@ function openEditor(item) {
   els.editor.showModal();
 }
 
-async function runEdit(action) {
+function setBusy(isBusy, kind) {
+  busy = isBusy;
+  els.saveButton.disabled = isBusy;
+  els.deleteButton.disabled = isBusy;
+  els.error.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
+  els.error.hidden = !isBusy;
+}
+
+async function runEdit(action, kind) {
+  if (busy) return;
+  setBusy(true, kind);
+  let failure = null;
   try {
     await action();
+  } catch (err) {
+    failure = describeEditFailure(err instanceof ApiError ? err.status : undefined, kind);
+  } finally {
+    setBusy(false);
+  }
+  if (!failure) {
     els.editor.close();
     await loadMonth();
-  } catch (err) {
-    els.error.textContent =
-      err instanceof ApiError && err.status === 400
-        ? 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่อีกครั้ง'
-        : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
-    els.error.hidden = false;
+    return;
   }
+  if (failure.closeAndReload) {
+    els.editor.close();
+    await loadMonth();
+    setStatus(failure.message);
+    return;
+  }
+  els.error.textContent = failure.message;
+  els.error.hidden = false;
 }
 
 els.form.addEventListener('submit', (event) => {
@@ -135,7 +172,8 @@ els.form.addEventListener('submit', (event) => {
       categoryId: els.category.value,
       occurredOn: els.date.value,
       note: els.note.value,
-    })
+    }),
+    'save'
   );
 });
 
@@ -146,11 +184,11 @@ els.deleteButton.addEventListener('click', () => {
     els.deleteButton.textContent = 'ยืนยันลบ';
     return;
   }
-  runEdit(() => api.deleteTransaction(editing.id));
+  runEdit(() => api.deleteTransaction(editing.id), 'delete');
 });
 
 els.cancelButton.addEventListener('click', () => els.editor.close());
-els.month.addEventListener('change', () => loadMonth().catch(showLoadError));
+els.month.addEventListener('change', loadMonth);
 
 async function boot() {
   try {

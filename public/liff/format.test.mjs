@@ -6,6 +6,8 @@ import {
   groupByDate,
   totals,
   groupCategoryOptions,
+  describeEditFailure,
+  LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -62,5 +64,25 @@ describe('groupCategoryOptions', () => {
     const salary = { id: 'c2', name: 'เงินเดือน', type: 'income' };
 
     expect(groupCategoryOptions([food, salary])).toEqual({ expense: [food], income: [salary] });
+  });
+});
+
+describe('describeEditFailure', () => {
+  it('asks to reopen from LINE on 401 and keeps the dialog open', () => {
+    expect(describeEditFailure(401, 'save')).toEqual({ message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false });
+  });
+
+  it('closes and reloads on 404 with a not-found message', () => {
+    expect(describeEditFailure(404, 'delete')).toEqual({ message: 'ไม่พบรายการนี้แล้ว', closeAndReload: true });
+  });
+
+  it('explains invalid input on 400 when saving', () => {
+    expect(describeEditFailure(400, 'save').message).toBe('ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่อีกครั้ง');
+  });
+
+  it('names the action in the generic failure message', () => {
+    expect(describeEditFailure(500, 'save')).toEqual({ message: 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง', closeAndReload: false });
+    expect(describeEditFailure(undefined, 'delete').message).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(describeEditFailure(400, 'delete').message).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 });

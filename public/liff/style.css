@@ -5,16 +5,18 @@ body { margin: 0; font-family: system-ui, "Leelawadee UI", Tahoma, sans-serif; b
 .totals { margin: 12px 16px 0; font-size: 14px; color: #555; }
 .status { margin: 16px; color: #666; }
 .list { list-style: none; margin: 0; padding: 0 16px 24px; }
-.day { margin-top: 16px; font-size: 13px; color: #888; }
-.row { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 12px; background: #fff; border-radius: 8px; cursor: pointer; }
+.day { margin-top: 16px; font-size: 13px; color: #6b6b6b; }
+.row { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; padding: 0; background: #fff; border-radius: 8px; }
 .row .amount { white-space: nowrap; font-weight: 600; }
-.row.expense .amount { color: #e53935; }
-.row.income .amount { color: #1db446; }
+.row.expense .amount { color: #c62828; }
+.row.income .amount { color: #13853a; }
 dialog { width: min(92vw, 420px); border: none; border-radius: 12px; padding: 20px; }
 dialog label { display: block; margin-top: 12px; font-size: 14px; }
 dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padding: 10px; font-size: 16px; }
-.error { color: #e53935; font-size: 14px; }
+.error { color: #c62828; font-size: 14px; }
 .actions { display: flex; gap: 8px; margin-top: 20px; }
 .actions button { flex: 1; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; background: #fff; }
-.actions .primary { background: #1db446; border-color: #1db446; color: #fff; }
-.actions .danger { color: #e53935; border-color: #e53935; }
+.actions .primary { background: #13853a; border-color: #13853a; color: #fff; }
+.actions .danger { color: #c62828; border-color: #c62828; }
+.row-button { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 12px; border: none; border-radius: 8px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.actions button:disabled { opacity: 0.6; }
