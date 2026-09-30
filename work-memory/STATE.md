@@ -1,12 +1,15 @@
 # STATE
-Updated: 2026-09-30
-Goal: ticket ฝั่ง server จาก 6b เสร็จและ merge เข้า main แล้ว; ถัดไปขั้นที่ 7 งบประมาณ + แจ้งเตือน
+Updated: 2026-10-01
+Goal: ขั้นที่ 7 งบประมาณ + แจ้งเตือน implement + review เสร็จบน branch feat/step7-budgets (HEAD 63ff0fe) รอผู้ใช้รัน 005 และ manual check (Task 7) แล้วค่อย merge
 
 ## Next
-- [ ] `next` ขั้นที่ 7 งบประมาณ + แจ้งเตือน (ถามรายละเอียดแล้วเขียนแผนก่อน)
+- [ ] `next` Task 7 (ผู้ใช้): รัน supabase/005_budgets.sql ใน SQL Editor, ตรวจสิทธิ์ function และ SQL isolation check (gen_random_uuid() ต้องได้ 0), restart npm start, แล้วทำ manual check 16 ข้อตามแผน docs/superpowers/plans/2026-09-30-budgets.md; ผ่านแล้วค่อย merge feat/step7-budgets เข้า main
+- [ ] ticket ที่เลื่อนจากขั้นที่ 7 (ไม่บล็อก): parseMonth รับปี 0000/9999 แล้วได้ 500 จาก DB (จำกัดปี 2000-2100); PUT /api/budgets ไม่มี UUID precheck; เทสต์ PUT body ว่าง/array; UI งบ: loadBudgets สองครั้งซ้อน, focus หลังบันทึก, ข้อความกำลังบันทึกใช้ element role=alert ร่วมกับ error, โหลดงบพังไม่มี retry, list กระโดดตอนงบโหลดช้า, h2 ของ dialog ไม่ wrap, Esc สองครั้งปิด dialog ระหว่างบันทึก; bot.js:16 ช่องว่างหายใน `NO_ENTRIES_COMMENT =`; SPEC.md:51 ยังไม่บอกว่า budgets.amount เป็น null ได้ (amount null = ไม่ตั้งงบตั้งแต่เดือนนั้น, month = วันที่ 1 ที่งบเริ่มมีผล)
 - [ ] minor ที่ยังไม่ทำ (viper, ไม่บล็อก): allowExport มีค่า default ให้ผ่านทุกครั้ง ถ้าลบบรรทัดใน index.js limit จะหายเงียบๆ; test 404 ของ /exports ไม่เช็ก nosniff; ไม่มี test HEAD บน path ที่ไม่ตรง; offset paging อาจซ้ำ/ข้ามแถวถ้ามีคนเขียนระหว่าง export (มีมาแต่เดิม)
 
 ## Done
+- [x] ขั้นที่ 7 Task 1-6 implement + review + gate ผ่านด้วย Subagent-Driven (2026-10-01), branch feat/step7-budgets HEAD 63ff0fe: SQL budget_status (005) + repository, src/budget/alerts.js (เตือนตอนข้ามเส้น 80%/100% เทียบเป็นสตางค์), บอทต่อท้ายคำตอบ, API GET/PUT /api/budgets, ส่วนงบในหน้าเว็บ LIFF; final review dragon = With fixes, viper = Needs fixes, panda = Approved, coral = STATE/SPEC ล้าหลัง -> fix wave เดียว (bac6b81, 63ff0fe) + falcon re-review ผ่าน; npm test 366/366 ใน 28 ไฟล์, node --check index.js และ app.mjs ผ่าน, ไม่มี innerHTML
+- [x] สิ่งที่ผู้ใช้ตัดสินตอน final review ขั้นที่ 7 (ต่างจากแผนเดิม): เช็กงบไม่สำเร็จให้ต่อท้ายคำตอบด้วย เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ (แทนเงียบ), บันทึกงบเดือน M แล้วลบแถวเดือนหลังของหมวดเดียวกัน (อัปเสิร์ตก่อนแล้วลบ ไม่ใช่ transaction), ข้อความพร้อมกันหมวดเดียวกันใน webhook เดียวอาจเตือนซ้ำ/พลาด = ข้อจำกัดที่ยอมรับ (บันทึกในแผน); ข้อเล็กและ ruling อยู่ใน .superpowers/sdd/progress.md
 - [x] ticket ฝั่ง server 4 ข้อ (2026-09-30, fix/server-tickets 9102959 + eea585d): listAllTransactions อ่านจนครบตาม count ของหน้าแรก (หน้าถัดไปไม่ขอ count กัน 416 ตอนมีคนลบแถว) หยุดเมื่อหน้าว่าง; POST /api/exports ลบลิงก์หมดอายุของผู้ใช้ก่อนออกลิงก์ใหม่ (ลบไม่ได้ log แล้วไปต่อ) และจำกัด 5 ครั้ง/นาที/ผู้ใช้ ตอบ 429 หน้าเว็บขึ้น กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่; /exports path อื่นได้ 404 ข้อความ ไม่พบหน้านี้ + no-store, nosniff ทุกคำตอบ, เฉพาะ URIError เป็น 410 และ HEAD ที่ escape พังได้ 405; TYPE_LABELS ฝั่ง server รวมที่ src/utils/type-labels.js (หน้าเว็บเก็บของตัวเอง); เทสต์ก่อนทุกข้อ, npm test 320/320; viper Ready; ผู้ใช้ restart แล้วลองในแอป LINE: Export ดาวน์โหลดได้, ครั้งที่ 6 ใน 1 นาทีขึ้นข้อความ กด Export ถี่เกินไป (ผ่าน); การลบลิงก์หมดอายุกับ Supabase จริงผู้ใช้เลือกไม่ทดสอบ (มีแค่ unit test รูปคำสั่ง); merge เข้า main ในเครื่อง ยังไม่ push
 - [x] ticket liff-export-ux-polish (2026-09-30, 462f0e3 บน fix/liff-export-ux-polish, ผู้ใช้ลองในแอป LINE ผ่าน 5 ข้อ, merge เข้า main ในเครื่องแล้ว ยังไม่ push): ผู้ใช้เลือก <1% + แท่งขั้นต่ำ 2px และซ่อนกล่องสรุปเมื่อเดือนไม่มีรายการ; ค่าเริ่มต้น: ปุ่ม Export disabled จน boot สร้าง api, เดือนว่างขึ้น เลือกเดือนก่อนกด Export CSV, ไม่เขียนสถานะ export ของเดือนเก่าทับ, ขอบปุ่มสลับ #767676; เทสต์ก่อน (RED 5 -> GREEN), npm test 306/306; panda Ready (minor: boot พังแล้วปุ่มเทาไม่มีคำอธิบายเฉพาะ, ปุ่มเทาชั่วครู่หลังเปลี่ยนเดือนระหว่าง export)
 - [x] merge feat/step6b-chart-csv เข้า main ในเครื่อง (merge commit c5655e3, ยังไม่ push) npm test บน main 303/303 ใน 27 ไฟล์, node --check index.js ผ่าน
@@ -48,8 +51,12 @@ Goal: ticket ฝั่ง server จาก 6b เสร็จและ merge เ
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
+- ขั้นที่ 7 รอผู้ใช้รัน 005_budgets.sql (ถ้ายังไม่รัน: บอทบันทึกได้ปกติแต่ต่อท้ายว่าเช็กงบไม่สำเร็จ, หน้าเว็บขึ้น โหลดงบไม่สำเร็จ, PUT ส่ง amount null ได้ 500) และ manual check ในแอป LINE
 
 ## Learned
+- กฎที่มีแค่ใน SQL (แถว null ใหม่กว่ายกเลิกงบเก่า, ขอบเดือน, แยกผู้ใช้) เทสต์ JS พิสูจน์ไม่ได้เพราะ fakeSupabase คืนแถวสำเร็จรูป -> ต้องมี manual check/SQL check ใน Task 7 เสมอ
+- การเตือนแบบตอนข้ามเส้น (edge-triggered) ไม่เก็บสถานะ ถ้าเช็กพังตอนข้ามเส้นคำเตือนหายถาวร -> ต้องบอกผู้ใช้เมื่อเช็กพัง ไม่ใช่เงียบ
+- เทสต์ขอบ (>= กับ >) ต้องพิสูจน์ด้วยการ mutate เงื่อนไขชั่วคราวแล้วเห็นเทสต์แดง; สถานะ M ของ public/liff/format.mjs ที่เห็นใน git status เป็นแค่ line ending (diff ว่าง)
 - Express 5 (router 2.2.0) ตอบ HEAD ด้วย handler ของ GET และ decodeParam ที่พังโยน URIError (status 400) ที่มีค่า param ใน message -> route ที่มีผลข้างเคียงต้องกัน HEAD และห้าม log error นี้ถ้า param เป็นความลับ
 - gate-default.sh ไม่พิมพ์อะไรเมื่อผ่าน ต้องรัน vitest กับไฟล์ของ task แยกเพื่อยืนยันว่ามีเทสต์รันจริง
 - แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
