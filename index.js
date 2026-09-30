@@ -14,6 +14,7 @@ const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
 const { createIdTokenVerifier } = require('./src/api/verify-id-token');
 const { createApiRouter } = require('./src/api/router');
+const { createExportRouter } = require('./src/export/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
@@ -62,6 +63,7 @@ const app = createApp({
   channelSecret: config.lineChannelSecret,
   handleEvents: bot.handleEvents,
   apiRouter,
+  exportRouter: createExportRouter({ repository }),
 });
 
 app.listen(config.port, (err) => {

@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
-function createApp({ channelSecret, handleEvents, apiRouter, logger = console }) {
+function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, logger = console }) {
   const app = express();
 
   app.get('/health', (req, res) => {
@@ -16,6 +16,10 @@ function createApp({ channelSecret, handleEvents, apiRouter, logger = console })
   // router parse JSON และจัดการ error เองเป็น JSON จึงห้ามใส่ parser ไว้ข้างนอก
   if (apiRouter) {
     app.use('/api', apiRouter);
+  }
+
+  if (exportRouter) {
+    app.use('/exports', exportRouter);
   }
 
   // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature
