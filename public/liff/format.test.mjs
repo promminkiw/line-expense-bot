@@ -8,6 +8,9 @@ import {
   groupCategoryOptions,
   describeEditFailure,
   describeDeleteTarget,
+  summaryTotals,
+  chartRows,
+  describeExportFailure,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -108,5 +111,57 @@ describe('describeDeleteTarget', () => {
 
     expect(result.amount).toBe('+75 บาท');
     expect(result.note).toBe('');
+  });
+});
+
+describe('summaryTotals', () => {
+  it('sums the SQL summary by type in satang', () => {
+    expect(
+      summaryTotals([
+        { type: 'expense', category: 'อาหาร', total: 0.1, entryCount: 1 },
+        { type: 'expense', category: 'เดินทาง', total: 0.2, entryCount: 1 },
+        { type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 },
+      ])
+    ).toEqual({ income: 25000, expense: 0.3 });
+  });
+
+  it('returns zero for an empty month', () => {
+    expect(summaryTotals([])).toEqual({ income: 0, expense: 0 });
+  });
+});
+
+describe('chartRows', () => {
+  const summary = [
+    { type: 'expense', category: 'เดินทาง', total: 1500, entryCount: 3 },
+    { type: 'expense', category: 'อาหาร', total: 3000, entryCount: 9 },
+    { type: 'expense', category: 'ช้อปปิ้ง', total: 500, entryCount: 1 },
+    { type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 },
+  ];
+
+  it('keeps one type, sorts by total and gives share and bar width', () => {
+    expect(chartRows(summary, 'expense')).toEqual([
+      { category: 'อาหาร', total: 3000, share: 60, width: 100 },
+      { category: 'เดินทาง', total: 1500, share: 30, width: 50 },
+      { category: 'ช้อปปิ้ง', total: 500, share: 10, width: (500 / 3000) * 100 },
+    ]);
+  });
+
+  it('returns the other type on its own', () => {
+    expect(chartRows(summary, 'income')).toEqual([{ category: 'เงินเดือน', total: 25000, share: 100, width: 100 }]);
+  });
+
+  it('returns an empty list when the type has no entries', () => {
+    expect(chartRows([], 'expense')).toEqual([]);
+  });
+});
+
+describe('describeExportFailure', () => {
+  it('asks to reopen from LINE on 401', () => {
+    expect(describeExportFailure(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+  });
+
+  it('asks to try again otherwise', () => {
+    expect(describeExportFailure(500)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(describeExportFailure(undefined)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 });
