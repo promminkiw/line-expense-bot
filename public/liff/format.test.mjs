@@ -197,6 +197,10 @@ describe('describeExportFailure', () => {
     expect(describeExportFailure(401)).toBe(LOGIN_REQUIRED_MESSAGE);
   });
 
+  it('asks to wait on 429', () => {
+    expect(describeExportFailure(429)).toBe('กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่');
+  });
+
   it('asks to try again otherwise', () => {
     expect(describeExportFailure(500)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(describeExportFailure(undefined)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');

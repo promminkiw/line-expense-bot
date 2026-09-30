@@ -441,11 +441,11 @@ describe('repository.listTransactions', () => {
 describe('repository.listAllTransactions', () => {
   const dbRow = { id: 't1', type: 'expense', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-09-01', category_id: 'c1' };
 
-  it('reads this user rows oldest first in pages of 1000 until a short page', async () => {
+  it('reads this user rows oldest first in pages of 1000 until the total count', async () => {
     const fullPage = Array.from({ length: 1000 }, () => dbRow);
     const { supabase, calls } = fakeSupabasePages([
-      { data: fullPage, error: null },
-      { data: [dbRow], error: null },
+      { data: fullPage, count: 1001, error: null },
+      { data: [dbRow], count: 1001, error: null },
     ]);
 
     const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
@@ -454,7 +454,7 @@ describe('repository.listAllTransactions', () => {
     expect(rows[0]).toEqual({ id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1' });
     expect(calls.slice(0, 9)).toEqual([
       ['from', 'transactions'],
-      ['select', 'id, type, amount, note, occurred_on, category_id'],
+      ['select', 'id, type, amount, note, occurred_on, category_id', { count: 'exact' }],
       ['eq', 'user_id', 'user-1'],
       ['gte', 'occurred_on', '2026-09-01'],
       ['lte', 'occurred_on', '2026-09-30'],
@@ -467,8 +467,43 @@ describe('repository.listAllTransactions', () => {
     expect(calls).toHaveLength(18);
   });
 
+  it('keeps reading when the server caps a page below 1000 rows', async () => {
+    const { supabase, calls } = fakeSupabasePages([
+      { data: Array.from({ length: 500 }, () => dbRow), count: 700, error: null },
+      { data: Array.from({ length: 200 }, () => dbRow), count: 700, error: null },
+    ]);
+
+    const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(rows).toHaveLength(700);
+    expect(calls.filter((call) => call[0] === 'range')).toEqual([
+      ['range', 0, 999],
+      ['range', 500, 1499],
+    ]);
+    expect(calls.slice(9, 17)).toEqual(calls.slice(0, 8));
+  });
+
+  it('stops when a page comes back empty even if the count says more', async () => {
+    const { supabase } = fakeSupabasePages([
+      { data: [dbRow], count: 5, error: null },
+      { data: [], count: 5, error: null },
+    ]);
+
+    expect(await createRepository(supabase).listAllTransactions('user-1', 'a', 'b')).toHaveLength(1);
+  });
+
+  it('reads until an empty page when the count is missing', async () => {
+    const { supabase } = fakeSupabasePages([
+      { data: [dbRow], count: null, error: null },
+      { data: [dbRow], count: null, error: null },
+      { data: [], count: null, error: null },
+    ]);
+
+    expect(await createRepository(supabase).listAllTransactions('user-1', 'a', 'b')).toHaveLength(2);
+  });
+
   it('stops after one page when the month has fewer than 1000 rows', async () => {
-    const { supabase, calls } = fakeSupabasePages([{ data: [], error: null }]);
+    const { supabase, calls } = fakeSupabasePages([{ data: [], count: 0, error: null }]);
 
     expect(await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30')).toEqual([]);
     expect(calls.filter((call) => call[0] === 'range')).toEqual([['range', 0, 999]]);
@@ -513,6 +548,30 @@ describe('repository.createExportLink', () => {
 
     await expect(promise).rejects.toBeInstanceOf(DatabaseError);
     await expect(promise).rejects.toThrow('Database createExportLink failed: boom');
+  });
+});
+
+describe('repository.deleteExpiredExportLinks', () => {
+  it('deletes only this user links that have expired', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).deleteExpiredExportLinks('user-1', '2026-09-30T03:01:00.000Z');
+
+    expect(calls).toEqual([
+      ['from', 'export_links'],
+      ['delete'],
+      ['eq', 'user_id', 'user-1'],
+      ['lte', 'expires_at', '2026-09-30T03:01:00.000Z'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).deleteExpiredExportLinks('u', 'x');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database deleteExpiredExportLinks failed: boom');
   });
 });
 

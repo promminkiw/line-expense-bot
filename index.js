@@ -17,6 +17,7 @@ const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
+const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
 
 const config = loadConfig(process.env);
@@ -58,6 +59,7 @@ const apiRouter = createApiRouter({
   users,
   repository,
   liffId: config.liffId,
+  allowExport: createRateLimiter(EXPORT_RATE_LIMIT),
 });
 const app = createApp({
   channelSecret: config.lineChannelSecret,

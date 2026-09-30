@@ -109,5 +109,7 @@ export function hasChartData(summary) {
 }
 
 export function describeExportFailure(status) {
-  return status === 401 ? LOGIN_REQUIRED_MESSAGE : 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
+  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 429) return 'กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่';
+  return 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
 }

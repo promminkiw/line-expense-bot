@@ -6,8 +6,20 @@ const { buildTransactionsCsv, exportFileName } = require('./csv');
 const EXPIRED_MESSAGE = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
 const FAILED_MESSAGE = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
 
+const NOT_FOUND_MESSAGE = 'ไม่พบหน้านี้';
+
+// nosniff กัน browser เดาชนิดไฟล์เองจากเนื้อหาที่มีข้อความของผู้ใช้
 function sendText(res, status, text) {
-  res.status(status).type('text/plain; charset=utf-8').set('Cache-Control', 'no-store').send(text);
+  res
+    .status(status)
+    .type('text/plain; charset=utf-8')
+    .set('Cache-Control', 'no-store')
+    .set('X-Content-Type-Options', 'nosniff')
+    .send(text);
+}
+
+function sendHeadNotAllowed(res) {
+  res.status(405).set('Allow', 'GET').set('Cache-Control', 'no-store').end();
 }
 
 // เปิดใน browser ภายนอกซึ่งส่ง ID token ไม่ได้ จึงใช้ลิงก์ใช้ครั้งเดียวแทนการยืนยันตัวตน
@@ -16,7 +28,7 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
 
   // HEAD ต้องไม่ใช้ลิงก์ ไม่งั้น GET จริงของผู้ใช้จะได้ 410
   router.head('/:token', (req, res) => {
-    res.status(405).set('Allow', 'GET').set('Cache-Control', 'no-store').end();
+    sendHeadNotAllowed(res);
   });
 
   router.get('/:token', async (req, res) => {
@@ -42,7 +54,12 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
       .type('text/csv; charset=utf-8')
       .set('Content-Disposition', `attachment; filename="${exportFileName(link.month)}"`)
       .set('Cache-Control', 'no-store')
+      .set('X-Content-Type-Options', 'nosniff')
       .send(csv);
+  });
+
+  router.use((req, res) => {
+    sendText(res, 404, NOT_FOUND_MESSAGE);
   });
 
   router.use((err, req, res, next) => {
@@ -51,8 +68,12 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
       return;
     }
     // decode param พัง (%) ถือเป็นลิงก์ผิดรูป และห้าม log เพราะ message มี token ที่ยังใช้ได้
-    if (err instanceof URIError || err.status === 400) {
-      sendText(res, 410, EXPIRED_MESSAGE);
+    if (err instanceof URIError) {
+      if (req.method === 'HEAD') {
+        sendHeadNotAllowed(res);
+      } else {
+        sendText(res, 410, EXPIRED_MESSAGE);
+      }
       return;
     }
     logger.error('Export failed', err);

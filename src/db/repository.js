@@ -157,11 +157,13 @@ function createRepository(supabase) {
 
   async function listAllTransactions(userId, from, to) {
     const rows = [];
-    for (let start = 0; ; start += EXPORT_PAGE_SIZE) {
+    let total = null;
+    for (;;) {
+      const start = rows.length;
       // เรียงด้วย id ด้วยเพื่อให้ลำดับคงที่ระหว่างหน้า
-      const { data, error } = await supabase
+      const { data, count, error } = await supabase
         .from('transactions')
-        .select(TRANSACTION_COLUMNS)
+        .select(TRANSACTION_COLUMNS, { count: 'exact' })
         .eq('user_id', userId)
         .gte('occurred_on', from)
         .lte('occurred_on', to)
@@ -170,11 +172,22 @@ function createRepository(supabase) {
         .order('id', { ascending: true })
         .range(start, start + EXPORT_PAGE_SIZE - 1);
       throwIfError('listAllTransactions', error);
+      if (total === null) total = count;
       rows.push(...data.map(toTransaction));
-      if (data.length < EXPORT_PAGE_SIZE) {
+      // เทียบกับจำนวนทั้งหมดแทนขนาดหน้า เพราะ server อาจตั้ง max-rows ต่ำกว่า 1000 แล้วหน้าสั้นลงทั้งที่ยังไม่หมด
+      if (data.length === 0 || (total !== null && rows.length >= total)) {
         return rows;
       }
     }
+  }
+
+  async function deleteExpiredExportLinks(userId, nowIso) {
+    const { error } = await supabase
+      .from('export_links')
+      .delete()
+      .eq('user_id', userId)
+      .lte('expires_at', nowIso);
+    throwIfError('deleteExpiredExportLinks', error);
   }
 
   async function createExportLink({ tokenHash, userId, month, expiresAt }) {
@@ -240,6 +253,7 @@ function createRepository(supabase) {
     listTransactions,
     listAllTransactions,
     createExportLink,
+    deleteExpiredExportLinks,
     claimExportLink,
     listCategories,
     updateTransaction,

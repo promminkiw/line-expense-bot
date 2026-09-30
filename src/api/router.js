@@ -10,7 +10,15 @@ function readBearerToken(req) {
   return header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
 }
 
-function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console, now = () => new Date() }) {
+function createApiRouter({
+  verifyIdToken,
+  users,
+  repository,
+  liffId,
+  logger = console,
+  now = () => new Date(),
+  allowExport = () => true,
+}) {
   const router = express.Router();
 
   // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ข้อความจาก error handler ของ app
@@ -110,12 +118,23 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
       res.status(400).json({ error: 'Invalid month' });
       return;
     }
+    if (!allowExport(req.userId)) {
+      res.status(429).json({ error: 'Too many requests' });
+      return;
+    }
+    const current = now();
+    // ลบลิงก์เก่าของผู้ใช้คนนี้ไปพร้อมกัน ตารางจึงไม่โตเรื่อยๆ; ลบไม่ได้ก็ยังออกลิงก์ใหม่ได้
+    try {
+      await repository.deleteExpiredExportLinks(req.userId, current.toISOString());
+    } catch (err) {
+      logger.error('Export link cleanup failed', err);
+    }
     const { token, tokenHash } = createLinkToken();
     await repository.createExportLink({
       tokenHash,
       userId: req.userId,
       month,
-      expiresAt: new Date(now().getTime() + EXPORT_LINK_TTL_MS).toISOString(),
+      expiresAt: new Date(current.getTime() + EXPORT_LINK_TTL_MS).toISOString(),
     });
     // ส่งกลับแค่ path ให้หน้าเว็บต่อ origin เอง เพราะ server ไม่รู้โดเมนของ ngrok
     res.status(201).json({ path: `/exports/${token}` });

@@ -118,4 +118,52 @@ describe('GET /exports/:token', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(deps.repository.claimExportLink).not.toHaveBeenCalled();
   });
+
+  it('answers HEAD with a broken percent escape the same as any HEAD', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/${createLinkToken().token}%`, { method: 'HEAD' });
+
+    expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('GET');
+    expect(deps.logger.error).not.toHaveBeenCalled();
+  });
+
+  it('tells the browser not to guess the content type', async () => {
+    const base = await start(setup());
+
+    const csv = await fetch(`${base}/${createLinkToken().token}`);
+    const expired = await fetch(`${base}/not-a-token`);
+
+    expect(csv.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(expired.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+
+  it('logs and answers 500 for a 400 error that is not a broken escape', async () => {
+    const deps = setup();
+    const error = Object.assign(new Error('bad request'), { status: 400 });
+    deps.repository.claimExportLink.mockRejectedValue(error);
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/${createLinkToken().token}`);
+
+    expect(res.status).toBe(500);
+    expect(deps.logger.error).toHaveBeenCalledWith('Export failed', error);
+  });
+});
+
+describe('other paths under /exports', () => {
+  it('answers 404 plain text with no-store', async () => {
+    const base = await start(setup());
+
+    for (const [path, method] of [['/', 'GET'], ['/a/b', 'GET'], [`/${createLinkToken().token}`, 'POST']]) {
+      const res = await fetch(`${base}${path}`, { method });
+
+      expect(res.status).toBe(404);
+      expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.text()).toBe('ไม่พบหน้านี้');
+    }
+  });
 });
