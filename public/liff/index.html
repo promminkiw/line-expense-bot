@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>รายการรายรับรายจ่าย</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <header class="bar">
+      <h1>รายการของฉัน</h1>
+      <input type="month" id="month" aria-label="เลือกเดือน">
+    </header>
+    <p id="totals" class="totals" hidden></p>
+    <p id="status" class="status">กำลังโหลด...</p>
+    <ul id="list" class="list"></ul>
+  </main>
+  <dialog id="editor">
+    <form id="edit-form">
+      <h2>แก้ไขรายการ</h2>
+      <label>จำนวนเงิน (บาท)
+        <input id="edit-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>หมวด
+        <select id="edit-category" required></select>
+      </label>
+      <label>วันที่
+        <input id="edit-date" type="date" required>
+      </label>
+      <label>โน้ต
+        <input id="edit-note" type="text" maxlength="200">
+      </label>
+      <p id="edit-error" class="error" hidden></p>
+      <div class="actions">
+        <button type="button" id="delete-button" class="danger">ลบ</button>
+        <button type="button" id="cancel-button">ปิด</button>
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>
