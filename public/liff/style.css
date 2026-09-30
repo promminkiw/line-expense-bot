@@ -29,15 +29,15 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .actions .danger-solid:disabled { opacity: 1; background: #8e1c1c; border-color: #8e1c1c; }
 .notice { margin: 8px 16px 0; padding: 8px 12px; font-size: 13px; color: #6b4e00; background: #fff4d6; border-radius: 8px; }
 .export { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 16px 0; }
-.export button { min-height: 44px; padding: 10px 16px; font-size: 16px; border: 1px solid #13853a; border-radius: 8px; background: #fff; color: #13853a; }
+.export button { font: inherit; min-height: 44px; padding: 10px 16px; font-size: 16px; border: 1px solid #13853a; border-radius: 8px; background: #fff; color: #13853a; }
 .export button:disabled { opacity: 0.6; }
 .export-status { margin: 0; font-size: 13px; color: #555; }
 .chart { margin: 12px 16px 0; padding: 12px; background: #fff; border-radius: 8px; }
 .chart-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .chart h2 { margin: 0; font-size: 16px; }
 .tabs { display: flex; gap: 4px; }
-.tabs button { min-height: 44px; padding: 8px 14px; font-size: 14px; border: 1px solid #ccc; border-radius: 999px; background: #fff; color: #222; }
-.tabs button[aria-selected="true"] { background: #222; border-color: #222; color: #fff; }
+.tabs button { font: inherit; min-height: 44px; padding: 8px 14px; font-size: 14px; border: 1px solid #ccc; border-radius: 999px; background: #fff; color: #222; }
+.tabs button[aria-pressed="true"] { background: #222; border-color: #222; color: #fff; }
 .chart-rows { list-style: none; margin: 4px 0 0; padding: 0; }
 .chart-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; margin-top: 10px; font-size: 14px; }
 .chart-label { overflow-wrap: anywhere; }

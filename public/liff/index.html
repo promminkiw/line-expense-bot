@@ -21,9 +21,9 @@
     <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
       <div class="chart-head">
         <h2 id="chart-title">สรุปตามหมวด</h2>
-        <div class="tabs" role="tablist" aria-label="ประเภท">
-          <button type="button" role="tab" data-type="expense" aria-selected="true">รายจ่าย</button>
-          <button type="button" role="tab" data-type="income" aria-selected="false">รายรับ</button>
+        <div class="tabs" role="group" aria-label="ประเภทกราฟ">
+          <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
+          <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
         </div>
       </div>
       <ul id="chart-rows" class="chart-rows"></ul>

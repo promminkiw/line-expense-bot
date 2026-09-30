@@ -25,7 +25,7 @@ const els = {
   chart: document.getElementById('chart'),
   chartRows: document.getElementById('chart-rows'),
   chartEmpty: document.getElementById('chart-empty'),
-  tabs: document.querySelectorAll('#chart [role="tab"]'),
+  tabs: document.querySelectorAll('#chart .tabs button'),
   status: document.getElementById('status'),
   list: document.getElementById('list'),
   editor: document.getElementById('editor'),
@@ -105,7 +105,7 @@ function renderRow(item) {
 
 function renderChart() {
   for (const tab of els.tabs) {
-    tab.setAttribute('aria-selected', String(tab.dataset.type === chartType));
+    tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
   const rows = chartRows(lastSummary, chartType);
   els.chartRows.replaceChildren();
