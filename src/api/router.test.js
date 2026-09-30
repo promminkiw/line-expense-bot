@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import express from 'express';
 import { createApiRouter } from './router.js';
+import { hashLinkToken } from '../export/link-token.js';
 import { createRequire } from 'node:module';
 
 // ต้องใช้ instance เดียวกับที่ router require ไม่งั้น instanceof AuthError ไม่ตรงกัน
@@ -23,14 +24,22 @@ function setup(overrides = {}) {
     users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
     repository: {
       listCategories: vi.fn().mockResolvedValue(CATEGORIES),
-      listTransactions: vi.fn().mockResolvedValue([
-        { id: ID, type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c-food' },
+      listTransactions: vi.fn().mockResolvedValue({
+        transactions: [
+          { id: ID, type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c-food' },
+        ],
+        totalCount: 1,
+      }),
+      summarizeTransactions: vi.fn().mockResolvedValue([
+        { type: 'expense', category: 'อาหาร', total: 60, entryCount: 1 },
       ]),
       updateTransaction: vi.fn().mockResolvedValue(true),
       deleteTransaction: vi.fn().mockResolvedValue(true),
+      createExportLink: vi.fn().mockResolvedValue(),
     },
     liffId: 'liff-123',
     logger: { error: vi.fn() },
+    now: () => new Date('2026-09-30T03:00:00.000Z'),
     ...overrides,
   };
   return deps;
@@ -145,7 +154,7 @@ describe('GET /api/categories', () => {
 });
 
 describe('GET /api/transactions', () => {
-  it('returns the month entries with their category names', async () => {
+  it('returns the month entries with category names, the SQL summary and truncated false', async () => {
     const deps = setup();
     const base = await start(deps);
 
@@ -153,11 +162,24 @@ describe('GET /api/transactions', () => {
 
     expect(res.status).toBe(200);
     expect(deps.repository.listTransactions).toHaveBeenCalledWith('user-1', '2026-09-01', '2026-09-30');
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-01', '2026-09-30');
     expect(await res.json()).toEqual({
       transactions: [
         { id: ID, type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c-food', categoryName: 'อาหาร' },
       ],
+      summary: [{ type: 'expense', category: 'อาหาร', total: 60, entryCount: 1 }],
+      truncated: false,
     });
+  });
+
+  it('flags truncated when the month has more rows than were returned', async () => {
+    const deps = setup();
+    deps.repository.listTransactions.mockResolvedValue({ transactions: [], totalCount: 1500 });
+    const base = await start(deps);
+
+    const res = await call(base, '/transactions?month=2026-09');
+
+    expect((await res.json()).truncated).toBe(true);
   });
 
   it('returns 400 for an invalid month', async () => {
@@ -169,6 +191,7 @@ describe('GET /api/transactions', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: 'Invalid month' });
     expect(deps.repository.listTransactions).not.toHaveBeenCalled();
+    expect(deps.repository.summarizeTransactions).not.toHaveBeenCalled();
   });
 });
 
@@ -270,6 +293,47 @@ describe('DELETE /api/transactions/:id', () => {
     const res = await call(base, `/transactions/${ID}`, { method: 'DELETE' });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/exports', () => {
+  it('stores a hashed one-time link for this user that expires in five minutes', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: '2026-09' } });
+
+    expect(res.status).toBe(201);
+    const { path } = await res.json();
+    expect(path).toMatch(/^\/exports\/[A-Za-z0-9_-]{43}$/);
+    const token = path.slice('/exports/'.length);
+    expect(deps.repository.createExportLink).toHaveBeenCalledWith({
+      tokenHash: hashLinkToken(token),
+      userId: 'user-1',
+      month: '2026-09',
+      expiresAt: '2026-09-30T03:05:00.000Z',
+    });
+  });
+
+  it('returns 400 for an invalid month without storing a link', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: '2026-13' } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid month' });
+    expect(deps.repository.createExportLink).not.toHaveBeenCalled();
+  });
+
+  it('requires a verified token', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/exports', { method: 'POST', body: { month: '2026-09' }, token: null });
+
+    expect(res.status).toBe(401);
+    expect(deps.repository.createExportLink).not.toHaveBeenCalled();
   });
 });
 
