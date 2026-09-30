@@ -3,13 +3,14 @@ Updated: 2026-09-30
 Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืนยันตัวตน, ดู/กรองเดือน/แก้/ลบ) ตามแผน docs/superpowers/plans/2026-09-30-liff-transactions.md บน branch feat/step6-liff; 6b (กราฟ + CSV) ทีหลัง
 
 ## Next
-- [ ] `next` ผู้ใช้ตัดสินว่าจะให้แก้ 2 minor ก่อน Task 9 ไหม: (1) app.mjs openEditor ไม่เช็กว่ายังแก้รายการเดิมอยู่หลัง await ensureCategories (กรณีหายาก หมวดของ A อาจไปลง B) (2) คอมเมนต์ router.js:15 บอก text/plain แต่จริงเป็น text/html
-- [ ] ผู้ใช้ทำ Task 9 ของแผน 6a: สร้าง LINE Login channel + LIFF app, เพิ่ม LIFF_ID และ LINE_LOGIN_CHANNEL_ID ใน .env (ถ้าไม่มี server และ npm run try-parse จะ start ไม่ได้), npm start ใหม่, manual check 10 ข้อ; เพิ่มเติมจาก review: ถ้าหน้าเว็บขึ้นให้เปิดจาก LINE อีกครั้ง ให้หา log `API auth rejected` ใน console ของ server (บอกเหตุผลจาก LINE เช่น channel id ผิด), ลองเปิดหน้าค้างไว้เกิน 1 ชั่วโมงแล้วบันทึก, ลองแก้รายการท้ายเดือนแล้วดูว่าหน้าไม่เด้งขึ้นบน
-- [ ] merge feat/step6-liff เข้า main หลัง Task 9 ผ่าน
+- [ ] `next` ผู้ใช้ตัดสินว่าจะ merge feat/step6-liff เข้า main ตอนนี้ไหม และจะให้แก้ minor ที่ค้างก่อนไหม: (1) app.mjs openEditor ไม่เช็กว่ายังแก้รายการเดิมอยู่หลัง await ensureCategories (กรณีหายาก หมวดของ A อาจไปลง B) (2) คอมเมนต์ router.js:15 บอก text/plain แต่จริงเป็น text/html (3) ปุ่ม กำลังลบ... จางเพราะ opacity ของปุ่ม disabled
+- [ ] merge feat/step6-liff เข้า main (Task 9 ผ่านแล้ว)
 - [ ] ขั้นที่ 6b งานแรก: listTransactions ไม่มี limit/count ถ้าเดือนเกิน ~1000 แถว (max-rows ของ Supabase) รายการถูกตัดเงียบๆ และยอดรวมบนหน้าเว็บผิด -> นับแถว/แจ้งเมื่อถูกตัด และเอายอดรวมจาก summarize_transactions (ผู้ใช้เลือกเลื่อนมา 6b)
 - [ ] ขั้นที่ 6b: กราฟตามหมวด + export CSV
 
 ## Done
+- [x] Task 9 ของ 6a ผ่าน (2026-09-30): สร้าง LINE Login channel + LIFF app (Endpoint https://populace-gong-fossil.ngrok-free.dev/liff/, scope openid), .env ครบ 9 key, manual check 10 ข้อผ่าน (เปิดเว็บตอบลิงก์, หน้าเว็บตรงกับ Supabase, เดือนว่าง 0 บาท, แก้จำนวนเงิน, เปลี่ยนเป็นรายรับ type=income, 20000000 ถูก browser กัน, modal ยืนยันลบ + ลบจริง, API ไม่มี token ได้ Unauthorized, Rich Menu ช่อง B เป็นลิงก์ LIFF แล้ว), หน้าไม่เด้งหลังแก้รายการล่าง; ทดสอบเปิดค้างเกิน 1 ชั่วโมง ผู้ใช้เลือกไม่ทดสอบ
+- [x] ระหว่าง Task 9: แก้ ngrok free แทรกหน้าเตือน (ERR_NGROK_6024) กับ fetch ไป /api -> ส่ง header ngrok-skip-browser-warning (be668a8); ผู้ใช้ขอเปลี่ยนปุ่มลบแบบกดสองครั้งเป็น modal ยืนยันที่ออกแบบเอง (32964c9) falcon+panda ผ่าน; npm test 259/259 ใน 24 ไฟล์
 - [x] ขั้นที่ 1-2 เสร็จและ merge เข้า main ในเครื่องแล้ว (merge commit 2b5f77d, ยังไม่ push); manual check ขั้นที่ 1-2 ผ่านครบ
 - [x] เปลี่ยนข้อความตอบเมื่อระบบมีปัญหาเป็น `ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง` (ตอนนี้ชื่อค่าคงที่คือ SYSTEM_ERROR_REPLY ใน src/bot.js)
 - [x] ขั้นที่ 3 Task 1-9 implement + review + gate ผ่านครบด้วย Subagent-Driven (2026-09-29); Task 1, 6, 7 มี fix round 1 รอบ
@@ -47,6 +48,7 @@ Goal: ทำขั้นที่ 6a (หน้าเว็บ LIFF: ยืน�
 - Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
 - supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
 - SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
+- ngrok แบบฟรีแทรกหน้าเตือน HTML ให้ request ที่ดูเหมือนมาจาก browser (ไม่ส่งต่อมาที่ server และไม่โผล่ใน inspector) -> fetch จากหน้าเว็บต้องส่ง header ngrok-skip-browser-warning; เช็กได้จาก http://127.0.0.1:4040/api/requests/http
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - ใน vitest ถ้าเทสต์ `import` class แต่โค้ด `require` module เดียวกัน จะได้คนละ instance ทำให้ `instanceof` เป็น false -> เทสต์ต้องโหลดด้วย `createRequire(import.meta.url)` (router.test.js)
 - Express router ที่ต่อหลัง `express.json()` ข้างนอกจะไม่ได้รับ error ของ body-parser -> ถ้าต้องการให้ API ตอบ JSON เสมอ ต้อง parse ใน router เอง
