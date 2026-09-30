@@ -37,6 +37,10 @@ function setup(overrides = {}) {
       deleteTransaction: vi.fn().mockResolvedValue(true),
       createExportLink: vi.fn().mockResolvedValue(),
       deleteExpiredExportLinks: vi.fn().mockResolvedValue(),
+      getBudgetStatus: vi.fn().mockResolvedValue([
+        { categoryId: 'c-food', category: 'อาหาร', budget: 5000, spent: 60 },
+      ]),
+      setBudget: vi.fn().mockResolvedValue(),
     },
     allowExport: vi.fn().mockReturnValue(true),
     liffId: 'liff-123',
@@ -390,6 +394,113 @@ describe('POST /api/exports', () => {
     expect(res.status).toBe(201);
     expect(deps.repository.createExportLink).toHaveBeenCalled();
     expect(deps.logger.error).toHaveBeenCalledWith('Export link cleanup failed', expect.any(Error));
+  });
+});
+
+describe('budgets', () => {
+  it('returns the budget status of one month for this user', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/budgets?month=2026-09');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 5000, spent: 60 }],
+    });
+    expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
+  });
+
+  it('rejects a bad month when reading budgets', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/budgets?month=2026-13');
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid month' });
+    expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
+  });
+
+  it('sets the budget of an expense category from the chosen month', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/budgets/c-food', { method: 'PUT', body: { month: '2026-09', amount: 5000 } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.setBudget).toHaveBeenCalledWith({
+      userId: 'user-1',
+      categoryId: 'c-food',
+      month: '2026-09',
+      amount: 5000,
+    });
+  });
+
+  it('stores null to stop the budget', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/budgets/c-food', { method: 'PUT', body: { month: '2026-09', amount: null } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.setBudget).toHaveBeenCalledWith(expect.objectContaining({ amount: null }));
+  });
+
+  it('rejects amounts outside the entry rules', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const amount of [0, -1, 10000001, 1.234, '5000', undefined]) {
+      const res = await call(base, '/budgets/c-food', { method: 'PUT', body: { month: '2026-09', amount } });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Invalid amount' });
+    }
+    expect(deps.repository.setBudget).not.toHaveBeenCalled();
+  });
+
+  it('rejects a bad or missing month when setting', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const month of ['2026-13', ['2026-09'], undefined]) {
+      const res = await call(base, '/budgets/c-food', { method: 'PUT', body: { month, amount: 5000 } });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Invalid month' });
+    }
+    expect(deps.repository.setBudget).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for an income category or a category of someone else', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const id of ['c-salary', 'c-not-mine']) {
+      const res = await call(base, `/budgets/${id}`, { method: 'PUT', body: { month: '2026-09', amount: 5000 } });
+
+      expect(res.status).toBe(404);
+      expect(await res.json()).toEqual({ error: 'Not found' });
+    }
+    expect(deps.repository.setBudget).not.toHaveBeenCalled();
+  });
+
+  it('requires a verified token for both routes', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const read = await call(base, '/budgets?month=2026-09', { token: null });
+    const write = await call(base, '/budgets/c-food', {
+      method: 'PUT',
+      body: { month: '2026-09', amount: 5000 },
+      token: null,
+    });
+
+    expect(read.status).toBe(401);
+    expect(write.status).toBe(401);
+    expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
+    expect(deps.repository.setBudget).not.toHaveBeenCalled();
   });
 });
 

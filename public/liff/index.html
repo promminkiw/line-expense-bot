@@ -29,6 +29,12 @@
       <ul id="chart-rows" class="chart-rows"></ul>
       <p id="chart-empty" class="chart-empty" hidden></p>
     </section>
+    <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
+      <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
+      <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)</p>
+      <ul id="budget-rows" class="budget-rows"></ul>
+      <p id="budgets-error" class="budgets-error" hidden></p>
+    </section>
     <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
     <ul id="list" class="list"></ul>
   </main>
@@ -65,6 +71,21 @@
       <button type="button" id="confirm-cancel" autofocus>ยกเลิก</button>
       <button type="button" id="confirm-ok" class="danger-solid">ลบ</button>
     </div>
+  </dialog>
+  <dialog id="budget-editor" aria-labelledby="budget-title">
+    <form id="budget-form">
+      <h2 id="budget-title"></h2>
+      <p id="budget-scope" class="confirm-detail"></p>
+      <label>งบต่อเดือน (บาท)
+        <input id="budget-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <p id="budget-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="button" id="budget-remove" class="danger">ไม่ตั้งงบ</button>
+        <button type="button" id="budget-cancel">ปิด</button>
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </form>
   </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>

@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { createRepository, DatabaseError } from './repository.js';
 
 // จำลอง query builder ของ supabase-js: ทุก method คืนตัวเอง และ await ได้ผล result
-function fakeSupabase(result) {
+// ส่งผลเพิ่มได้ ใช้กับ repository method ที่ await หลายครั้ง ครั้งที่เกินใช้ผลสุดท้าย
+function fakeSupabase(result, ...laterResults) {
+  const queue = [result, ...laterResults];
+  const nextResult = () => (queue.length > 1 ? queue.shift() : queue[0]);
   const calls = [];
   const builder = {};
   for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order', 'range', 'is', 'gt']) {
@@ -17,7 +20,7 @@ function fakeSupabase(result) {
       return Promise.resolve(result);
     });
   }
-  builder.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject);
+  builder.then = (resolve, reject) => Promise.resolve(nextResult()).then(resolve, reject);
   const supabase = {
     from: vi.fn((table) => {
       calls.push(['from', table]);
@@ -694,5 +697,102 @@ describe('repository.deleteTransaction', () => {
     await expect(createRepository(supabase).deleteTransaction('user-1', 't1')).rejects.toThrow(
       'Database deleteTransaction failed: boom'
     );
+  });
+});
+
+describe('repository.getBudgetStatus', () => {
+  it('calls the SQL function for the first day of the month and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [
+        { category_id: 'c1', category: 'อาหาร', budget: '5000.00', spent: '4030.50' },
+        { category_id: 'c2', category: 'เดินทาง', budget: null, spent: '0' },
+      ],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).getBudgetStatus('user-1', '2026-09');
+
+    expect(rows).toEqual([
+      { categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 4030.5 },
+      { categoryId: 'c2', category: 'เดินทาง', budget: null, spent: 0 },
+    ]);
+    expect(calls).toEqual([['rpc', 'budget_status', { p_user_id: 'user-1', p_month: '2026-09-01' }]]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).getBudgetStatus('user-1', '2026-09');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database getBudgetStatus failed: boom');
+  });
+});
+
+describe('repository.setBudget', () => {
+  it('upserts this user budget for the category from the first day of the month', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).setBudget({ userId: 'user-1', categoryId: 'c1', month: '2026-09', amount: 5000 });
+
+    expect(calls.slice(0, 2)).toEqual([
+      ['from', 'budgets'],
+      [
+        'upsert',
+        { user_id: 'user-1', category_id: 'c1', month: '2026-09-01', amount: 5000 },
+        { onConflict: 'user_id,category_id,month' },
+      ],
+    ]);
+  });
+
+  it('setBudget clears later months of the same category after saving', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).setBudget({ userId: 'user-1', categoryId: 'c1', month: '2026-09', amount: 5000 });
+
+    expect(calls.map((call) => call[0])).toEqual(['from', 'upsert', 'from', 'delete', 'eq', 'eq', 'gt']);
+    expect(calls.slice(2)).toEqual([
+      ['from', 'budgets'],
+      ['delete'],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'category_id', 'c1'],
+      ['gt', 'month', '2026-09-01'],
+    ]);
+  });
+
+  it('throws DatabaseError when clearing later months fails', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null }, { data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).setBudget({ userId: 'u', categoryId: 'c', month: '2026-09', amount: 1 });
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database setBudgetClearLater failed: boom');
+  });
+
+  it('does not delete later months when the upsert fails', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(
+      createRepository(supabase).setBudget({ userId: 'u', categoryId: 'c', month: '2026-09', amount: 1 })
+    ).rejects.toThrow('Database setBudget failed: boom');
+
+    expect(calls.some((call) => call[0] === 'delete')).toBe(false);
+  });
+
+  it('stores null to stop the budget from that month', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).setBudget({ userId: 'user-1', categoryId: 'c1', month: '2026-10', amount: null });
+
+    expect(calls[1][1]).toEqual({ user_id: 'user-1', category_id: 'c1', month: '2026-10-01', amount: null });
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).setBudget({ userId: 'u', categoryId: 'c', month: '2026-09', amount: 1 });
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database setBudget failed: boom');
   });
 });

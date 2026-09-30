@@ -113,3 +113,46 @@ export function describeExportFailure(status) {
   if (status === 429) return 'กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่';
   return 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
 }
+
+export function formatMonthLabel(month) {
+  const [year, value] = month.split('-');
+  return `${value}/${year}`;
+}
+
+// ปัด % ลงและเทียบเป็นสตางค์ ให้ตรงกับเส้นที่บอทใช้เตือนในแชต
+export function budgetRows(budgets) {
+  const rows = budgets.map((row) => {
+    if (row.budget === null) {
+      return {
+        categoryId: row.categoryId,
+        category: row.category,
+        budget: null,
+        spent: row.spent,
+        level: 'none',
+        percent: null,
+        width: 0,
+        text: `ใช้ไป ${formatBaht(row.spent)} · ยังไม่ตั้งงบ`,
+      };
+    }
+    const percent = Math.floor((Math.round(row.spent * 100) * 100) / Math.round(row.budget * 100));
+    return {
+      categoryId: row.categoryId,
+      category: row.category,
+      budget: row.budget,
+      spent: row.spent,
+      level: percent >= 100 ? 'over' : percent >= 80 ? 'warn' : 'ok',
+      percent,
+      width: Math.min(percent, 100),
+      text: `ใช้ไป ${formatBaht(row.spent)} จาก ${formatBaht(row.budget)} (${percent}%)`,
+    };
+  });
+  // หมวดที่ตั้งงบแล้วขึ้นก่อน เพราะเป็นส่วนที่ผู้ใช้ต้องติดตาม
+  return [...rows.filter((row) => row.budget !== null), ...rows.filter((row) => row.budget === null)];
+}
+
+export function describeBudgetFailure(status) {
+  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 400) return 'จำนวนเงินไม่ถูกต้อง ใส่ได้ไม่เกิน 10,000,000 บาท ทศนิยมไม่เกิน 2 ตำแหน่ง';
+  if (status === 404) return 'ไม่พบหมวดนี้แล้ว';
+  return 'บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง';
+}

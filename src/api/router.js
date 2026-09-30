@@ -1,6 +1,6 @@
 const express = require('express');
 const { AuthError } = require('./verify-id-token');
-const { parseMonth, validateTransactionUpdate } = require('./validate');
+const { parseMonth, isValidAmount, validateTransactionUpdate } = require('./validate');
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -109,6 +109,37 @@ function createApiRouter({
       res.status(404).json({ error: 'Not found' });
       return;
     }
+    res.status(204).end();
+  });
+
+  router.get('/budgets', async (req, res) => {
+    const month = req.query.month;
+    if (typeof month !== 'string' || !parseMonth(month)) {
+      res.status(400).json({ error: 'Invalid month' });
+      return;
+    }
+    res.json({ budgets: await repository.getBudgetStatus(req.userId, month) });
+  });
+
+  router.put('/budgets/:categoryId', async (req, res) => {
+    const { month, amount } = req.body || {};
+    if (typeof month !== 'string' || !parseMonth(month)) {
+      res.status(400).json({ error: 'Invalid month' });
+      return;
+    }
+    // null คือไม่ตั้งงบตั้งแต่เดือนนี้
+    if (amount !== null && !isValidAmount(amount)) {
+      res.status(400).json({ error: 'Invalid amount' });
+      return;
+    }
+    const categories = await repository.listCategories(req.userId);
+    const category = categories.find((item) => item.id === req.params.categoryId);
+    // งบมีเฉพาะหมวดรายจ่าย และต้องเป็นหมวดของผู้ใช้คนนี้
+    if (!category || category.type !== 'expense') {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    await repository.setBudget({ userId: req.userId, categoryId: category.id, month, amount });
     res.status(204).end();
   });
 

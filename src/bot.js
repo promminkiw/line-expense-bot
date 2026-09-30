@@ -5,13 +5,15 @@ const { getPeriodRange } = require('./summary/period');
 const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
 const { getFixedReply } = require('./menu/fixed-replies');
+const { budgetMonths, findBudgetAlerts, formatBudgetAlerts } = require('./budget/alerts');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
-const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
+const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
+const NO_ENTRIES_COMMENT ='ยังไม่มีรายการในช่วงนี้';
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
@@ -90,6 +92,22 @@ function createBot({
     }
   }
 
+  // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
+  async function checkBudgets(userId, rows) {
+    const months = budgetMonths(rows);
+    if (months.length === 0) {
+      return '';
+    }
+    try {
+      const statuses = await Promise.all(months.map((month) => repository.getBudgetStatus(userId, month)));
+      const statusByMonth = new Map(months.map((month, index) => [month, statuses[index]]));
+      return formatBudgetAlerts(findBudgetAlerts(rows, statusByMonth));
+    } catch (err) {
+      logger.error('Failed to check budgets', { userId }, err);
+      return BUDGET_CHECK_FAILED_REPLY;
+    }
+  }
+
   async function commentOn(summary, userId) {
     if (summary.entryCount === 0) {
       return NO_ENTRIES_COMMENT;
@@ -156,8 +174,10 @@ function createBot({
     if (history.length > 0) {
       await forgetConversation(userId);
     }
+    const saved = formatSavedReply(result.items);
+    const alerts = await checkBudgets(userId, rows);
     return {
-      text: formatSavedReply(result.items),
+      text: alerts ? `${saved}\n\n${alerts}` : saved,
       quickReply: buildUndoQuickReply(event.webhookEventId),
     };
   }

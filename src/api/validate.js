@@ -42,4 +42,4 @@ function validateTransactionUpdate(body) {
   return { ok: true, value: { amount, categoryId, occurredOn, note: note.trim() } };
 }
 
-module.exports = { parseMonth, validateTransactionUpdate };
+module.exports = { parseMonth, isValidAmount, validateTransactionUpdate };

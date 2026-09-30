@@ -11,6 +11,9 @@ import {
   chartRows,
   hasChartData,
   describeExportFailure,
+  budgetRows,
+  formatMonthLabel,
+  describeBudgetFailure,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -204,5 +207,75 @@ describe('describeExportFailure', () => {
   it('asks to try again otherwise', () => {
     expect(describeExportFailure(500)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(describeExportFailure(undefined)).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+});
+
+describe('budgetRows', () => {
+  it('describes spending against the budget with a level and a capped bar', () => {
+    const rows = budgetRows([
+      { categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 4030 },
+      { categoryId: 'c2', category: 'ช้อปปิ้ง', budget: 1000, spent: 1500 },
+      { categoryId: 'c3', category: 'เดินทาง', budget: 2000, spent: 100 },
+    ]);
+
+    expect(rows).toEqual([
+      { categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 4030, level: 'warn', percent: 80, width: 80, text: 'ใช้ไป 4,030 บาท จาก 5,000 บาท (80%)' },
+      { categoryId: 'c2', category: 'ช้อปปิ้ง', budget: 1000, spent: 1500, level: 'over', percent: 150, width: 100, text: 'ใช้ไป 1,500 บาท จาก 1,000 บาท (150%)' },
+      { categoryId: 'c3', category: 'เดินทาง', budget: 2000, spent: 100, level: 'ok', percent: 5, width: 5, text: 'ใช้ไป 100 บาท จาก 2,000 บาท (5%)' },
+    ]);
+  });
+
+  it('puts categories without a budget last', () => {
+    const rows = budgetRows([
+      { categoryId: 'c1', category: 'กาแฟ', budget: null, spent: 45 },
+      { categoryId: 'c2', category: 'อาหาร', budget: 5000, spent: 0 },
+    ]);
+
+    expect(rows.map((row) => row.categoryId)).toEqual(['c2', 'c1']);
+    expect(rows[1]).toEqual({
+      categoryId: 'c1',
+      category: 'กาแฟ',
+      budget: null,
+      spent: 45,
+      level: 'none',
+      percent: null,
+      width: 0,
+      text: 'ใช้ไป 45 บาท · ยังไม่ตั้งงบ',
+    });
+  });
+
+  it('switches level exactly at 80 and 100 percent', () => {
+    const levelOf = (spent) => {
+      const { level, percent } = budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 5000, spent }])[0];
+      return { level, percent };
+    };
+
+    expect(levelOf(3999.99)).toEqual({ level: 'ok', percent: 79 });
+    expect(levelOf(4000)).toEqual({ level: 'warn', percent: 80 });
+    expect(levelOf(4999.99)).toEqual({ level: 'warn', percent: 99 });
+    expect(levelOf(5000)).toEqual({ level: 'over', percent: 100 });
+  });
+
+  it('rounds the percent down so 79.99 is not shown as 80', () => {
+    expect(budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 3999.5 }])[0]).toMatchObject({
+      level: 'ok',
+      percent: 79,
+    });
+  });
+});
+
+describe('formatMonthLabel', () => {
+  it('shows month then year', () => {
+    expect(formatMonthLabel('2026-09')).toBe('09/2026');
+  });
+});
+
+describe('describeBudgetFailure', () => {
+  it('explains each failure', () => {
+    expect(describeBudgetFailure(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeBudgetFailure(400)).toBe('จำนวนเงินไม่ถูกต้อง ใส่ได้ไม่เกิน 10,000,000 บาท ทศนิยมไม่เกิน 2 ตำแหน่ง');
+    expect(describeBudgetFailure(404)).toBe('ไม่พบหมวดนี้แล้ว');
+    expect(describeBudgetFailure(500)).toBe('บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(describeBudgetFailure(undefined)).toBe('บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 });
