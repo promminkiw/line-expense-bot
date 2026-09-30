@@ -1,5 +1,5 @@
 const { DEFAULT_CATEGORIES, normalizeCategory } = require('./categories');
-const { toBangkokDateString } = require('../utils/date');
+const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
 const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)';
@@ -8,7 +8,6 @@ const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
 // SDK รอตาม retry-after ของ server ได้ไม่จำกัด จึงต้องมีเส้นตายรวมที่ตัดได้แน่นอน
 const OVERALL_TIMEOUT_MS = 30000;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
 const MAX_AMOUNT = 10000000;
@@ -66,12 +65,6 @@ function buildSystemPrompt(today) {
     '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
     '- Otherwise set needs_clarification to false and question to "".',
   ].join('\n');
-}
-
-function isValidCalendarDate(value) {
-  if (!ISO_DATE_PATTERN.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function isPlainObject(value) {

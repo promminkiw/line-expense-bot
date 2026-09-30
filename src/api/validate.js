@@ -1,7 +1,7 @@
 const { MAX_AMOUNT } = require('../parser/parse-message');
+const { isValidCalendarDate } = require('../utils/date');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_NOTE_LENGTH = 200;
 
 function parseMonth(value) {
@@ -12,14 +12,6 @@ function parseMonth(value) {
   // วันที่ 0 ของเดือนถัดไปคือวันสุดท้ายของเดือนที่ต้องการ
   const lastDay = new Date(Date.UTC(Number(match[1]), Number(match[2]), 0)).getUTCDate();
   return { from: `${match[1]}-${match[2]}-01`, to: `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}` };
-}
-
-function isCalendarDate(value) {
-  if (typeof value !== 'string' || !DATE_PATTERN.test(value)) {
-    return false;
-  }
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function isValidAmount(amount) {
@@ -41,7 +33,7 @@ function validateTransactionUpdate(body) {
   if (typeof categoryId !== 'string' || categoryId.length === 0) {
     return { ok: false, error: 'Invalid category' };
   }
-  if (!isCalendarDate(occurredOn)) {
+  if (!isValidCalendarDate(occurredOn)) {
     return { ok: false, error: 'Invalid date' };
   }
   if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH) {
