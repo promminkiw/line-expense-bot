@@ -480,7 +480,9 @@ describe('repository.listAllTransactions', () => {
       ['range', 0, 999],
       ['range', 500, 1499],
     ]);
-    expect(calls.slice(9, 17)).toEqual(calls.slice(0, 8));
+    // หน้าถัดไปไม่ขอ count เพราะถ้ามีคนลบแถวระหว่างหน้า PostgREST ตอบ 416 เมื่อ offset เกินจำนวนจริง
+    expect(calls[10]).toEqual(['select', 'id, type, amount, note, occurred_on, category_id']);
+    expect(calls.slice(11, 17)).toEqual(calls.slice(2, 8));
   });
 
   it('stops when a page comes back empty even if the count says more', async () => {

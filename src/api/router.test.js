@@ -358,7 +358,17 @@ describe('POST /api/exports', () => {
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({ error: 'Too many requests' });
     expect(deps.allowExport).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.deleteExpiredExportLinks).not.toHaveBeenCalled();
     expect(deps.repository.createExportLink).not.toHaveBeenCalled();
+  });
+
+  it('does not count an invalid month against the export limit', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/exports', { method: 'POST', body: { month: '2026-13' } });
+
+    expect(deps.allowExport).not.toHaveBeenCalled();
   });
 
   it('removes this user expired links before storing the new one', async () => {
