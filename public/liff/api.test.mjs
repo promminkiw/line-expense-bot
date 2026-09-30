@@ -19,6 +19,14 @@ describe('createApi', () => {
     expect(options.headers.Authorization).toBe('Bearer token-1');
   });
 
+  it('sends the ngrok skip-warning header', async () => {
+    const fetchImpl = fakeFetch(200, { categories: [] });
+
+    await setup(fetchImpl).listCategories();
+
+    expect(fetchImpl.mock.calls[0][1].headers['ngrok-skip-browser-warning']).toBe('1');
+  });
+
   it('asks for one month of entries', async () => {
     const fetchImpl = fakeFetch(200, { transactions: [] });
 

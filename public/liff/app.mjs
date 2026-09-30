@@ -1,4 +1,4 @@
-import { createApi, ApiError, REQUEST_TIMEOUT_MS } from './api.mjs';
+import { createApi, ApiError, REQUEST_TIMEOUT_MS, NGROK_SKIP_WARNING_HEADERS } from './api.mjs';
 import {
   formatBaht,
   formatThaiDate,
@@ -219,7 +219,12 @@ els.month.addEventListener('change', () => loadMonth({ reset: true }));
 
 async function boot() {
   try {
-    const config = await (await fetch('/api/config', { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })).json();
+    const config = await (
+      await fetch('/api/config', {
+        headers: NGROK_SKIP_WARNING_HEADERS,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+    ).json();
     await liff.init({ liffId: config.liffId });
     if (!liff.isLoggedIn()) {
       liff.login();
