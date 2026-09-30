@@ -150,7 +150,10 @@ async function openEditor(item) {
   els.error.hidden = true;
   els.saveButton.disabled = categories.length === 0;
   els.editor.showModal();
-  if (!(await ensureCategories())) {
+  const loaded = await ensureCategories();
+  // ผู้ใช้อาจปิดหรือเปิดแถวอื่นระหว่างรอ จึงห้ามแตะ editor ของ open ที่เก่าแล้ว
+  if (editing !== item || !els.editor.open) return;
+  if (!loaded) {
     els.error.textContent = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
     els.error.hidden = false;
     return;

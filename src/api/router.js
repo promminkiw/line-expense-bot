@@ -12,7 +12,7 @@ function readBearerToken(req) {
 function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console }) {
   const router = express.Router();
 
-  // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ text/plain ของ app
+  // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ข้อความจาก error handler ของ app
   router.use(express.json({ limit: '10kb' }));
 
   router.get('/config', (req, res) => {
