@@ -1,12 +1,22 @@
 const express = require('express');
 const { middleware, SignatureValidationFailed, JSONParseError } = require('@line/bot-sdk');
+const path = require('node:path');
 
-function createApp({ channelSecret, handleEvents, logger = console }) {
+const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
+
+function createApp({ channelSecret, handleEvents, apiRouter, logger = console }) {
   const app = express();
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.use('/liff', express.static(LIFF_DIR));
+
+  // router parse JSON และจัดการ error เองเป็น JSON จึงห้ามใส่ parser ไว้ข้างนอก
+  if (apiRouter) {
+    app.use('/api', apiRouter);
+  }
 
   // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature
   app.post('/webhook', express.raw({ type: () => true, limit: '1mb' }), middleware({ channelSecret }), (req, res) => {
