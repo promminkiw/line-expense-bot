@@ -25,7 +25,7 @@ const HELP_REPLY = [
   '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
 ].join('\n');
 
-// ใช้จนกว่าจะมีหน้าเว็บ LIFF ในขั้นที่ 6 แล้วเปลี่ยนปุ่มให้เปิดลิงก์แทน
+// ใช้เมื่อยังไม่ได้ตั้งค่า LIFF เท่านั้น
 const WEB_COMING_SOON_REPLY = 'หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้';
 
 const FIXED_REPLIES = {
@@ -33,9 +33,16 @@ const FIXED_REPLIES = {
   'เปิดเว็บ': WEB_COMING_SOON_REPLY,
 };
 
-function getFixedReply(text) {
+function buildWebReply(liffUrl) {
+  return `เปิดหน้าเว็บดูและแก้ไขรายการ: ${liffUrl}`;
+}
+
+function getFixedReply(text, { liffUrl } = {}) {
   const key = text.replace(/\s+/g, '');
+  if (key === 'เปิดเว็บ' && liffUrl) {
+    return buildWebReply(liffUrl);
+  }
   return Object.hasOwn(FIXED_REPLIES, key) ? FIXED_REPLIES[key] : null;
 }
 
-module.exports = { getFixedReply, HELP_REPLY, WEB_COMING_SOON_REPLY };
+module.exports = { getFixedReply, buildWebReply, HELP_REPLY, WEB_COMING_SOON_REPLY };

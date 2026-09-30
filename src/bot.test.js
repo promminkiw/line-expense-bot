@@ -324,6 +324,18 @@ describe('bot menu fixed replies', () => {
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
   });
 
+  it('replies the LIFF link for the web button when configured', async () => {
+    const { deps, bot } = setup({ liffUrl: 'https://liff.line.me/liff-1' });
+
+    await bot.handleEvent(textEvent('เปิดเว็บ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      'เปิดหน้าเว็บดูและแก้ไขรายการ: https://liff.line.me/liff-1',
+      undefined
+    );
+  });
+
   it('replies the coming soon text for the web button', async () => {
     const { deps, bot } = setup();
 

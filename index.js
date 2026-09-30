@@ -50,6 +50,7 @@ const bot = createBot({
   repository,
   users,
   allowRequest,
+  liffUrl: `https://liff.line.me/${config.liffId}`,
 });
 const apiRouter = createApiRouter({
   verifyIdToken: createIdTokenVerifier({ channelId: config.lineLoginChannelId }),

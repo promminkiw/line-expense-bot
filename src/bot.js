@@ -61,6 +61,7 @@ function createBot({
   repository,
   users,
   allowRequest,
+  liffUrl,
   now = () => Date.now(),
   logger = console,
 }) {
@@ -121,7 +122,7 @@ function createBot({
       return null;
     }
     // ปุ่มเมนูตอบข้อความคงที่ ไม่เรียก Claude จึงไม่ต้องนับ rate limit
-    const fixedReply = getFixedReply(event.message.text);
+    const fixedReply = getFixedReply(event.message.text, { liffUrl });
     if (fixedReply) {
       return { text: fixedReply };
     }
