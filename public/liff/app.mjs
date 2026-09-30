@@ -12,6 +12,9 @@ import {
   describeExportFailure,
   groupCategoryOptions,
   describeEditFailure,
+  budgetRows,
+  formatMonthLabel,
+  describeBudgetFailure,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -47,6 +50,18 @@ const els = {
   confirmNote: document.getElementById('confirm-note'),
   confirmCancel: document.getElementById('confirm-cancel'),
   confirmOk: document.getElementById('confirm-ok'),
+  budgets: document.getElementById('budgets'),
+  budgetRows: document.getElementById('budget-rows'),
+  budgetsError: document.getElementById('budgets-error'),
+  budgetEditor: document.getElementById('budget-editor'),
+  budgetForm: document.getElementById('budget-form'),
+  budgetTitle: document.getElementById('budget-title'),
+  budgetScope: document.getElementById('budget-scope'),
+  budgetAmount: document.getElementById('budget-amount'),
+  budgetError: document.getElementById('budget-error'),
+  budgetRemove: document.getElementById('budget-remove'),
+  budgetCancel: document.getElementById('budget-cancel'),
+  budgetSave: document.querySelector('#budget-form button[type="submit"]'),
 };
 
 let api;
@@ -56,6 +71,8 @@ let busy = false;
 let chartType = 'expense';
 let lastSummary = [];
 let exporting = false;
+let editingBudget = null;
+let budgetBusy = false;
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -166,6 +183,61 @@ function render({ transactions, summary, truncated }) {
   }
 }
 
+function renderBudgets(budgets) {
+  els.budgetRows.replaceChildren();
+  els.budgetsError.hidden = true;
+  els.budgets.hidden = false;
+  for (const row of budgetRows(budgets)) {
+    const item = document.createElement('li');
+    item.className = `budget-row ${row.level}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'budget-button';
+    const label = document.createElement('span');
+    label.className = 'budget-label';
+    label.textContent = row.category;
+    const action = document.createElement('span');
+    action.className = 'budget-edit';
+    action.textContent = row.budget === null ? 'ตั้งงบ' : 'แก้งบ';
+    const value = document.createElement('span');
+    value.className = 'budget-value';
+    value.textContent = row.text;
+    button.append(label, action, value);
+    if (row.budget !== null) {
+      // ใช้ span เพราะใน button ใส่ div ไม่ได้
+      const track = document.createElement('span');
+      track.className = 'budget-track';
+      const fill = document.createElement('span');
+      fill.className = 'budget-fill';
+      fill.style.width = `${row.width}%`;
+      track.append(fill);
+      button.append(track);
+    }
+    button.addEventListener('click', () => openBudgetEditor(row));
+    item.append(button);
+    els.budgetRows.append(item);
+  }
+}
+
+function showBudgetsError(err) {
+  els.budgetRows.replaceChildren();
+  els.budgets.hidden = false;
+  els.budgetsError.textContent =
+    err instanceof ApiError && err.status === 401 ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ ลองใหม่อีกครั้ง';
+  els.budgetsError.hidden = false;
+}
+
+// งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
+async function loadBudgets() {
+  const month = els.month.value;
+  try {
+    const { budgets } = await api.listBudgets(month);
+    if (month === els.month.value) renderBudgets(budgets);
+  } catch (err) {
+    if (month === els.month.value) showBudgetsError(err);
+  }
+}
+
 // ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ status เสมอ
 // reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
 async function loadMonth({ reset = false } = {}) {
@@ -175,9 +247,12 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.chart.hidden = true;
+    els.budgets.hidden = true;
     els.exportStatus.textContent = '';
     setStatus('กำลังโหลด...');
   }
+  // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
+  const budgetsLoaded = loadBudgets();
   try {
     const data = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
@@ -185,6 +260,7 @@ async function loadMonth({ reset = false } = {}) {
   } catch (err) {
     if (month === els.month.value) showLoadError(err);
   }
+  await budgetsLoaded;
 }
 
 async function ensureCategories() {
@@ -328,6 +404,58 @@ els.exportButton.addEventListener('click', async () => {
     exporting = false;
     els.exportButton.disabled = false;
   }
+});
+
+function openBudgetEditor(row) {
+  if (!els.month.value) return;
+  editingBudget = { categoryId: row.categoryId, month: els.month.value };
+  els.budgetTitle.textContent = `งบ ${row.category}`;
+  els.budgetScope.textContent = `มีผลตั้งแต่เดือน ${formatMonthLabel(editingBudget.month)} เป็นต้นไป`;
+  els.budgetAmount.value = row.budget === null ? '' : String(row.budget);
+  els.budgetRemove.hidden = row.budget === null;
+  els.budgetError.hidden = true;
+  els.budgetEditor.showModal();
+}
+
+function setBudgetBusy(isBusy) {
+  budgetBusy = isBusy;
+  els.budgetSave.disabled = isBusy;
+  els.budgetRemove.disabled = isBusy;
+  els.budgetCancel.disabled = isBusy;
+  els.budgetError.textContent = isBusy ? 'กำลังบันทึก...' : '';
+  els.budgetError.hidden = !isBusy;
+}
+
+async function saveBudget(amount) {
+  if (budgetBusy) return;
+  const target = editingBudget;
+  setBudgetBusy(true);
+  let failure = null;
+  try {
+    await api.setBudget(target.categoryId, { month: target.month, amount });
+  } catch (err) {
+    failure = describeBudgetFailure(err instanceof ApiError ? err.status : undefined);
+  } finally {
+    setBudgetBusy(false);
+  }
+  if (failure) {
+    els.budgetError.textContent = failure;
+    els.budgetError.hidden = false;
+    return;
+  }
+  els.budgetEditor.close();
+  await loadBudgets();
+}
+
+els.budgetForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  saveBudget(Number(els.budgetAmount.value));
+});
+els.budgetRemove.addEventListener('click', () => saveBudget(null));
+els.budgetCancel.addEventListener('click', () => els.budgetEditor.close());
+// กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
+els.budgetEditor.addEventListener('cancel', (event) => {
+  if (budgetBusy) event.preventDefault();
 });
 
 async function boot() {
