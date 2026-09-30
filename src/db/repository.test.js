@@ -5,7 +5,7 @@ import { createRepository, DatabaseError } from './repository.js';
 function fakeSupabase(result) {
   const calls = [];
   const builder = {};
-  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete']) {
+  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order']) {
     builder[method] = vi.fn((...args) => {
       calls.push([method, ...args]);
       return builder;
@@ -353,5 +353,124 @@ describe('repository.summarizeTransactions', () => {
 
     await expect(promise).rejects.toBeInstanceOf(DatabaseError);
     await expect(promise).rejects.toThrow('Database summarizeTransactions failed: boom');
+  });
+});
+
+describe('repository.listTransactions', () => {
+  it('reads this user rows in the date range, newest first', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [{ id: 't1', type: 'expense', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-09-29', category_id: 'c1' }],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).listTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(rows).toEqual([
+      { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c1' },
+    ]);
+    expect(calls).toEqual([
+      ['from', 'transactions'],
+      ['select', 'id, type, amount, note, occurred_on, category_id'],
+      ['eq', 'user_id', 'user-1'],
+      ['gte', 'occurred_on', '2026-09-01'],
+      ['lte', 'occurred_on', '2026-09-30'],
+      ['order', 'occurred_on', { ascending: false }],
+      ['order', 'created_at', { ascending: false }],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).listTransactions('user-1', 'a', 'b')).rejects.toThrow(
+      'Database listTransactions failed: boom'
+    );
+  });
+});
+
+describe('repository.listCategories', () => {
+  it('reads this user categories ordered by type and name', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [{ id: 'c1', name: 'อาหาร', type: 'expense' }],
+      error: null,
+    });
+
+    expect(await createRepository(supabase).listCategories('user-1')).toEqual([
+      { id: 'c1', name: 'อาหาร', type: 'expense' },
+    ]);
+    expect(calls).toEqual([
+      ['from', 'categories'],
+      ['select', 'id, name, type'],
+      ['eq', 'user_id', 'user-1'],
+      ['order', 'type'],
+      ['order', 'name'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).listCategories('user-1')).rejects.toThrow(
+      'Database listCategories failed: boom'
+    );
+  });
+});
+
+describe('repository.updateTransaction', () => {
+  const fields = { type: 'income', amount: 25000, categoryId: 'c9', occurredOn: '2026-09-01', note: 'เงินเดือน' };
+
+  it('updates only this user row and reports whether it existed', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 't1' }], error: null });
+
+    expect(await createRepository(supabase).updateTransaction('user-1', 't1', fields)).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'transactions'],
+      ['update', { type: 'income', amount: 25000, category_id: 'c9', occurred_on: '2026-09-01', note: 'เงินเดือน' }],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'id', 't1'],
+      ['select', 'id'],
+    ]);
+  });
+
+  it('returns false when no row matched', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).updateTransaction('user-1', 't1', fields)).toBe(false);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).updateTransaction('user-1', 't1', fields)).rejects.toThrow(
+      'Database updateTransaction failed: boom'
+    );
+  });
+});
+
+describe('repository.deleteTransaction', () => {
+  it('deletes only this user row and reports whether it existed', async () => {
+    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
+
+    expect(await createRepository(supabase).deleteTransaction('user-1', 't1')).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'transactions'],
+      ['delete', { count: 'exact' }],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'id', 't1'],
+    ]);
+  });
+
+  it('returns false when no row matched', async () => {
+    const { supabase } = fakeSupabase({ count: 0, error: null });
+
+    expect(await createRepository(supabase).deleteTransaction('user-1', 't1')).toBe(false);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ count: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).deleteTransaction('user-1', 't1')).rejects.toThrow(
+      'Database deleteTransaction failed: boom'
+    );
   });
 });
