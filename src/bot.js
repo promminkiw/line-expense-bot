@@ -12,7 +12,8 @@ const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกิน�
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
-const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
+const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
+const NO_ENTRIES_COMMENT ='ยังไม่มีรายการในช่วงนี้';
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
@@ -91,7 +92,7 @@ function createBot({
     }
   }
 
-  // การเตือนงบเป็นส่วนเสริม ถ้าเช็กไม่ได้ยังตอบว่าบันทึกแล้วตามปกติ
+  // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
   async function checkBudgets(userId, rows) {
     const months = budgetMonths(rows);
     if (months.length === 0) {
@@ -103,7 +104,7 @@ function createBot({
       return formatBudgetAlerts(findBudgetAlerts(rows, statusByMonth));
     } catch (err) {
       logger.error('Failed to check budgets', { userId }, err);
-      return '';
+      return BUDGET_CHECK_FAILED_REPLY;
     }
   }
 

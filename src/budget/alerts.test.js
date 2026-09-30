@@ -46,6 +46,29 @@ describe('findBudgetAlerts', () => {
     expect(alerts).toEqual([{ level: 'over', month: '2026-09', category: 'อาหาร', spent: 5010, budget: 5000 }]);
   });
 
+  it('says over budget at exactly 100 percent', () => {
+    const alerts = findBudgetAlerts([row({ amount: 100 })], byMonth('2026-09', [status({ spent: 5000 })]));
+
+    expect(alerts).toEqual([{ level: 'over', month: '2026-09', category: 'อาหาร', spent: 5000, budget: 5000 }]);
+  });
+
+  it('does not say over budget again when the category was exactly at 100 percent before', () => {
+    // 0.7 - 0.4 เป็น float ได้ 0.29999999999999993 ซึ่งจะเตือนซ้ำผิดถ้าไม่เทียบเป็นสตางค์
+    const alerts = findBudgetAlerts([row({ amount: 0.4 })], byMonth('2026-09', [status({ budget: 0.3, spent: 0.7 })]));
+
+    expect(alerts).toEqual([]);
+  });
+
+  it('adds fractional amounts in satang when reaching exactly 100 percent', () => {
+    // 0.1 + 0.2 เป็น float ได้ 0.30000000000000004 แต่ต้องนับเป็น 0.30 พอดี
+    const alerts = findBudgetAlerts(
+      [row({ amount: 0.1 }), row({ amount: 0.2 })],
+      byMonth('2026-09', [status({ budget: 0.3, spent: 0.3 })])
+    );
+
+    expect(alerts.map((alert) => alert.level)).toEqual(['over']);
+  });
+
   it('reports only over budget when one message crosses both lines', () => {
     const alerts = findBudgetAlerts([row({ amount: 2000 })], byMonth('2026-09', [status({ spent: 5100 })]));
 

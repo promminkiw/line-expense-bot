@@ -593,15 +593,45 @@ describe('bot budget alerts', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r1', SAVED, UNDO_QUICK_REPLY);
   });
 
-  it('still replies saved without an alert and logs when the budget check fails', async () => {
+  it('keeps the saved reply and adds the failure line and logs when the budget check fails', async () => {
     const { deps, bot } = setup();
     const error = new Error('db down');
     deps.repository.getBudgetStatus.mockRejectedValue(error);
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVED, UNDO_QUICK_REPLY);
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      `${SAVED}\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
+      UNDO_QUICK_REPLY
+    );
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to check budgets', { userId: 'user-1' }, error);
+  });
+
+  it('reports the budget check failure once when one of two months fails', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({
+      status: 'ok',
+      items: [
+        { ...FOOD_ITEM, date: '2026-08-31' },
+        { ...FOOD_ITEM, date: '2026-09-01' },
+      ],
+    });
+    const { deps, bot } = setup({ parseMessage });
+    const error = new Error('db down');
+    deps.repository.getBudgetStatus.mockImplementation(async (userId, month) => {
+      if (month === '2026-08') {
+        throw error;
+      }
+      return [];
+    });
+
+    await bot.handleEvent(textEvent('กินข้าว 60 สองวัน'));
+
+    const text = deps.replyText.mock.calls[0][1];
+    expect(text.split('เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toHaveLength(2);
+    expect(text.startsWith('บันทึกแล้ว')).toBe(true);
+    expect(text.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
+    expect(deps.logger.error).toHaveBeenCalledTimes(1);
   });
 
   it('does not check budgets for income', async () => {
@@ -620,5 +650,6 @@ describe('bot budget alerts', () => {
     await bot.handleEvent(textEvent('ได้เงิน 500'));
 
     expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
+    expect(deps.replyText.mock.calls[0][1]).not.toContain('เช็กงบไม่สำเร็จ');
   });
 });

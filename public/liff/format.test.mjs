@@ -244,6 +244,18 @@ describe('budgetRows', () => {
     });
   });
 
+  it('switches level exactly at 80 and 100 percent', () => {
+    const levelOf = (spent) => {
+      const { level, percent } = budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 5000, spent }])[0];
+      return { level, percent };
+    };
+
+    expect(levelOf(3999.99)).toEqual({ level: 'ok', percent: 79 });
+    expect(levelOf(4000)).toEqual({ level: 'warn', percent: 80 });
+    expect(levelOf(4999.99)).toEqual({ level: 'warn', percent: 99 });
+    expect(levelOf(5000)).toEqual({ level: 'over', percent: 100 });
+  });
+
   it('rounds the percent down so 79.99 is not shown as 80', () => {
     expect(budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 3999.5 }])[0]).toMatchObject({
       level: 'ok',
