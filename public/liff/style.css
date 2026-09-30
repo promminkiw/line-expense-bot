@@ -36,14 +36,14 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .chart-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .chart h2 { margin: 0; font-size: 16px; }
 .tabs { display: flex; gap: 4px; }
-.tabs button { font: inherit; min-height: 44px; padding: 8px 14px; font-size: 14px; border: 1px solid #ccc; border-radius: 999px; background: #fff; color: #222; }
+.tabs button { font: inherit; min-height: 44px; padding: 8px 14px; font-size: 14px; border: 1px solid #767676; border-radius: 999px; background: #fff; color: #222; }
 .tabs button[aria-pressed="true"] { background: #222; border-color: #222; color: #fff; }
 .chart-rows { list-style: none; margin: 4px 0 0; padding: 0; }
 .chart-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; margin-top: 10px; font-size: 14px; }
 .chart-label { overflow-wrap: anywhere; }
 .chart-value { white-space: nowrap; color: #555; }
 .chart-track { grid-column: 1 / -1; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
-.chart-fill { height: 100%; border-radius: 5px; }
+.chart-fill { height: 100%; min-width: 2px; border-radius: 5px; }
 .chart-row.expense .chart-fill { background: #c62828; }
 .chart-row.income .chart-fill { background: #13853a; }
 .chart-empty { margin: 12px 0 0; color: #666; }

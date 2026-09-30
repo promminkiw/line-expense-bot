@@ -8,6 +8,7 @@ import {
   groupByDate,
   summaryTotals,
   chartRows,
+  hasChartData,
   describeExportFailure,
   groupCategoryOptions,
   describeEditFailure,
@@ -107,8 +108,13 @@ function renderChart() {
   for (const tab of els.tabs) {
     tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
-  const rows = chartRows(lastSummary, chartType);
   els.chartRows.replaceChildren();
+  // เดือนที่ไม่มีรายการเลยมีข้อความว่างใต้รายการอยู่แล้ว ไม่ต้องแสดงซ้ำในกราฟ
+  if (!hasChartData(lastSummary)) {
+    els.chart.hidden = true;
+    return;
+  }
+  const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
     els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนนี้' : 'ยังไม่มีรายรับในเดือนนี้';
@@ -124,7 +130,7 @@ function renderChart() {
     label.textContent = row.category;
     const value = document.createElement('span');
     value.className = 'chart-value';
-    value.textContent = `${formatBaht(row.total)} · ${row.share}%`;
+    value.textContent = `${formatBaht(row.total)} · ${row.shareText}`;
     const track = document.createElement('div');
     track.className = 'chart-track';
     const fill = document.createElement('div');
@@ -299,16 +305,25 @@ for (const tab of els.tabs) {
 
 els.exportButton.addEventListener('click', async () => {
   if (exporting || !api) return;
+  const month = els.month.value;
+  if (!month) {
+    els.exportStatus.textContent = 'เลือกเดือนก่อนกด Export CSV';
+    return;
+  }
   exporting = true;
   els.exportButton.disabled = true;
   els.exportStatus.textContent = 'กำลังเตรียมไฟล์...';
+  // เปลี่ยนเดือนระหว่างรอแล้ว loadMonth ล้างสถานะไปแล้ว อย่าเขียนสถานะของเดือนเก่าทับ
+  const setExportStatus = (text) => {
+    if (month === els.month.value) els.exportStatus.textContent = text;
+  };
   try {
-    const { path } = await api.createExport(els.month.value);
+    const { path } = await api.createExport(month);
     // browser ในแอป LINE ดาวน์โหลดไฟล์ไม่ได้ จึงเปิดลิงก์ใน browser ภายนอก
     liff.openWindow({ url: new URL(path, window.location.origin).href, external: true });
-    els.exportStatus.textContent = 'ส่งลิงก์ไปเปิดใน browser แล้ว ถ้าไม่เห็นหน้าดาวน์โหลด กด Export CSV ใหม่ (ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที)';
+    setExportStatus('ส่งลิงก์ไปเปิดใน browser แล้ว ถ้าไม่เห็นหน้าดาวน์โหลด กด Export CSV ใหม่ (ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที)');
   } catch (err) {
-    els.exportStatus.textContent = describeExportFailure(err instanceof ApiError ? err.status : undefined);
+    setExportStatus(describeExportFailure(err instanceof ApiError ? err.status : undefined));
   } finally {
     exporting = false;
     els.exportButton.disabled = false;
@@ -329,6 +344,7 @@ async function boot() {
       return;
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
+    els.exportButton.disabled = false;
     els.month.value = currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
