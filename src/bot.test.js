@@ -582,6 +582,29 @@ describe('bot budget alerts', () => {
     );
   });
 
+  it('alerts again on the next save while still above 80 percent', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getBudgetStatus
+      .mockResolvedValueOnce([{ categoryId: 'cat-food', category: 'อาหาร', budget: 5000, spent: 4030 }])
+      .mockResolvedValueOnce([{ categoryId: 'cat-food', category: 'อาหาร', budget: 5000, spent: 4090 }]);
+
+    await bot.handleEvent(textEvent('กินข้าว 60', { replyToken: 'r1', eventId: 'ev1' }));
+    await bot.handleEvent(textEvent('กินข้าว 60', { replyToken: 'r2', eventId: 'ev2' }));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(
+      1,
+      'r1',
+      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
+      UNDO_QUICK_REPLY
+    );
+    expect(deps.replyText).toHaveBeenNthCalledWith(
+      2,
+      'r2',
+      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,090 จาก 5,000 บาท (81%)`,
+      expect.anything()
+    );
+  });
+
   it('checks the budget after saving so the new entry is counted', async () => {
     const { deps, bot } = setup();
 

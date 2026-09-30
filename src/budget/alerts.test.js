@@ -26,21 +26,29 @@ describe('budgetMonths', () => {
 });
 
 describe('findBudgetAlerts', () => {
-  it('warns when this message moves the category from below to at least 80 percent', () => {
+  it('warns when the category total is at least 80 percent after the save', () => {
     const alerts = findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 4030 })]));
 
     expect(alerts).toEqual([{ level: 'warn', month: '2026-09', category: 'อาหาร', spent: 4030, budget: 5000 }]);
   });
 
   it('warns at exactly 80 percent', () => {
-    expect(findBudgetAlerts([row({ amount: 100 })], byMonth('2026-09', [status({ spent: 4000 })]))).toHaveLength(1);
+    const alerts = findBudgetAlerts([row({ amount: 100 })], byMonth('2026-09', [status({ spent: 4000 })]));
+
+    expect(alerts.map((alert) => alert.level)).toEqual(['warn']);
   });
 
-  it('does not warn again when the category was already above 80 percent', () => {
-    expect(findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 4100 })]))).toEqual([]);
+  it('gives no alert below 80 percent', () => {
+    expect(findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 3999.99 })]))).toEqual([]);
   });
 
-  it('says over budget when this message reaches 100 percent', () => {
+  it('warns again on every save while above 80 percent', () => {
+    const alerts = findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 4100 })]));
+
+    expect(alerts.map((alert) => alert.level)).toEqual(['warn']);
+  });
+
+  it('says over budget when the total is above 100 percent', () => {
     const alerts = findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 5010 })]));
 
     expect(alerts).toEqual([{ level: 'over', month: '2026-09', category: 'อาหาร', spent: 5010, budget: 5000 }]);
@@ -52,21 +60,23 @@ describe('findBudgetAlerts', () => {
     expect(alerts).toEqual([{ level: 'over', month: '2026-09', category: 'อาหาร', spent: 5000, budget: 5000 }]);
   });
 
-  it('does not say over budget again when the category was exactly at 100 percent before', () => {
-    // 0.7 - 0.4 เป็น float ได้ 0.29999999999999993 ซึ่งจะเตือนซ้ำผิดถ้าไม่เทียบเป็นสตางค์
-    const alerts = findBudgetAlerts([row({ amount: 0.4 })], byMonth('2026-09', [status({ budget: 0.3, spent: 0.7 })]));
-
-    expect(alerts).toEqual([]);
-  });
-
-  it('adds fractional amounts in satang when reaching exactly 100 percent', () => {
-    // 0.1 + 0.2 เป็น float ได้ 0.30000000000000004 แต่ต้องนับเป็น 0.30 พอดี
-    const alerts = findBudgetAlerts(
-      [row({ amount: 0.1 }), row({ amount: 0.2 })],
-      byMonth('2026-09', [status({ budget: 0.3, spent: 0.3 })])
-    );
+  it('says over budget on every save while at or above 100 percent', () => {
+    const alerts = findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 5200 })]));
 
     expect(alerts.map((alert) => alert.level)).toEqual(['over']);
+  });
+
+  it('alerts on the total even when the entry itself is tiny', () => {
+    const alerts = findBudgetAlerts([row({ amount: 0.01 })], byMonth('2026-09', [status({ spent: 4500 })]));
+
+    expect(alerts.map((alert) => alert.level)).toEqual(['warn']);
+  });
+
+  it('compares in satang so 80 percent of a decimal budget is not missed', () => {
+    // 0.08 >= 0.1 * 0.8 เป็น false ใน float แต่ 8 * 5 >= 10 * 4 เป็น true ในสตางค์
+    const alerts = findBudgetAlerts([row({ amount: 0.01 })], byMonth('2026-09', [status({ budget: 0.1, spent: 0.08 })]));
+
+    expect(alerts.map((alert) => alert.level)).toEqual(['warn']);
   });
 
   it('reports only over budget when one message crosses both lines', () => {
@@ -75,22 +85,11 @@ describe('findBudgetAlerts', () => {
     expect(alerts.map((alert) => alert.level)).toEqual(['over']);
   });
 
-  it('does not repeat over budget for later entries', () => {
-    expect(findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 5200 })]))).toEqual([]);
-  });
-
-  it('adds up several entries of the same category in one message', () => {
+  it('gives one alert for several entries of the same category in one message', () => {
     const alerts = findBudgetAlerts(
       [row({ amount: 30 }), row({ amount: 30 })],
       byMonth('2026-09', [status({ spent: 4030 })])
     );
-
-    expect(alerts).toHaveLength(1);
-  });
-
-  it('compares in satang so decimals do not cross the line by rounding', () => {
-    // 3999.99 + 0.01 = 4000.00 พอดี 80%
-    const alerts = findBudgetAlerts([row({ amount: 0.01 })], byMonth('2026-09', [status({ spent: 4000 })]));
 
     expect(alerts).toHaveLength(1);
   });

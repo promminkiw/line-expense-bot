@@ -14,26 +14,24 @@ function budgetMonths(rows) {
 }
 
 function findBudgetAlerts(rows, statusByMonth) {
-  const added = new Map();
+  // เก็บเฉพาะคู่เดือน+หมวดที่ข้อความนี้แตะ เพื่อให้ได้ alert เดียวต่อคู่
+  const touched = new Set();
   for (const row of rows) {
     if (row.type !== 'expense') continue;
-    const key = `${monthOf(row.occurred_on)}|${row.category_id}`;
-    added.set(key, (added.get(key) || 0) + toSatang(row.amount));
+    touched.add(`${monthOf(row.occurred_on)}|${row.category_id}`);
   }
   const alerts = [];
-  for (const [key, addedSatang] of added) {
+  for (const key of touched) {
     const [month, categoryId] = key.split('|');
     const status = (statusByMonth.get(month) || []).find((item) => item.categoryId === categoryId);
     if (!status || status.budget === null) continue;
     const budget = toSatang(status.budget);
-    const after = toSatang(status.spent);
-    // ยอดจาก SQL นับรายการที่เพิ่งบันทึกแล้ว ยอดก่อนหน้าจึงต้องหักออก
-    const before = after - addedSatang;
-    // เตือนเฉพาะข้อความที่ทำให้ข้ามเส้น รายการถัดไปจึงไม่เตือนซ้ำโดยไม่ต้องเก็บสถานะ
+    const spent = toSatang(status.spent);
+    // เตือนทุกครั้งที่บันทึกขณะยอดรวมถึงเส้น ไม่ดูว่าก่อนหน้าข้ามเส้นมาหรือยัง
     let level = null;
-    if (before < budget && after >= budget) {
+    if (spent >= budget) {
       level = 'over';
-    } else if (before * 5 < budget * 4 && after * 5 >= budget * 4) {
+    } else if (spent * 5 >= budget * 4) {
       level = 'warn';
     }
     if (level) {
