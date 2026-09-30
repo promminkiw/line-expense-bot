@@ -14,6 +14,11 @@ function sendText(res, status, text) {
 function createExportRouter({ repository, now = () => new Date(), logger = console }) {
   const router = express.Router();
 
+  // HEAD ต้องไม่ใช้ลิงก์ ไม่งั้น GET จริงของผู้ใช้จะได้ 410
+  router.head('/:token', (req, res) => {
+    res.status(405).set('Allow', 'GET').set('Cache-Control', 'no-store').end();
+  });
+
   router.get('/:token', async (req, res) => {
     // ไม่แยกกรณีผิดรูป ไม่มี หมดอายุ หรือใช้แล้ว เพื่อไม่บอกใบ้คนที่เดาลิงก์
     if (!isLinkToken(req.params.token)) {
@@ -43,6 +48,11 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
   router.use((err, req, res, next) => {
     if (res.headersSent) {
       next(err);
+      return;
+    }
+    // decode param พัง (%) ถือเป็นลิงก์ผิดรูป และห้าม log เพราะ message มี token ที่ยังใช้ได้
+    if (err instanceof URIError || err.status === 400) {
+      sendText(res, 410, EXPIRED_MESSAGE);
       return;
     }
     logger.error('Export failed', err);

@@ -93,4 +93,29 @@ describe('GET /exports/:token', () => {
     expect(await res.text()).toBe('Export ไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(deps.logger.error).toHaveBeenCalledWith('Export failed', error);
   });
+
+  it('returns 410 without logging when the token has a broken percent escape', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/${createLinkToken().token}%`);
+
+    expect(res.status).toBe(410);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.text()).toBe(EXPIRED);
+    expect(deps.logger.error).not.toHaveBeenCalled();
+    expect(deps.repository.claimExportLink).not.toHaveBeenCalled();
+  });
+
+  it('does not claim the link on a HEAD request', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/${createLinkToken().token}`, { method: 'HEAD' });
+
+    expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('GET');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(deps.repository.claimExportLink).not.toHaveBeenCalled();
+  });
 });
