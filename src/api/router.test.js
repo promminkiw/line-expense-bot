@@ -38,7 +38,7 @@ function setup(overrides = {}) {
 
 async function start(deps) {
   const app = express();
-  app.use('/api', express.json(), createApiRouter(deps));
+  app.use('/api', createApiRouter(deps));
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -204,10 +204,32 @@ describe('PATCH /api/transactions/:id', () => {
 
     expect(res.status).toBe(404);
     expect(deps.repository.updateTransaction).not.toHaveBeenCalled();
+    expect(deps.repository.listCategories).not.toHaveBeenCalled();
+  });
+
+  it("checks the category against the verified caller's categories", async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, `/transactions/${ID}`, { method: 'PATCH', body: { ...body, userId: 'someone-else' } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.updateTransaction).toHaveBeenCalledWith('user-1', ID, { ...body, type: 'income' });
   });
 });
 
 describe('DELETE /api/transactions/:id', () => {
+  it('returns 404 for a non-uuid id without touching the database', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/transactions/abc', { method: 'DELETE' });
+
+    expect(res.status).toBe(404);
+    expect(deps.repository.deleteTransaction).not.toHaveBeenCalled();
+  });
+
   it('deletes this user entry', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -226,5 +248,44 @@ describe('DELETE /api/transactions/:id', () => {
     const res = await call(base, `/transactions/${ID}`, { method: 'DELETE' });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('error handling', () => {
+  it('returns 400 JSON for a malformed body without leaking the stack', async () => {
+    const base = await start(setup());
+
+    const res = await fetch(`${base}/transactions/${ID}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"amount":',
+    });
+    const text = await res.text();
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(JSON.parse(text)).toEqual({ error: 'Invalid body' });
+    expect(text).not.toContain('at JSON.parse');
+  });
+
+  it('returns 404 JSON for an unknown api path', async () => {
+    const base = await start(setup());
+
+    const res = await call(base, '/nothing-here');
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: 'Not found' });
+  });
+
+  it('returns 500 and logs when the repository fails', async () => {
+    const deps = setup();
+    deps.repository.listCategories.mockRejectedValue(new Error('db down'));
+    const base = await start(deps);
+
+    const res = await call(base, '/categories');
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Internal error' });
+    expect(deps.logger.error).toHaveBeenCalledWith('API request failed', { path: '/categories' }, expect.any(Error));
   });
 });

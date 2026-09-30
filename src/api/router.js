@@ -12,6 +12,9 @@ function readBearerToken(req) {
 function createApiRouter({ verifyIdToken, users, repository, liffId, logger = console }) {
   const router = express.Router();
 
+  // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router ไม่หลุดเป็น HTML
+  router.use(express.json());
+
   router.get('/config', (req, res) => {
     res.json({ liffId });
   });
@@ -92,7 +95,20 @@ function createApiRouter({ verifyIdToken, users, repository, liffId, logger = co
     res.status(204).end();
   });
 
+  router.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
   router.use((err, req, res, next) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    // error ของ body-parser (JSON พัง, body ใหญ่เกิน) เป็นความผิดของ client ไม่ใช่ 500
+    if (Number.isInteger(err.status) && err.status >= 400 && err.status < 500) {
+      res.status(err.status).json({ error: 'Invalid body' });
+      return;
+    }
     logger.error('API request failed', { path: req.path }, err);
     res.status(500).json({ error: 'Internal error' });
   });
