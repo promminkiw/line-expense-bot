@@ -35,7 +35,38 @@ describe('createIdTokenVerifier', () => {
       fetchImpl: fakeFetch(400, { error: 'invalid_request', error_description: 'IdToken expired.' }),
     });
 
-    await expect(verify('expired')).rejects.toThrow('ID token rejected with status 400');
+    const promise = verify('expired');
+    await expect(promise).rejects.toThrow('ID token rejected with status 400');
+    await expect(promise).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('rejects when LINE answers 401', async () => {
+    const verify = createIdTokenVerifier({ channelId: '1', fetchImpl: fakeFetch(401, {}) });
+
+    const promise = verify('token');
+    await expect(promise).rejects.toThrow('ID token rejected with status 401');
+    await expect(promise).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it('aborts the LINE request after 5 seconds', async () => {
+    const controller = new AbortController();
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    const fetchImpl = vi.fn(
+      (url, options) =>
+        new Promise((resolve, reject) => {
+          options.signal.addEventListener('abort', () => reject(options.signal.reason));
+        })
+    );
+    const verify = createIdTokenVerifier({ channelId: '1', fetchImpl });
+
+    const promise = verify('token');
+    expect(timeoutSpy).toHaveBeenCalledWith(5000);
+    expect(fetchImpl.mock.calls[0][1].signal).toBe(controller.signal);
+    controller.abort(new DOMException('The operation timed out.', 'TimeoutError'));
+
+    await expect(promise).rejects.toMatchObject({ name: 'TimeoutError' });
+    await expect(promise).rejects.not.toBeInstanceOf(AuthError);
+    timeoutSpy.mockRestore();
   });
 
   it('rejects a response without a subject', async () => {
