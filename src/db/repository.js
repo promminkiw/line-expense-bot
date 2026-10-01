@@ -34,11 +34,16 @@ function toTransaction(row) {
   };
 }
 
+const SAFE_CAUSE_FIELDS = ['message', 'code', 'hint'];
+
 class DatabaseError extends Error {
   constructor(operation, cause) {
     super(`Database ${operation} failed: ${cause.message}`);
     this.name = 'DatabaseError';
-    this.cause = cause;
+    // details ของ Postgres อาจมีแถวที่พัง (ยอดเงิน โน้ต) จึงเก็บเฉพาะ field ที่ปลอดภัย
+    this.cause = Object.fromEntries(
+      SAFE_CAUSE_FIELDS.filter((field) => cause[field] !== undefined).map((field) => [field, cause[field]]),
+    );
   }
 }
 
