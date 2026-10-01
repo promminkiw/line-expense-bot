@@ -1,4 +1,4 @@
--- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางหลัก แล้วรัน 002_pending_clarifications.sql, 003_summary_function.sql, 004_export_links.sql, 005_budgets.sql, 006_pending_slips.sql, 007_pending_slips_items.sql, 008_pending_slips_event_index.sql และ 009_recurring.sql ต่อตามลำดับ
+-- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางหลัก แล้วรัน 002_pending_clarifications.sql, 003_summary_function.sql, 004_export_links.sql, 005_budgets.sql, 006_pending_slips.sql, 007_pending_slips_items.sql, 008_pending_slips_event_index.sql, 009_recurring.sql และ 010_profile_and_trend.sql ต่อตามลำดับ
 
 create table public.users (
   id uuid primary key default gen_random_uuid(),

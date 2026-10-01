@@ -203,6 +203,31 @@ function createRepository(supabase) {
     }));
   }
 
+  async function getLifetimeTotals(userId) {
+    const { data, error } = await supabase.rpc('lifetime_totals', { p_user_id: userId });
+    throwIfError('getLifetimeTotals', error);
+    // aggregate คืนหนึ่งแถวเสมอ แต่กันไว้เผื่อผลว่าง
+    const row = data[0] || {};
+    return {
+      income: Number(row.income ?? 0),
+      expense: Number(row.expense ?? 0),
+      entryCount: Number(row.entry_count ?? 0),
+      firstDate: row.first_date ?? null,
+    };
+  }
+
+  async function getMonthlyTotals(userId, from, to) {
+    const { data, error } = await supabase.rpc('monthly_totals', { p_user_id: userId, p_from: from, p_to: to });
+    throwIfError('getMonthlyTotals', error);
+    return data.map((row) => ({ month: row.month, type: row.type, total: Number(row.total) }));
+  }
+
+  async function getDisplayName(userId) {
+    const { data, error } = await supabase.from('users').select('display_name').eq('id', userId).maybeSingle();
+    throwIfError('getDisplayName', error);
+    return data ? data.display_name : null;
+  }
+
   async function getBudgetStatus(userId, month) {
     const { data, error } = await supabase.rpc('budget_status', { p_user_id: userId, p_month: `${month}-01` });
     throwIfError('getBudgetStatus', error);
@@ -447,6 +472,9 @@ function createRepository(supabase) {
     listDueRecurringRules,
     applyRecurringRule,
     summarizeTransactions,
+    getLifetimeTotals,
+    getMonthlyTotals,
+    getDisplayName,
     getBudgetStatus,
     setBudget,
     getPendingClarification,
