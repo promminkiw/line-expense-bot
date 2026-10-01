@@ -73,7 +73,8 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .recurring-button { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px 0; border: none; background: none; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
 .recurring-title { display: block; overflow-wrap: anywhere; font-weight: 600; }
 .recurring-text { display: block; overflow-wrap: anywhere; color: #555; }
-.recurring-row.paused .recurring-title, .recurring-row.paused .recurring-text { opacity: 0.55; }
+.recurring-row.paused .recurring-title, .recurring-row.paused .recurring-text { color: #666; }
 #recurring-add { margin-top: 12px; min-height: 44px; }
 #recurring-editor h2 { margin: 0; font-size: 18px; }
-#recurring-editor .check { display: flex; align-items: center; gap: 8px; }
+#recurring-editor .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+#recurring-editor .check input { width: auto; margin: 0; flex: none; }

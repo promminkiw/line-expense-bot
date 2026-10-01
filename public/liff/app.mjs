@@ -516,7 +516,7 @@ els.budgetsRetry.addEventListener('click', () => {
   loadBudgets();
 });
 
-function renderRecurring(rules) {
+function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
   els.recurringLoading.hidden = true;
   els.recurringError.hidden = true;
@@ -538,6 +538,7 @@ function renderRecurring(rules) {
     button.addEventListener('click', () => openRecurringEditor(row));
     item.append(button);
     els.recurringRows.append(item);
+    if (focusRuleId === row.id) button.focus();
   }
 }
 
@@ -553,10 +554,11 @@ function showRecurringError(err) {
 }
 
 // รายการประจำไม่ผูกกับเดือน โหลดแยกจากรายการและงบ และไม่ throw
-async function loadRecurring() {
+async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
   try {
     const { rules } = await api.listRecurring();
-    renderRecurring(rules);
+    renderRecurring(rules, focusRuleId);
+    if (focusAdd) els.recurringAdd.focus();
   } catch (err) {
     showRecurringError(err);
   }
@@ -591,7 +593,7 @@ function setRecurringBusy(isBusy) {
   els.recurringEditorError.hidden = true;
 }
 
-async function runRecurringAction(action, kind) {
+async function runRecurringAction(action, kind, focusRuleId = null) {
   if (recurringBusy) return;
   setRecurringBusy(true);
   let failure = null;
@@ -608,7 +610,7 @@ async function runRecurringAction(action, kind) {
     return;
   }
   els.recurringEditor.close();
-  await loadRecurring();
+  await loadRecurring({ focusRuleId, focusAdd: !focusRuleId });
 }
 
 els.recurringAdd.addEventListener('click', () => openRecurringEditor(null));
@@ -622,7 +624,7 @@ els.recurringForm.addEventListener('submit', (event) => {
     active: els.recurringActive.checked,
   };
   const target = editingRecurring;
-  runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save');
+  runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save', target ? target.id : null);
 });
 // กดลบสองครั้ง ครั้งแรกเปลี่ยนข้อความปุ่มเพื่อกันกดพลาด
 els.recurringDelete.addEventListener('click', () => {
