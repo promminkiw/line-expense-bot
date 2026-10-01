@@ -119,4 +119,14 @@ describe('createApi', () => {
     ]);
     expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify(body));
   });
+
+  it('asks for the trend of a month and the profile', async () => {
+    const fetchImpl = fakeFetch(200, {});
+    const api = setup(fetchImpl);
+
+    await api.getTrend('2026-09');
+    await api.getProfile();
+
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual(['/api/trend?month=2026-09', '/api/profile']);
+  });
 });
