@@ -27,6 +27,18 @@ describe('getFixedReply', () => {
     expect(getFixedReply('toString')).toBeNull();
   });
 
+  it('documents the slip section in order before the undo section', () => {
+    const lines = HELP_REPLY.split('\n');
+    const title = lines.indexOf('🧾 ส่งรูปสลิป/ใบเสร็จ');
+    expect(title).toBeGreaterThan(-1);
+    expect(lines.slice(title + 1, title + 4)).toEqual([
+      'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ บอทอ่านยอดและวันที่',
+      'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
+      'ใบเสร็จที่มีหลายสินค้าจะแสดงแยกราคาทีละอย่าง (กดภายใน 10 นาที)',
+    ]);
+    expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
+  });
+
   it('uses the agreed wording', () => {
     expect(WEB_COMING_SOON_REPLY).toBe('หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้');
     expect(HELP_REPLY).toBe(
@@ -44,6 +56,11 @@ describe('getFixedReply', () => {
         '📅 บันทึกย้อนหลัง',
         'ใส่คำบอกวันไว้ข้างหน้า',
         'ตัวอย่าง: เมื่อวานค่าแท็กซี่ 120',
+        '',
+        '🧾 ส่งรูปสลิป/ใบเสร็จ',
+        'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ บอทอ่านยอดและวันที่',
+        'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
+        'ใบเสร็จที่มีหลายสินค้าจะแสดงแยกราคาทีละอย่าง (กดภายใน 10 นาที)',
         '',
         '↩️ บันทึกผิด?',
         'กดปุ่ม "ยกเลิก" ใต้ข้อความ "บันทึกแล้ว" ได้ทันที',

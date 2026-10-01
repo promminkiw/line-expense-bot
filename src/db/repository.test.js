@@ -864,6 +864,29 @@ describe('repository.claimPendingSlip', () => {
   });
 });
 
+describe('repository.deleteAllExpiredPendingSlips', () => {
+  it('deletes rows of every user created at or before the cutoff', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).deleteAllExpiredPendingSlips('2026-09-29T04:50:00.000Z');
+
+    expect(calls).toEqual([
+      ['from', 'pending_slips'],
+      ['delete'],
+      ['lte', 'created_at', '2026-09-29T04:50:00.000Z'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).deleteAllExpiredPendingSlips('2026-09-29T04:50:00.000Z');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database deleteAllExpiredPendingSlips failed: boom');
+  });
+});
+
 describe('repository.deleteExpiredPendingSlips', () => {
   it('deletes only this user rows created at or before the cutoff', async () => {
     const { supabase, calls } = fakeSupabase({ data: null, error: null });
