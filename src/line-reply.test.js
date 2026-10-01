@@ -29,6 +29,48 @@ describe('createReplyText', () => {
     });
   });
 
+  describe('length cap', () => {
+    const sentText = (client) => client.replyMessage.mock.calls[0][0].messages[0].text;
+    const makeClient = () => ({ replyMessage: vi.fn().mockResolvedValue({}) });
+
+    it('sends a text of exactly 5000 units unchanged', async () => {
+      const client = makeClient();
+      const text = 'a'.repeat(5000);
+
+      await createReplyText(client)('t', text);
+
+      expect(sentText(client)).toBe(text);
+    });
+
+    it('cuts a text of 5001 units to at most 5000 and ends with three dots', async () => {
+      const client = makeClient();
+
+      await createReplyText(client)('t', 'a'.repeat(5001));
+
+      expect(sentText(client).length).toBeLessThanOrEqual(5000);
+      expect(sentText(client).endsWith('...')).toBe(true);
+    });
+
+    it('cuts astral characters on a code point boundary', async () => {
+      const client = makeClient();
+
+      await createReplyText(client)('t', String.fromCodePoint(0x1f600).repeat(3000));
+
+      expect(sentText(client).length).toBeLessThanOrEqual(5000);
+      expect(sentText(client).isWellFormed()).toBe(true);
+      expect(sentText(client).endsWith('...')).toBe(true);
+    });
+
+    it('keeps quick reply items on a cut text', async () => {
+      const client = makeClient();
+      const items = [{ type: 'action', action: { type: 'postback', label: 'ยกเลิก', data: 'x' } }];
+
+      await createReplyText(client)('t', 'a'.repeat(6000), items);
+
+      expect(client.replyMessage.mock.calls[0][0].messages[0].quickReply).toEqual({ items });
+    });
+  });
+
   it('propagates LINE API errors', async () => {
     const client = { replyMessage: vi.fn().mockRejectedValue(new Error('Invalid reply token')) };
     const replyText = createReplyText(client);

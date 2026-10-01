@@ -126,10 +126,10 @@ function createRepository(supabase) {
     throwIfError('clearPendingClarification', error);
   }
 
-  async function savePendingSlip(userId, webhookEventId, item) {
+  async function savePendingSlip(userId, webhookEventId, items) {
     const { data, error } = await supabase
       .from('pending_slips')
-      .insert({ user_id: userId, line_event_id: webhookEventId, item })
+      .insert({ user_id: userId, line_event_id: webhookEventId, items })
       .select('id')
       .single();
     throwIfError('savePendingSlip', error);
@@ -144,10 +144,10 @@ function createRepository(supabase) {
       .eq('id', slipId)
       .eq('user_id', userId)
       .gte('created_at', sinceIso)
-      .select('line_event_id, item')
+      .select('line_event_id, items')
       .maybeSingle();
     throwIfError('claimPendingSlip', error);
-    return data ? { webhookEventId: data.line_event_id, item: data.item } : null;
+    return data ? { webhookEventId: data.line_event_id, items: data.items } : null;
   }
 
   async function deleteExpiredPendingSlips(userId, beforeIso) {

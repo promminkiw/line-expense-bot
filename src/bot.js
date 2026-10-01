@@ -1,5 +1,5 @@
 const { createConcurrencyLimit } = require('./slip/concurrency-limit');
-const { formatSavedReply,formatSlipConfirmReply } = require('./parser/format-reply');
+const { formatSavedReply, formatSlipConfirmReply } = require('./parser/format-reply');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
@@ -250,12 +250,26 @@ function createBot({
     }
     const { slip } = outcome;
     if (slip.status !== 'ok') {
+      // log เฉพาะเหตุผลและตัวเลข ไม่ใส่รูปหรือชื่อสินค้า
+      logger.info('Slip unreadable', {
+        userId,
+        reason: slip.reason,
+        itemCount: slip.itemCount,
+        rejectedAmounts: slip.rejectedAmounts,
+        rejectionKind: slip.rejectionKind,
+      });
       return { text: SLIP_UNREADABLE_REPLY };
     }
     await clearExpiredSlips(userId);
-    const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.item);
+    const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.items);
     return {
-      text: formatSlipConfirmReply(slip.item, { dateAssumed: slip.dateAssumed }),
+      text: formatSlipConfirmReply(slip.items, {
+        dateAssumed: slip.dateAssumed,
+        extrasNote: slip.extrasNote,
+        slipTotal: slip.slipTotal,
+        truncatedTo: slip.truncatedTo,
+        skippedCount: slip.skippedCount,
+      }),
       quickReply: buildSlipQuickReply(slipId),
     };
   }
@@ -284,14 +298,14 @@ function createBot({
       return { text: SLIP_EXPIRED_REPLY };
     }
     const rows = toTransactionRows({
-      items: [slip.item],
+      items: slip.items,
       categoryIds,
       userId,
       webhookEventId: slip.webhookEventId,
       source: 'slip',
     });
     await repository.insertTransactions(rows);
-    const saved = formatSavedReply([slip.item]);
+    const saved = formatSavedReply(slip.items);
     const alerts = await checkBudgets(userId, rows);
     return {
       text: alerts ? `${saved}\n\n${alerts}` : saved,
