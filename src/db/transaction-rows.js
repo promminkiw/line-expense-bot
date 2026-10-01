@@ -14,7 +14,7 @@ function findCategoryId(categoryIds, item) {
   return categoryId;
 }
 
-function toTransactionRows({ items, categoryIds, userId, webhookEventId }) {
+function toTransactionRows({ items, categoryIds, userId, webhookEventId, source = 'text' }) {
   return items.map((item) => ({
     user_id: userId,
     type: item.type,
@@ -22,7 +22,7 @@ function toTransactionRows({ items, categoryIds, userId, webhookEventId }) {
     amount: item.amount,
     note: item.note,
     occurred_on: item.date,
-    source: 'text',
+    source,
     line_event_id: webhookEventId,
   }));
 }

@@ -50,6 +50,8 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 \- budgets: id, user\_id, category\_id, month (วันที่ 1 ที่งบเริ่มมีผล), amount (null = ไม่ตั้งงบตั้งแต่เดือนนั้น)
 
+\- pending\_slips: id, user\_id, line\_event\_id, item (jsonb), created\_at (พักรายการจากสลิปรอผู้ใช้กดยืนยัน หมดเวลา 10 นาที)
+
 \- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on
 
 \- ทุกตารางมี user\_id, เปิด RLS ทุกตาราง

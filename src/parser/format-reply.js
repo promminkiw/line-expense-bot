@@ -26,4 +26,13 @@ function formatSavedReply(items) {
   return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
 }
 
-module.exports = { formatSavedReply, formatAmount };
+function formatSlipConfirmReply(item, { dateAssumed = false } = {}) {
+  const lines = ['อ่านสลิปได้ดังนี้', formatItem(item)];
+  if (dateAssumed) {
+    lines.push('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
+  }
+  lines.push('กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)');
+  return lines.join('\n');
+}
+
+module.exports = { formatSavedReply, formatSlipConfirmReply, formatAmount };

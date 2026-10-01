@@ -1,4 +1,5 @@
-const { formatSavedReply } = require('./parser/format-reply');
+const { createConcurrencyLimit } = require('./slip/concurrency-limit');
+const { formatSavedReply,formatSlipConfirmReply } = require('./parser/format-reply');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
@@ -14,6 +15,18 @@ const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะ�
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
 const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
 const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
+const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
+const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
+const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
+const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปใหม่ได้เลย';
+const SLIP_CANCELLED_REPLY = 'ยกเลิกสลิปแล้ว ไม่ได้บันทึกรายการ';
+const SLIP_SAVE_ACTION = 'slip_save';
+const SLIP_CANCEL_ACTION = 'slip_cancel';
+// เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
+const SLIP_TTL_MS = 10 * 60 * 1000;
+// รูปแต่ละใบกินความจำประมาณ 20-25 MB ตอนโหลดและอ่าน จำกัดจำนวนที่ทำพร้อมกันกันหน่วยความจำหมด
+const MAX_CONCURRENT_SLIPS = 3;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
@@ -33,6 +46,10 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
+function isImageMessage(event) {
+  return event.type === 'message' && event.message && event.message.type === 'image';
+}
+
 function buildUndoQuickReply(webhookEventId) {
   return [
     {
@@ -45,6 +62,19 @@ function buildUndoQuickReply(webhookEventId) {
       },
     },
   ];
+}
+
+function buildSlipQuickReply(slipId) {
+  const button = (label, action) => ({
+    type: 'action',
+    action: {
+      type: 'postback',
+      label,
+      data: new URLSearchParams({ action, slip: slipId }).toString(),
+      displayText: label,
+    },
+  });
+  return [button('บันทึก', SLIP_SAVE_ACTION), button('ยกเลิก', SLIP_CANCEL_ACTION)];
 }
 
 // ใช้ message action เพื่อให้กดปุ่มแล้วได้ผลเหมือนพิมพ์คำสั่งเอง (Rich Menu ขั้นที่ 5 ใช้ข้อความชุดเดียวกัน)
@@ -60,6 +90,8 @@ function createBot({
   replyFlex,
   parseMessage,
   commentSummary,
+  downloadImage,
+  parseSlip,
   repository,
   users,
   allowRequest,
@@ -67,6 +99,8 @@ function createBot({
   now = () => Date.now(),
   logger = console,
 }) {
+  const runSlipTask = createConcurrencyLimit(MAX_CONCURRENT_SLIPS);
+
   async function loadHistory(userId) {
     const pending = await repository.getPendingClarification(userId);
     if (!pending || now() - Date.parse(pending.updatedAt) > PENDING_TTL_MS) {
@@ -182,15 +216,109 @@ function createBot({
     };
   }
 
-  async function handleUndo(event, lineUserId) {
-    const params = new URLSearchParams(event.postback.data);
+  // ล้างของหมดอายุเป็นแค่การดูแลตาราง ถ้าพังยังอ่านสลิปต่อได้
+  async function clearExpiredSlips(userId) {
+    try {
+      await repository.deleteExpiredPendingSlips(userId, new Date(now() - SLIP_TTL_MS).toISOString());
+    } catch (err) {
+      logger.error('Failed to delete expired pending slips', { userId }, err);
+    }
+  }
+
+  async function handleImage(event, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    // LINE ส่ง event เดิมซ้ำได้ จึงจอง event ก่อนเรียก Claude เพื่อไม่ให้ตอบและเสียค่าอ่านซ้ำ
+    const claimed = await repository.claimEvent(event.webhookEventId, userId);
+    if (!claimed) {
+      return null;
+    }
+    if (!allowRequest(lineUserId)) {
+      return { text: RATE_LIMITED_REPLY };
+    }
+    const outcome = await runSlipTask(async () => {
+      const image = await downloadImage(event.message.id);
+      if (image.status === 'too_large') {
+        return { reply: { text: SLIP_TOO_LARGE_REPLY } };
+      }
+      if (image.status !== 'ok') {
+        return { reply: { text: SLIP_UNSUPPORTED_REPLY } };
+      }
+      return { slip: await parseSlip({ data: image.data, mediaType: image.mediaType }) };
+    });
+    if (outcome.reply) {
+      return outcome.reply;
+    }
+    const { slip } = outcome;
+    if (slip.status !== 'ok') {
+      return { text: SLIP_UNREADABLE_REPLY };
+    }
+    await clearExpiredSlips(userId);
+    const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.item);
+    return {
+      text: formatSlipConfirmReply(slip.item, { dateAssumed: slip.dateAssumed }),
+      quickReply: buildSlipQuickReply(slipId),
+    };
+  }
+
+  async function handleUndo(params, lineUserId) {
     const webhookEventId = params.get('event');
-    if (params.get('action') !== UNDO_ACTION || !webhookEventId) {
+    if (!webhookEventId) {
       return null;
     }
     const userId = await users.ensureUser(lineUserId);
     const deleted = await repository.deleteTransactionsByEvent(userId, webhookEventId);
     return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
+  }
+
+  // ลบแถวพร้อมคืนค่าในคำสั่งเดียว ใครกดก่อนได้แถว คนกดซ้ำได้ null
+  async function claimSlip(params, userId) {
+    return repository.claimPendingSlip(userId, params.get('slip'), new Date(now() - SLIP_TTL_MS).toISOString());
+  }
+
+  async function handleSlipSave(params, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    // โหลดหมวดก่อนจองสลิป ถ้าโหลดพังสลิปที่รอยืนยันยังอยู่ให้กดใหม่ได้
+    const categoryIds = await users.loadCategoryIds(userId);
+    const slip = await claimSlip(params, userId);
+    if (!slip) {
+      return { text: SLIP_EXPIRED_REPLY };
+    }
+    const rows = toTransactionRows({
+      items: [slip.item],
+      categoryIds,
+      userId,
+      webhookEventId: slip.webhookEventId,
+      source: 'slip',
+    });
+    await repository.insertTransactions(rows);
+    const saved = formatSavedReply([slip.item]);
+    const alerts = await checkBudgets(userId, rows);
+    return {
+      text: alerts ? `${saved}\n\n${alerts}` : saved,
+      quickReply: buildUndoQuickReply(slip.webhookEventId),
+    };
+  }
+
+  async function handleSlipCancel(params, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    const slip = await claimSlip(params, userId);
+    return { text: slip ? SLIP_CANCELLED_REPLY : SLIP_EXPIRED_REPLY };
+  }
+
+  async function handlePostback(event, lineUserId) {
+    const params = new URLSearchParams(event.postback.data);
+    const action = params.get('action');
+    if (action === UNDO_ACTION) {
+      return handleUndo(params, lineUserId);
+    }
+    if (action === SLIP_SAVE_ACTION || action === SLIP_CANCEL_ACTION) {
+      // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงไม่ส่งไปถึง DB
+      if (!UUID_PATTERN.test(params.get('slip') || '')) {
+        return null;
+      }
+      return action === SLIP_SAVE_ACTION ? handleSlipSave(params, lineUserId) : handleSlipCancel(params, lineUserId);
+    }
+    return null;
   }
 
   async function buildReply(event, lineUserId) {
@@ -201,8 +329,11 @@ function createBot({
     if (isTextMessage(event)) {
       return handleText(event, lineUserId);
     }
+    if (isImageMessage(event)) {
+      return handleImage(event, lineUserId);
+    }
     if (event.type === 'postback') {
-      return handleUndo(event, lineUserId);
+      return handlePostback(event, lineUserId);
     }
     return null;
   }
@@ -254,4 +385,9 @@ module.exports = {
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
   NO_ENTRIES_COMMENT,
+  SLIP_UNREADABLE_REPLY,
+  SLIP_TOO_LARGE_REPLY,
+  SLIP_UNSUPPORTED_REPLY,
+  SLIP_EXPIRED_REPLY,
+  SLIP_CANCELLED_REPLY,
 };

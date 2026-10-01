@@ -796,3 +796,91 @@ describe('repository.setBudget', () => {
     await expect(promise).rejects.toThrow('Database setBudget failed: boom');
   });
 });
+
+const SLIP_ITEM = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'โอนให้ ร้านข้าวแกง' };
+
+describe('repository.savePendingSlip', () => {
+  it('inserts the item for this user and event and returns the new id', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { id: 'slip-1' }, error: null });
+
+    const id = await createRepository(supabase).savePendingSlip('user-1', 'ev-img', SLIP_ITEM);
+
+    expect(id).toBe('slip-1');
+    expect(calls).toEqual([
+      ['from', 'pending_slips'],
+      ['insert', { user_id: 'user-1', line_event_id: 'ev-img', item: SLIP_ITEM }],
+      ['select', 'id'],
+      ['single'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).savePendingSlip('user-1', 'ev-img', SLIP_ITEM);
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database savePendingSlip failed: boom');
+  });
+});
+
+describe('repository.claimPendingSlip', () => {
+  it('deletes and returns only this user unexpired row in one statement', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: { line_event_id: 'ev-img', item: SLIP_ITEM },
+      error: null,
+    });
+
+    const slip = await createRepository(supabase).claimPendingSlip('user-1', 'slip-1', '2026-09-29T04:50:00.000Z');
+
+    expect(slip).toEqual({ webhookEventId: 'ev-img', item: SLIP_ITEM });
+    expect(calls).toEqual([
+      ['from', 'pending_slips'],
+      ['delete'],
+      ['eq', 'id', 'slip-1'],
+      ['eq', 'user_id', 'user-1'],
+      ['gte', 'created_at', '2026-09-29T04:50:00.000Z'],
+      ['select', 'line_event_id, item'],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('returns null when the row is gone, expired or belongs to someone else', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createRepository(supabase).claimPendingSlip('user-1', 'slip-1', '2026-09-29T04:50:00.000Z')).toBeNull();
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).claimPendingSlip('user-1', 'slip-1', '2026-09-29T04:50:00.000Z');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database claimPendingSlip failed: boom');
+  });
+});
+
+describe('repository.deleteExpiredPendingSlips', () => {
+  it('deletes only this user rows created at or before the cutoff', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).deleteExpiredPendingSlips('user-1', '2026-09-29T04:50:00.000Z');
+
+    expect(calls).toEqual([
+      ['from', 'pending_slips'],
+      ['delete'],
+      ['eq', 'user_id', 'user-1'],
+      ['lte', 'created_at', '2026-09-29T04:50:00.000Z'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).deleteExpiredPendingSlips('user-1', '2026-09-29T04:50:00.000Z');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database deleteExpiredPendingSlips failed: boom');
+  });
+});

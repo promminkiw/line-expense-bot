@@ -166,4 +166,5 @@ module.exports = {
   DEFAULT_CLARIFY_QUESTION,
   AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
+  toParseResult,
 };

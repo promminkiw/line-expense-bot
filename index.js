@@ -12,6 +12,8 @@ const { createUserService } = require('./src/users');
 const { createRateLimiter } = require('./src/rate-limit');
 const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
+const { createImageDownloader } = require('./src/slip/download-image');
+const { createSlipParser } = require('./src/slip/parse-slip');
 const { createIdTokenVerifier } = require('./src/api/verify-id-token');
 const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
@@ -25,9 +27,15 @@ const config = loadConfig(process.env);
 const lineClient = new messagingApi.MessagingApiClient({
   channelAccessToken: config.lineChannelAccessToken,
 });
+// รูปที่ผู้ใช้ส่งดึงผ่าน api-data.line.me ซึ่งเป็น client แยกจาก MessagingApiClient
+const lineBlobClient = new messagingApi.MessagingApiBlobClient({
+  channelAccessToken: config.lineChannelAccessToken,
+});
 const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const parseMessage = createMessageParser({ client: anthropic, model: config.claudeModel });
 const commentSummary = createSummaryCommenter({ client: anthropic, model: config.claudeModel });
+const downloadImage = createImageDownloader({ blobClient: lineBlobClient });
+const parseSlip = createSlipParser({ client: anthropic, model: config.claudeModel });
 
 // server ใช้ service role key ตรงๆ ไม่มีการ login จึงไม่ต้องเก็บหรือต่ออายุ session
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
@@ -49,6 +57,8 @@ const bot = createBot({
   replyFlex: createReplyFlex(lineClient),
   parseMessage,
   commentSummary,
+  downloadImage,
+  parseSlip,
   repository,
   users,
   allowRequest,

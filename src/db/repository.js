@@ -126,6 +126,39 @@ function createRepository(supabase) {
     throwIfError('clearPendingClarification', error);
   }
 
+  async function savePendingSlip(userId, webhookEventId, item) {
+    const { data, error } = await supabase
+      .from('pending_slips')
+      .insert({ user_id: userId, line_event_id: webhookEventId, item })
+      .select('id')
+      .single();
+    throwIfError('savePendingSlip', error);
+    return data.id;
+  }
+
+  // delete พร้อมคืนแถวในคำสั่งเดียว กันกดบันทึกซ้ำสองครั้งพร้อมกัน
+  async function claimPendingSlip(userId, slipId, sinceIso) {
+    const { data, error } = await supabase
+      .from('pending_slips')
+      .delete()
+      .eq('id', slipId)
+      .eq('user_id', userId)
+      .gte('created_at', sinceIso)
+      .select('line_event_id, item')
+      .maybeSingle();
+    throwIfError('claimPendingSlip', error);
+    return data ? { webhookEventId: data.line_event_id, item: data.item } : null;
+  }
+
+  async function deleteExpiredPendingSlips(userId, beforeIso) {
+    const { error } = await supabase
+      .from('pending_slips')
+      .delete()
+      .eq('user_id', userId)
+      .lte('created_at', beforeIso);
+    throwIfError('deleteExpiredPendingSlips', error);
+  }
+
   async function summarizeTransactions(userId, from, to) {
     const { data, error } = await supabase.rpc('summarize_transactions', {
       p_user_id: userId,
@@ -295,6 +328,9 @@ function createRepository(supabase) {
     getPendingClarification,
     savePendingClarification,
     clearPendingClarification,
+    savePendingSlip,
+    claimPendingSlip,
+    deleteExpiredPendingSlips,
     findUserIdByLineId,
     createUser,
     seedDefaultCategories,
