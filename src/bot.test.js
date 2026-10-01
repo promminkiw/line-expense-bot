@@ -21,6 +21,11 @@ const FOOD_ITEM = { type: 'expense', category: 'อาหาร', amount: 60, da
 
 const SLIP_ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 const SLIP_ITEM = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'โอนให้ ร้านข้าวแกง' };
+const SLIP_EXTRA_ITEM = { type: 'expense', category: 'สุขภาพ', amount: 59, date: '2026-09-28', note: 'ยาสีฟัน' };
+
+function slipResult(overrides = {}) {
+  return { status: 'ok', items: [SLIP_ITEM], dateAssumed: false, extrasNote: '', slipTotal: 0, truncatedTo: 0, ...overrides };
+}
 
 const SLIP_QUICK_REPLY = [
   {
@@ -75,7 +80,7 @@ function setup(overrides = {}) {
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
     downloadImage: vi.fn().mockResolvedValue({ status: 'ok', mediaType: 'image/jpeg', data: 'QUJD' }),
-    parseSlip: vi.fn().mockResolvedValue({ status: 'ok', item: SLIP_ITEM, dateAssumed: false }),
+    parseSlip: vi.fn().mockResolvedValue(slipResult()),
     repository: {
       claimEvent: vi.fn().mockResolvedValue(true),
       insertTransactions: vi.fn().mockResolvedValue(),
@@ -89,7 +94,7 @@ function setup(overrides = {}) {
       getBudgetStatus: vi.fn().mockResolvedValue([]),
       savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
-      claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', item: SLIP_ITEM }),
+      claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
     },
     now: () => NOW_MS,
     users: {
@@ -718,13 +723,13 @@ describe('bot slip image', () => {
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
     expect(deps.downloadImage).toHaveBeenCalledWith('m1');
     expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
-    expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', SLIP_ITEM);
+    expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_CONFIRM_TEXT, SLIP_QUICK_REPLY);
   });
 
   it('says so when the date was not readable', async () => {
-    const parseSlip = vi.fn().mockResolvedValue({ status: 'ok', item: SLIP_ITEM, dateAssumed: true });
+    const parseSlip = vi.fn().mockResolvedValue(slipResult({ dateAssumed: true }));
     const { deps, bot } = setup({ parseSlip });
 
     await bot.handleEvent(imageEvent());
@@ -983,7 +988,7 @@ describe('bot slip confirmation', () => {
       const { deps, bot } = setup();
       deps.users.ensureUser.mockImplementation((id) => ({ U1: 'user-1', U2: 'user-2' })[id]);
       deps.repository.claimPendingSlip.mockImplementation(async (userId) =>
-        userId === 'user-2' ? null : { webhookEventId: 'ev-img', item: SLIP_ITEM }
+        userId === 'user-2' ? null : { webhookEventId: 'ev-img', items: [SLIP_ITEM] }
       );
 
       await bot.handleEvent(postbackEvent(data, 'U2'));
@@ -1060,5 +1065,105 @@ describe('bot slip confirmation', () => {
 
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev-img');
     expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_DONE_REPLY, undefined);
+  });
+});
+
+describe('bot slip with several items', () => {
+  const SAVE = `action=slip_save&slip=${SLIP_ID}`;
+  const CATEGORY_IDS = new Map([
+    ['expense:อาหาร', 'cat-food'],
+    ['expense:สุขภาพ', 'cat-health'],
+    ['expense:อื่นๆ', 'cat-other'],
+  ]);
+
+  it('keeps every item pending and shows them one by one with the extras note', async () => {
+    const parseSlip = vi.fn().mockResolvedValue(
+      slipResult({
+        items: [SLIP_ITEM, SLIP_EXTRA_ITEM],
+        extrasNote: 'ส่วนลด 10 บาท',
+        slipTotal: 169,
+      })
+    );
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM, SLIP_EXTRA_ITEM]);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.replyText.mock.calls[0][1]).toBe(
+      'อ่านสลิปได้ 2 รายการ\n' +
+        '- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n' +
+        '- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n' +
+        'หมายเหตุ: ส่วนลด 10 บาท (ไม่ได้บันทึก)\n' +
+        'ยอดสุทธิบนสลิป 169 บาท\n' +
+        'กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)'
+    );
+  });
+
+  it('saves all items as separate rows in one insert tied to the image event, then offers undo', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadCategoryIds.mockResolvedValue(CATEGORY_IDS);
+    deps.repository.claimPendingSlip.mockResolvedValue({
+      webhookEventId: 'ev-img',
+      items: [SLIP_ITEM, SLIP_EXTRA_ITEM],
+    });
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.insertTransactions).toHaveBeenCalledTimes(1);
+    expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
+      {
+        user_id: 'user-1',
+        type: 'expense',
+        category_id: 'cat-food',
+        amount: 120,
+        note: 'โอนให้ ร้านข้าวแกง',
+        occurred_on: '2026-09-28',
+        source: 'slip',
+        line_event_id: 'ev-img',
+      },
+      {
+        user_id: 'user-1',
+        type: 'expense',
+        category_id: 'cat-health',
+        amount: 59,
+        note: 'ยาสีฟัน',
+        occurred_on: '2026-09-28',
+        source: 'slip',
+        line_event_id: 'ev-img',
+      },
+    ]);
+    expect(deps.replyText.mock.calls[0][1]).toBe(
+      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน'
+    );
+    expect(deps.replyText.mock.calls[0][2][0].action.data).toBe('action=undo&event=ev-img');
+  });
+
+  it('checks the budget of every category the receipt touched', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadCategoryIds.mockResolvedValue(CATEGORY_IDS);
+    deps.repository.claimPendingSlip.mockResolvedValue({
+      webhookEventId: 'ev-img',
+      items: [SLIP_ITEM, SLIP_EXTRA_ITEM],
+    });
+    deps.repository.getBudgetStatus.mockResolvedValue([
+      { categoryId: 'cat-food', category: 'อาหาร', budget: 150, spent: 135 },
+      { categoryId: 'cat-health', category: 'สุขภาพ', budget: 100, spent: 100 },
+    ]);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    const text = deps.replyText.mock.calls[0][1];
+    expect(text).toContain('ใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)');
+    expect(text).toContain('เกินงบ สุขภาพ เดือน 09/2026: ใช้ไป 100 จาก 100 บาท (100%)');
+  });
+
+  it('tells the user when the receipt was cut to the first items', async () => {
+    const parseSlip = vi.fn().mockResolvedValue(slipResult({ truncatedTo: 20 }));
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.replyText.mock.calls[0][1]).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
   });
 });
