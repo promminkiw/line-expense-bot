@@ -270,3 +270,19 @@ export function describeExpenseComparison(months) {
     ? { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${percent}% (+${amount})` }
     : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };
 }
+
+export function profileView(profile) {
+  const name = (profile.displayName || '').trim() || 'ผู้ใช้';
+  return {
+    name,
+    // Array.from นับตาม code point ชื่อที่ขึ้นต้นด้วย emoji จะไม่ถูกตัดครึ่ง
+    initial: Array.from(name)[0].toUpperCase(),
+    balance: profile.balance,
+    balanceText: formatBaht(profile.balance),
+    negative: profile.balance < 0,
+    incomeText: formatBaht(profile.income),
+    expenseText: formatBaht(profile.expense),
+    countText: `${profile.entryCount.toLocaleString('en-US')} รายการ`,
+    sinceText: profile.firstDate ? `เริ่มบันทึกตั้งแต่ ${formatFullThaiDate(profile.firstDate)}` : 'ยังไม่เคยบันทึกรายการ',
+  };
+}

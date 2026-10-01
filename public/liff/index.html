@@ -114,7 +114,43 @@
         <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
       </section>
     </div>
-    <div id="panel-profile" class="panel" hidden></div>
+    <div id="panel-profile" class="panel" hidden>
+      <p id="profile-loading" class="sr-only" role="status" hidden>กำลังโหลดโปรไฟล์...</p>
+      <ul id="profile-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="profile-error" class="budgets-error profile-error" hidden>
+        <p id="profile-error-text"></p>
+        <button type="button" id="profile-retry">ลองใหม่</button>
+      </div>
+      <section id="profile-card" class="profile-card" aria-labelledby="profile-name" hidden>
+        <div class="profile-head">
+          <span id="profile-avatar" class="profile-avatar" aria-hidden="true"></span>
+          <div>
+            <h2 id="profile-name" class="profile-name"></h2>
+            <p id="profile-since" class="profile-since"></p>
+          </div>
+        </div>
+        <div class="balance-card">
+          <span class="stat-label">ยอดเงินคงเหลือ</span>
+          <span id="profile-balance" class="balance-value"></span>
+          <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง</span>
+        </div>
+        <div class="profile-stats">
+          <div class="stat income"><span class="stat-label">รายรับสะสม</span><span id="profile-income" class="stat-value"></span></div>
+          <div class="stat expense"><span class="stat-label">รายจ่ายสะสม</span><span id="profile-expense" class="stat-value"></span></div>
+          <div class="stat"><span class="stat-label">จำนวนรายการ</span><span id="profile-count" class="stat-value"></span></div>
+        </div>
+        <section class="profile-tips" aria-labelledby="tips-title">
+          <h3 id="tips-title">วิธีใช้บอท</h3>
+          <ul>
+            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" บอทบันทึกให้ทันที</li>
+            <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
+            <li>ส่งรูปสลิปหรือใบเสร็จ บอทอ่านยอดแล้วถามยืนยันก่อนบันทึก</li>
+            <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          </ul>
+        </section>
+        <button type="button" id="profile-close" class="profile-close">กลับไปแชต</button>
+      </section>
+    </div>
   </main>
   <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
   <dialog id="editor">

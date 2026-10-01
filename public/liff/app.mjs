@@ -14,6 +14,7 @@ import {
   describeEditFailure,
   budgetRows,
   createLatestGuard,
+  profileView,
   formatMonthLabel,
   describeBudgetFailure,
   recurringRows,
@@ -131,6 +132,20 @@ const els = {
   recurringConfirmCancel: document.getElementById('recurring-confirm-cancel'),
   recurringConfirmOk: document.getElementById('recurring-confirm-ok'),
   recurringSave: document.querySelector('#recurring-form button[type="submit"]'),
+  profileCard: document.getElementById('profile-card'),
+  profileAvatar: document.getElementById('profile-avatar'),
+  profileName: document.getElementById('profile-name'),
+  profileSince: document.getElementById('profile-since'),
+  profileBalance: document.getElementById('profile-balance'),
+  profileIncome: document.getElementById('profile-income'),
+  profileExpense: document.getElementById('profile-expense'),
+  profileCount: document.getElementById('profile-count'),
+  profileLoading: document.getElementById('profile-loading'),
+  profileSkeleton: document.getElementById('profile-skeleton'),
+  profileError: document.getElementById('profile-error'),
+  profileErrorText: document.getElementById('profile-error-text'),
+  profileRetry: document.getElementById('profile-retry'),
+  profileClose: document.getElementById('profile-close'),
 };
 
 let api;
@@ -154,6 +169,9 @@ const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budge
 const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
 const trendGuard = createLatestGuard();
 const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, count: 1, variant: 'card' });
+const profileGuard = createLatestGuard();
+const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, count: 1, variant: 'card' });
+let profileRendered = false;
 els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
@@ -479,6 +497,43 @@ async function loadTrend({ animate = false } = {}) {
   }
 }
 
+function renderProfile(profile) {
+  const view = profileView(profile);
+  profileRendered = true;
+  profileLoading.set(false);
+  els.profileError.hidden = true;
+  els.profileAvatar.textContent = view.initial;
+  els.profileName.textContent = view.name;
+  els.profileSince.textContent = view.sinceText;
+  showAmount(els.profileBalance, view.balance);
+  els.profileBalance.classList.toggle('negative', view.negative);
+  els.profileIncome.textContent = view.incomeText;
+  els.profileExpense.textContent = view.expenseText;
+  els.profileCount.textContent = view.countText;
+  els.profileCard.hidden = false;
+}
+
+function showProfileError(err) {
+  // โหลดซ้ำที่พังไม่ควรทับการ์ดที่แสดงอยู่แล้ว
+  if (profileRendered) return;
+  profileLoading.set(false);
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.profileErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดโปรไฟล์ไม่สำเร็จ';
+  els.profileRetry.hidden = loginRequired;
+  els.profileError.hidden = false;
+}
+
+// ยอดสะสมไม่ผูกกับเดือน โหลดแยกและไม่ throw
+async function loadProfile() {
+  const requestId = profileGuard.start();
+  try {
+    const profile = await api.getProfile();
+    if (profileGuard.isCurrent(requestId)) renderProfile(profile);
+  } catch (err) {
+    if (profileGuard.isCurrent(requestId)) showProfileError(err);
+  }
+}
+
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
 async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
   const month = els.month.value;
@@ -594,11 +649,13 @@ async function runEdit(action, kind) {
   if (!failure) {
     els.editor.close();
     await loadMonth();
+    loadProfile();
     return;
   }
   if (failure.closeAndReload) {
     els.editor.close();
     await loadMonth();
+    loadProfile();
     setBanner(failure.message);
     return;
   }
@@ -761,6 +818,13 @@ els.trendRetry.addEventListener('click', () => {
   trendLoading.set(true);
   loadTrend({ animate: true });
 });
+els.profileRetry.addEventListener('click', () => {
+  els.profileError.hidden = true;
+  profileLoading.set(true);
+  loadProfile();
+});
+// closeWindow ใช้ได้เฉพาะในแอป LINE
+els.profileClose.addEventListener('click', () => liff.closeWindow());
 
 function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
@@ -967,7 +1031,9 @@ async function boot() {
     els.recurringError.hidden = true;
     recurringLoading.set(true);
     els.recurring.hidden = false;
-    await Promise.all([loadMonth({ reset: true }), loadRecurring()]);
+    els.profileError.hidden = true;
+    profileLoading.set(true);
+    await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
   } catch (err) {
     showLoadError(err);
   }

@@ -27,6 +27,7 @@ import {
   formatFullThaiDate,
   trendBars,
   describeExpenseComparison,
+  profileView,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -524,5 +525,57 @@ describe('describeExpenseComparison', () => {
     expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
+  });
+});
+
+describe('profileView', () => {
+  const profile = {
+    displayName: '  สมชาย ใจดี ',
+    income: 25000,
+    expense: 1234.5,
+    balance: 23765.5,
+    entryCount: 1234,
+    firstDate: '2026-08-03',
+  };
+
+  it('builds the display texts', () => {
+    expect(profileView(profile)).toEqual({
+      name: 'สมชาย ใจดี',
+      initial: 'ส',
+      balance: 23765.5,
+      balanceText: '23,765.5 บาท',
+      negative: false,
+      incomeText: '25,000 บาท',
+      expenseText: '1,234.5 บาท',
+      countText: '1,234 รายการ',
+      sinceText: 'เริ่มบันทึกตั้งแต่ 3 ส.ค. 2569',
+    });
+  });
+
+  it('marks a negative balance', () => {
+    const view = profileView({ ...profile, income: 100, expense: 250.5, balance: -150.5 });
+
+    expect(view.negative).toBe(true);
+    expect(view.balanceText).toBe('-150.5 บาท');
+  });
+
+  it('falls back to a generic name when the name is missing or blank', () => {
+    expect(profileView({ ...profile, displayName: null }).name).toBe('ผู้ใช้');
+    expect(profileView({ ...profile, displayName: '   ' }).name).toBe('ผู้ใช้');
+    expect(profileView({ ...profile, displayName: null }).initial).toBe('ผ');
+  });
+
+  it('takes the first code point as the initial so an emoji name is not split', () => {
+    expect(profileView({ ...profile, displayName: 'abc' }).initial).toBe('A');
+    expect(profileView({ ...profile, displayName: '\u{1F600} Sam' }).initial).toBe('\u{1F600}');
+  });
+
+  it('handles a user without any entries', () => {
+    const view = profileView({ displayName: null, income: 0, expense: 0, balance: 0, entryCount: 0, firstDate: null });
+
+    expect(view.sinceText).toBe('ยังไม่เคยบันทึกรายการ');
+    expect(view.countText).toBe('0 รายการ');
+    expect(view.balanceText).toBe('0 บาท');
+    expect(view.negative).toBe(false);
   });
 });
