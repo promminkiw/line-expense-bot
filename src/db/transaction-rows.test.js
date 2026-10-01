@@ -55,6 +55,13 @@ describe('toTransactionRows', () => {
     ).toThrow('No category for income:เงินเดือน');
   });
 
+  it('uses the given source for every row and defaults to text', () => {
+    const base = { items: [item()], categoryIds: CATEGORY_IDS, userId: 'user-1', webhookEventId: 'ev1' };
+
+    expect(toTransactionRows({ ...base, source: 'slip' })[0].source).toBe('slip');
+    expect(toTransactionRows(base)[0].source).toBe('text');
+  });
+
   it('builds category keys as type and name', () => {
     expect(categoryKey('income', 'เงินเดือน')).toBe('income:เงินเดือน');
   });

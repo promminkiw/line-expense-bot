@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatSavedReply, formatAmount } from './format-reply.js';
+import { formatSavedReply, formatSlipConfirmReply, formatAmount } from './format-reply.js';
 
 describe('formatSavedReply', () => {
   it('starts with saved header and lists every item', () => {
@@ -30,5 +30,21 @@ describe('formatAmount', () => {
   it('adds thousands separators and keeps up to two decimals', () => {
     expect(formatAmount(25000)).toBe('25,000');
     expect(formatAmount(1250.5)).toBe('1,250.5');
+  });
+});
+
+describe('formatSlipConfirmReply', () => {
+  const ITEM = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'โอนให้ ร้านข้าวแกง' };
+
+  it('shows the item and asks the user to confirm', () => {
+    expect(formatSlipConfirmReply(ITEM)).toBe(
+      'อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nกดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)'
+    );
+  });
+
+  it('tells the user when the date was not readable and today is used', () => {
+    expect(formatSlipConfirmReply(ITEM, { dateAssumed: true })).toBe(
+      'อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nอ่านวันที่ไม่ได้ จึงใช้วันนี้\nกดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)'
+    );
   });
 });
