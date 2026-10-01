@@ -522,5 +522,7 @@ describe('describeExpenseComparison', () => {
 
   it('compares in satang so decimals do not drift', () => {
     expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
+    expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
+    expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
   });
 });
