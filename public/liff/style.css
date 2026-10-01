@@ -181,3 +181,5 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .profile-tips li { margin-top: 4px; }
 .profile-close, #profile-retry { width: 100%; margin-top: 16px; min-height: 44px; font: inherit; font-size: 16px; color: var(--primary); background: var(--surface); border: 1px solid var(--primary); border-radius: 8px; }
 .profile-error { margin: 12px 16px 0; }
+.profile-stale { margin: 4px 0 0; font-size: 12px; color: var(--danger); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -146,6 +146,7 @@ const els = {
   profileErrorText: document.getElementById('profile-error-text'),
   profileRetry: document.getElementById('profile-retry'),
   profileClose: document.getElementById('profile-close'),
+  profileStaleNotice: document.getElementById('profile-stale'),
 };
 
 let api;
@@ -172,6 +173,9 @@ const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLo
 const profileGuard = createLatestGuard();
 const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, count: 1, variant: 'card' });
 let profileRendered = false;
+// ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
+let profileStale = false;
+let profileInFlight = false;
 els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
@@ -500,6 +504,8 @@ async function loadTrend({ animate = false } = {}) {
 function renderProfile(profile) {
   const view = profileView(profile);
   profileRendered = true;
+  profileStale = false;
+  els.profileStaleNotice.hidden = true;
   profileLoading.set(false);
   els.profileError.hidden = true;
   els.profileAvatar.textContent = view.initial;
@@ -515,7 +521,11 @@ function renderProfile(profile) {
 
 function showProfileError(err) {
   // โหลดซ้ำที่พังไม่ควรทับการ์ดที่แสดงอยู่แล้ว
-  if (profileRendered) return;
+  if (profileRendered) {
+    profileStale = true;
+    els.profileStaleNotice.hidden = false;
+    return;
+  }
   profileLoading.set(false);
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.profileErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดโปรไฟล์ไม่สำเร็จ';
@@ -526,12 +536,25 @@ function showProfileError(err) {
 // ยอดสะสมไม่ผูกกับเดือน โหลดแยกและไม่ throw
 async function loadProfile() {
   const requestId = profileGuard.start();
+  profileInFlight = true;
   try {
     const profile = await api.getProfile();
     if (profileGuard.isCurrent(requestId)) renderProfile(profile);
   } catch (err) {
     if (profileGuard.isCurrent(requestId)) showProfileError(err);
+  } finally {
+    if (profileGuard.isCurrent(requestId)) profileInFlight = false;
   }
+}
+
+// เข้าแท็บโปรไฟล์แล้วยอดเก่าหรือยังไม่เคยโหลดสำเร็จ ให้โหลดใหม่
+function refreshProfileOnEntry() {
+  if (!api || profileInFlight || (profileRendered && !profileStale)) return;
+  if (!profileRendered) {
+    els.profileError.hidden = true;
+    profileLoading.set(true);
+  }
+  loadProfile();
 }
 
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
@@ -649,12 +672,14 @@ async function runEdit(action, kind) {
   if (!failure) {
     els.editor.close();
     await loadMonth();
+    profileStale = true;
     loadProfile();
     return;
   }
   if (failure.closeAndReload) {
     els.editor.close();
     await loadMonth();
+    profileStale = true;
     loadProfile();
     setBanner(failure.message);
     return;
@@ -824,7 +849,9 @@ els.profileRetry.addEventListener('click', () => {
   loadProfile();
 });
 // closeWindow ใช้ได้เฉพาะในแอป LINE
-els.profileClose.addEventListener('click', () => liff.closeWindow());
+els.profileClose.addEventListener('click', () => {
+  if (liff.isInClient()) liff.closeWindow();
+});
 
 function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
@@ -1004,6 +1031,7 @@ const tabController = createTabController({
       playBars(window, els.trendBars);
     }
     if (id === 'budgets') playBars(window, els.budgetRows);
+    if (id === 'profile') refreshProfileOnEntry();
   },
 });
 tabController.select(DEFAULT_TAB);
@@ -1017,6 +1045,7 @@ async function boot() {
       })
     ).json();
     await liff.init({ liffId: config.liffId });
+    els.profileClose.hidden = !liff.isInClient();
     if (!liff.isLoggedIn()) {
       liff.login();
       return;

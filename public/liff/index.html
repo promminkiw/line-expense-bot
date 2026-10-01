@@ -133,6 +133,7 @@
           <span class="stat-label">ยอดเงินคงเหลือ</span>
           <span id="profile-balance" class="balance-value"></span>
           <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง</span>
+          <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
         </div>
         <div class="profile-stats">
           <div class="stat income"><span class="stat-label">รายรับสะสม</span><span id="profile-income" class="stat-value"></span></div>
@@ -148,7 +149,7 @@
             <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
           </ul>
         </section>
-        <button type="button" id="profile-close" class="profile-close">กลับไปแชต</button>
+        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
     </div>
   </main>
