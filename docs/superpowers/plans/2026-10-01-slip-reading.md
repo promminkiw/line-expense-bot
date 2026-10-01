@@ -18,7 +18,7 @@
 - รูปสลิปห้ามถูกเก็บลงดิสก์ DB หรือ log: ใช้ใน memory แล้วทิ้ง; log ห้ามมี base64 ของรูป
 - ผู้ใช้ตัดสินแล้ว (2026-10-01): บอทตอบสรุป + ปุ่ม `บันทึก` / `ยกเลิก` ก่อนบันทึกจริง; ไม่เห็นยอด = ตอบให้ส่งใหม่หรือพิมพ์เอง; ไม่เห็นวันที่ = ใช้วันนี้ (และบอกในข้อความสรุป); Claude เดาประเภทและหมวดจากผู้รับ/โน้ตจาก 10 หมวดเดิม ไม่แน่ใจใช้ `อื่นๆ`; กันกดยืนยันซ้ำอย่างเดียว (ไม่ตรวจสลิปซ้ำ ส่งรูปเดิมมาใหม่ถือเป็นสลิปใหม่)
 - ยอดเงินที่อ่านได้ผ่านกติกาเดิมของ `toParseResult`: มากกว่า 0, ไม่เกิน `MAX_AMOUNT` (10,000,000), ปัดสตางค์แล้วไม่เป็น 0; ไม่ผ่าน = ตอบว่าอ่านไม่ได้
-- ปีในสลิปไทยเป็น พ.ศ. ต้องแปลงเป็น ค.ศ. (ลบ 543) ก่อนส่งเป็น `YYYY-MM-DD`; วันที่ที่ไม่ใช่วันจริงใช้วันนี้ (เขตเวลา Asia/Bangkok) ผ่าน `normalizeItem` เดิม
+- ปีในสลิปไทยเป็น พ.ศ. ต้องแปลงเป็น ค.ศ. (ลบ 543) ก่อนส่งเป็น `YYYY-MM-DD` สั่ง Claude ผ่าน prompt และมี guard ในโค้ดด้วย (ผู้ใช้ตัดสิน 2026-10-01): ถ้าปีที่ได้มากกว่าปีปัจจุบัน + 1 ให้ลบ 543 เอง; วันที่ที่ยังไม่ใช่วันจริงใช้วันนี้ (เขตเวลา Asia/Bangkok) และ `dateAssumed = true`
 - รูปต้องไม่เกิน 5 MB (เพดานของ Claude) และเป็น JPEG, PNG, GIF หรือ WebP (ตรวจจาก magic bytes ไม่เชื่อ header)
 - ข้อความจากรูปนับ rate limit (`allowRequest`) เพราะเรียก Claude vision; ลำดับเหมือนข้อความตัวอักษร: `ensureUser` -> `claimEvent` (ซ้ำ = ไม่ตอบ) -> `allowRequest` -> ทำงาน
 - ปุ่ม postback ของสลิปพก `slip=<UUID>` เท่านั้น; id ที่ไม่ใช่ UUID ไม่ถูกส่งไป DB และไม่ตอบอะไร; ทุก query กรอง `user_id` ของผู้กด
@@ -618,6 +618,20 @@ describe('createSlipParser', () => {
     }
   });
 
+  it('subtracts 543 when Claude leaves a Buddhist era year in the date', async () => {
+    const result = await setup(slipJson({ date: '2569-09-28' })).parseSlip(IMAGE);
+
+    expect(result).toMatchObject({ status: 'ok', item: { date: '2026-09-28' }, dateAssumed: false });
+  });
+
+  it('leaves a year up to next year alone and falls back to today when the fixed date is not real', async () => {
+    const nextYear = await setup(slipJson({ date: '2027-01-05' })).parseSlip(IMAGE);
+    const badBuddhist = await setup(slipJson({ date: '2569-02-31' })).parseSlip(IMAGE);
+
+    expect(nextYear).toMatchObject({ item: { date: '2027-01-05' }, dateAssumed: false });
+    expect(badBuddhist).toMatchObject({ item: { date: '2026-09-29' }, dateAssumed: true });
+  });
+
   it('is unreadable when the image is not a slip', async () => {
     const { parseSlip } = setup(slipJson({ is_slip: false, amount: 0 }));
 
@@ -736,6 +750,15 @@ function hasValidShape(data) {
   return isPlainObject(data) && typeof data.is_slip === 'boolean' && ['expense', 'income'].includes(data.type);
 }
 
+// Claude อาจตอบปี พ.ศ. หลุดมา ปีที่เกินปีหน้าไปมากถือเป็น พ.ศ. จึงลบ 543
+function fixBuddhistYear(date, today) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match || Number(match[1]) <= Number(today.slice(0, 4)) + 1) {
+    return date;
+  }
+  return `${Number(match[1]) - 543}-${match[2]}-${match[3]}`;
+}
+
 function createSlipParser({ client, model, now = () => new Date() }) {
   return async function parseSlip({ data: imageData, mediaType }) {
     const today = toBangkokDateString(now());
@@ -786,19 +809,20 @@ function createSlipParser({ client, model, now = () => new Date() }) {
       return { status: 'unreadable' };
     }
 
+    const date = fixBuddhistYear(data.date, today);
     const note = typeof data.note === 'string' ? data.note.slice(0, MAX_NOTE_LENGTH) : '';
     // ใช้กติกาตรวจยอดและหมวดชุดเดียวกับข้อความตัวอักษร ถ้าไม่ผ่านถือว่าอ่านยอดไม่ได้
     const result = toParseResult(
       {
         needs_clarification: false,
-        items: [{ type: data.type, category: data.category, amount: data.amount, date: data.date, note }],
+        items: [{ type: data.type, category: data.category, amount: data.amount, date, note }],
       },
       today
     );
     if (result.status !== 'ok') {
       return { status: 'unreadable' };
     }
-    return { status: 'ok', item: result.items[0], dateAssumed: !isValidCalendarDate(data.date) };
+    return { status: 'ok', item: result.items[0], dateAssumed: !isValidCalendarDate(date) };
   };
 }
 
