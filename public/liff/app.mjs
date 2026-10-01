@@ -21,6 +21,7 @@ import {
   shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
+import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 
@@ -684,6 +685,16 @@ els.recurringRetry.addEventListener('click', () => {
   els.recurringLoading.hidden = false;
   loadRecurring();
 });
+
+const tabController = createTabController({
+  doc: document,
+  nav: document.getElementById('bottom-nav'),
+  titleEl: document.getElementById('page-title'),
+  monthEl: els.month,
+  panelFor: (id) => document.getElementById(`panel-${id}`),
+  onChange: () => window.scrollTo(0, 0),
+});
+tabController.select(DEFAULT_TAB);
 
 async function boot() {
   try {

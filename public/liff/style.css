@@ -95,3 +95,8 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .cat-salary { --cat-bg: var(--cat-salary-bg); --cat-fg: var(--cat-salary-fg); }
 .cat-side { --cat-bg: var(--cat-side-bg); --cat-fg: var(--cat-side-fg); }
 .cat-other { --cat-bg: var(--cat-other-bg); --cat-fg: var(--cat-other-fg); }
+main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; background: var(--surface); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+.nav-button { flex: 1; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 2px; border: none; background: none; font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; }
+.nav-button[aria-current="page"] { color: var(--primary); font-weight: 600; }
+.nav-button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
