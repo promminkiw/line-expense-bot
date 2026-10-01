@@ -1,4 +1,4 @@
-const { formatSavedReply } = require('./parser/format-reply');
+const { formatSavedReply, formatSlipConfirmReply } = require('./parser/format-reply');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
@@ -14,6 +14,15 @@ const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะ�
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
 const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
 const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
+const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
+const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
+const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
+const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปใหม่ได้เลย';
+const SLIP_CANCELLED_REPLY = 'ยกเลิกสลิปแล้ว ไม่ได้บันทึกรายการ';
+const SLIP_SAVE_ACTION = 'slip_save';
+const SLIP_CANCEL_ACTION = 'slip_cancel';
+// เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
+const SLIP_TTL_MS = 10 * 60 * 1000;
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
@@ -33,6 +42,10 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
+function isImageMessage(event) {
+  return event.type === 'message' && event.message && event.message.type === 'image';
+}
+
 function buildUndoQuickReply(webhookEventId) {
   return [
     {
@@ -45,6 +58,19 @@ function buildUndoQuickReply(webhookEventId) {
       },
     },
   ];
+}
+
+function buildSlipQuickReply(slipId) {
+  const button = (label, action) => ({
+    type: 'action',
+    action: {
+      type: 'postback',
+      label,
+      data: new URLSearchParams({ action, slip: slipId }).toString(),
+      displayText: label,
+    },
+  });
+  return [button('บันทึก', SLIP_SAVE_ACTION), button('ยกเลิก', SLIP_CANCEL_ACTION)];
 }
 
 // ใช้ message action เพื่อให้กดปุ่มแล้วได้ผลเหมือนพิมพ์คำสั่งเอง (Rich Menu ขั้นที่ 5 ใช้ข้อความชุดเดียวกัน)
@@ -60,6 +86,8 @@ function createBot({
   replyFlex,
   parseMessage,
   commentSummary,
+  downloadImage,
+  parseSlip,
   repository,
   users,
   allowRequest,
@@ -182,6 +210,44 @@ function createBot({
     };
   }
 
+  // ล้างของหมดอายุเป็นแค่การดูแลตาราง ถ้าพังยังอ่านสลิปต่อได้
+  async function clearExpiredSlips(userId) {
+    try {
+      await repository.deleteExpiredPendingSlips(userId, new Date(now() - SLIP_TTL_MS).toISOString());
+    } catch (err) {
+      logger.error('Failed to delete expired pending slips', { userId }, err);
+    }
+  }
+
+  async function handleImage(event, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    // LINE ส่ง event เดิมซ้ำได้ จึงจอง event ก่อนเรียก Claude เพื่อไม่ให้ตอบและเสียค่าอ่านซ้ำ
+    const claimed = await repository.claimEvent(event.webhookEventId, userId);
+    if (!claimed) {
+      return null;
+    }
+    if (!allowRequest(lineUserId)) {
+      return { text: RATE_LIMITED_REPLY };
+    }
+    const image = await downloadImage(event.message.id);
+    if (image.status === 'too_large') {
+      return { text: SLIP_TOO_LARGE_REPLY };
+    }
+    if (image.status === 'unsupported') {
+      return { text: SLIP_UNSUPPORTED_REPLY };
+    }
+    const slip = await parseSlip({ data: image.data, mediaType: image.mediaType });
+    if (slip.status !== 'ok') {
+      return { text: SLIP_UNREADABLE_REPLY };
+    }
+    await clearExpiredSlips(userId);
+    const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.item);
+    return {
+      text: formatSlipConfirmReply(slip.item, { dateAssumed: slip.dateAssumed }),
+      quickReply: buildSlipQuickReply(slipId),
+    };
+  }
+
   async function handleUndo(event, lineUserId) {
     const params = new URLSearchParams(event.postback.data);
     const webhookEventId = params.get('event');
@@ -200,6 +266,9 @@ function createBot({
     }
     if (isTextMessage(event)) {
       return handleText(event, lineUserId);
+    }
+    if (isImageMessage(event)) {
+      return handleImage(event, lineUserId);
     }
     if (event.type === 'postback') {
       return handleUndo(event, lineUserId);
@@ -254,4 +323,9 @@ module.exports = {
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
   NO_ENTRIES_COMMENT,
+  SLIP_UNREADABLE_REPLY,
+  SLIP_TOO_LARGE_REPLY,
+  SLIP_UNSUPPORTED_REPLY,
+  SLIP_EXPIRED_REPLY,
+  SLIP_CANCELLED_REPLY,
 };

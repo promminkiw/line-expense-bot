@@ -7,12 +7,29 @@ import {
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
   NO_ENTRIES_COMMENT,
+  SLIP_UNREADABLE_REPLY,
+  SLIP_TOO_LARGE_REPLY,
+  SLIP_UNSUPPORTED_REPLY,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
 const FOOD_ITEM = { type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
+
+const SLIP_ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
+const SLIP_ITEM = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'โอนให้ ร้านข้าวแกง' };
+
+const SLIP_QUICK_REPLY = [
+  {
+    type: 'action',
+    action: { type: 'postback', label: 'บันทึก', data: `action=slip_save&slip=${SLIP_ID}`, displayText: 'บันทึก' },
+  },
+  {
+    type: 'action',
+    action: { type: 'postback', label: 'ยกเลิก', data: `action=slip_cancel&slip=${SLIP_ID}`, displayText: 'ยกเลิก' },
+  },
+];
 
 const UNDO_QUICK_REPLY = [
   {
@@ -45,12 +62,18 @@ function followEvent() {
   return { type: 'follow', webhookEventId: 'ev3', replyToken: 'r3', source: { type: 'user', userId: 'U1' } };
 }
 
+function imageEvent({ eventId = 'ev-img', replyToken = 'r-img', messageId = 'm1', source = { type: 'user', userId: 'U1' } } = {}) {
+  return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'image', id: messageId } };
+}
+
 function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
     replyFlex: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
+    downloadImage: vi.fn().mockResolvedValue({ status: 'ok', mediaType: 'image/jpeg', data: 'QUJD' }),
+    parseSlip: vi.fn().mockResolvedValue({ status: 'ok', item: SLIP_ITEM, dateAssumed: false }),
     repository: {
       claimEvent: vi.fn().mockResolvedValue(true),
       insertTransactions: vi.fn().mockResolvedValue(),
@@ -62,6 +85,9 @@ function setup(overrides = {}) {
         .fn()
         .mockResolvedValue([{ type: 'expense', category: 'อาหาร', total: 105, entryCount: 2 }]),
       getBudgetStatus: vi.fn().mockResolvedValue([]),
+      savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
+      deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
+      claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', item: SLIP_ITEM }),
     },
     now: () => NOW_MS,
     users: {
@@ -674,5 +700,123 @@ describe('bot budget alerts', () => {
 
     expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
     expect(deps.replyText.mock.calls[0][1]).not.toContain('เช็กงบไม่สำเร็จ');
+  });
+});
+
+describe('bot slip image', () => {
+  const SLIP_CONFIRM_TEXT =
+    'อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nกดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)';
+
+  it('reads the slip, keeps the item pending and asks for confirmation without saving', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
+    expect(deps.downloadImage).toHaveBeenCalledWith('m1');
+    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
+    expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', SLIP_ITEM);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_CONFIRM_TEXT, SLIP_QUICK_REPLY);
+  });
+
+  it('says so when the date was not readable', async () => {
+    const parseSlip = vi.fn().mockResolvedValue({ status: 'ok', item: SLIP_ITEM, dateAssumed: true });
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.replyText.mock.calls[0][1]).toContain('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
+  });
+
+  it('clears this user expired pending slips before keeping a new one', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.repository.deleteExpiredPendingSlips).toHaveBeenCalledWith(
+      'user-1',
+      new Date(NOW_MS - 10 * 60 * 1000).toISOString()
+    );
+  });
+
+  it('still asks for confirmation when clearing expired slips fails', async () => {
+    const { deps, bot } = setup();
+    const error = new Error('boom');
+    deps.repository.deleteExpiredPendingSlips.mockRejectedValue(error);
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to delete expired pending slips', { userId: 'user-1' }, error);
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_CONFIRM_TEXT, SLIP_QUICK_REPLY);
+  });
+
+  it('asks the user to resend when the amount cannot be read', async () => {
+    const parseSlip = vi.fn().mockResolvedValue({ status: 'unreadable' });
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.repository.savePendingSlip).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNREADABLE_REPLY, undefined);
+  });
+
+  it('explains when the image is too large or not a supported image, without calling Claude', async () => {
+    for (const [status, reply] of [
+      ['too_large', SLIP_TOO_LARGE_REPLY],
+      ['unsupported', SLIP_UNSUPPORTED_REPLY],
+    ]) {
+      const downloadImage = vi.fn().mockResolvedValue({ status });
+      const { deps, bot } = setup({ downloadImage });
+
+      await bot.handleEvent(imageEvent());
+
+      expect(deps.parseSlip).not.toHaveBeenCalled();
+      expect(deps.replyText).toHaveBeenCalledWith('r-img', reply, undefined);
+    }
+  });
+
+  it('does nothing for a redelivered image event', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.downloadImage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('counts the image against the rate limit and stops before downloading', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.allowRequest).toHaveBeenCalledWith('U1');
+    expect(deps.downloadImage).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', RATE_LIMITED_REPLY, undefined);
+  });
+
+  it('answers with the system error and logs when the download or Claude fails', async () => {
+    const error = new Error('LINE down');
+    const { deps, bot } = setup({ downloadImage: vi.fn().mockRejectedValue(error) });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'message' },
+      error
+    );
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('ignores an image sent in a group', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(imageEvent({ source: { type: 'group', groupId: 'G1', userId: 'U1' } }));
+
+    expect(deps.downloadImage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 });
