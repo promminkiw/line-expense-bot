@@ -41,3 +41,17 @@ export function growBar(win, el, percent, property = 'width') {
     });
   });
 }
+
+// ลบแล้วเติม class ใหม่หลัง reflow เพื่อให้ CSS animation เล่นซ้ำ
+export function replayClass(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+}
+
+// render ใส่ขนาดสุดท้ายไว้ใน data-width แล้วเรียกตอน panel มองเห็นจริง เพราะ transition ไม่เล่นใน display:none
+export function playBars(win, container) {
+  for (const bar of container.querySelectorAll('[data-width]')) {
+    growBar(win, bar, Number(bar.dataset.width), bar.dataset.property || 'width');
+  }
+}

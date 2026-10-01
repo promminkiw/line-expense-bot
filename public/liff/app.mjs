@@ -25,7 +25,7 @@ import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
 import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
-import { animateNumber, growBar } from './motion.mjs';
+import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
@@ -37,6 +37,8 @@ const els = {
   statExpense: document.getElementById('stat-expense'),
   statBalance: document.getElementById('stat-balance'),
   summaryEmpty: document.getElementById('summary-empty'),
+  panelSummary: document.getElementById('panel-summary'),
+  panelBudgets: document.getElementById('panel-budgets'),
   truncated: document.getElementById('truncated'),
   exportButton: document.getElementById('export-button'),
   exportStatus: document.getElementById('export-status'),
@@ -218,7 +220,8 @@ function renderRow(item) {
   return row;
 }
 
-function renderChart() {
+// animate = true เฉพาะตอนโหลดเดือนใหม่ ส่วน render ซ้ำหลังแก้ไขต้องอัปเดตเงียบๆ ไม่ให้แท่งกระพริบ
+function renderChart({ animate = false } = {}) {
   for (const tab of els.tabs) {
     tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
@@ -252,14 +255,16 @@ function renderChart() {
     track.className = 'chart-track';
     const fill = document.createElement('div');
     fill.className = 'chart-fill';
-    growBar(window, fill, row.width);
+    fill.style.width = `${row.width}%`;
+    fill.dataset.width = String(row.width);
     track.append(fill);
     item.append(label, value, track);
     els.chartRows.append(item);
   }
+  if (animate && !els.panelSummary.hidden) playBars(window, els.chartRows);
 }
 
-function render({ transactions, summary, truncated }) {
+function render({ transactions, summary, truncated }, { animate = false } = {}) {
   els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
   showAmount(els.statIncome, sum.income);
@@ -268,10 +273,14 @@ function render({ transactions, summary, truncated }) {
   els.totals.hidden = false;
   els.truncated.hidden = !truncated;
   lastSummary = summary;
-  renderChart();
+  renderChart({ animate });
   els.list.replaceChildren();
+  // เข้าฉากแถวเฉพาะตอนโหลดเดือนใหม่ render หลังแก้ไขต้องไม่เล่นซ้ำ
+  if (animate) replayClass(els.list, 'enter');
+  else els.list.classList.remove('enter');
   if (transactions.length === 0) {
-    setStatus('');
+    // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
+    setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
     return;
   }
@@ -291,7 +300,7 @@ function render({ transactions, summary, truncated }) {
   }
 }
 
-function renderBudgets(budgets, focusCategoryId = null) {
+function renderBudgets(budgets, focusCategoryId = null, { animate = false } = {}) {
   els.budgetRows.replaceChildren();
   budgetsLoading.set(false);
   els.budgetsError.hidden = true;
@@ -320,7 +329,8 @@ function renderBudgets(budgets, focusCategoryId = null) {
       track.className = 'budget-track';
       const fill = document.createElement('span');
       fill.className = 'budget-fill';
-      growBar(window, fill, row.width);
+      fill.style.width = `${row.width}%`;
+      fill.dataset.width = String(row.width);
       track.append(fill);
       button.append(track);
     }
@@ -330,6 +340,7 @@ function renderBudgets(budgets, focusCategoryId = null) {
     // render ใหม่ทำให้ปุ่มเดิมหาย จึงคืน focus ให้ปุ่มของหมวดที่เพิ่งแก้
     if (focusCategoryId === row.categoryId) button.focus();
   }
+  if (animate && !els.panelBudgets.hidden) playBars(window, els.budgetRows);
 }
 
 function showBudgetsError(err) {
@@ -344,14 +355,14 @@ function showBudgetsError(err) {
 }
 
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
-async function loadBudgets({ focusCategoryId = null } = {}) {
+async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
   const month = els.month.value;
   const requestId = budgetsGuard.start();
   // เดือนเดียวกันที่ถูกโหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
   const isCurrent = () => month === els.month.value && budgetsGuard.isCurrent(requestId);
   try {
     const { budgets } = await api.listBudgets(month);
-    if (isCurrent()) renderBudgets(budgets, focusCategoryId);
+    if (isCurrent()) renderBudgets(budgets, focusCategoryId, { animate });
   } catch (err) {
     if (isCurrent()) showBudgetsError(err);
   }
@@ -378,11 +389,11 @@ async function loadMonth({ reset = false } = {}) {
     setStatus('กำลังโหลด...', { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
-  const budgetsLoaded = loadBudgets();
+  const budgetsLoaded = loadBudgets({ animate: reset });
   try {
     const data = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
-    if (month === els.month.value) render(data);
+    if (month === els.month.value) render(data, { animate: reset });
   } catch (err) {
     if (month === els.month.value) showLoadError(err);
   }
@@ -764,9 +775,12 @@ const tabController = createTabController({
   titleEl: document.getElementById('page-title'),
   monthEl: els.month,
   panelFor: (id) => document.getElementById(`panel-${id}`),
-  onChange: () => {
+  onChange: (id) => {
     setBanner('');
     window.scrollTo(0, 0);
+    if (id === 'list') replayClass(els.list, 'enter');
+    if (id === 'summary') playBars(window, els.chartRows);
+    if (id === 'budgets') playBars(window, els.budgetRows);
   },
 });
 tabController.select(DEFAULT_TAB);

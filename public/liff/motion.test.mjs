@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { easeOutCubic, interpolate, prefersReducedMotion, animateNumber, growBar } from './motion.mjs';
+import { easeOutCubic, interpolate, prefersReducedMotion, animateNumber, growBar, replayClass, playBars } from './motion.mjs';
 
 function fakeWindow({ reduced = false } = {}) {
   const frames = [];
@@ -108,5 +108,53 @@ describe('growBar', () => {
     expect(el.style.height).toBe('0%');
     win.advance(16);
     expect(el.style.height).toBe('40%');
+  });
+});
+
+describe('replayClass', () => {
+  it('removes the class, forces a reflow, then adds it back', () => {
+    const calls = [];
+    const el = {
+      classList: { remove: (name) => calls.push(`remove ${name}`), add: (name) => calls.push(`add ${name}`) },
+      get offsetWidth() {
+        calls.push('reflow');
+        return 0;
+      },
+    };
+
+    replayClass(el, 'enter');
+
+    expect(calls).toEqual(['remove enter', 'reflow', 'add enter']);
+  });
+});
+
+describe('playBars', () => {
+  function fakeBar(width, property) {
+    return { dataset: property ? { width: String(width), property } : { width: String(width) }, style: {} };
+  }
+
+  it('grows every [data-width] element from zero to its stored target', () => {
+    const win = fakeWindow();
+    const wide = fakeBar(40);
+    const tall = fakeBar(70, 'height');
+    const container = { querySelectorAll: vi.fn(() => [wide, tall]) };
+
+    playBars(win, container);
+
+    expect(container.querySelectorAll).toHaveBeenCalledWith('[data-width]');
+    expect(wide.style.width).toBe('0%');
+    expect(tall.style.height).toBe('0%');
+    win.advance(16);
+    win.advance(16);
+    expect(wide.style.width).toBe('40%');
+    expect(tall.style.height).toBe('70%');
+  });
+
+  it('sets the final size directly when motion is reduced', () => {
+    const bar = fakeBar(25);
+
+    playBars(fakeWindow({ reduced: true }), { querySelectorAll: () => [bar] });
+
+    expect(bar.style.width).toBe('25%');
   });
 });
