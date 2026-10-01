@@ -19,6 +19,9 @@ import {
   recurringRows,
   describeRecurringFailure,
   shouldCloseRecurringEditor,
+  filterTransactions,
+  isFilterActive,
+  describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 import { createBannerSetter } from './banner.mjs';
@@ -49,6 +52,12 @@ const els = {
   status: document.getElementById('status'),
   banner: document.getElementById('banner'),
   list: document.getElementById('list'),
+  filters: document.getElementById('filters'),
+  search: document.getElementById('search'),
+  filterType: document.getElementById('filter-type'),
+  filterCategory: document.getElementById('filter-category'),
+  filterClear: document.getElementById('filter-clear'),
+  filterStatus: document.getElementById('filter-status'),
   editor: document.getElementById('editor'),
   form: document.getElementById('edit-form'),
   amount: document.getElementById('edit-amount'),
@@ -120,6 +129,8 @@ let editing = null;
 let busy = false;
 let chartType = 'expense';
 let lastSummary = [];
+let lastTransactions = [];
+let lastTruncated = false;
 let exporting = false;
 let editingBudget = null;
 let budgetBusy = false;
@@ -190,6 +201,20 @@ function fillCategoryOptions() {
       select.append(group);
     }
   }
+  const selected = els.filterCategory.value;
+  els.filterCategory.replaceChildren(new Option('ทุกหมวด', ''));
+  for (const type of ['expense', 'income']) {
+    const group = document.createElement('optgroup');
+    group.label = TYPE_LABELS[type];
+    for (const category of groups[type]) {
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = category.name;
+      group.append(option);
+    }
+    els.filterCategory.append(group);
+  }
+  els.filterCategory.value = selected;
 }
 
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
@@ -278,15 +303,39 @@ function render({ transactions, summary, truncated }, { animate = false } = {}) 
   // เข้าฉากแถวเฉพาะตอนโหลดเดือนใหม่ render หลังแก้ไขต้องไม่เล่นซ้ำ
   if (animate) replayClass(els.list, 'enter');
   else els.list.classList.remove('enter');
-  if (transactions.length === 0) {
+  lastTransactions = transactions;
+  lastTruncated = truncated;
+  renderList();
+}
+
+function currentFilter() {
+  return { query: els.search.value, categoryId: els.filterCategory.value, type: els.filterType.value };
+}
+
+// ไม่แตะ class enter: การกรองต้องไม่เล่นแอนิเมชันเข้าฉากแถวซ้ำ
+function renderList() {
+  const filter = currentFilter();
+  const active = isFilterActive(filter);
+  const shown = filterTransactions(lastTransactions, filter);
+  els.list.replaceChildren();
+  // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
+  els.filters.hidden = lastTransactions.length === 0 && !active;
+  els.filterClear.hidden = !active;
+  els.filterStatus.textContent = active ? describeFilterResult(shown.length, lastTransactions.length, lastTruncated) : '';
+  if (lastTransactions.length === 0) {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
     setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
     return;
   }
+  if (shown.length === 0) {
+    setStatus('ไม่พบรายการที่ค้นหา', { loading: true });
+    els.list.append(createEmptyState(document, 'search', 'li'));
+    return;
+  }
   setStatus('');
   let rowIndex = 0;
-  for (const group of groupByDate(transactions)) {
+  for (const group of groupByDate(shown)) {
     const heading = document.createElement('li');
     heading.className = 'day';
     heading.textContent = formatThaiDate(group.date);
@@ -377,6 +426,7 @@ async function loadMonth({ reset = false } = {}) {
     els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
     els.totals.hidden = true;
     els.truncated.hidden = true;
+    els.filters.hidden = true;
     els.chart.hidden = true;
     els.summaryEmpty.hidden = true;
     els.summarySkeleton.hidden = false;
@@ -508,6 +558,22 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
+
+// ถอด enter ก่อนกรอง ไม่งั้นแถวที่สร้างใหม่จะเล่นแอนิเมชันเข้าฉากตาม CSS แล้วกระพริบตอนพิมพ์
+function refilter() {
+  els.list.classList.remove('enter');
+  renderList();
+}
+for (const control of [els.search, els.filterType, els.filterCategory]) {
+  control.addEventListener('input', refilter);
+}
+els.filterClear.addEventListener('click', () => {
+  els.search.value = '';
+  els.filterType.value = '';
+  els.filterCategory.value = '';
+  refilter();
+  els.search.focus();
+});
 
 for (const tab of els.tabs) {
   tab.addEventListener('click', () => {

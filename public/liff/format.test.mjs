@@ -20,6 +20,9 @@ import {
   describeRecurringFailure,
   shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
+  filterTransactions,
+  isFilterActive,
+  describeFilterResult,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -365,5 +368,59 @@ describe('shouldCloseRecurringEditor', () => {
     expect(shouldCloseRecurringEditor(400)).toBe(false);
     expect(shouldCloseRecurringEditor(401)).toBe(false);
     expect(shouldCloseRecurringEditor(undefined)).toBe(false);
+  });
+});
+
+describe('filterTransactions', () => {
+  const items = [
+    { id: '1', type: 'expense', categoryId: 'c-food', categoryName: 'อาหาร', note: 'ข้าวมันไก่', amount: 60 },
+    { id: '2', type: 'expense', categoryId: 'c-trip', categoryName: 'เดินทาง', note: 'BTS', amount: 40 },
+    { id: '3', type: 'income', categoryId: 'c-salary', categoryName: 'เงินเดือน', note: '', amount: 25000 },
+    { id: '4', type: 'expense', categoryId: 'c-food', categoryName: 'อาหาร', note: null, amount: 45 },
+  ];
+
+  it('returns everything when no filter is set', () => {
+    expect(filterTransactions(items, {})).toEqual(items);
+    expect(filterTransactions(items)).toEqual(items);
+  });
+
+  it('matches the query against the category name and the note, ignoring case and outer spaces', () => {
+    expect(filterTransactions(items, { query: '  bts ' }).map((item) => item.id)).toEqual(['2']);
+    expect(filterTransactions(items, { query: 'อาหาร' }).map((item) => item.id)).toEqual(['1', '4']);
+    expect(filterTransactions(items, { query: 'ไก่' }).map((item) => item.id)).toEqual(['1']);
+  });
+
+  it('filters by category and by type and combines the conditions', () => {
+    expect(filterTransactions(items, { categoryId: 'c-food' }).map((item) => item.id)).toEqual(['1', '4']);
+    expect(filterTransactions(items, { type: 'income' }).map((item) => item.id)).toEqual(['3']);
+    expect(filterTransactions(items, { type: 'expense', categoryId: 'c-food', query: 'ข้าว' }).map((item) => item.id)).toEqual(['1']);
+    expect(filterTransactions(items, { type: 'income', categoryId: 'c-food' })).toEqual([]);
+  });
+
+  it('handles a missing note without throwing', () => {
+    expect(filterTransactions(items, { query: 'null' })).toEqual([]);
+  });
+});
+
+describe('isFilterActive', () => {
+  it('is false for empty or whitespace-only filters', () => {
+    expect(isFilterActive({ query: '', categoryId: '', type: '' })).toBe(false);
+    expect(isFilterActive({ query: '   ', categoryId: '', type: '' })).toBe(false);
+  });
+
+  it('is true when any field is set', () => {
+    expect(isFilterActive({ query: 'a', categoryId: '', type: '' })).toBe(true);
+    expect(isFilterActive({ query: '', categoryId: 'c1', type: '' })).toBe(true);
+    expect(isFilterActive({ query: '', categoryId: '', type: 'income' })).toBe(true);
+  });
+});
+
+describe('describeFilterResult', () => {
+  it('reports shown and total counts', () => {
+    expect(describeFilterResult(3, 20, false)).toBe('พบ 3 จาก 20 รายการ');
+  });
+
+  it('warns that only the displayed entries were searched when the month is truncated', () => {
+    expect(describeFilterResult(0, 500, true)).toBe('พบ 0 จาก 500 รายการ (ค้นเฉพาะรายการที่แสดง)');
   });
 });

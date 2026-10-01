@@ -139,3 +139,9 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 16px 0; }
+.filters input, .filters select { min-height: 44px; padding: 8px 10px; font: inherit; font-size: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; }
+.filters input[type="search"] { grid-column: 1 / -1; }
+#filter-clear { grid-column: 1 / -1; min-height: 44px; font: inherit; color: var(--primary); background: none; border: 1px solid var(--primary); border-radius: 8px; }
+.filter-status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }

@@ -41,6 +41,17 @@
         <div class="stat balance"><span class="stat-label">คงเหลือเดือนนี้</span><span id="stat-balance" class="stat-value"></span></div>
       </div>
       <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
+      <div id="filters" class="filters" hidden>
+        <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+        <select id="filter-type" aria-label="กรองตามประเภท">
+          <option value="">ทุกประเภท</option>
+          <option value="expense">รายจ่าย</option>
+          <option value="income">รายรับ</option>
+        </select>
+        <select id="filter-category" aria-label="กรองตามหมวด"></select>
+        <button type="button" id="filter-clear" hidden>ล้างตัวกรอง</button>
+        <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
+      </div>
       <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
       <ul id="list" class="list"></ul>
     </div>
