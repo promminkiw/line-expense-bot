@@ -8,7 +8,9 @@ const MAX_RETRIES = 1;
 const OVERALL_TIMEOUT_MS = 30000;
 // โน้ตมีชื่อผู้รับ จำกัดความยาวกันข้อความยาวผิดปกติจากรูป
 const MAX_NOTE_LENGTH = 100;
-// เพดานสินค้าต่อใบ กันใบเสร็จยาวผิดปกติทำให้ข้อความตอบยาวเกินและค่า token บาน
+// โน้ตของแต่ละสินค้าสั้นกว่าโน้ตหมายเหตุ เพื่อให้ข้อความตอบ 20 รายการไม่เกินขีดจำกัดของ LINE
+const MAX_ITEM_NOTE_LENGTH = 50;
+// เพดานสินค้าต่อใบ จำกัดความยาวข้อความตอบและจำนวนแถวที่บันทึกต่อใบเสร็จ
 const MAX_SLIP_ITEMS = 20;
 
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
@@ -49,8 +51,10 @@ function buildSystemPrompt(today) {
     '- Set is_slip to true only when the picture is a Thai bank transfer slip, payment confirmation or receipt that shows a paid or received amount. Otherwise set is_slip to false, items to [], slip_total to 0, and the other fields to any valid value.',
     '- A bank transfer slip or a payment confirmation has one amount: return exactly one item.',
     '- A shop receipt lists products or services: return one item per product or service line, in the order printed. Never add amounts together and never merge lines.',
+    `- If a receipt has more than ${MAX_SLIP_ITEMS} product lines, return only the first ${MAX_SLIP_ITEMS + 1} items and stop.`,
     '- amount of an item is the price printed on that line in Thai baht as a positive number. If a line has a quantity, use the line total, not the unit price. Do not use fees or the account balance.',
-    '- Do not return discount, VAT, service charge, delivery fee, rounding, change, payment method or total lines as items. Instead describe them in extras_note as a short Thai text, for example "ส่วนลด 10 บาท, VAT 7%", or an empty string when there are none.',
+    '- For a bank transfer slip or a payment confirmation with one amount, set extras_note to an empty string and slip_total to 0.',
+    '- Do not return discount, VAT, service charge, delivery fee, rounding, change or total lines as items. Instead describe them in extras_note as a short Thai text, for example "ส่วนลด 10 บาท, VAT 7%", or an empty string when there are none.',
     '- slip_total is the final net amount printed on the slip in Thai baht as a positive number, or 0 when it is not visible.',
     '- date is the transaction date as YYYY-MM-DD in the Gregorian calendar, one date for the whole slip. Thai slips use Buddhist era years, so subtract 543 (for example 2569 is 2026). If the date is not visible or unclear, use an empty string.',
     '- type is "expense" when the user paid money out, which is the usual case. Use "income" only when the slip clearly shows the user received money.',
@@ -90,13 +94,13 @@ function fixBuddhistYear(date, today) {
 }
 
 // ตัดอักขระควบคุมออกกัน jsonb ปฏิเสธและกันขึ้นบรรทัดปลอม แล้วตัดตาม code point กัน surrogate ขาดครึ่ง
-function sanitizeNote(note) {
+function sanitizeNote(note, max = MAX_NOTE_LENGTH) {
   if (typeof note !== 'string') {
     return '';
   }
   // toWellFormed แทน surrogate เดี่ยวที่โมเดลส่งมาเอง เพราะ jsonb ปฏิเสธและบันทึกสลิปไม่ได้
   const cleaned = note.toWellFormed().replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
-  return Array.from(cleaned).slice(0, MAX_NOTE_LENGTH).join('');
+  return Array.from(cleaned).slice(0, max).join('');
 }
 
 function createSlipParser({ client, model, now = () => new Date() }) {
@@ -156,7 +160,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
       category: item.category,
       amount: item.amount,
       date,
-      note: sanitizeNote(item.note),
+      note: sanitizeNote(item.note, MAX_ITEM_NOTE_LENGTH),
     }));
     // ใช้กติกาตรวจยอดและหมวดชุดเดียวกับข้อความตัวอักษร รายการใดไม่ผ่านถือว่าทั้งใบอ่านยอดไม่ได้
     const result = toParseResult({ needs_clarification: false, items }, today);

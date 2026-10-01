@@ -26,6 +26,32 @@ describe('formatSavedReply', () => {
   });
 });
 
+describe('reply length with the longest receipt', () => {
+  const EMOJI = String.fromCodePoint(0x1f600);
+  const items = Array.from({ length: 20 }, () => ({
+    type: 'expense',
+    category: 'บิล/ค่าบริการ',
+    amount: 9999999.99,
+    date: '2026-09-28',
+    note: EMOJI.repeat(50),
+  }));
+
+  it('keeps a 20 item card with 50 code point emoji notes under 5000 UTF-16 units', () => {
+    const reply = formatSlipConfirmReply(items, {
+      extrasNote: EMOJI.repeat(100),
+      slipTotal: 9999999.99,
+      truncatedTo: 20,
+      dateAssumed: true,
+    });
+
+    expect(reply.length).toBeLessThan(5000);
+  });
+
+  it('keeps a saved reply plus budget alert room under 5000 UTF-16 units', () => {
+    expect(formatSavedReply(items).length + 700).toBeLessThan(5000);
+  });
+});
+
 describe('formatAmount', () => {
   it('adds thousands separators and keeps up to two decimals', () => {
     expect(formatAmount(25000)).toBe('25,000');

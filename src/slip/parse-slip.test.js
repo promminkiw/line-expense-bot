@@ -7,6 +7,7 @@ const { ParseError, MAX_AMOUNT } = createRequire(import.meta.url)('../parser/par
 
 const IMAGE = { data: 'QUJD', mediaType: 'image/jpeg' };
 const NOW = new Date('2026-09-29T05:00:00Z');
+const EMOJI = String.fromCodePoint(0x1f600);
 
 function slipJson({ is_slip = true, date = '2026-09-28', slip_total = 0, extras_note = '', items, ...flat } = {}) {
   return {
@@ -113,23 +114,23 @@ describe('createSlipParser', () => {
   });
 
   it('strips control characters and cuts the note by code point without a lone surrogate', async () => {
-    const note = '\n\u0000' + 'ก'.repeat(98) + '😀';
+    const note = '\n\u0000' + 'ก'.repeat(48) + EMOJI;
     const result = await setup(slipJson({ note })).parseSlip(IMAGE);
 
     expect(result.items[0].note).not.toMatch(/[\u0000-\u001f\u007f]/);
-    expect(Array.from(result.items[0].note).length).toBeLessThanOrEqual(100);
+    expect(Array.from(result.items[0].note).length).toBeLessThanOrEqual(50);
     expect(result.items[0].note.isWellFormed()).toBe(true);
-    expect(result.items[0].note).toBe('ก'.repeat(98) + '😀');
+    expect(result.items[0].note).toBe('ก'.repeat(48) + EMOJI);
   });
 
   it('drops a whole emoji that straddles the cut instead of leaving half of it', async () => {
-    // ตัดตาม UTF-16 ที่ 100 จะเหลือครึ่ง emoji ส่วนตัดตาม code point เก็บ emoji ครบพอดี 100
-    const result = await setup(slipJson({ note: 'ก'.repeat(99) + '😀' + 'ข' })).parseSlip(IMAGE);
+    // ตัดตาม UTF-16 ที่ 50 จะเหลือครึ่ง emoji ส่วนตัดตาม code point เก็บ emoji ครบพอดี 50
+    const result = await setup(slipJson({ note: 'ก'.repeat(49) + EMOJI + 'ข' })).parseSlip(IMAGE);
 
-    expect(result.items[0].note).toBe('ก'.repeat(99) + '😀');
+    expect(result.items[0].note).toBe('ก'.repeat(49) + EMOJI);
     expect(result.items[0].note.isWellFormed()).toBe(true);
-    const longer = await setup(slipJson({ note: 'ก'.repeat(100) + '😀' })).parseSlip(IMAGE);
-    expect(longer.items[0].note).toBe('ก'.repeat(100));
+    const longer = await setup(slipJson({ note: 'ก'.repeat(50) + EMOJI })).parseSlip(IMAGE);
+    expect(longer.items[0].note).toBe('ก'.repeat(50));
   });
 
   it('replaces a lone surrogate sent by the model so the jsonb write cannot fail', async () => {
@@ -166,13 +167,13 @@ describe('createSlipParser', () => {
   it('keeps the note short', async () => {
     const result = await setup(slipJson({ note: 'ก'.repeat(300) })).parseSlip(IMAGE);
 
-    expect(result.items[0].note).toHaveLength(100);
+    expect(result.items[0].note).toHaveLength(50);
   });
 
   it('cuts extras_note to 100 code points', async () => {
-    const result = await setup(slipJson({ extras_note: 'ก'.repeat(99) + '😀' + 'ข' })).parseSlip(IMAGE);
+    const result = await setup(slipJson({ extras_note: 'ก'.repeat(99) + EMOJI + 'ข' })).parseSlip(IMAGE);
 
-    expect(result.extrasNote).toBe('ก'.repeat(99) + '😀');
+    expect(result.extrasNote).toBe('ก'.repeat(99) + EMOJI);
   });
 
   it('throws ParseError when the response is cut off or refused', async () => {
@@ -240,6 +241,31 @@ describe('createSlipParser with several items', () => {
     const result = await setup(slipJson({ items })).parseSlip(IMAGE);
 
     expect(result.truncatedTo).toBe(0);
+  });
+
+  it('asks Claude to return only the first 21 product lines when there are more than 20', async () => {
+    const { create, parseSlip } = setup(slipJson({ items: [MILK] }));
+
+    await parseSlip(IMAGE);
+
+    expect(create.mock.calls[0][0].system).toContain('more than 20 product lines');
+    expect(create.mock.calls[0][0].system).toContain('first 21 items');
+  });
+
+  it('tells Claude a plain transfer slip has no extras note and a zero slip total', async () => {
+    const { create, parseSlip } = setup(slipJson({ items: [MILK] }));
+
+    await parseSlip(IMAGE);
+
+    const { system } = create.mock.calls[0][0];
+    expect(system).toContain('set extras_note to an empty string and slip_total to 0');
+    expect(system).not.toContain('payment method');
+  });
+
+  it('cuts each item note to 50 code points', async () => {
+    const result = await setup(slipJson({ items: [{ ...MILK, note: 'ก'.repeat(80) }] })).parseSlip(IMAGE);
+
+    expect(Array.from(result.items[0].note)).toHaveLength(50);
   });
 
   it('is unreadable when there are no items', async () => {
