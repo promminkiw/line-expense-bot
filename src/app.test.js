@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import crypto from 'node:crypto';
+import express from 'express';
 import { createApp } from './app.js';
 import { createApiRouter } from './api/router.js';
 import { createExportRouter } from './export/router.js';
@@ -12,8 +13,8 @@ function sign(body) {
 
 let server;
 
-async function start(handleEvents, logger = { error: vi.fn() }, apiRouter, exportRouter) {
-  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter, exportRouter });
+async function start(handleEvents, logger = { error: vi.fn() }, apiRouter, exportRouter, recurringRouter) {
+  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter, exportRouter, recurringRouter });
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -257,5 +258,17 @@ describe('/exports', () => {
     const res = await fetch(`${baseUrl}/exports/not-a-token`);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('recurring router', () => {
+  it('mounts the router under /internal', async () => {
+    const recurringRouter = express.Router();
+    recurringRouter.post('/recurring/run', (req, res) => res.json({ ok: true }));
+    const baseUrl = await start(vi.fn(), undefined, undefined, undefined, recurringRouter);
+
+    const res = await fetch(`${baseUrl}/internal/recurring/run`, { method: 'POST' });
+
+    expect(await res.json()).toEqual({ ok: true });
   });
 });
