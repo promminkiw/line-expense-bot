@@ -164,6 +164,20 @@ describe('other paths under /exports', () => {
       expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
       expect(res.headers.get('cache-control')).toBe('no-store');
       expect(await res.text()).toBe('ไม่พบหน้านี้');
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     }
+  });
+
+  it('answers HEAD on a path that does not match with 404 and never claims a link', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const path of ['/', '/a/b']) {
+      const res = await fetch(`${base}${path}`, { method: 'HEAD' });
+
+      expect(res.status).toBe(404);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    }
+    expect(deps.repository.claimExportLink).not.toHaveBeenCalled();
   });
 });
