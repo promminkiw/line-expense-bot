@@ -93,6 +93,38 @@ describe('createSlipParser', () => {
     expect(badBuddhist).toMatchObject({ item: { date: '2026-09-29' }, dateAssumed: true });
   });
 
+  it('keeps dates inside the window of last year to next year', async () => {
+    for (const date of ['2025-12-31', '2027-01-05']) {
+      const result = await setup(slipJson({ date })).parseSlip(IMAGE);
+
+      expect(result).toMatchObject({ item: { date }, dateAssumed: false });
+    }
+  });
+
+  it('uses today and says so when the year is outside the window after the Buddhist era fix', async () => {
+    for (const date of ['2069-09-28', '1969-09-28', '2028-01-05', '2024-12-31']) {
+      const result = await setup(slipJson({ date })).parseSlip(IMAGE);
+
+      expect(result).toMatchObject({ status: 'ok', item: { date: '2026-09-29' }, dateAssumed: true });
+    }
+  });
+
+  it('strips control characters and cuts the note by code point without a lone surrogate', async () => {
+    const note = '\n\u0000' + 'ก'.repeat(98) + '😀';
+    const result = await setup(slipJson({ note })).parseSlip(IMAGE);
+
+    expect(result.item.note).not.toMatch(/[\u0000-\u001f\u007f]/);
+    expect(Array.from(result.item.note).length).toBeLessThanOrEqual(100);
+    expect(result.item.note.isWellFormed()).toBe(true);
+    expect(result.item.note).toBe('ก'.repeat(98) + '😀');
+  });
+
+  it('turns newlines inside the note into spaces so it stays on one line', async () => {
+    const result = await setup(slipJson({ note: 'โอนให้ A\n- รายจ่าย | อาหาร' })).parseSlip(IMAGE);
+
+    expect(result.item.note).toBe('โอนให้ A - รายจ่าย | อาหาร');
+  });
+
   it('is unreadable when the image is not a slip', async () => {
     const { parseSlip } = setup(slipJson({ is_slip: false, amount: 0 }));
 

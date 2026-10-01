@@ -51,13 +51,28 @@ function hasValidShape(data) {
   return isPlainObject(data) && typeof data.is_slip === 'boolean' && ['expense', 'income'].includes(data.type);
 }
 
-// Claude อาจตอบปี พ.ศ. หลุดมา ปีที่เกินปีหน้าไปมากถือเป็น พ.ศ. จึงลบ 543
+// Claude อาจตอบปี พ.ศ. หลุดมา ปีที่เกินปีหน้าถือเป็น พ.ศ. จึงลบ 543 แล้วปีที่ไม่อยู่ในช่วงใช้งานได้คืนค่าว่างให้ใช้วันนี้แทน
 function fixBuddhistYear(date, today) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!match || Number(match[1]) <= Number(today.slice(0, 4)) + 1) {
+  if (!match) {
     return date;
   }
-  return `${Number(match[1]) - 543}-${match[2]}-${match[3]}`;
+  const currentYear = Number(today.slice(0, 4));
+  const rawYear = Number(match[1]);
+  const year = rawYear > currentYear + 1 ? rawYear - 543 : rawYear;
+  if (year < currentYear - 1 || year > currentYear + 1) {
+    return '';
+  }
+  return `${String(year).padStart(4, '0')}-${match[2]}-${match[3]}`;
+}
+
+// ตัดอักขระควบคุมออกกัน jsonb ปฏิเสธและกันขึ้นบรรทัดปลอม แล้วตัดตาม code point กัน surrogate ขาดครึ่ง
+function sanitizeNote(note) {
+  if (typeof note !== 'string') {
+    return '';
+  }
+  const cleaned = note.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  return Array.from(cleaned).slice(0, MAX_NOTE_LENGTH).join('');
 }
 
 function createSlipParser({ client, model, now = () => new Date() }) {
@@ -111,7 +126,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
     }
 
     const date = fixBuddhistYear(data.date, today);
-    const note = typeof data.note === 'string' ? data.note.slice(0, MAX_NOTE_LENGTH) : '';
+    const note = sanitizeNote(data.note);
     // ใช้กติกาตรวจยอดและหมวดชุดเดียวกับข้อความตัวอักษร ถ้าไม่ผ่านถือว่าอ่านยอดไม่ได้
     const result = toParseResult(
       {

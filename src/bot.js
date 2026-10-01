@@ -1,4 +1,5 @@
-const { formatSavedReply, formatSlipConfirmReply } = require('./parser/format-reply');
+const { createConcurrencyLimit } = require('./slip/concurrency-limit');
+const { formatSavedReply,formatSlipConfirmReply } = require('./parser/format-reply');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
@@ -23,6 +24,8 @@ const SLIP_SAVE_ACTION = 'slip_save';
 const SLIP_CANCEL_ACTION = 'slip_cancel';
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
 const SLIP_TTL_MS = 10 * 60 * 1000;
+// รูปแต่ละใบกินความจำประมาณ 20-25 MB ตอนโหลดและอ่าน จำกัดจำนวนที่ทำพร้อมกันกันหน่วยความจำหมด
+const MAX_CONCURRENT_SLIPS = 3;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
@@ -96,6 +99,8 @@ function createBot({
   now = () => Date.now(),
   logger = console,
 }) {
+  const runSlipTask = createConcurrencyLimit(MAX_CONCURRENT_SLIPS);
+
   async function loadHistory(userId) {
     const pending = await repository.getPendingClarification(userId);
     if (!pending || now() - Date.parse(pending.updatedAt) > PENDING_TTL_MS) {
@@ -230,14 +235,20 @@ function createBot({
     if (!allowRequest(lineUserId)) {
       return { text: RATE_LIMITED_REPLY };
     }
-    const image = await downloadImage(event.message.id);
-    if (image.status === 'too_large') {
-      return { text: SLIP_TOO_LARGE_REPLY };
+    const outcome = await runSlipTask(async () => {
+      const image = await downloadImage(event.message.id);
+      if (image.status === 'too_large') {
+        return { reply: { text: SLIP_TOO_LARGE_REPLY } };
+      }
+      if (image.status !== 'ok') {
+        return { reply: { text: SLIP_UNSUPPORTED_REPLY } };
+      }
+      return { slip: await parseSlip({ data: image.data, mediaType: image.mediaType }) };
+    });
+    if (outcome.reply) {
+      return outcome.reply;
     }
-    if (image.status !== 'ok') {
-      return { text: SLIP_UNSUPPORTED_REPLY };
-    }
-    const slip = await parseSlip({ data: image.data, mediaType: image.mediaType });
+    const { slip } = outcome;
     if (slip.status !== 'ok') {
       return { text: SLIP_UNREADABLE_REPLY };
     }
@@ -266,11 +277,12 @@ function createBot({
 
   async function handleSlipSave(params, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
+    // โหลดหมวดก่อนจองสลิป ถ้าโหลดพังสลิปที่รอยืนยันยังอยู่ให้กดใหม่ได้
+    const categoryIds = await users.loadCategoryIds(userId);
     const slip = await claimSlip(params, userId);
     if (!slip) {
       return { text: SLIP_EXPIRED_REPLY };
     }
-    const categoryIds = await users.loadCategoryIds(userId);
     const rows = toTransactionRows({
       items: [slip.item],
       categoryIds,

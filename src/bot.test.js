@@ -843,6 +843,28 @@ describe('bot slip image', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNSUPPORTED_REPLY, undefined);
   });
 
+  it('reads at most 3 slips at once when many images arrive together', async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const downloadImage = vi.fn(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setImmediate(resolve));
+      inFlight -= 1;
+      return { status: 'ok', mediaType: 'image/jpeg', data: 'QUJD' };
+    });
+    const { deps, bot } = setup({ downloadImage });
+    const events = Array.from({ length: 10 }, (_, i) =>
+      imageEvent({ eventId: `ev-${i}`, replyToken: `r-${i}`, messageId: `m${i}` })
+    );
+
+    await bot.handleEvents(events);
+
+    expect(maxInFlight).toBeGreaterThan(0);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
+    expect(deps.replyText).toHaveBeenCalledTimes(10);
+  });
+
   it('ignores an image sent in a group', async () => {
     const { deps, bot } = setup();
 
@@ -972,13 +994,14 @@ describe('bot slip confirmation', () => {
     }
   });
 
-  it('does not save and answers the system error when loading categories fails after the claim', async () => {
+  it('keeps the pending slip and answers the system error when loading categories fails', async () => {
     const { deps, bot } = setup();
     const error = new Error('categories failed');
     deps.users.loadCategoryIds.mockRejectedValue(error);
 
     await bot.handleEvent(postbackEvent(SAVE));
 
+    expect(deps.repository.claimPendingSlip).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to process event',
