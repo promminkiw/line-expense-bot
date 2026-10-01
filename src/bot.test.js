@@ -50,12 +50,12 @@ function textEvent(text, { replyToken = 'r1', eventId = 'ev1', source = { type: 
   return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'text', text } };
 }
 
-function postbackEvent(data) {
+function postbackEvent(data, userId = 'U1') {
   return {
     type: 'postback',
     webhookEventId: 'ev2',
     replyToken: 'r2',
-    source: { type: 'user', userId: 'U1' },
+    source: { type: 'user', userId },
     postback: { data },
   };
 }
@@ -786,6 +786,7 @@ describe('bot slip image', () => {
     await bot.handleEvent(imageEvent());
 
     expect(deps.downloadImage).not.toHaveBeenCalled();
+    expect(deps.allowRequest).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -811,6 +812,35 @@ describe('bot slip image', () => {
       error
     );
     expect(deps.replyText).toHaveBeenCalledWith('r-img', SYSTEM_ERROR_REPLY, undefined);
+    expect(JSON.stringify(deps.logger.error.mock.calls)).not.toContain('QUJD');
+  });
+
+  it('answers the system error when Claude fails to read the slip, without saving a pending slip', async () => {
+    const { deps, bot } = setup({ parseSlip: vi.fn().mockRejectedValue(new Error('claude down')) });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.repository.savePendingSlip).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('answers the system error when the pending slip cannot be stored, without confirm text', async () => {
+    const { deps, bot } = setup();
+    deps.repository.savePendingSlip.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.replyText).toHaveBeenCalledTimes(1);
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('treats an unknown download status as unsupported without calling Claude', async () => {
+    const { deps, bot } = setup({ downloadImage: vi.fn().mockResolvedValue({ status: 'weird' }) });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.parseSlip).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNSUPPORTED_REPLY, undefined);
   });
 
   it('ignores an image sent in a group', async () => {
@@ -924,6 +954,80 @@ describe('bot slip confirmation', () => {
     await bot.handleEvent(postbackEvent(CANCEL));
 
     expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_EXPIRED_REPLY, undefined);
+  });
+
+  it("slip save and cancel claim with the pressing user's id, never the slip owner's", async () => {
+    for (const data of [SAVE, CANCEL]) {
+      const { deps, bot } = setup();
+      deps.users.ensureUser.mockImplementation((id) => ({ U1: 'user-1', U2: 'user-2' })[id]);
+      deps.repository.claimPendingSlip.mockImplementation(async (userId) =>
+        userId === 'user-2' ? null : { webhookEventId: 'ev-img', item: SLIP_ITEM }
+      );
+
+      await bot.handleEvent(postbackEvent(data, 'U2'));
+
+      expect(deps.repository.claimPendingSlip).toHaveBeenCalledWith('user-2', SLIP_ID, SINCE);
+      expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+      expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_EXPIRED_REPLY, undefined);
+    }
+  });
+
+  it('does not save and answers the system error when loading categories fails after the claim', async () => {
+    const { deps, bot } = setup();
+    const error = new Error('categories failed');
+    deps.users.loadCategoryIds.mockRejectedValue(error);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'postback' },
+      error
+    );
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('does not save and answers the system error when the category cannot be resolved', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadCategoryIds.mockResolvedValue(new Map());
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'postback' },
+      expect.any(Error)
+    );
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('still confirms the saved slip with a budget failure notice when the budget check fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getBudgetStatus.mockRejectedValue(new Error('budget failed'));
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r2',
+      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ',
+      [
+        {
+          type: 'action',
+          action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+        },
+      ]
+    );
+  });
+
+  it('ignores an undo postback without an event id', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo'));
+
+    expect(deps.repository.deleteTransactionsByEvent).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 
   it('keeps the undo postback working', async () => {

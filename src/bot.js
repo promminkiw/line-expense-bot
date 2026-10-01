@@ -234,7 +234,7 @@ function createBot({
     if (image.status === 'too_large') {
       return { text: SLIP_TOO_LARGE_REPLY };
     }
-    if (image.status === 'unsupported') {
+    if (image.status !== 'ok') {
       return { text: SLIP_UNSUPPORTED_REPLY };
     }
     const slip = await parseSlip({ data: image.data, mediaType: image.mediaType });
@@ -282,9 +282,7 @@ function createBot({
     const saved = formatSavedReply([slip.item]);
     const alerts = await checkBudgets(userId, rows);
     return {
-      text: alerts ? `${saved}
-
-${alerts}` : saved,
+      text: alerts ? `${saved}\n\n${alerts}` : saved,
       quickReply: buildUndoQuickReply(slip.webhookEventId),
     };
   }
