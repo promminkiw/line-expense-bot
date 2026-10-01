@@ -15,6 +15,9 @@ import {
   createLatestGuard,
   formatMonthLabel,
   describeBudgetFailure,
+  describeRecurringDay,
+  recurringRows,
+  describeRecurringFailure,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -298,5 +301,59 @@ describe('createLatestGuard', () => {
     const second = guard.start();
     expect(guard.isCurrent(first)).toBe(false);
     expect(guard.isCurrent(second)).toBe(true);
+  });
+});
+
+describe('describeRecurringDay', () => {
+  it('says every month on that day', () => {
+    expect(describeRecurringDay(5)).toBe('ทุกวันที่ 5');
+    expect(describeRecurringDay(28)).toBe('ทุกวันที่ 28');
+  });
+
+  it('explains that days 29 to 31 use the last day of a shorter month', () => {
+    expect(describeRecurringDay(31)).toBe('ทุกวันที่ 31 (เดือนที่สั้นกว่านั้นใช้วันสุดท้าย)');
+    expect(describeRecurringDay(29)).toBe('ทุกวันที่ 29 (เดือนที่สั้นกว่านั้นใช้วันสุดท้าย)');
+  });
+});
+
+describe('recurringRows', () => {
+  const categories = [{ id: 'c1', name: 'ค่าสาธารณูปโภค', type: 'expense' }];
+  const rule = { id: 'r1', type: 'expense', categoryId: 'c1', amount: 590, note: 'ค่าเน็ต', dayOfMonth: 5, active: true, lastRunOn: null };
+
+  it('builds a title and a summary line', () => {
+    expect(recurringRows([rule], categories)).toEqual([
+      {
+        id: 'r1',
+        categoryId: 'c1',
+        amount: 590,
+        note: 'ค่าเน็ต',
+        dayOfMonth: 5,
+        active: true,
+        title: 'ค่าสาธารณูปโภค',
+        text: 'รายจ่าย 590 บาท · ทุกวันที่ 5 · ค่าเน็ต',
+      },
+    ]);
+  });
+
+  it('marks a paused rule, omits an empty note and shows income as income', () => {
+    const [row] = recurringRows([{ ...rule, type: 'income', note: '', active: false }], categories);
+
+    expect(row.text).toBe('รายรับ 590 บาท · ทุกวันที่ 5 · หยุดไว้');
+    expect(row.active).toBe(false);
+  });
+
+  it('still shows a rule whose category no longer exists', () => {
+    expect(recurringRows([rule], [])[0].title).toBe('ไม่ทราบหมวด');
+  });
+});
+
+describe('describeRecurringFailure', () => {
+  it('explains each status in Thai', () => {
+    expect(describeRecurringFailure(401, 'save')).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeRecurringFailure(404, 'save')).toBe('ไม่พบรายการประจำนี้แล้ว');
+    expect(describeRecurringFailure(409, 'save')).toBe('มีรายการประจำครบ 50 รายการแล้ว ลบอันเก่าก่อนเพิ่มใหม่');
+    expect(describeRecurringFailure(400, 'save')).toBe('ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)');
+    expect(describeRecurringFailure(500, 'save')).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(describeRecurringFailure(undefined, 'delete')).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 });

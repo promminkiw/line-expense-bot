@@ -39,6 +39,18 @@
         <button type="button" id="budgets-retry">ลองใหม่</button>
       </div>
     </section>
+    <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
+      <h2 id="recurring-title">รายการประจำ</h2>
+      <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าตั้งวันที่ผ่านไปแล้วในเดือนนี้ จะเริ่มเดือนหน้า</p>
+      <p id="recurring-loading" class="recurring-loading" role="status" hidden>กำลังโหลดรายการประจำ...</p>
+      <p id="recurring-empty" class="recurring-empty" hidden>ยังไม่มีรายการประจำ</p>
+      <ul id="recurring-rows" class="recurring-rows"></ul>
+      <div id="recurring-error" class="budgets-error" hidden>
+        <p id="recurring-error-text"></p>
+        <button type="button" id="recurring-retry">ลองใหม่</button>
+      </div>
+      <button type="button" id="recurring-add">เพิ่มรายการประจำ</button>
+    </section>
     <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
     <ul id="list" class="list"></ul>
   </main>
@@ -88,6 +100,33 @@
       <div class="actions">
         <button type="button" id="budget-remove" class="danger">ไม่ตั้งงบ</button>
         <button type="button" id="budget-cancel">ปิด</button>
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
+    <form id="recurring-form">
+      <h2 id="recurring-editor-title"></h2>
+      <label>หมวด
+        <select id="recurring-category" required></select>
+      </label>
+      <label>จำนวนเงิน (บาท)
+        <input id="recurring-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>ทุกวันที่ (1-31)
+        <input id="recurring-day" type="number" inputmode="numeric" step="1" min="1" max="31" required>
+      </label>
+      <label>โน้ต
+        <input id="recurring-note" type="text" maxlength="200">
+      </label>
+      <label class="check">
+        <input id="recurring-active" type="checkbox" checked> ใช้งาน
+      </label>
+      <p id="recurring-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="recurring-editor-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="button" id="recurring-delete" class="danger">ลบ</button>
+        <button type="button" id="recurring-cancel">ปิด</button>
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>

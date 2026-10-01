@@ -166,3 +166,36 @@ export function describeBudgetFailure(status) {
   if (status === 404) return 'ไม่พบหมวดนี้แล้ว';
   return 'บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง';
 }
+
+const RECURRING_TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
+
+export function describeRecurringDay(day) {
+  return day > 28 ? `ทุกวันที่ ${day} (เดือนที่สั้นกว่านั้นใช้วันสุดท้าย)` : `ทุกวันที่ ${day}`;
+}
+
+export function recurringRows(rules, categories) {
+  const names = new Map(categories.map((category) => [category.id, category.name]));
+  return rules.map((rule) => {
+    const parts = [`${RECURRING_TYPE_LABELS[rule.type]} ${formatBaht(rule.amount)}`, describeRecurringDay(rule.dayOfMonth)];
+    if (rule.note) parts.push(rule.note);
+    if (!rule.active) parts.push('หยุดไว้');
+    return {
+      id: rule.id,
+      categoryId: rule.categoryId,
+      amount: rule.amount,
+      note: rule.note,
+      dayOfMonth: rule.dayOfMonth,
+      active: rule.active,
+      title: names.get(rule.categoryId) || 'ไม่ทราบหมวด',
+      text: parts.join(' · '),
+    };
+  });
+}
+
+export function describeRecurringFailure(status, action) {
+  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 404) return 'ไม่พบรายการประจำนี้แล้ว';
+  if (status === 409) return 'มีรายการประจำครบ 50 รายการแล้ว ลบอันเก่าก่อนเพิ่มใหม่';
+  if (status === 400) return 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)';
+  return action === 'delete' ? 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
+}
