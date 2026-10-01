@@ -20,6 +20,14 @@ describe('parseMonth', () => {
     expect(parseMonth('')).toBeNull();
     expect(parseMonth(undefined)).toBeNull();
   });
+
+  it('accepts only years 2000 to 2100 so the database never sees an out of range date', () => {
+    expect(parseMonth('2000-01')).toEqual({ from: '2000-01-01', to: '2000-01-31' });
+    expect(parseMonth('2100-12')).toEqual({ from: '2100-12-01', to: '2100-12-31' });
+    for (const month of ['0000-01', '1999-12', '2101-01', '9999-12']) {
+      expect(parseMonth(month)).toBeNull();
+    }
+  });
 });
 
 describe('validateTransactionUpdate', () => {

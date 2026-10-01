@@ -24,7 +24,8 @@ function findBudgetAlerts(rows, statusByMonth) {
   for (const key of touched) {
     const [month, categoryId] = key.split('|');
     const status = (statusByMonth.get(month) || []).find((item) => item.categoryId === categoryId);
-    if (!status || status.budget === null) continue;
+    // งบ 0 บาทเทียบเป็นเปอร์เซ็นต์ไม่ได้ จึงถือว่าไม่ได้ตั้งงบ
+    if (!status || status.budget === null || status.budget <= 0) continue;
     const budget = toSatang(status.budget);
     const spent = toSatang(status.spent);
     // เตือนทุกครั้งที่บันทึกขณะยอดรวมถึงเส้น ไม่ดูว่าก่อนหน้าข้ามเส้นมาหรือยัง
