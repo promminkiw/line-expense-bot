@@ -83,3 +83,15 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 #recurring-editor-title:focus { outline: none; }
 #recurring-editor .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
 #recurring-editor .check input { width: auto; margin: 0; flex: none; }
+.icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cat-badge { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--cat-bg); color: var(--cat-fg); }
+.cat-badge .icon { width: 20px; height: 20px; }
+.cat-food { --cat-bg: var(--cat-food-bg); --cat-fg: var(--cat-food-fg); }
+.cat-transport { --cat-bg: var(--cat-transport-bg); --cat-fg: var(--cat-transport-fg); }
+.cat-shopping { --cat-bg: var(--cat-shopping-bg); --cat-fg: var(--cat-shopping-fg); }
+.cat-bill { --cat-bg: var(--cat-bill-bg); --cat-fg: var(--cat-bill-fg); }
+.cat-health { --cat-bg: var(--cat-health-bg); --cat-fg: var(--cat-health-fg); }
+.cat-fun { --cat-bg: var(--cat-fun-bg); --cat-fg: var(--cat-fun-fg); }
+.cat-salary { --cat-bg: var(--cat-salary-bg); --cat-fg: var(--cat-salary-fg); }
+.cat-side { --cat-bg: var(--cat-side-bg); --cat-fg: var(--cat-side-fg); }
+.cat-other { --cat-bg: var(--cat-other-bg); --cat-fg: var(--cat-other-fg); }
