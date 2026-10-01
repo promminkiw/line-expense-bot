@@ -8,6 +8,8 @@ const MAX_RETRIES = 1;
 const OVERALL_TIMEOUT_MS = 30000;
 // โน้ตมีชื่อผู้รับ จำกัดความยาวกันข้อความยาวผิดปกติจากรูป
 const MAX_NOTE_LENGTH = 100;
+// เพดานสินค้าต่อใบ กันใบเสร็จยาวผิดปกติทำให้ข้อความตอบยาวเกินและค่า token บาน
+const MAX_SLIP_ITEMS = 20;
 
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
@@ -16,30 +18,46 @@ const SLIP_SCHEMA = {
   type: 'object',
   properties: {
     is_slip: { type: 'boolean' },
-    type: { type: 'string', enum: ['expense', 'income'] },
-    category: { type: 'string', enum: ALL_CATEGORIES },
-    amount: { type: 'number' },
     date: { type: 'string' },
-    note: { type: 'string' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['expense', 'income'] },
+          category: { type: 'string', enum: ALL_CATEGORIES },
+          amount: { type: 'number' },
+          note: { type: 'string' },
+        },
+        required: ['type', 'category', 'amount', 'note'],
+        additionalProperties: false,
+      },
+    },
+    slip_total: { type: 'number' },
+    extras_note: { type: 'string' },
   },
-  required: ['is_slip', 'type', 'category', 'amount', 'date', 'note'],
+  required: ['is_slip', 'date', 'items', 'slip_total', 'extras_note'],
   additionalProperties: false,
 };
 
 function buildSystemPrompt(today) {
   return [
-    'You read a picture sent by a Thai user to a personal finance bot and extract one transaction from it.',
+    'You read a picture sent by a Thai user to a personal finance bot and extract the transactions from it.',
     `Today is ${today} (Asia/Bangkok).`,
     '',
     'Rules:',
-    '- Set is_slip to true only when the picture is a Thai bank transfer slip, payment confirmation or receipt that shows a paid or received amount. Otherwise set is_slip to false, amount to 0 and fill the other fields with any valid value.',
-    '- amount is the transferred or paid amount in Thai baht as a positive number. Do not use the fee or the account balance.',
-    '- date is the transaction date as YYYY-MM-DD in the Gregorian calendar. Thai slips use Buddhist era years, so subtract 543 (for example 2569 is 2026). If the date is not visible or unclear, use an empty string.',
-    '- type is "expense" when the user paid money out, which is the usual case for a slip. Use "income" only when the slip clearly shows the user received money.',
-    '- note is a short Thai description: "โอนให้ <recipient name>" or the shop name. Never include account numbers or reference numbers.',
+    '- Set is_slip to true only when the picture is a Thai bank transfer slip, payment confirmation or receipt that shows a paid or received amount. Otherwise set is_slip to false, items to [], slip_total to 0, and the other fields to any valid value.',
+    '- A bank transfer slip or a payment confirmation has one amount: return exactly one item.',
+    '- A shop receipt lists products or services: return one item per product or service line, in the order printed. Never add amounts together and never merge lines.',
+    '- amount of an item is the price printed on that line in Thai baht as a positive number. If a line has a quantity, use the line total, not the unit price. Do not use fees or the account balance.',
+    '- Do not return discount, VAT, service charge, delivery fee, rounding, change, payment method or total lines as items. Instead describe them in extras_note as a short Thai text, for example "ส่วนลด 10 บาท, VAT 7%", or an empty string when there are none.',
+    '- slip_total is the final net amount printed on the slip in Thai baht as a positive number, or 0 when it is not visible.',
+    '- date is the transaction date as YYYY-MM-DD in the Gregorian calendar, one date for the whole slip. Thai slips use Buddhist era years, so subtract 543 (for example 2569 is 2026). If the date is not visible or unclear, use an empty string.',
+    '- type is "expense" when the user paid money out, which is the usual case. Use "income" only when the slip clearly shows the user received money.',
+    '- note is a short Thai description: for a receipt the product name as printed; for a transfer "โอนให้ <recipient name>" or the shop name. Never include account numbers or reference numbers.',
     `- Expense categories: ${DEFAULT_CATEGORIES.expense.join(', ')}`,
     `- Income categories: ${DEFAULT_CATEGORIES.income.join(', ')}`,
-    '- Pick the category from the list that matches the type and the recipient or shop. Use "อื่นๆ" when you are not sure.',
+    '- Pick the category for each item separately from the list that matches the type and the product or recipient. Use "อื่นๆ" when you are not sure.',
   ].join('\n');
 }
 
@@ -48,7 +66,12 @@ function isPlainObject(value) {
 }
 
 function hasValidShape(data) {
-  return isPlainObject(data) && typeof data.is_slip === 'boolean' && ['expense', 'income'].includes(data.type);
+  return (
+    isPlainObject(data) &&
+    typeof data.is_slip === 'boolean' &&
+    Array.isArray(data.items) &&
+    data.items.every((item) => isPlainObject(item) && ['expense', 'income'].includes(item.type))
+  );
 }
 
 // Claude อาจตอบปี พ.ศ. หลุดมา ปีที่เกินปีหน้าถือเป็น พ.ศ. จึงลบ 543 แล้วปีที่ไม่อยู่ในช่วงใช้งานได้คืนค่าว่างให้ใช้วันนี้แทน
@@ -82,7 +105,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 512,
+        max_tokens: 2048,
         system: buildSystemPrompt(today),
         messages: [
           {
@@ -122,25 +145,33 @@ function createSlipParser({ client, model, now = () => new Date() }) {
     if (!hasValidShape(data)) {
       throw new ParseError('Claude response does not match the expected shape');
     }
-    if (!data.is_slip) {
+    if (!data.is_slip || data.items.length === 0) {
       return { status: 'unreadable' };
     }
 
     const date = fixBuddhistYear(data.date, today);
-    const note = sanitizeNote(data.note);
-    // ใช้กติกาตรวจยอดและหมวดชุดเดียวกับข้อความตัวอักษร ถ้าไม่ผ่านถือว่าอ่านยอดไม่ได้
-    const result = toParseResult(
-      {
-        needs_clarification: false,
-        items: [{ type: data.type, category: data.category, amount: data.amount, date, note }],
-      },
-      today
-    );
+    const truncated = data.items.length > MAX_SLIP_ITEMS;
+    const items = data.items.slice(0, MAX_SLIP_ITEMS).map((item) => ({
+      type: item.type,
+      category: item.category,
+      amount: item.amount,
+      date,
+      note: sanitizeNote(item.note),
+    }));
+    // ใช้กติกาตรวจยอดและหมวดชุดเดียวกับข้อความตัวอักษร รายการใดไม่ผ่านถือว่าทั้งใบอ่านยอดไม่ได้
+    const result = toParseResult({ needs_clarification: false, items }, today);
     if (result.status !== 'ok') {
       return { status: 'unreadable' };
     }
-    return { status: 'ok', item: result.items[0], dateAssumed: !isValidCalendarDate(date) };
+    return {
+      status: 'ok',
+      items: result.items,
+      dateAssumed: !isValidCalendarDate(date),
+      extrasNote: sanitizeNote(data.extras_note),
+      slipTotal: Number.isFinite(data.slip_total) && data.slip_total > 0 ? data.slip_total : 0,
+      truncatedTo: truncated ? MAX_SLIP_ITEMS : 0,
+    };
   };
 }
 
-module.exports = { createSlipParser, SLIP_SCHEMA };
+module.exports = { createSlipParser, SLIP_SCHEMA, MAX_SLIP_ITEMS };
