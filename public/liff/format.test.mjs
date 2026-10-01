@@ -18,6 +18,7 @@ import {
   describeRecurringDay,
   recurringRows,
   describeRecurringFailure,
+  shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -355,5 +356,14 @@ describe('describeRecurringFailure', () => {
     expect(describeRecurringFailure(400, 'save')).toBe('ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)');
     expect(describeRecurringFailure(500, 'save')).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(describeRecurringFailure(undefined, 'delete')).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+});
+
+describe('shouldCloseRecurringEditor', () => {
+  it('closes and reloads only when the rule no longer exists', () => {
+    expect(shouldCloseRecurringEditor(404)).toBe(true);
+    expect(shouldCloseRecurringEditor(400)).toBe(false);
+    expect(shouldCloseRecurringEditor(401)).toBe(false);
+    expect(shouldCloseRecurringEditor(undefined)).toBe(false);
   });
 });

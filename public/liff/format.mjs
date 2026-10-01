@@ -199,3 +199,7 @@ export function describeRecurringFailure(status, action) {
   if (status === 400) return 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)';
   return action === 'delete' ? 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
 }
+
+export function shouldCloseRecurringEditor(status) {
+  return status === 404;
+}

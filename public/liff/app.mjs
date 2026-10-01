@@ -18,6 +18,7 @@ import {
   describeBudgetFailure,
   recurringRows,
   describeRecurringFailure,
+  shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -597,12 +598,21 @@ async function runRecurringAction(action, kind, focusRuleId = null) {
   if (recurringBusy) return;
   setRecurringBusy(true);
   let failure = null;
+  let failureStatus;
   try {
     await action();
   } catch (err) {
-    failure = describeRecurringFailure(err instanceof ApiError ? err.status : undefined, kind);
+    failureStatus = err instanceof ApiError ? err.status : undefined;
+    failure = describeRecurringFailure(failureStatus, kind);
   } finally {
     setRecurringBusy(false);
+  }
+  // กฎถูกลบไปแล้ว: ปิดฟอร์ม โหลดใหม่ แล้วแจ้งที่สถานะหน้า เหมือนตัวแก้รายการ
+  if (failure && shouldCloseRecurringEditor(failureStatus)) {
+    els.recurringEditor.close();
+    await loadRecurring();
+    setStatus(failure);
+    return;
   }
   if (failure) {
     els.recurringEditorError.textContent = failure;
@@ -667,6 +677,11 @@ async function boot() {
     els.month.value = currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
+    // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
+    els.recurringEmpty.hidden = true;
+    els.recurringError.hidden = true;
+    els.recurringLoading.hidden = false;
+    els.recurring.hidden = false;
     await Promise.all([loadMonth({ reset: true }), loadRecurring()]);
   } catch (err) {
     showLoadError(err);
