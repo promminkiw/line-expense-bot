@@ -7,7 +7,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
   return async function run() {
     const today = toBangkokDateString(now());
     const rules = await repository.listDueRecurringRules(today);
-    const result = { due: 0, created: 0, skipped: 0, failed: 0 };
+    const result = { due: 0, created: 0, skipped: 0, failed: 0, pushFailed: 0 };
     for (const rule of rules) {
       // SQL กรองมาแล้ว เช็กซ้ำที่นี่เพื่อให้กติกาอยู่ที่ schedule.js ที่เดียว
       if (!isDue(rule, today)) continue;
@@ -43,6 +43,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
       } catch (err) {
         // บันทึกสำเร็จแล้ว push พังไม่ต้องย้อนรายการ
         logger.error('Failed to push recurring notice', { ruleId: rule.id }, err);
+        result.pushFailed += 1;
       }
     }
     return result;

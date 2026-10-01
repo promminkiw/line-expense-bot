@@ -31,14 +31,24 @@ describe('createRecurringRouter', () => {
   });
 
   it('runs the job and returns the counts when the bearer secret matches', async () => {
-    const run = vi.fn().mockResolvedValue({ due: 2, created: 1, skipped: 1, failed: 0 });
+    const run = vi.fn().mockResolvedValue({ due: 2, created: 1, skipped: 1, failed: 0, pushFailed: 1 });
     const base = await start({ cronSecret: 's3cret', run });
 
     const res = await post(base, 's3cret');
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ due: 2, created: 1, skipped: 1, failed: 0 });
+    expect(await res.json()).toEqual({ due: 2, created: 1, skipped: 1, failed: 0, pushFailed: 1 });
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 500 with the counts when any rule failed', async () => {
+    const counts = { due: 2, created: 1, skipped: 0, failed: 1, pushFailed: 0 };
+    const base = await start({ cronSecret: 's3cret', run: vi.fn().mockResolvedValue(counts) });
+
+    const res = await post(base, 's3cret');
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(counts);
   });
 
   it('returns 401 and does not run for a missing or wrong secret', async () => {

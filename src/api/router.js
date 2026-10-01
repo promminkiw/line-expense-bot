@@ -174,7 +174,7 @@ function createApiRouter({
       return;
     }
     const today = toBangkokDateString(now());
-    // ประเภทตามหมวด และกันไม่ให้สร้างรายการซ้ำของเดือนที่วันครบกำหนดผ่านไปแล้ว
+    // ประเภทตามหมวด และไม่ย้อนบันทึกให้เดือนที่วันครบกำหนดผ่านไปแล้ว (เริ่มรอบหน้า)
     const rule = await repository.createRecurringRule({
       userId: req.userId,
       type: category.type,
@@ -209,10 +209,14 @@ function createApiRouter({
       return;
     }
     const today = toBangkokDateString(now());
+    // แก้แค่เนื้อหา (วันเดิม ยังเปิดอยู่) ต้องไม่ทำให้รอบเดือนนี้ถูกข้าม
+    const keepsSchedule = existing.active && result.value.active && existing.dayOfMonth === result.value.dayOfMonth;
     const updated = await repository.updateRecurringRule(req.userId, req.params.id, {
       type: category.type,
       ...result.value,
-      lastRunOn: lastRunOnAfterSave(existing.lastRunOn, result.value.dayOfMonth, today),
+      lastRunOn: keepsSchedule
+      ? existing.lastRunOn
+      : lastRunOnAfterSave(existing.lastRunOn, result.value.dayOfMonth, today),
     });
     if (!updated) {
       res.status(404).json({ error: 'Not found' });

@@ -684,6 +684,41 @@ describe('recurring rules API', () => {
     });
   });
 
+  it('keeps this month due when only the amount or note is edited', async () => {
+    const deps = setup({ now: () => new Date('2026-10-15T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([{ ...EXISTING, dayOfMonth: 15, lastRunOn: '2026-09-15' }]);
+    const base = await start(deps);
+
+    const res = await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 15, amount: 700 } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-15');
+  });
+
+  it('resumes a paused rule after its due day without recording this month', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([
+      { ...EXISTING, dayOfMonth: 5, active: false, lastRunOn: '2026-08-05' },
+    ]);
+    const base = await start(deps);
+
+    await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 5, active: true } });
+
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-05');
+  });
+
+  it('skips this month when the day is changed to one that has already passed', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([
+      { ...EXISTING, dayOfMonth: 20, active: true, lastRunOn: '2026-08-20' },
+    ]);
+    const base = await start(deps);
+
+    await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 5 } });
+
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-05');
+  });
+
   it('returns 404 when updating or deleting a rule that is missing or has a bad id', async () => {
     const deps = setup();
     const base = await start(deps);

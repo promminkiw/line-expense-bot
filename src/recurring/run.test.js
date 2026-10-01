@@ -65,21 +65,21 @@ describe('createRecurringRunner', () => {
         },
       ]
     );
-    expect(result).toEqual({ due: 1, created: 1, skipped: 0, failed: 0 });
+    expect(result).toEqual({ due: 1, created: 1, skipped: 0, failed: 0, pushFailed: 0 });
   });
 
   it('skips a rule the database says was already applied and sends nothing', async () => {
     const { repository, pushText, run } = setup();
     repository.applyRecurringRule.mockResolvedValue(false);
 
-    expect(await run()).toEqual({ due: 1, created: 0, skipped: 1, failed: 0 });
+    expect(await run()).toEqual({ due: 1, created: 0, skipped: 1, failed: 0, pushFailed: 0 });
     expect(pushText).not.toHaveBeenCalled();
   });
 
   it('ignores rules that are not due according to the schedule', async () => {
     const { repository, run } = setup([rule({ dayOfMonth: 20 }), rule({ id: 'r2', lastRunOn: '2026-10-01' })]);
 
-    expect(await run()).toEqual({ due: 0, created: 0, skipped: 0, failed: 0 });
+    expect(await run()).toEqual({ due: 0, created: 0, skipped: 0, failed: 0, pushFailed: 0 });
     expect(repository.applyRecurringRule).not.toHaveBeenCalled();
   });
 
@@ -107,7 +107,7 @@ describe('createRecurringRunner', () => {
 
     const result = await run();
 
-    expect(result).toEqual({ due: 2, created: 1, skipped: 0, failed: 1 });
+    expect(result).toEqual({ due: 2, created: 1, skipped: 0, failed: 1, pushFailed: 0 });
     expect(pushText).toHaveBeenCalledTimes(1);
     expect(logger.error).toHaveBeenCalledWith('Failed to apply recurring rule', { ruleId: 'r1' }, expect.any(Error));
   });
@@ -116,8 +116,37 @@ describe('createRecurringRunner', () => {
     const { pushText, logger, run } = setup();
     pushText.mockRejectedValue(new Error('push failed'));
 
-    expect(await run()).toEqual({ due: 1, created: 1, skipped: 0, failed: 0 });
+    expect(await run()).toEqual({ due: 1, created: 1, skipped: 0, failed: 0, pushFailed: 1 });
     expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1' }, expect.any(Error));
+  });
+
+  it('counts a failed push in pushFailed', async () => {
+    const { pushText, run } = setup();
+    pushText.mockRejectedValue(new Error('push failed'));
+
+    expect((await run()).pushFailed).toBe(1);
+  });
+
+  it('pushes each notice to the owner of the rule', async () => {
+    const { pushText, run } = setup([rule(), rule({ id: 'r2', lineUserId: 'U2' })]);
+
+    await run();
+
+    expect(pushText).toHaveBeenCalledTimes(2);
+    expect(pushText.mock.calls[0][0]).toBe('U1');
+    expect(pushText.mock.calls[0][2][0].action.data).toContain('recurring%3Ar1%3A');
+    expect(pushText.mock.calls[1][0]).toBe('U2');
+    expect(pushText.mock.calls[1][2][0].action.data).toContain('recurring%3Ar2%3A');
+  });
+
+  it('keeps pushing the next rules after one push fails', async () => {
+    const { pushText, run } = setup([rule(), rule({ id: 'r2', lineUserId: 'U2' })]);
+    pushText.mockRejectedValueOnce(new Error('push failed'));
+
+    const result = await run();
+
+    expect(pushText).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ due: 2, created: 2, skipped: 0, failed: 0, pushFailed: 1 });
   });
 
   it('lets a failure to list rules propagate so the endpoint answers 500', async () => {
