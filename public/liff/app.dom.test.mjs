@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { URL as NodeUrl } from 'node:url';
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TABS } from './tabs.mjs';
 import { categoryStyle } from './categories.mjs';
 import { createEmptyState } from './empty-state.mjs';
@@ -59,9 +59,10 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function settle() {
-  for (let i = 0; i < 10; i += 1) await flush();
-}
+// the fake fetch resolves in microtasks only, so one macrotask drains the whole boot chain
+const settle = flush;
+
+const LOADING_ELEMENT_IDS = ['summary-skeleton', 'trend-skeleton', 'budgets-skeleton', 'recurring-skeleton', 'profile-skeleton'];
 
 // override: Error -> network failure, { status } -> HTTP error, anything else -> JSON body
 function makeFetch(overrides) {
@@ -76,13 +77,14 @@ function makeFetch(overrides) {
   };
 }
 
+// returns the fake liff; liff.fetched lists requested paths and liff.loadingSnapshot is the DOM state when transactions were requested
 async function boot({ inClient = true, loggedIn = true, overrides = {} } = {}) {
   vi.resetModules();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-15T05:00:00Z'));
   document.documentElement.innerHTML = html;
-  // reduced motion makes count-up and bar growth resolve immediately
-  window.matchMedia = () => ({ matches: true });
-  window.scrollTo = () => {};
   const initOptions = [];
+  const fetched = [];
   const liff = {
     init: async (options) => {
       initOptions.push(options);
@@ -94,13 +96,35 @@ async function boot({ inClient = true, loggedIn = true, overrides = {} } = {}) {
     closeWindow: vi.fn(),
     openWindow: vi.fn(),
     initOptions,
+    fetched,
+    loadingSnapshot: null,
   };
-  globalThis.liff = liff;
-  globalThis.fetch = makeFetch(overrides);
+  const innerFetch = makeFetch(overrides);
+  const fetchStub = async (url, ...rest) => {
+    const path = new URL(url, 'http://localhost').pathname;
+    fetched.push(path);
+    if (path === '/api/transactions' && !liff.loadingSnapshot) {
+      liff.loadingSnapshot = {
+        listSkeletons: document.querySelectorAll('#list .skeleton').length,
+        visibleLoaders: LOADING_ELEMENT_IDS.filter((id) => !document.getElementById(id).hidden),
+      };
+    }
+    return innerFetch(url, ...rest);
+  };
+  vi.stubGlobal('liff', liff);
+  vi.stubGlobal('fetch', fetchStub);
+  // reduced motion resolves count-up and bar growth at once; animated paths are covered in motion.test.mjs
+  vi.stubGlobal('matchMedia', () => ({ matches: true }));
+  vi.stubGlobal('scrollTo', () => {});
   await import('./app.mjs');
   await settle();
   return liff;
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 const byId = (id) => document.getElementById(id);
 
@@ -164,14 +188,8 @@ describe('index.html static invariants', () => {
 describe('LIFF page after a normal boot', () => {
   let liff;
 
-  beforeAll(async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-10-15T05:00:00Z'));
+  beforeEach(async () => {
     liff = await boot();
-  });
-
-  afterAll(() => {
-    vi.useRealTimers();
   });
 
   it('renders the five bottom tabs with the list tab selected', () => {
@@ -357,7 +375,8 @@ describe('LIFF page after a normal boot', () => {
   });
 
   it('shows the profile with name, avatar initial, balance and since text', () => {
-    // previous test left the profile tab selected
+    document.querySelector('#bottom-nav button[data-tab="profile"]').click();
+
     expect(byId('profile-card').hidden).toBe(false);
     expect(byId('profile-name').textContent).toBe('สมชาย');
     expect(byId('profile-avatar').textContent).toBe('ส');
@@ -374,6 +393,7 @@ describe('LIFF page after a normal boot', () => {
   });
 
   it('clears the banner when the tab changes', () => {
+    document.querySelector('#bottom-nav button[data-tab="summary"]').click();
     byId('banner').textContent = 'x';
     byId('banner').hidden = false;
 
@@ -410,18 +430,14 @@ describe('LIFF page for an empty month', () => {
   });
 
   it('shows the filter bar again when the month changes to one with data', async () => {
-    let calls = 0;
     await boot({ overrides: { '/api/transactions': EMPTY_MONTH } });
-    globalThis.fetch = async (url) => {
-      calls += 1;
-      return makeFetch({})(url);
-    };
+    expect(byId('filters').hidden).toBe(true);
+    vi.stubGlobal('fetch', makeFetch({}));
 
     byId('month').value = '2026-09';
     byId('month').dispatchEvent(new Event('change'));
     await settle();
 
-    expect(calls).toBeGreaterThan(0);
     expect(byId('filters').hidden).toBe(false);
     expect(document.querySelectorAll('#list .row')).toHaveLength(3);
   });
@@ -429,8 +445,10 @@ describe('LIFF page for an empty month', () => {
 
 describe('LIFF page when loading fails', () => {
   it('shows the load error in the shared banner when /api/config rejects', async () => {
-    await boot({ overrides: { '/api/config': new TypeError('network down') } });
+    const liff = await boot({ overrides: { '/api/config': new TypeError('network down') } });
 
+    // loading never started, so there is no skeleton to clear
+    expect(liff.fetched).toEqual(['/api/config']);
     expect(byId('banner').hidden).toBe(false);
     expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(document.querySelector('#list .skeleton')).toBeNull();
@@ -439,8 +457,10 @@ describe('LIFF page when loading fails', () => {
   });
 
   it('shows the load error in the shared banner when /api/categories rejects', async () => {
-    await boot({ overrides: { '/api/categories': new TypeError('network down') } });
+    const liff = await boot({ overrides: { '/api/categories': new TypeError('network down') } });
 
+    // loading never started, so there is no skeleton to clear
+    expect(liff.fetched).not.toContain('/api/transactions');
     expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(byId('banner').hidden).toBe(false);
     expect(document.querySelector('#list .skeleton')).toBeNull();
@@ -448,8 +468,11 @@ describe('LIFF page when loading fails', () => {
   });
 
   it('removes the skeletons and shows the banner when /api/transactions fails after loading started', async () => {
-    await boot({ overrides: { '/api/transactions': { status: 500 } } });
+    const liff = await boot({ overrides: { '/api/transactions': { status: 500 } } });
 
+    // skeletons were really shown when the request went out
+    expect(liff.loadingSnapshot.listSkeletons).toBe(6);
+    expect(liff.loadingSnapshot.visibleLoaders).toEqual(LOADING_ELEMENT_IDS);
     expect(byId('banner').hidden).toBe(false);
     expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(document.querySelector('#list .skeleton')).toBeNull();
@@ -478,12 +501,22 @@ describe('LIFF page when loading fails', () => {
     expect(byId('profile-retry').hidden).toBe(false);
     expect(byId('profile-card').hidden).toBe(true);
     expect(byId('profile-skeleton').hidden).toBe(true);
+
+    vi.stubGlobal('fetch', makeFetch({}));
+    byId('profile-retry').click();
+    await settle();
+
+    expect(byId('profile-error').hidden).toBe(true);
+    expect(byId('profile-card').hidden).toBe(false);
+    expect(byId('profile-name').textContent).toBe('สมชาย');
   });
 
   it('redirects to LINE login instead of loading data when not logged in', async () => {
     const liff = await boot({ loggedIn: false });
 
     expect(liff.login).toHaveBeenCalledTimes(1);
+    expect(byId('banner').hidden).toBe(true);
+    expect(liff.fetched).toEqual(['/api/config']);
     expect(document.querySelectorAll('#list .row')).toHaveLength(0);
   });
 });
