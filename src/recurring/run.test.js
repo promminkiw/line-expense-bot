@@ -189,4 +189,20 @@ describe('createRecurringRunner', () => {
 
     await expect(run()).rejects.toThrow('db down');
   });
+
+  it('counts a rule as failed when applying rejects with undefined and still resolves', async () => {
+    const { repository, logger, run } = setup();
+    repository.applyRecurringRule.mockRejectedValue(undefined);
+
+    expect(await run()).toEqual({ due: 1, created: 0, skipped: 0, failed: 1, pushFailed: 0 });
+    expect(logger.error).toHaveBeenCalledWith('Failed to apply recurring rule', { ruleId: 'r1', reason: 'undefined' });
+  });
+
+  it('counts pushFailed and logs the string when push rejects with a string', async () => {
+    const { pushText, logger, run } = setup();
+    pushText.mockRejectedValue('boom');
+
+    expect(await run()).toEqual({ due: 1, created: 1, skipped: 0, failed: 0, pushFailed: 1 });
+    expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1', reason: 'boom' });
+  });
 });

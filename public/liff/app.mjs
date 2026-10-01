@@ -109,6 +109,8 @@ let editingBudget = null;
 let budgetBusy = false;
 let editingRecurring = null;
 let recurringBusy = false;
+// โหลดที่ถูกทิ้งอาจพก focus มา เก็บไว้ให้โหลดล่าสุดที่ render จริงใช้
+let pendingRecurringFocus = null;
 const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
 
@@ -564,14 +566,21 @@ function showRecurringError(err) {
 // รายการประจำไม่ผูกกับเดือน โหลดแยกจากรายการและงบ และไม่ throw
 async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
   const requestId = recurringGuard.start();
+  if (focusRuleId || focusAdd) pendingRecurringFocus = { focusRuleId, focusAdd };
   try {
     const { rules } = await api.listRecurring();
     // โหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
     if (!recurringGuard.isCurrent(requestId)) return;
-    renderRecurring(rules, focusRuleId);
-    if (focusAdd) els.recurringAdd.focus();
+    const focus = pendingRecurringFocus ?? { focusRuleId: null, focusAdd: false };
+    pendingRecurringFocus = null;
+    renderRecurring(rules, focus.focusRuleId);
+    if (focus.focusAdd) els.recurringAdd.focus();
   } catch (err) {
-    if (recurringGuard.isCurrent(requestId)) showRecurringError(err);
+    if (recurringGuard.isCurrent(requestId)) {
+      // error render ไม่มีแถวให้ focus ต้องล้าง ไม่ให้ค้างไปโหลดถัดไป
+      pendingRecurringFocus = null;
+      showRecurringError(err);
+    }
   }
 }
 

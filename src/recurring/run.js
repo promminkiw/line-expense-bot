@@ -19,7 +19,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
       try {
         created = await repository.applyRecurringRule({ ruleId: rule.id, dueOn, eventId });
       } catch (err) {
-        logger.error('Failed to apply recurring rule', { ruleId: rule.id, reason: err.message });
+        logger.error('Failed to apply recurring rule', { ruleId: rule.id, reason: err?.message ?? String(err) });
         result.failed += 1;
         continue;
       }
@@ -42,7 +42,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
         await pushText(rule.lineUserId, text, buildUndoQuickReply(eventId));
       } catch (err) {
         // บันทึกสำเร็จแล้ว push พังไม่ต้องย้อนรายการ และไม่ log err ทั้งก้อนเพราะ cause.details อาจมียอดเงิน
-        logger.error('Failed to push recurring notice', { ruleId: rule.id, reason: err.message });
+        logger.error('Failed to push recurring notice', { ruleId: rule.id, reason: err?.message ?? String(err) });
         result.pushFailed += 1;
       }
     }
