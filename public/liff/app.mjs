@@ -25,12 +25,18 @@ import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
 import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
+import { animateNumber, growBar } from './motion.mjs';
+import { createEmptyState } from './empty-state.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 
 const els = {
   month: document.getElementById('month'),
   totals: document.getElementById('totals'),
+  statIncome: document.getElementById('stat-income'),
+  statExpense: document.getElementById('stat-expense'),
+  statBalance: document.getElementById('stat-balance'),
+  summaryEmpty: document.getElementById('summary-empty'),
   truncated: document.getElementById('truncated'),
   exportButton: document.getElementById('export-button'),
   exportStatus: document.getElementById('export-status'),
@@ -124,6 +130,25 @@ const recurringGuard = createLatestGuard();
 const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4 });
 const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
 els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
+els.summaryEmpty.append(createEmptyState(document, 'summary'));
+els.recurringEmpty.append(createEmptyState(document, 'recurring'));
+
+// เก็บค่าเดิมและตัวยกเลิกของแต่ละช่อง เพื่อนับต่อจากค่าเดิมและไม่ให้แอนิเมชันซ้อนกัน
+const shownAmounts = new Map();
+function showAmount(el, value) {
+  const previous = shownAmounts.get(el);
+  if (previous) previous.cancel();
+  const from = previous ? previous.value : 0;
+  const cancel = animateNumber({
+    win: window,
+    from,
+    to: value,
+    onFrame: (current) => {
+      el.textContent = formatBaht(Math.round(current * 100) / 100);
+    },
+  });
+  shownAmounts.set(el, { value, cancel });
+}
 
 function setStatus(text, { loading = false } = {}) {
   els.status.textContent = text;
@@ -198,11 +223,12 @@ function renderChart() {
     tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
   els.chartRows.replaceChildren();
-  // เดือนที่ไม่มีรายการเลยมีข้อความว่างใต้รายการอยู่แล้ว ไม่ต้องแสดงซ้ำในกราฟ
   if (!hasChartData(lastSummary)) {
     els.chart.hidden = true;
+    els.summaryEmpty.hidden = false;
     return;
   }
+  els.summaryEmpty.hidden = true;
   const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
@@ -226,7 +252,7 @@ function renderChart() {
     track.className = 'chart-track';
     const fill = document.createElement('div');
     fill.className = 'chart-fill';
-    fill.style.width = `${row.width}%`;
+    growBar(window, fill, row.width);
     track.append(fill);
     item.append(label, value, track);
     els.chartRows.append(item);
@@ -236,24 +262,31 @@ function renderChart() {
 function render({ transactions, summary, truncated }) {
   els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
-  els.totals.textContent = `รายรับ ${formatBaht(sum.income)} · รายจ่าย ${formatBaht(sum.expense)}`;
+  showAmount(els.statIncome, sum.income);
+  showAmount(els.statExpense, sum.expense);
+  showAmount(els.statBalance, Math.round((sum.income - sum.expense) * 100) / 100);
   els.totals.hidden = false;
   els.truncated.hidden = !truncated;
   lastSummary = summary;
   renderChart();
   els.list.replaceChildren();
   if (transactions.length === 0) {
-    setStatus('ยังไม่มีรายการในเดือนนี้');
+    setStatus('');
+    els.list.append(createEmptyState(document, 'list', 'li'));
     return;
   }
   setStatus('');
+  let rowIndex = 0;
   for (const group of groupByDate(transactions)) {
     const heading = document.createElement('li');
     heading.className = 'day';
     heading.textContent = formatThaiDate(group.date);
     els.list.append(heading);
     for (const item of group.items) {
-      els.list.append(renderRow(item));
+      const rowEl = renderRow(item);
+      rowEl.style.setProperty('--i', String(Math.min(rowIndex, 10)));
+      rowIndex += 1;
+      els.list.append(rowEl);
     }
   }
 }
@@ -287,7 +320,7 @@ function renderBudgets(budgets, focusCategoryId = null) {
       track.className = 'budget-track';
       const fill = document.createElement('span');
       fill.className = 'budget-fill';
-      fill.style.width = `${row.width}%`;
+      growBar(window, fill, row.width);
       track.append(fill);
       button.append(track);
     }
@@ -334,6 +367,7 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.chart.hidden = true;
+    els.summaryEmpty.hidden = true;
     els.summarySkeleton.hidden = false;
     // เปิดส่วนงบพร้อมข้อความโหลดไว้ก่อน รายการด้านล่างจะได้ไม่กระโดดตอนงบมาช้า
     els.budgetRows.replaceChildren();

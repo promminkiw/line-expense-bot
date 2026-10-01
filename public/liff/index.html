@@ -23,6 +23,10 @@
     <symbol id="tab-budget" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11v4"/><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M16 14.5h.01"/></symbol>
     <symbol id="tab-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M20 6H8a4 4 0 0 0-4 4v1"/><path d="M7 21l-3-3 3-3"/><path d="M4 18h12a4 4 0 0 0 4-4v-1"/></symbol>
     <symbol id="tab-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
+    <symbol id="empty-list" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="4"/><path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M22 26h20M22 34h20M22 42h12"/></symbol>
+    <symbol id="empty-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></symbol>
+    <symbol id="empty-chart" viewBox="0 0 64 64"><path d="M12 52h40"/><rect x="16" y="34" width="8" height="18" rx="2"/><rect x="28" y="22" width="8" height="30" rx="2"/><rect x="40" y="12" width="8" height="40" rx="2"/></symbol>
+    <symbol id="empty-recurring" viewBox="0 0 64 64"><path d="M44 12l8 8-8 8"/><path d="M52 20H24a12 12 0 0 0-12 12v4"/><path d="M20 52l-8-8 8-8"/><path d="M12 44h28a12 12 0 0 0 12-12v-4"/></symbol>
   </svg>
   <main id="app">
     <header class="bar">
@@ -31,7 +35,11 @@
     </header>
     <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
     <div id="panel-list" class="panel">
-      <p id="totals" class="totals" hidden></p>
+      <div id="totals" class="stat-cards" hidden>
+        <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income" class="stat-value"></span></div>
+        <div class="stat expense"><span class="stat-label">รายจ่าย</span><span id="stat-expense" class="stat-value"></span></div>
+        <div class="stat balance"><span class="stat-label">คงเหลือเดือนนี้</span><span id="stat-balance" class="stat-value"></span></div>
+      </div>
       <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
       <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
       <ul id="list" class="list"></ul>
@@ -52,7 +60,8 @@
         <ul id="chart-rows" class="chart-rows"></ul>
         <p id="chart-empty" class="chart-empty" hidden></p>
       </section>
-      <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="summary-empty" hidden></div>
+      <ul id="summary-skeleton"class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
     </div>
     <div id="panel-budgets" class="panel" hidden>
       <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
@@ -73,7 +82,7 @@
         <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้กฎที่หยุดไว้) จะเริ่มเดือนหน้า</p>
         <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
         <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
-        <p id="recurring-empty" class="recurring-empty" hidden>ยังไม่มีรายการประจำ</p>
+        <div id="recurring-empty" hidden></div>
         <ul id="recurring-rows" class="recurring-rows"></ul>
         <div id="recurring-error" class="budgets-error" hidden>
           <p id="recurring-error-text"></p>
