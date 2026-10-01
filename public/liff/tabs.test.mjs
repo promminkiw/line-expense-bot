@@ -79,6 +79,20 @@ describe('createTabController', () => {
     expect(ctx.onChange).not.toHaveBeenCalled();
   });
 
+  it('ignores a tab whose panel is missing', () => {
+    const nav = document.createElement('nav');
+    const controller = createTabController({
+      doc: document,
+      nav,
+      titleEl: document.createElement('h1'),
+      monthEl: document.createElement('input'),
+      panelFor: (id) => (id === 'list' ? document.createElement('div') : null),
+    });
+
+    expect(() => controller.select('profile')).not.toThrow();
+    expect(controller.current).toBe('profile');
+  });
+
   it('switches when a nav button is clicked', () => {
     ctx.nav.querySelector('button[data-tab="profile"]').click();
 

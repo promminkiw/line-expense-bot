@@ -40,7 +40,8 @@ export function createTabController({ doc, nav, titleEl, monthEl, panelFor, onCh
       }
     }
     for (const other of TABS) {
-      panelFor(other.id).hidden = other.id !== tab.id;
+      const panel = panelFor(other.id);
+      if (panel) panel.hidden = other.id !== tab.id;
     }
     titleEl.textContent = tab.title;
     monthEl.hidden = !tab.showMonth;

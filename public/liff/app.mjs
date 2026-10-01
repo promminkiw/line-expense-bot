@@ -21,6 +21,7 @@ import {
   shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
+import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
@@ -36,6 +37,7 @@ const els = {
   chartEmpty: document.getElementById('chart-empty'),
   tabs: document.querySelectorAll('#chart .tabs button'),
   status: document.getElementById('status'),
+  banner: document.getElementById('banner'),
   list: document.getElementById('list'),
   editor: document.getElementById('editor'),
   form: document.getElementById('edit-form'),
@@ -120,8 +122,12 @@ function setStatus(text) {
   els.status.hidden = !text;
 }
 
+const setBanner = createBannerSetter(els.banner);
+
 function showLoadError(err) {
-  setStatus(
+  // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
+  setStatus('');
+  setBanner(
     err instanceof ApiError && err.status === 401
       ? LOGIN_REQUIRED_MESSAGE
       : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง'
@@ -295,6 +301,7 @@ async function loadBudgets({ focusCategoryId = null } = {}) {
 async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
   if (reset) {
+    setBanner('');
     els.list.replaceChildren();
     els.totals.hidden = true;
     els.truncated.hidden = true;
@@ -383,7 +390,7 @@ async function runEdit(action, kind) {
   if (failure.closeAndReload) {
     els.editor.close();
     await loadMonth();
-    setStatus(failure.message);
+    setBanner(failure.message);
     return;
   }
   els.error.textContent = failure.message;
@@ -634,7 +641,7 @@ async function runRecurringAction(action, kind, focusRuleId = null) {
   if (failure && shouldCloseRecurringEditor(failureStatus)) {
     els.recurringEditor.close();
     await loadRecurring();
-    setStatus(failure);
+    setBanner(failure);
     return;
   }
   if (failure) {
@@ -692,7 +699,10 @@ const tabController = createTabController({
   titleEl: document.getElementById('page-title'),
   monthEl: els.month,
   panelFor: (id) => document.getElementById(`panel-${id}`),
-  onChange: () => window.scrollTo(0, 0),
+  onChange: () => {
+    setBanner('');
+    window.scrollTo(0, 0);
+  },
 });
 tabController.select(DEFAULT_TAB);
 
