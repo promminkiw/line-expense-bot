@@ -10,6 +10,8 @@ import {
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,
+  SLIP_EXPIRED_REPLY,
+  SLIP_CANCELLED_REPLY,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
@@ -818,5 +820,118 @@ describe('bot slip image', () => {
 
     expect(deps.downloadImage).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot slip confirmation', () => {
+  const SINCE = new Date(NOW_MS - 10 * 60 * 1000).toISOString();
+  const SAVE = `action=slip_save&slip=${SLIP_ID}`;
+  const CANCEL = `action=slip_cancel&slip=${SLIP_ID}`;
+
+  it('claims the pending slip, saves it as a slip transaction and offers undo', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.claimPendingSlip).toHaveBeenCalledWith('user-1', SLIP_ID, SINCE);
+    expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
+      {
+        user_id: 'user-1',
+        type: 'expense',
+        category_id: 'cat-food',
+        amount: 120,
+        note: 'โอนให้ ร้านข้าวแกง',
+        occurred_on: '2026-09-28',
+        source: 'slip',
+        line_event_id: 'ev-img',
+      },
+    ]);
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r2',
+      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง',
+      [
+        {
+          type: 'action',
+          action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+        },
+      ]
+    );
+  });
+
+  it('appends the budget alert after saving a slip', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getBudgetStatus.mockResolvedValue([
+      { categoryId: 'cat-food', category: 'อาหาร', budget: 150, spent: 135 },
+    ]);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
+    expect(deps.replyText.mock.calls[0][1]).toBe(
+      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)'
+    );
+  });
+
+  it('does not save twice: a second tap finds nothing to claim', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimPendingSlip.mockResolvedValue(null);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_EXPIRED_REPLY, undefined);
+  });
+
+  it('ignores a slip id that is not a UUID without touching the database', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=slip_save&slip=not-a-uuid'));
+    await bot.handleEvent(postbackEvent('action=slip_save'));
+
+    expect(deps.repository.claimPendingSlip).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('answers the system error when saving fails after the claim', async () => {
+    const { deps, bot } = setup();
+    const error = new Error('insert failed');
+    deps.repository.insertTransactions.mockRejectedValue(error);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'postback' },
+      error
+    );
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('cancels by discarding the pending slip without saving', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent(CANCEL));
+
+    expect(deps.repository.claimPendingSlip).toHaveBeenCalledWith('user-1', SLIP_ID, SINCE);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_CANCELLED_REPLY, undefined);
+  });
+
+  it('tells the user when the slip to cancel is already gone', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimPendingSlip.mockResolvedValue(null);
+
+    await bot.handleEvent(postbackEvent(CANCEL));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_EXPIRED_REPLY, undefined);
+  });
+
+  it('keeps the undo postback working', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev-img'));
+
+    expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev-img');
+    expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_DONE_REPLY, undefined);
   });
 });

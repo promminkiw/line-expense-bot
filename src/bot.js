@@ -23,6 +23,7 @@ const SLIP_SAVE_ACTION = 'slip_save';
 const SLIP_CANCEL_ACTION = 'slip_cancel';
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
 const SLIP_TTL_MS = 10 * 60 * 1000;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
@@ -248,15 +249,66 @@ function createBot({
     };
   }
 
-  async function handleUndo(event, lineUserId) {
-    const params = new URLSearchParams(event.postback.data);
+  async function handleUndo(params, lineUserId) {
     const webhookEventId = params.get('event');
-    if (params.get('action') !== UNDO_ACTION || !webhookEventId) {
+    if (!webhookEventId) {
       return null;
     }
     const userId = await users.ensureUser(lineUserId);
     const deleted = await repository.deleteTransactionsByEvent(userId, webhookEventId);
     return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
+  }
+
+  // ลบแถวพร้อมคืนค่าในคำสั่งเดียว ใครกดก่อนได้แถว คนกดซ้ำได้ null
+  async function claimSlip(params, userId) {
+    return repository.claimPendingSlip(userId, params.get('slip'), new Date(now() - SLIP_TTL_MS).toISOString());
+  }
+
+  async function handleSlipSave(params, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    const slip = await claimSlip(params, userId);
+    if (!slip) {
+      return { text: SLIP_EXPIRED_REPLY };
+    }
+    const categoryIds = await users.loadCategoryIds(userId);
+    const rows = toTransactionRows({
+      items: [slip.item],
+      categoryIds,
+      userId,
+      webhookEventId: slip.webhookEventId,
+      source: 'slip',
+    });
+    await repository.insertTransactions(rows);
+    const saved = formatSavedReply([slip.item]);
+    const alerts = await checkBudgets(userId, rows);
+    return {
+      text: alerts ? `${saved}
+
+${alerts}` : saved,
+      quickReply: buildUndoQuickReply(slip.webhookEventId),
+    };
+  }
+
+  async function handleSlipCancel(params, lineUserId) {
+    const userId = await users.ensureUser(lineUserId);
+    const slip = await claimSlip(params, userId);
+    return { text: slip ? SLIP_CANCELLED_REPLY : SLIP_EXPIRED_REPLY };
+  }
+
+  async function handlePostback(event, lineUserId) {
+    const params = new URLSearchParams(event.postback.data);
+    const action = params.get('action');
+    if (action === UNDO_ACTION) {
+      return handleUndo(params, lineUserId);
+    }
+    if (action === SLIP_SAVE_ACTION || action === SLIP_CANCEL_ACTION) {
+      // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงไม่ส่งไปถึง DB
+      if (!UUID_PATTERN.test(params.get('slip') || '')) {
+        return null;
+      }
+      return action === SLIP_SAVE_ACTION ? handleSlipSave(params, lineUserId) : handleSlipCancel(params, lineUserId);
+    }
+    return null;
   }
 
   async function buildReply(event, lineUserId) {
@@ -271,7 +323,7 @@ function createBot({
       return handleImage(event, lineUserId);
     }
     if (event.type === 'postback') {
-      return handleUndo(event, lineUserId);
+      return handlePostback(event, lineUserId);
     }
     return null;
   }
