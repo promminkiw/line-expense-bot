@@ -4,7 +4,7 @@ const { messagingApi } = require('@line/bot-sdk');
 const { createClient } = require('@supabase/supabase-js');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
-const { createBot } = require('./src/bot');
+const { createBot, SLIP_TTL_MS } = require('./src/bot');
 const { createReplyText, createReplyFlex } = require('./src/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
 const { createRepository } = require('./src/db/repository');
@@ -14,6 +14,7 @@ const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
 const { createImageDownloader } = require('./src/slip/download-image');
 const { createSlipParser } = require('./src/slip/parse-slip');
+const { createPendingSlipSweeper, startPendingSlipSweeper } = require('./src/slip/pending-sweep');
 const { createIdTokenVerifier } = require('./src/api/verify-id-token');
 const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
@@ -64,6 +65,8 @@ const bot = createBot({
   allowRequest,
   liffUrl: `https://liff.line.me/${config.liffId}`,
 });
+// สลิปของผู้ใช้ที่ไม่ส่งรูปอีกจะค้างในตารางตลอดไป จึงกวาดแถวที่หมดอายุทุกชั่วโมง
+startPendingSlipSweeper({ sweep: createPendingSlipSweeper({ repository, ttlMs: SLIP_TTL_MS }) });
 const apiRouter = createApiRouter({
   verifyIdToken: createIdTokenVerifier({ channelId: config.lineLoginChannelId }),
   users,

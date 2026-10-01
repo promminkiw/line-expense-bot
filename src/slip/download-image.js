@@ -1,5 +1,6 @@
-// เพดานรูปของ Claude API ต่อรูป
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// เพดานนี้กันให้ base64 ของรูปไม่เกิน 5 MB ซึ่งเป็นขีดจำกัดรูปของ Claude
+const MAX_IMAGE_BYTES = 3.75 * 1024 * 1024;
+const DOWNLOAD_TIMEOUT_MS = 15000;
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -24,25 +25,53 @@ function detectMediaType(buffer) {
   return null;
 }
 
-function createImageDownloader({ blobClient }) {
+function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS }) {
   return async function downloadImage(messageId) {
-    const stream = await blobClient.getMessageContent(messageId);
-    const chunks = [];
-    let size = 0;
-    for await (const chunk of stream) {
-      size += chunk.length;
-      // หยุดอ่านทันทีที่เกินเพดาน ไม่เก็บรูปใหญ่ทั้งใบไว้ใน memory
-      if (size > MAX_IMAGE_BYTES) {
-        return { status: 'too_large' };
+    let stream = null;
+    let timedOut = false;
+    let timer;
+
+    async function readImage() {
+      const content = await blobClient.getMessageContent(messageId);
+      // สตรีมที่มาถึงหลังหมดเวลาต้องปิดทิ้ง ไม่งั้นค้างอยู่
+      if (timedOut) {
+        content.destroy();
+        return null;
       }
-      chunks.push(chunk);
+      stream = content;
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of stream) {
+        size += chunk.length;
+        // หยุดอ่านทันทีที่เกินเพดาน ไม่เก็บรูปใหญ่ทั้งใบไว้ใน memory
+        if (size > MAX_IMAGE_BYTES) {
+          return { status: 'too_large' };
+        }
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+      const mediaType = detectMediaType(buffer);
+      if (!mediaType) {
+        return { status: 'unsupported' };
+      }
+      return { status: 'ok', mediaType, data: buffer.toString('base64') };
     }
-    const buffer = Buffer.concat(chunks);
-    const mediaType = detectMediaType(buffer);
-    if (!mediaType) {
-      return { status: 'unsupported' };
+
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        if (stream) {
+          stream.destroy();
+        }
+        reject(new Error('LINE image download timed out'));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([readImage(), timeout]);
+    } finally {
+      clearTimeout(timer);
     }
-    return { status: 'ok', mediaType, data: buffer.toString('base64') };
   };
 }
 

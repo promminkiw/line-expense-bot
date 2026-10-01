@@ -1,22 +1,24 @@
 const { DEFAULT_CATEGORIES } = require('../parser/categories');
-const { toParseResult, ParseError } = require('../parser/parse-message');
+const {
+  toParseResult,
+  ParseError,
+  MAX_AMOUNT,
+  REQUEST_TIMEOUT_MS,
+  MAX_RETRIES,
+  OVERALL_TIMEOUT_MS,
+  ALL_CATEGORIES,
+  isPlainObject,
+} = require('../parser/parse-message');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 
-// reply token ของ LINE หมดอายุเร็ว ค่าเวลาเดียวกับ parse-message.js
-const REQUEST_TIMEOUT_MS = 20000;
-const MAX_RETRIES = 1;
-const OVERALL_TIMEOUT_MS = 30000;
 // โน้ตมีชื่อผู้รับ จำกัดความยาวกันข้อความยาวผิดปกติจากรูป
 const MAX_NOTE_LENGTH = 100;
 // โน้ตของแต่ละสินค้าสั้นกว่าโน้ตหมายเหตุ เพื่อให้ข้อความตอบ 20 รายการไม่เกินขีดจำกัดของ LINE
 const MAX_ITEM_NOTE_LENGTH = 50;
 // เพดานสินค้าต่อใบ จำกัดความยาวข้อความตอบและจำนวนแถวที่บันทึกต่อใบเสร็จ
 const MAX_SLIP_ITEMS = 20;
-const MAX_REJECTED_AMOUNTS = 20;
 
 const REJECTION_KINDS = ['none', 'not_a_financial_document', 'unreadable_image', 'partial_or_cropped', 'other'];
-
-const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เอง
 const SLIP_SCHEMA = {
@@ -71,10 +73,6 @@ function buildSystemPrompt(today) {
   ].join('\n');
 }
 
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
 function hasValidShape(data) {
   return (
     isPlainObject(data) &&
@@ -111,12 +109,12 @@ function sanitizeNote(note, max = MAX_NOTE_LENGTH) {
 
 // เก็บเฉพาะเหตุผลและตัวเลขไว้ให้ log ไม่ใส่รูปหรือชื่อสินค้า
 function unreadable(reason, itemCount, rejectedAmounts) {
-  return { status: 'unreadable', reason, itemCount, rejectedAmounts: rejectedAmounts.slice(0, MAX_REJECTED_AMOUNTS) };
+  return { status: 'unreadable', reason, itemCount, rejectedAmounts };
 }
 
-// ค่าที่ไม่อยู่ในรายการหรือไม่มีฟิลด์ถือเป็น other เพื่อให้ log ใช้เป็นตัวนับได้เสมอ
+// none ใช้กับใบที่ผ่านเท่านั้น ถ้าโผล่ตอนปฏิเสธถือเป็น other เพื่อให้ log ใช้เป็นตัวนับได้เสมอ
 function toRejectionKind(value) {
-  return REJECTION_KINDS.includes(value) ? value : 'other';
+  return REJECTION_KINDS.includes(value) && value !== 'none' ? value : 'other';
 }
 
 function createSlipParser({ client, model, now = () => new Date() }) {
@@ -207,7 +205,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
       items: keptItems,
       dateAssumed: !isValidCalendarDate(date),
       extrasNote: sanitizeNote(data.extras_note),
-      slipTotal: Number.isFinite(data.slip_total) && data.slip_total > 0 ? data.slip_total : 0,
+      slipTotal: Number.isFinite(data.slip_total) && data.slip_total > 0 && data.slip_total <= MAX_AMOUNT ? data.slip_total : 0,
       truncatedTo: truncated ? MAX_SLIP_ITEMS : 0,
       skippedCount: rejectedAmounts.length,
     };

@@ -12,6 +12,7 @@ import {
   SLIP_UNSUPPORTED_REPLY,
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
+  SLIP_TTL_MS,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
@@ -825,6 +826,14 @@ describe('bot slip image', () => {
     );
   });
 
+  it('tells the user the image limit is 3.5 MB', () => {
+    expect(SLIP_TOO_LARGE_REPLY).toBe('รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน');
+  });
+
+  it('exports the pending slip lifetime as 10 minutes', () => {
+    expect(SLIP_TTL_MS).toBe(10 * 60 * 1000);
+  });
+
   it('explains when the image is too large or not a supported image, without calling Claude', async () => {
     for (const [status, reply] of [
       ['too_large', SLIP_TOO_LARGE_REPLY],
@@ -1193,6 +1202,24 @@ describe('bot slip with several items', () => {
       'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน'
     );
     expect(deps.replyText.mock.calls[0][2][0].action.data).toBe('action=undo&event=ev-img');
+  });
+
+  it('emits one budget alert when two items of the receipt are in the same category', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadCategoryIds.mockResolvedValue(CATEGORY_IDS);
+    deps.repository.claimPendingSlip.mockResolvedValue({
+      webhookEventId: 'ev-img',
+      items: [SLIP_ITEM, { ...SLIP_ITEM, amount: 30, note: 'น้ำเปล่า' }],
+    });
+    deps.repository.getBudgetStatus.mockResolvedValue([
+      { categoryId: 'cat-food', category: 'อาหาร', budget: 200, spent: 170 },
+    ]);
+
+    await bot.handleEvent(postbackEvent(SAVE));
+
+    const text = deps.replyText.mock.calls[0][1];
+    expect(text.split('ใกล้เต็มงบ')).toHaveLength(2);
+    expect(text).toContain('ใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 170 จาก 200 บาท (85%)');
   });
 
   it('checks the budget of every category the receipt touched', async () => {

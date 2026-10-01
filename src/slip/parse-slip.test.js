@@ -169,10 +169,13 @@ describe('createSlipParser', () => {
 
   it('reports other when the rejection kind is unknown or missing', async () => {
     const unknown = await setup(slipJson({ is_slip: false, rejection_kind: 'weird' })).parseSlip(IMAGE);
-    const { rejection_kind, ...withoutKind } = slipJson({ is_slip: false });
+    const none = await setup(slipJson({ is_slip: false, rejection_kind: 'none' })).parseSlip(IMAGE);
+    const withoutKind = slipJson({ is_slip: false });
+    delete withoutKind.rejection_kind;
     const missing = await setup(withoutKind).parseSlip(IMAGE);
 
     expect(unknown.rejectionKind).toBe('other');
+    expect(none.rejectionKind).toBe('other');
     expect(missing.reason).toBe('not_slip');
     expect(missing.rejectionKind).toBe('other');
   });
@@ -290,6 +293,15 @@ describe('createSlipParser with several items', () => {
     }
   });
 
+  it('keeps a slip total of exactly MAX_AMOUNT and zeroes anything above it', async () => {
+    const totals = [];
+    for (const slip_total of [MAX_AMOUNT, MAX_AMOUNT + 1, 1e21]) {
+      totals.push((await setup(slipJson({ items: [MILK], slip_total })).parseSlip(IMAGE)).slipTotal);
+    }
+
+    expect(totals).toEqual([MAX_AMOUNT, 0, 0]);
+  });
+
   it('keeps the first items and reports the cut when there are too many', async () => {
     const items = Array.from({ length: MAX_SLIP_ITEMS + 5 }, (_, index) => ({ ...MILK, note: `สินค้า ${index + 1}` }));
     const result = await setup(slipJson({ items })).parseSlip(IMAGE);
@@ -382,12 +394,21 @@ describe('createSlipParser with several items', () => {
     expect(result.truncatedTo).toBe(MAX_SLIP_ITEMS);
   });
 
-  it('caps the rejected amounts at 20 and shows non-numbers as null', async () => {
+  it('shows non-numbers as null in the rejected amounts', async () => {
     const items = Array.from({ length: MAX_SLIP_ITEMS }, (_, index) => ({ ...MILK, amount: index === 0 ? 'x' : -1 }));
     const result = await setup(slipJson({ items })).parseSlip(IMAGE);
 
-    expect(result.rejectedAmounts).toHaveLength(20);
+    expect(result.rejectedAmounts).toHaveLength(MAX_SLIP_ITEMS);
     expect(result.rejectedAmounts[0]).toBeNull();
+  });
+
+  it('reports rejected amounts only for the first 20 items when all 25 are invalid', async () => {
+    const items = Array.from({ length: MAX_SLIP_ITEMS + 5 }, () => ({ ...MILK, amount: -1 }));
+    const result = await setup(slipJson({ items })).parseSlip(IMAGE);
+
+    expect(result.reason).toBe('no_valid_items');
+    expect(result.itemCount).toBe(MAX_SLIP_ITEMS + 5);
+    expect(result.rejectedAmounts).toHaveLength(MAX_SLIP_ITEMS);
   });
 
   it('tells Claude to leave discounts, negative prices and free items out of the items', async () => {

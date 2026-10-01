@@ -61,6 +61,17 @@ describe('createReplyText', () => {
       expect(sentText(client).endsWith('...')).toBe(true);
     });
 
+    it('steps back when the cut would split a surrogate pair', async () => {
+      const client = makeClient();
+
+      await createReplyText(client)('t', 'a' + String.fromCodePoint(0x1f600).repeat(3000));
+
+      const text = sentText(client);
+      expect(text.isWellFormed()).toBe(true);
+      expect(text.endsWith('...')).toBe(true);
+      expect(text.length).toBe(4989 + 3);
+    });
+
     it('keeps quick reply items on a cut text', async () => {
       const client = makeClient();
       const items = [{ type: 'action', action: { type: 'postback', label: 'ยกเลิก', data: 'x' } }];

@@ -159,6 +159,12 @@ function createRepository(supabase) {
     throwIfError('deleteExpiredPendingSlips', error);
   }
 
+  // งานกวาดทั้งระบบ ไม่กรอง user (ใช้ service role)
+  async function deleteAllExpiredPendingSlips(beforeIso) {
+    const { error } = await supabase.from('pending_slips').delete().lte('created_at', beforeIso);
+    throwIfError('deleteAllExpiredPendingSlips', error);
+  }
+
   async function summarizeTransactions(userId, from, to) {
     const { data, error } = await supabase.rpc('summarize_transactions', {
       p_user_id: userId,
@@ -331,6 +337,7 @@ function createRepository(supabase) {
     savePendingSlip,
     claimPendingSlip,
     deleteExpiredPendingSlips,
+    deleteAllExpiredPendingSlips,
     findUserIdByLineId,
     createUser,
     seedDefaultCategories,
