@@ -1202,7 +1202,7 @@ describe('recurring rules API', () => {
   });
 
   it('leaves lastRunOn empty when the due day is still ahead this month', async () => {
-    const deps = setup();
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
     const base = await start(deps);
 
     await call(base, '/recurring', { method: 'POST', body: { ...BODY, dayOfMonth: 31 } });
@@ -1225,7 +1225,7 @@ describe('recurring rules API', () => {
   });
 
   it('updates a rule and recomputes lastRunOn from the existing value', async () => {
-    const deps = setup();
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
     deps.repository.listRecurringRules.mockResolvedValue([EXISTING]);
     const base = await start(deps);
 
@@ -1911,7 +1911,11 @@ Expected: ทุกไฟล์ผ่าน (จำนวน test มากก�
 | 5 | เรียกคำสั่งข้อ 4 ซ้ำ | ได้ `due=0 created=0` (ไม่บันทึกซ้ำ ไม่มี push ใหม่) |
 | 6 | เปิดหน้าเว็บ ดูเดือนนี้ | มีรายการ 1 บาทของกฎนั้นหนึ่งรายการ |
 | 7 | กดปุ่ม "ยกเลิก" ใต้ push ใน LINE | บอทตอบว่ายกเลิกแล้ว รายการหายจากหน้าเว็บ |
-| 8 | รัน SQL ข้อ 3 อีกครั้งแล้วเรียกข้อ 4 | ได้ `created=1` อีกครั้ง (ยืนยัน embed `users(line_user_id), categories(name)` ใช้ได้กับ DB จริง) แล้วลบกฎและรายการทดสอบทิ้งในหน้าเว็บ |
+| 8 | รัน SQL ข้อ 3 อีกครั้งแล้วเรียกข้อ 4 | ได้ `created=1` อีกครั้ง (ยืนยัน embed `users(line_user_id), categories(name)` ใช้ได้กับ DB จริง) |
+| 9 | ใน SQL Editor: `select public.apply_recurring_rule('<id กฎ>'::uuid, current_date, 'wrong-id');` | error `invalid recurring event id` (function ปฏิเสธ event id ที่ไม่ตรงรูปแบบ) |
+| 10 | ตั้ง `last_run_on` ของกฎเป็นวันที่ในเดือนนี้ แล้วเรียก function ด้วย event id ที่ถูกต้อง `'recurring:<id กฎ>:' || to_char(current_date, 'YYYY-MM')` | คืน `false` และไม่มีรายการใหม่ (กันบันทึกซ้ำเดือนเดียวกัน) |
+| 11 | ตั้ง header เป็น `Authorization: bearer <SECRET>` (ตัวพิมพ์เล็ก) | ได้ 401 (cron ต้องส่ง `Bearer` ตัว B ใหญ่ตรงตัว) |
+| 12 | ลบกฎและรายการทดสอบทิ้งในหน้าเว็บ | ไม่มีข้อมูลทดสอบเหลือ |
 
 ถ้าข้อ 4 ได้ `failed=1` หรือ 500 ให้ดู log ของ server: ถ้าเป็น error ของ embed (`Could not find a relationship`) ให้แก้ `listDueRecurringRules` เป็น query แยกสำหรับ `users` และ `categories` แทน embed แล้วเพิ่มเทสต์ก่อนแก้
 
