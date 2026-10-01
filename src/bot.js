@@ -256,6 +256,7 @@ function createBot({
         reason: slip.reason,
         itemCount: slip.itemCount,
         rejectedAmounts: slip.rejectedAmounts,
+        rejectionKind: slip.rejectionKind,
       });
       return { text: SLIP_UNREADABLE_REPLY };
     }

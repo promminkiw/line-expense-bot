@@ -786,8 +786,30 @@ describe('bot slip image', () => {
       reason: 'no_valid_items',
       itemCount: 2,
       rejectedAmounts: [-5, 0],
+      rejectionKind: undefined,
     });
     expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNREADABLE_REPLY, undefined);
+  });
+
+  it('logs the rejection kind when Claude says the image is not a slip', async () => {
+    const parseSlip = vi.fn().mockResolvedValue({
+      status: 'unreadable',
+      reason: 'not_slip',
+      itemCount: 0,
+      rejectedAmounts: [],
+      rejectionKind: 'partial_or_cropped',
+    });
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.logger.info).toHaveBeenCalledWith('Slip unreadable', {
+      userId: 'user-1',
+      reason: 'not_slip',
+      itemCount: 0,
+      rejectedAmounts: [],
+      rejectionKind: 'partial_or_cropped',
+    });
   });
 
   it('shows how many items were skipped on the confirm card without changing the saved reply', async () => {

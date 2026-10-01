@@ -9,9 +9,10 @@ const IMAGE = { data: 'QUJD', mediaType: 'image/jpeg' };
 const NOW = new Date('2026-09-29T05:00:00Z');
 const EMOJI = String.fromCodePoint(0x1f600);
 
-function slipJson({ is_slip = true, date = '2026-09-28', slip_total = 0, extras_note = '', items, ...flat } = {}) {
+function slipJson({ is_slip = true, rejection_kind = 'none', date = '2026-09-28', slip_total = 0, extras_note = '', items, ...flat } = {}) {
   return {
     is_slip,
+    rejection_kind,
     date,
     slip_total,
     extras_note,
@@ -148,9 +149,64 @@ describe('createSlipParser', () => {
   });
 
   it('is unreadable when the image is not a slip', async () => {
-    const { parseSlip } = setup(slipJson({ is_slip: false, amount: 0 }));
+    const { parseSlip } = setup(slipJson({ is_slip: false, rejection_kind: 'not_a_financial_document', amount: 0 }));
 
-    expect(await parseSlip(IMAGE)).toEqual({ status: 'unreadable', reason: 'not_slip', itemCount: 0, rejectedAmounts: [] });
+    expect(await parseSlip(IMAGE)).toEqual({
+      status: 'unreadable',
+      reason: 'not_slip',
+      itemCount: 0,
+      rejectedAmounts: [],
+      rejectionKind: 'not_a_financial_document',
+    });
+  });
+
+  it('passes the rejection kind through when the image is rejected', async () => {
+    const result = await setup(slipJson({ is_slip: false, rejection_kind: 'unreadable_image' })).parseSlip(IMAGE);
+
+    expect(result.reason).toBe('not_slip');
+    expect(result.rejectionKind).toBe('unreadable_image');
+  });
+
+  it('reports other when the rejection kind is unknown or missing', async () => {
+    const unknown = await setup(slipJson({ is_slip: false, rejection_kind: 'weird' })).parseSlip(IMAGE);
+    const { rejection_kind, ...withoutKind } = slipJson({ is_slip: false });
+    const missing = await setup(withoutKind).parseSlip(IMAGE);
+
+    expect(unknown.rejectionKind).toBe('other');
+    expect(missing.reason).toBe('not_slip');
+    expect(missing.rejectionKind).toBe('other');
+  });
+
+  it('does not add a rejection kind to other unreadable reasons', async () => {
+    const result = await setup(slipJson({ items: [] })).parseSlip(IMAGE);
+
+    expect(result.rejectionKind).toBeUndefined();
+  });
+
+  it('declares rejection_kind as a required enum in the schema', () => {
+    expect(SLIP_SCHEMA.required).toContain('rejection_kind');
+    expect(SLIP_SCHEMA.properties.rejection_kind.enum).toEqual([
+      'none',
+      'not_a_financial_document',
+      'unreadable_image',
+      'partial_or_cropped',
+      'other',
+    ]);
+  });
+
+  it('uses a loose slip definition and asks for the rejection kind in the prompt', async () => {
+    const { create, parseSlip } = setup(slipJson());
+
+    await parseSlip(IMAGE);
+
+    const system = create.mock.calls[0][0].system;
+    expect(system).toContain('convenience');
+    expect(system).toContain('tax invoice');
+    expect(system).toContain('screenshot');
+    expect(system).toContain('one item per product or service line');
+    expect(system).toContain('extras_note');
+    expect(system).toContain('slip_total');
+    expect(system).toContain('rejection_kind');
   });
 
   it('is unreadable when the only item has a missing, not positive, zero-rounded or too large amount', async () => {

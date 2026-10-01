@@ -14,6 +14,8 @@ const MAX_ITEM_NOTE_LENGTH = 50;
 const MAX_SLIP_ITEMS = 20;
 const MAX_REJECTED_AMOUNTS = 20;
 
+const REJECTION_KINDS = ['none', 'not_a_financial_document', 'unreadable_image', 'partial_or_cropped', 'other'];
+
 const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เอง
@@ -21,6 +23,7 @@ const SLIP_SCHEMA = {
   type: 'object',
   properties: {
     is_slip: { type: 'boolean' },
+    rejection_kind: { type: 'string', enum: REJECTION_KINDS },
     date: { type: 'string' },
     items: {
       type: 'array',
@@ -39,7 +42,7 @@ const SLIP_SCHEMA = {
     slip_total: { type: 'number' },
     extras_note: { type: 'string' },
   },
-  required: ['is_slip', 'date', 'items', 'slip_total', 'extras_note'],
+  required: ['is_slip', 'rejection_kind', 'date', 'items', 'slip_total', 'extras_note'],
   additionalProperties: false,
 };
 
@@ -49,7 +52,8 @@ function buildSystemPrompt(today) {
     `Today is ${today} (Asia/Bangkok).`,
     '',
     'Rules:',
-    '- Set is_slip to true only when the picture is a Thai bank transfer slip, payment confirmation or receipt that shows a paid or received amount. Otherwise set is_slip to false, items to [], slip_total to 0, and the other fields to any valid value.',
+    '- Set is_slip to true when the picture shows a purchase or a payment with at least one price or amount of money, for example a shop receipt from any store (including convenience stores), a tax invoice, a bank transfer slip, a payment confirmation, an e-receipt or an app order summary screenshot, also when the image is a sample, a screenshot, partly cropped, or a photo of paper. Set is_slip to false only when the picture clearly has no purchase or payment amounts (a landscape, a person, a food photo, a document without prices). When is_slip is false, set items to [], slip_total to 0, extras_note to an empty string, date to an empty string, and the other fields to any valid value.',
+    '- Set rejection_kind to "none" when is_slip is true. Otherwise choose the closest kind: "not_a_financial_document", "unreadable_image" (blurry, dark, too small, glare), "partial_or_cropped", or "other".',
     '- A bank transfer slip or a payment confirmation has one amount: return exactly one item.',
     '- A shop receipt lists products or services: return one item per product or service line, in the order printed. Never add amounts together and never merge lines.',
     `- If a receipt has more than ${MAX_SLIP_ITEMS} product lines, return only the first ${MAX_SLIP_ITEMS + 1} items and stop.`,
@@ -110,6 +114,11 @@ function unreadable(reason, itemCount, rejectedAmounts) {
   return { status: 'unreadable', reason, itemCount, rejectedAmounts: rejectedAmounts.slice(0, MAX_REJECTED_AMOUNTS) };
 }
 
+// ค่าที่ไม่อยู่ในรายการหรือไม่มีฟิลด์ถือเป็น other เพื่อให้ log ใช้เป็นตัวนับได้เสมอ
+function toRejectionKind(value) {
+  return REJECTION_KINDS.includes(value) ? value : 'other';
+}
+
 function createSlipParser({ client, model, now = () => new Date() }) {
   return async function parseSlip({ data: imageData, mediaType }) {
     const today = toBangkokDateString(now());
@@ -157,7 +166,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
       throw new ParseError('Claude response does not match the expected shape');
     }
     if (!data.is_slip) {
-      return unreadable('not_slip', 0, []);
+      return { ...unreadable('not_slip', 0, []), rejectionKind: toRejectionKind(data.rejection_kind) };
     }
     if (data.items.length === 0) {
       return unreadable('no_items', 0, []);
