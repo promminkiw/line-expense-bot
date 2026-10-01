@@ -39,6 +39,17 @@ describe('getFixedReply', () => {
     expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
   });
 
+  it('documents the recurring section between the slip and undo sections', () => {
+    const lines = HELP_REPLY.split('\n');
+    const title = lines.indexOf('🔁 รายการประจำ');
+    expect(title).toBeGreaterThan(lines.indexOf('🧾 ส่งรูปสลิป/ใบเสร็จ'));
+    expect(lines.slice(title + 1, title + 3)).toEqual([
+      'ตั้งในหน้าเว็บ (ปุ่ม "เปิดเว็บ") เช่น ค่าเน็ตทุกวันที่ 5',
+      'บอทบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ยกเลิก" ได้',
+    ]);
+    expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
+  });
+
   it('uses the agreed wording', () => {
     expect(WEB_COMING_SOON_REPLY).toBe('หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้');
     expect(HELP_REPLY).toBe(
@@ -61,6 +72,10 @@ describe('getFixedReply', () => {
         'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ บอทอ่านยอดและวันที่',
         'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
         'ใบเสร็จที่มีหลายสินค้าจะแสดงแยกราคาทีละอย่าง (กดภายใน 10 นาที)',
+        '',
+        '🔁 รายการประจำ',
+        'ตั้งในหน้าเว็บ (ปุ่ม "เปิดเว็บ") เช่น ค่าเน็ตทุกวันที่ 5',
+        'บอทบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ยกเลิก" ได้',
         '',
         '↩️ บันทึกผิด?',
         'กดปุ่ม "ยกเลิก" ใต้ข้อความ "บันทึกแล้ว" ได้ทันที',

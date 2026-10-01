@@ -8,12 +8,17 @@ const REQUIRED_KEYS = [
   'LINE_LOGIN_CHANNEL_ID',
   'CRON_SECRET',
 ];
+const MIN_CRON_SECRET_LENGTH = 32;
 const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
 
 function loadConfig(env) {
   const missing = REQUIRED_KEYS.filter((key) => !env[key]);
   if (missing.length > 0) {
     throw new Error(`Missing environment variables: ${missing.join(', ')}`);
+  }
+
+  if (env.CRON_SECRET.length < MIN_CRON_SECRET_LENGTH) {
+    throw new Error(`CRON_SECRET must be at least ${MIN_CRON_SECRET_LENGTH} characters`);
   }
 
   return {

@@ -110,6 +110,7 @@ let budgetBusy = false;
 let editingRecurring = null;
 let recurringBusy = false;
 const budgetsGuard = createLatestGuard();
+const recurringGuard = createLatestGuard();
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -525,6 +526,7 @@ function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
   els.recurringLoading.hidden = true;
   els.recurringError.hidden = true;
+  els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
   els.recurringEmpty.hidden = rules.length > 0;
   for (const row of recurringRows(rules, categories)) {
@@ -551,6 +553,7 @@ function showRecurringError(err) {
   els.recurringRows.replaceChildren();
   els.recurringLoading.hidden = true;
   els.recurringEmpty.hidden = true;
+  els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.recurringErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดรายการประจำไม่สำเร็จ';
@@ -560,12 +563,15 @@ function showRecurringError(err) {
 
 // รายการประจำไม่ผูกกับเดือน โหลดแยกจากรายการและงบ และไม่ throw
 async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
+  const requestId = recurringGuard.start();
   try {
     const { rules } = await api.listRecurring();
+    // โหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
+    if (!recurringGuard.isCurrent(requestId)) return;
     renderRecurring(rules, focusRuleId);
     if (focusAdd) els.recurringAdd.focus();
   } catch (err) {
-    showRecurringError(err);
+    if (recurringGuard.isCurrent(requestId)) showRecurringError(err);
   }
 }
 

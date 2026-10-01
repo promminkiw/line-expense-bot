@@ -109,7 +109,7 @@ describe('createRecurringRunner', () => {
 
     expect(result).toEqual({ due: 2, created: 1, skipped: 0, failed: 1, pushFailed: 0 });
     expect(pushText).toHaveBeenCalledTimes(1);
-    expect(logger.error).toHaveBeenCalledWith('Failed to apply recurring rule', { ruleId: 'r1' }, expect.any(Error));
+    expect(logger.error).toHaveBeenCalledWith('Failed to apply recurring rule', { ruleId: 'r1', reason: 'db down' });
   });
 
   it('still counts the rule as created when the push fails', async () => {
@@ -117,7 +117,7 @@ describe('createRecurringRunner', () => {
     pushText.mockRejectedValue(new Error('push failed'));
 
     expect(await run()).toEqual({ due: 1, created: 1, skipped: 0, failed: 0, pushFailed: 1 });
-    expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1' }, expect.any(Error));
+    expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1', reason: 'push failed' });
   });
 
   it('counts a failed push in pushFailed', async () => {
@@ -147,6 +147,40 @@ describe('createRecurringRunner', () => {
 
     expect(pushText).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ due: 2, created: 2, skipped: 0, failed: 0, pushFailed: 1 });
+  });
+
+  it('counts a throw while building the notice as a failed push and keeps going', async () => {
+    const { repository, pushText, logger } = setup();
+    const badRule = rule({ id: 'r1' });
+    Object.defineProperty(badRule, 'categoryName', {
+      get() {
+        throw new Error('build failed');
+      },
+    });
+    repository.listDueRecurringRules.mockResolvedValue([badRule, rule({ id: 'r2', lineUserId: 'U2' })]);
+    const runner = createRecurringRunner({ repository, pushText, now: () => NOW, logger });
+
+    const result = await runner();
+
+    expect(result).toEqual({ due: 2, created: 2, skipped: 0, failed: 0, pushFailed: 1 });
+    expect(pushText).toHaveBeenCalledTimes(1);
+    expect(pushText.mock.calls[0][0]).toBe('U2');
+    expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1', reason: 'build failed' });
+  });
+
+  it('does not put row details from a database error into the logs', async () => {
+    const { repository, logger, run } = setup();
+    const dbError = Object.assign(new Error('insert failed'), {
+      cause: { details: 'Failing row contains (r1, 590, ค่าเน็ตลับ)' },
+    });
+    repository.applyRecurringRule.mockRejectedValue(dbError);
+
+    await run();
+
+    const logged = JSON.stringify(logger.error.mock.calls);
+    expect(logged).not.toContain('590');
+    expect(logged).not.toContain('ค่าเน็ตลับ');
+    expect(logger.error.mock.calls[0]).toEqual(['Failed to apply recurring rule', { ruleId: 'r1', reason: 'insert failed' }]);
   });
 
   it('lets a failure to list rules propagate so the endpoint answers 500', async () => {
