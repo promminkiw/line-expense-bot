@@ -65,3 +65,17 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .budget-row.over .budget-fill { background: #c62828; }
 .budget-row.over .budget-value { color: #c62828; }
 #budget-editor h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.recurring { margin: 12px 16px 0; padding: 12px; background: #fff; border-radius: 8px; }
+.recurring h2 { margin: 0; font-size: 16px; }
+.recurring-hint { margin: 4px 0 0; font-size: 13px; color: #555; }
+.recurring-loading, .recurring-empty { margin: 12px 0 0; color: #666; }
+.recurring-rows { list-style: none; margin: 4px 0 0; padding: 0; }
+.recurring-button { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px 0; border: none; background: none; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
+.recurring-title { display: block; overflow-wrap: anywhere; font-weight: 600; }
+.recurring-text { display: block; overflow-wrap: anywhere; color: #555; }
+.recurring-row.paused .recurring-title, .recurring-row.paused .recurring-text { color: #666; }
+#recurring-add { margin-top: 12px; min-height: 44px; }
+#recurring-editor h2, #recurring-confirm-delete h2 { margin: 0; font-size: 18px; }
+#recurring-editor-title:focus { outline: none; }
+#recurring-editor .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+#recurring-editor .check input { width: auto; margin: 0; flex: none; }

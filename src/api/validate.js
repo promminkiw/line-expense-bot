@@ -45,4 +45,27 @@ function validateTransactionUpdate(body) {
   return { ok: true, value: { amount, categoryId, occurredOn, note: note.trim() } };
 }
 
-module.exports = { parseMonth, isValidAmount, validateTransactionUpdate };
+function validateRecurringRule(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const { amount, categoryId, dayOfMonth, note, active } = body;
+  if (!isValidAmount(amount)) {
+    return { ok: false, error: 'Invalid amount' };
+  }
+  if (typeof categoryId !== 'string' || categoryId.length === 0) {
+    return { ok: false, error: 'Invalid category' };
+  }
+  if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
+    return { ok: false, error: 'Invalid day' };
+  }
+  if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH) {
+    return { ok: false, error: 'Invalid note' };
+  }
+  if (typeof active !== 'boolean') {
+    return { ok: false, error: 'Invalid active' };
+  }
+  return { ok: true, value: { amount, categoryId, dayOfMonth, note: note.trim(), active } };
+}
+
+module.exports = { parseMonth, isValidAmount, validateTransactionUpdate, validateRecurringRule };

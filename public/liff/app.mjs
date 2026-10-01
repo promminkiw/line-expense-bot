@@ -16,6 +16,9 @@ import {
   createLatestGuard,
   formatMonthLabel,
   describeBudgetFailure,
+  recurringRows,
+  describeRecurringFailure,
+  shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 
@@ -67,6 +70,32 @@ const els = {
   budgetRemove: document.getElementById('budget-remove'),
   budgetCancel: document.getElementById('budget-cancel'),
   budgetSave: document.querySelector('#budget-form button[type="submit"]'),
+  recurring: document.getElementById('recurring'),
+  recurringRows: document.getElementById('recurring-rows'),
+  recurringLoading: document.getElementById('recurring-loading'),
+  recurringEmpty: document.getElementById('recurring-empty'),
+  recurringError: document.getElementById('recurring-error'),
+  recurringErrorText: document.getElementById('recurring-error-text'),
+  recurringRetry: document.getElementById('recurring-retry'),
+  recurringAdd: document.getElementById('recurring-add'),
+  recurringEditor: document.getElementById('recurring-editor'),
+  recurringForm: document.getElementById('recurring-form'),
+  recurringEditorTitle: document.getElementById('recurring-editor-title'),
+  recurringCategory: document.getElementById('recurring-category'),
+  recurringAmount: document.getElementById('recurring-amount'),
+  recurringDay: document.getElementById('recurring-day'),
+  recurringNote: document.getElementById('recurring-note'),
+  recurringActive: document.getElementById('recurring-active'),
+  recurringBusy: document.getElementById('recurring-busy'),
+  recurringEditorError: document.getElementById('recurring-editor-error'),
+  recurringDelete: document.getElementById('recurring-delete'),
+  recurringCancel: document.getElementById('recurring-cancel'),
+  recurringConfirm: document.getElementById('recurring-confirm-delete'),
+  recurringConfirmCategory: document.getElementById('recurring-confirm-category'),
+  recurringConfirmText: document.getElementById('recurring-confirm-text'),
+  recurringConfirmCancel: document.getElementById('recurring-confirm-cancel'),
+  recurringConfirmOk: document.getElementById('recurring-confirm-ok'),
+  recurringSave: document.querySelector('#recurring-form button[type="submit"]'),
 };
 
 let api;
@@ -78,6 +107,8 @@ let lastSummary = [];
 let exporting = false;
 let editingBudget = null;
 let budgetBusy = false;
+let editingRecurring = null;
+let recurringBusy = false;
 const budgetsGuard = createLatestGuard();
 
 function setStatus(text) {
@@ -95,17 +126,19 @@ function showLoadError(err) {
 
 function fillCategoryOptions() {
   const groups = groupCategoryOptions(categories);
-  els.category.replaceChildren();
-  for (const type of ['expense', 'income']) {
-    const group = document.createElement('optgroup');
-    group.label = TYPE_LABELS[type];
-    for (const category of groups[type]) {
-      const option = document.createElement('option');
-      option.value = category.id;
-      option.textContent = category.name;
-      group.append(option);
+  for (const select of [els.category, els.recurringCategory]) {
+    select.replaceChildren();
+    for (const type of ['expense', 'income']) {
+      const group = document.createElement('optgroup');
+      group.label = TYPE_LABELS[type];
+      for (const category of groups[type]) {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        group.append(option);
+      }
+      select.append(group);
     }
-    els.category.append(group);
   }
 }
 
@@ -488,6 +521,155 @@ els.budgetsRetry.addEventListener('click', () => {
   loadBudgets();
 });
 
+function renderRecurring(rules, focusRuleId = null) {
+  els.recurringRows.replaceChildren();
+  els.recurringLoading.hidden = true;
+  els.recurringError.hidden = true;
+  els.recurring.hidden = false;
+  els.recurringEmpty.hidden = rules.length > 0;
+  for (const row of recurringRows(rules, categories)) {
+    const item = document.createElement('li');
+    item.className = `recurring-row${row.active ? '' : ' paused'}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'recurring-button';
+    const title = document.createElement('span');
+    title.className = 'recurring-title';
+    title.textContent = row.title;
+    const text = document.createElement('span');
+    text.className = 'recurring-text';
+    text.textContent = row.text;
+    button.append(title, text);
+    button.addEventListener('click', () => openRecurringEditor(row));
+    item.append(button);
+    els.recurringRows.append(item);
+    if (focusRuleId === row.id) button.focus();
+  }
+}
+
+function showRecurringError(err) {
+  els.recurringRows.replaceChildren();
+  els.recurringLoading.hidden = true;
+  els.recurringEmpty.hidden = true;
+  els.recurring.hidden = false;
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.recurringErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดรายการประจำไม่สำเร็จ';
+  els.recurringRetry.hidden = loginRequired;
+  els.recurringError.hidden = false;
+}
+
+// รายการประจำไม่ผูกกับเดือน โหลดแยกจากรายการและงบ และไม่ throw
+async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
+  try {
+    const { rules } = await api.listRecurring();
+    renderRecurring(rules, focusRuleId);
+    if (focusAdd) els.recurringAdd.focus();
+  } catch (err) {
+    showRecurringError(err);
+  }
+}
+
+function openRecurringEditor(row = null) {
+  editingRecurring = row;
+  els.recurringEditorTitle.textContent = row ? 'แก้รายการประจำ' : 'เพิ่มรายการประจำ';
+  if (row) {
+    els.recurringCategory.value = row.categoryId;
+  } else if (els.recurringCategory.options.length > 0) {
+    els.recurringCategory.selectedIndex = 0;
+  }
+  els.recurringAmount.value = row ? String(row.amount) : '';
+  els.recurringDay.value = row ? String(row.dayOfMonth) : '';
+  els.recurringNote.value = row ? row.note : '';
+  els.recurringActive.checked = row ? row.active : true;
+  els.recurringDelete.hidden = !row;
+  els.recurringBusy.hidden = true;
+  els.recurringEditorError.hidden = true;
+  els.recurringEditor.showModal();
+}
+
+function setRecurringBusy(isBusy, kind) {
+  recurringBusy = isBusy;
+  els.recurringSave.disabled = isBusy;
+  els.recurringDelete.disabled = isBusy;
+  els.recurringCancel.disabled = isBusy;
+  els.recurringConfirmCancel.disabled = isBusy;
+  els.recurringConfirmOk.disabled = isBusy;
+  els.recurringConfirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
+  els.recurringBusy.hidden = !isBusy;
+  els.recurringEditorError.hidden = true;
+}
+
+async function runRecurringAction(action, kind, focusRuleId = null) {
+  if (recurringBusy) return;
+  setRecurringBusy(true, kind);
+  let failure = null;
+  let failureStatus;
+  try {
+    await action();
+  } catch (err) {
+    failureStatus = err instanceof ApiError ? err.status : undefined;
+    failure = describeRecurringFailure(failureStatus, kind);
+  } finally {
+    setRecurringBusy(false);
+  }
+  // ปิด dialog ยืนยันก่อน เพื่อให้ error แสดงในฟอร์มที่อยู่ข้างหลังได้
+  els.recurringConfirm.close();
+  // กฎถูกลบไปแล้ว: ปิดฟอร์ม โหลดใหม่ แล้วแจ้งที่สถานะหน้า เหมือนตัวแก้รายการ
+  if (failure && shouldCloseRecurringEditor(failureStatus)) {
+    els.recurringEditor.close();
+    await loadRecurring();
+    setStatus(failure);
+    return;
+  }
+  if (failure) {
+    els.recurringEditorError.textContent = failure;
+    els.recurringEditorError.hidden = false;
+    return;
+  }
+  els.recurringEditor.close();
+  await loadRecurring({ focusRuleId, focusAdd: !focusRuleId });
+}
+
+els.recurringAdd.addEventListener('click', () => openRecurringEditor(null));
+els.recurringForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const body = {
+    categoryId: els.recurringCategory.value,
+    amount: Number(els.recurringAmount.value),
+    dayOfMonth: Number(els.recurringDay.value),
+    note: els.recurringNote.value,
+    active: els.recurringActive.checked,
+  };
+  const target = editingRecurring;
+  runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save', target ? target.id : null);
+});
+// ถามยืนยันก่อนลบ เพื่อกันกดพลาด
+els.recurringDelete.addEventListener('click', () => {
+  els.recurringConfirmCategory.textContent = editingRecurring.title;
+  els.recurringConfirmText.textContent = editingRecurring.text;
+  els.recurringConfirm.showModal();
+});
+els.recurringConfirmCancel.addEventListener('click', () => els.recurringConfirm.close());
+els.recurringConfirmOk.addEventListener('click', () => {
+  const target = editingRecurring;
+  runRecurringAction(() => api.deleteRecurring(target.id), 'delete');
+});
+els.recurringConfirm.addEventListener('cancel', (event) => {
+  if (recurringBusy) event.preventDefault();
+});
+els.recurringCancel.addEventListener('click', () => els.recurringEditor.close());
+els.recurringEditor.addEventListener('cancel', (event) => {
+  if (recurringBusy) event.preventDefault();
+});
+els.recurringEditor.addEventListener('close', () => {
+  if (recurringBusy) els.recurringEditor.showModal();
+});
+els.recurringRetry.addEventListener('click', () => {
+  els.recurringError.hidden = true;
+  els.recurringLoading.hidden = false;
+  loadRecurring();
+});
+
 async function boot() {
   try {
     const config = await (
@@ -506,7 +688,12 @@ async function boot() {
     els.month.value = currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
-    await loadMonth({ reset: true });
+    // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
+    els.recurringEmpty.hidden = true;
+    els.recurringError.hidden = true;
+    els.recurringLoading.hidden = false;
+    els.recurring.hidden = false;
+    await Promise.all([loadMonth({ reset: true }), loadRecurring()]);
   } catch (err) {
     showLoadError(err);
   }

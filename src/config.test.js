@@ -9,6 +9,7 @@ const VALID_ENV = {
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test',
   LIFF_ID: '1234567890-AbCdEfGh',
   LINE_LOGIN_CHANNEL_ID: '1234567890',
+  CRON_SECRET: 'cron-secret-789',
 };
 
 describe('loadConfig', () => {
@@ -25,6 +26,7 @@ describe('loadConfig', () => {
       supabaseServiceRoleKey: 'sb_secret_test',
       liffId: '1234567890-AbCdEfGh',
       lineLoginChannelId: '1234567890',
+      cronSecret: 'cron-secret-789',
     });
   });
 
@@ -37,7 +39,7 @@ describe('loadConfig', () => {
 
   it('throws listing every missing key', () => {
     expect(() => loadConfig({})).toThrow(
-      'Missing environment variables: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, LIFF_ID, LINE_LOGIN_CHANNEL_ID'
+      'Missing environment variables: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, LIFF_ID, LINE_LOGIN_CHANNEL_ID, CRON_SECRET'
     );
   });
 

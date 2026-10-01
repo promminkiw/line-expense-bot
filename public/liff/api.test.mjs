@@ -100,4 +100,23 @@ describe('createApi', () => {
     expect(options.method).toBe('PUT');
     expect(JSON.parse(options.body)).toEqual({ month: '2026-09', amount: null });
   });
+
+  it('lists, creates, updates and deletes recurring rules', async () => {
+    const fetchImpl = fakeFetch(200, { rules: [] });
+    const api = setup(fetchImpl);
+    const body = { categoryId: 'c1', amount: 590, dayOfMonth: 5, note: '', active: true };
+
+    await api.listRecurring();
+    await api.createRecurring(body);
+    await api.updateRecurring('r 1', body);
+    await api.deleteRecurring('r 1');
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method])).toEqual([
+      ['/api/recurring', undefined],
+      ['/api/recurring', 'POST'],
+      ['/api/recurring/r%201', 'PUT'],
+      ['/api/recurring/r%201', 'DELETE'],
+    ]);
+    expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify(body));
+  });
 });

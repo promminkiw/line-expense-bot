@@ -39,5 +39,10 @@ export function createApi({ fetchImpl, getIdToken }) {
     listBudgets: (month) => request(`/budgets?month=${encodeURIComponent(month)}`),
     setBudget: (categoryId, body) =>
       request(`/budgets/${encodeURIComponent(categoryId)}`, { method: 'PUT', body: JSON.stringify(body) }),
+    listRecurring: () => request('/recurring'),
+    createRecurring: (body) => request('/recurring', { method: 'POST', body: JSON.stringify(body) }),
+    updateRecurring: (id, body) =>
+      request(`/recurring/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+    deleteRecurring: (id) => request(`/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   };
 }

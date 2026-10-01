@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 const { createBot, SLIP_TTL_MS } = require('./src/bot');
-const { createReplyText, createReplyFlex } = require('./src/line-reply');
+const { createReplyText, createReplyFlex, createPushText } = require('./src/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
 const { createRepository } = require('./src/db/repository');
 const { createUserService } = require('./src/users');
@@ -18,6 +18,8 @@ const { createPendingSlipSweeper, startPendingSlipSweeper } = require('./src/sli
 const { createIdTokenVerifier } = require('./src/api/verify-id-token');
 const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
+const { createRecurringRunner } = require('./src/recurring/run');
+const { createRecurringRouter } = require('./src/recurring/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
@@ -74,11 +76,16 @@ const apiRouter = createApiRouter({
   liffId: config.liffId,
   allowExport: createRateLimiter(EXPORT_RATE_LIMIT),
 });
+const recurringRouter = createRecurringRouter({
+  cronSecret: config.cronSecret,
+  run: createRecurringRunner({ repository, pushText: createPushText(lineClient) }),
+});
 const app = createApp({
   channelSecret: config.lineChannelSecret,
   handleEvents: bot.handleEvents,
   apiRouter,
   exportRouter: createExportRouter({ repository }),
+  recurringRouter,
 });
 
 app.listen(config.port, (err) => {

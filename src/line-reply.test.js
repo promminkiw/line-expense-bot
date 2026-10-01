@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createReplyText, createReplyFlex } from './line-reply.js';
+import { createReplyText, createReplyFlex, createPushText } from './line-reply.js';
 
 describe('createReplyText', () => {
   it('sends one text message with the reply token', async () => {
@@ -104,5 +104,29 @@ describe('createReplyFlex', () => {
     const client = { replyMessage: vi.fn().mockRejectedValue(new Error('Invalid reply token')) };
 
     await expect(createReplyFlex(client)('bad', {})).rejects.toThrow('Invalid reply token');
+  });
+});
+
+describe('createPushText', () => {
+  it('pushes one text message to the user with quick reply items', async () => {
+    const client = { pushMessage: vi.fn().mockResolvedValue({}) };
+    const items = [{ type: 'action', action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=e1' } }];
+
+    await createPushText(client)('U1', 'saved', items);
+
+    expect(client.pushMessage).toHaveBeenCalledWith({
+      to: 'U1',
+      messages: [{ type: 'text', text: 'saved', quickReply: { items } }],
+    });
+  });
+
+  it('sends plain text without quick reply and cuts text that is too long', async () => {
+    const client = { pushMessage: vi.fn().mockResolvedValue({}) };
+
+    await createPushText(client)('U1', 'x'.repeat(6000));
+
+    const message = client.pushMessage.mock.calls[0][0].messages[0];
+    expect(message.quickReply).toBeUndefined();
+    expect(message.text.length).toBeLessThanOrEqual(5000);
   });
 });

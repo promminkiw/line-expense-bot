@@ -41,6 +41,19 @@ function setup(overrides = {}) {
         { categoryId: 'c-food', category: 'อาหาร', budget: 5000, spent: 60 },
       ]),
       setBudget: vi.fn().mockResolvedValue(),
+      listRecurringRules: vi.fn().mockResolvedValue([]),
+      createRecurringRule: vi.fn().mockImplementation(async (fields) => ({
+        id: ID,
+        type: fields.type,
+        categoryId: fields.categoryId,
+        amount: fields.amount,
+        note: fields.note,
+        dayOfMonth: fields.dayOfMonth,
+        active: fields.active,
+        lastRunOn: fields.lastRunOn,
+      })),
+      updateRecurringRule: vi.fn().mockResolvedValue(true),
+      deleteRecurringRule: vi.fn().mockResolvedValue(true),
     },
     allowExport: vi.fn().mockReturnValue(true),
     liffId: 'liff-123',
@@ -581,5 +594,156 @@ describe('error handling', () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: 'Internal error' });
     expect(deps.logger.error).toHaveBeenCalledWith('API request failed', { path: '/categories' }, expect.any(Error));
+  });
+});
+
+describe('recurring rules API', () => {
+  const BODY = { categoryId: 'c-food', amount: 590, dayOfMonth: 5, note: 'ค่าเน็ต', active: true };
+  const EXISTING = {
+    id: ID,
+    type: 'expense',
+    categoryId: 'c-food',
+    amount: 590,
+    note: 'ค่าเน็ต',
+    dayOfMonth: 5,
+    active: true,
+    lastRunOn: '2026-08-05',
+  };
+
+  it('lists the rules of the signed in user', async () => {
+    const deps = setup();
+    deps.repository.listRecurringRules.mockResolvedValue([EXISTING]);
+    const base = await start(deps);
+
+    const res = await call(base, '/recurring');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ rules: [EXISTING] });
+    expect(deps.repository.listRecurringRules).toHaveBeenCalledWith('user-1');
+  });
+
+  it('creates a rule, takes the type from the category and skips this month when the day has passed', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/recurring', { method: 'POST', body: BODY });
+
+    expect(res.status).toBe(201);
+    expect(deps.repository.createRecurringRule).toHaveBeenCalledWith({
+      userId: 'user-1',
+      type: 'expense',
+      categoryId: 'c-food',
+      amount: 590,
+      note: 'ค่าเน็ต',
+      dayOfMonth: 5,
+      active: true,
+      lastRunOn: '2026-09-05',
+    });
+    expect((await res.json()).rule.id).toBe(ID);
+  });
+
+  it('leaves lastRunOn empty when the due day is still ahead this month', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    const base = await start(deps);
+
+    await call(base, '/recurring', { method: 'POST', body: { ...BODY, dayOfMonth: 31 } });
+
+    expect(deps.repository.createRecurringRule.mock.calls[0][0].lastRunOn).toBeNull();
+  });
+
+  it('rejects a bad body, a category that is not the user and the 51st rule', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    expect((await call(base, '/recurring', { method: 'POST', body: { ...BODY, amount: -1 } })).status).toBe(400);
+    expect((await call(base, '/recurring', { method: 'POST', body: { ...BODY, categoryId: 'other' } })).status).toBe(400);
+    expect(deps.repository.createRecurringRule).not.toHaveBeenCalled();
+
+    deps.repository.listRecurringRules.mockResolvedValue(Array.from({ length: 50 }, () => EXISTING));
+    const full = await call(base, '/recurring', { method: 'POST', body: BODY });
+    expect(full.status).toBe(409);
+    expect(await full.json()).toEqual({ error: 'Too many rules' });
+  });
+
+  it('updates a rule and recomputes lastRunOn from the existing value', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([EXISTING]);
+    const base = await start(deps);
+
+    const res = await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, amount: 600, dayOfMonth: 31 } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.updateRecurringRule).toHaveBeenCalledWith('user-1', ID, {
+      type: 'expense',
+      categoryId: 'c-food',
+      amount: 600,
+      note: 'ค่าเน็ต',
+      dayOfMonth: 31,
+      active: true,
+      lastRunOn: '2026-08-05',
+    });
+  });
+
+  it('keeps this month due when only the amount or note is edited', async () => {
+    const deps = setup({ now: () => new Date('2026-10-15T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([{ ...EXISTING, dayOfMonth: 15, lastRunOn: '2026-09-15' }]);
+    const base = await start(deps);
+
+    const res = await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 15, amount: 700 } });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-15');
+  });
+
+  it('resumes a paused rule after its due day without recording this month', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([
+      { ...EXISTING, dayOfMonth: 5, active: false, lastRunOn: '2026-08-05' },
+    ]);
+    const base = await start(deps);
+
+    await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 5, active: true } });
+
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-05');
+  });
+
+  it('skips this month when the day is changed to one that has already passed', async () => {
+    const deps = setup({ now: () => new Date('2026-09-10T03:00:00.000Z') });
+    deps.repository.listRecurringRules.mockResolvedValue([
+      { ...EXISTING, dayOfMonth: 20, active: true, lastRunOn: '2026-08-20' },
+    ]);
+    const base = await start(deps);
+
+    await call(base, `/recurring/${ID}`, { method: 'PUT', body: { ...BODY, dayOfMonth: 5 } });
+
+    expect(deps.repository.updateRecurringRule.mock.calls[0][2].lastRunOn).toBe('2026-09-05');
+  });
+
+  it('returns 404 when updating or deleting a rule that is missing or has a bad id', async () => {
+    const deps = setup();
+    const base = await start(deps);
+    deps.repository.deleteRecurringRule.mockResolvedValue(false);
+
+    expect((await call(base, `/recurring/${ID}`, { method: 'PUT', body: BODY })).status).toBe(404);
+    expect((await call(base, '/recurring/not-a-uuid', { method: 'PUT', body: BODY })).status).toBe(404);
+    expect((await call(base, `/recurring/${ID}`, { method: 'DELETE' })).status).toBe(404);
+    expect((await call(base, '/recurring/not-a-uuid', { method: 'DELETE' })).status).toBe(404);
+    expect(deps.repository.updateRecurringRule).not.toHaveBeenCalled();
+  });
+
+  it('deletes a rule', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, `/recurring/${ID}`, { method: 'DELETE' });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.deleteRecurringRule).toHaveBeenCalledWith('user-1', ID);
+  });
+
+  it('requires login', async () => {
+    const base = await start(setup());
+
+    expect((await call(base, '/recurring', { token: null })).status).toBe(401);
   });
 });
