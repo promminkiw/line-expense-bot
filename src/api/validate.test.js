@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseMonth, validateTransactionUpdate } from './validate.js';
+import { parseMonth, validateTransactionUpdate, validateRecurringRule } from './validate.js';
 
 const VALID = { amount: 60, categoryId: 'cat-1', occurredOn: '2026-09-29', note: ' กินข้าว ' };
 
@@ -66,5 +66,35 @@ describe('validateTransactionUpdate', () => {
 
   it('rejects a body that is not an object', () => {
     expect(validateTransactionUpdate(null)).toEqual({ ok: false, error: 'Invalid body' });
+  });
+});
+
+describe('validateRecurringRule', () => {
+  const RULE = { amount: 590, categoryId: 'cat-1', dayOfMonth: 5, note: ' ค่าเน็ต ', active: true };
+
+  it('accepts a valid rule and trims the note', () => {
+    expect(validateRecurringRule(RULE)).toEqual({
+      ok: true,
+      value: { amount: 590, categoryId: 'cat-1', dayOfMonth: 5, note: 'ค่าเน็ต', active: true },
+    });
+  });
+
+  it('accepts day 1 and day 31 and an empty note', () => {
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: 1, note: '' }).ok).toBe(true);
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: 31 }).ok).toBe(true);
+  });
+
+  it('rejects each bad field with its own error', () => {
+    expect(validateRecurringRule(null)).toEqual({ ok: false, error: 'Invalid body' });
+    expect(validateRecurringRule({ ...RULE, amount: 0 })).toEqual({ ok: false, error: 'Invalid amount' });
+    expect(validateRecurringRule({ ...RULE, amount: 10.001 })).toEqual({ ok: false, error: 'Invalid amount' });
+    expect(validateRecurringRule({ ...RULE, categoryId: '' })).toEqual({ ok: false, error: 'Invalid category' });
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: 0 })).toEqual({ ok: false, error: 'Invalid day' });
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: 32 })).toEqual({ ok: false, error: 'Invalid day' });
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: 5.5 })).toEqual({ ok: false, error: 'Invalid day' });
+    expect(validateRecurringRule({ ...RULE, dayOfMonth: '5' })).toEqual({ ok: false, error: 'Invalid day' });
+    expect(validateRecurringRule({ ...RULE, note: 'ก'.repeat(201) })).toEqual({ ok: false, error: 'Invalid note' });
+    expect(validateRecurringRule({ ...RULE, note: 5 })).toEqual({ ok: false, error: 'Invalid note' });
+    expect(validateRecurringRule({ ...RULE, active: 'yes' })).toEqual({ ok: false, error: 'Invalid active' });
   });
 });

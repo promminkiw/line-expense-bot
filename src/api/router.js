@@ -1,9 +1,12 @@
 const express = require('express');
 const { AuthError } = require('./verify-id-token');
-const { parseMonth, isValidAmount, validateTransactionUpdate } = require('./validate');
+const { parseMonth, isValidAmount, validateTransactionUpdate, validateRecurringRule } = require('./validate');
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
+const { toBangkokDateString } = require('../utils/date');
+const { lastRunOnAfterSave } = require('../recurring/schedule');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_RECURRING_RULES = 50;
 
 function readBearerToken(req) {
   const header = req.get('authorization') || '';
@@ -144,6 +147,90 @@ function createApiRouter({
       return;
     }
     await repository.setBudget({ userId: req.userId, categoryId: category.id, month, amount });
+    res.status(204).end();
+  });
+
+  router.get('/recurring', async (req, res) => {
+    res.json({ rules: await repository.listRecurringRules(req.userId) });
+  });
+
+  router.post('/recurring', async (req, res) => {
+    const result = validateRecurringRule(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const [categories, rules] = await Promise.all([
+      repository.listCategories(req.userId),
+      repository.listRecurringRules(req.userId),
+    ]);
+    const category = categories.find((item) => item.id === result.value.categoryId);
+    if (!category) {
+      res.status(400).json({ error: 'Invalid category' });
+      return;
+    }
+    if (rules.length >= MAX_RECURRING_RULES) {
+      res.status(409).json({ error: 'Too many rules' });
+      return;
+    }
+    const today = toBangkokDateString(now());
+    // ประเภทตามหมวด และกันไม่ให้สร้างรายการซ้ำของเดือนที่วันครบกำหนดผ่านไปแล้ว
+    const rule = await repository.createRecurringRule({
+      userId: req.userId,
+      type: category.type,
+      ...result.value,
+      lastRunOn: lastRunOnAfterSave(null, result.value.dayOfMonth, today),
+    });
+    res.status(201).json({ rule });
+  });
+
+  router.put('/recurring/:id', async (req, res) => {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const result = validateRecurringRule(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const [categories, rules] = await Promise.all([
+      repository.listCategories(req.userId),
+      repository.listRecurringRules(req.userId),
+    ]);
+    const category = categories.find((item) => item.id === result.value.categoryId);
+    if (!category) {
+      res.status(400).json({ error: 'Invalid category' });
+      return;
+    }
+    const existing = rules.find((item) => item.id === req.params.id);
+    if (!existing) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const today = toBangkokDateString(now());
+    const updated = await repository.updateRecurringRule(req.userId, req.params.id, {
+      type: category.type,
+      ...result.value,
+      lastRunOn: lastRunOnAfterSave(existing.lastRunOn, result.value.dayOfMonth, today),
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.status(204).end();
+  });
+
+  router.delete('/recurring/:id', async (req, res) => {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const deleted = await repository.deleteRecurringRule(req.userId, req.params.id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
     res.status(204).end();
   });
 
