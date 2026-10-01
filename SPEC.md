@@ -80,7 +80,7 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 \- แพ็กเกจฟรีจะ "หลับ" ทำให้ข้อความแรกช้า
 
-\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ
+\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ และยาวอย่างน้อย 32 ตัวอักษร
 
 \- Push message นับโควตาของแพ็กเกจ LINE OA ต้องเช็กจำกัดต่อเดือน (รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ)
 

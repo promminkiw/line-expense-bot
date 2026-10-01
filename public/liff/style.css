@@ -74,7 +74,9 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .recurring-title { display: block; overflow-wrap: anywhere; font-weight: 600; }
 .recurring-text { display: block; overflow-wrap: anywhere; color: #555; }
 .recurring-row.paused .recurring-title, .recurring-row.paused .recurring-text { color: #666; }
-#recurring-add { margin-top: 12px; min-height: 44px; }
+#recurring-add, #recurring-retry { font: inherit; min-height: 44px; padding: 10px 16px; font-size: 16px; border: 1px solid #13853a; border-radius: 8px; background: #fff; color: #13853a; }
+#recurring-add { margin-top: 12px; }
+#recurring-add:disabled { opacity: 0.6; }
 #recurring-editor h2, #recurring-confirm-delete h2 { margin: 0; font-size: 18px; }
 #recurring-editor-title:focus { outline: none; }
 #recurring-editor .check { display: flex; align-items: center; gap: 8px; min-height: 44px; }
