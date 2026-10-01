@@ -52,7 +52,7 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 \- pending\_slips: id, user\_id, line\_event\_id, items (jsonb อาร์เรย์ของรายการจากสลิป), created\_at (พักรายการรอผู้ใช้กดยืนยัน หมดเวลา 10 นาที)
 
-\- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on
+\- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on (ทำงานเดือนละครั้ง, last\_run\_on เป็นวันครบกำหนดของรอบล่าสุด)
 
 \- ทุกตารางมี user\_id, เปิด RLS ทุกตาราง
 
