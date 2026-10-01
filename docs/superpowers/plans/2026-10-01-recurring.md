@@ -220,8 +220,15 @@ declare
   r public.recurring_rules%rowtype;
   claimed_event text;
 begin
+  -- ไม่เชื่อ event id จากผู้เรียก เพื่อให้รับประกันเดือนละครั้งอยู่ใน database เอง
+  if p_event_id is distinct from 'recurring:' || p_rule_id || ':' || to_char(p_due, 'YYYY-MM') then
+    raise exception 'invalid recurring event id %', p_event_id;
+  end if;
+
+  -- เช็กซ้ำใต้ lock ว่ายังไม่ได้ทำเดือนนี้ กันกฎที่เพิ่งถูกแก้ระหว่าง runner ทำงานบันทึกย้อนหลัง
   -- for update กันสอง request ที่ยิงพร้อมกันบันทึกซ้ำ
-  select * into r from public.recurring_rules where id = p_rule_id and active for update;
+  select * into r from public.recurring_rules where id = p_rule_id and active
+    and (last_run_on is null or last_run_on < date_trunc('month', p_due)::date) for update;
   if not found then
     return false;
   end if;
@@ -231,6 +238,7 @@ begin
   on conflict (webhook_event_id) do nothing
   returning webhook_event_id into claimed_event;
 
+  -- เลื่อน last_run_on แม้ event ถูกจองไปแล้ว เพื่อไม่ให้เดือนที่ถูกยกเลิกหรือบันทึกไปแล้วถูกลองซ้ำ
   update public.recurring_rules set last_run_on = p_due where id = p_rule_id;
 
   if claimed_event is null then
