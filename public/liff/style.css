@@ -100,3 +100,11 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .nav-button { flex: 1; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 2px; border: none; background: none; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; }
 .nav-button[aria-current="page"] { color: var(--primary); font-weight: 600; }
 .nav-button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.row { box-shadow: inset 3px 0 0 var(--cat-fg); }
+.row-button { align-items: center; }
+.row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.row-title { font-weight: 600; overflow-wrap: anywhere; }
+.row-note { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.chart-label-wrap, .budget-label-wrap, .recurring-head { display: flex; align-items: center; gap: 8px; }
+.chart-label-wrap .cat-badge, .budget-label-wrap .cat-badge, .recurring-head .cat-badge { width: 28px; height: 28px; }
+.chart-label-wrap .icon, .budget-label-wrap .icon, .recurring-head .icon { width: 16px; height: 16px; }

@@ -23,6 +23,7 @@ import {
 } from './format.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
+import { categoryStyle, createCategoryBadge } from './categories.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 
@@ -155,16 +156,26 @@ function fillCategoryOptions() {
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
 function renderRow(item) {
   const row = document.createElement('li');
-  row.className = `row ${item.type}`;
+  row.className = `row ${item.type} ${categoryStyle(item.categoryName).className}`;
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'row-button';
-  const label = document.createElement('span');
-  label.textContent = item.note ? `${item.categoryName} · ${item.note}` : item.categoryName;
+  const text = document.createElement('span');
+  text.className = 'row-text';
+  const title = document.createElement('span');
+  title.className = 'row-title';
+  title.textContent = item.categoryName;
+  text.append(title);
+  if (item.note) {
+    const note = document.createElement('span');
+    note.className = 'row-note';
+    note.textContent = item.note;
+    text.append(note);
+  }
   const amount = document.createElement('span');
   amount.className = 'amount';
   amount.textContent = formatSignedBaht(item);
-  button.append(label, amount);
+  button.append(createCategoryBadge(document, item.categoryName), text, amount);
   button.addEventListener('click', () => openEditor(item));
   row.append(button);
   return row;
@@ -192,8 +203,10 @@ function renderChart() {
     const item = document.createElement('li');
     item.className = `chart-row ${chartType}`;
     const label = document.createElement('span');
-    label.className = 'chart-label';
-    label.textContent = row.category;
+    label.className = 'chart-label chart-label-wrap';
+    const labelText = document.createElement('span');
+    labelText.textContent = row.category;
+    label.append(createCategoryBadge(document, row.category), labelText);
     const value = document.createElement('span');
     value.className = 'chart-value';
     value.textContent = `${formatBaht(row.total)} · ${row.shareText}`;
@@ -244,8 +257,10 @@ function renderBudgets(budgets, focusCategoryId = null) {
     button.type = 'button';
     button.className = 'budget-button';
     const label = document.createElement('span');
-    label.className = 'budget-label';
-    label.textContent = row.category;
+    label.className = 'budget-label budget-label-wrap';
+    const labelText = document.createElement('span');
+    labelText.textContent = row.category;
+    label.append(createCategoryBadge(document, row.category), labelText);
     const action = document.createElement('span');
     action.className = 'budget-edit';
     action.textContent = row.budget === null ? 'ตั้งงบ' : 'แก้งบ';
@@ -546,8 +561,10 @@ function renderRecurring(rules, focusRuleId = null) {
     button.type = 'button';
     button.className = 'recurring-button';
     const title = document.createElement('span');
-    title.className = 'recurring-title';
-    title.textContent = row.title;
+    title.className = 'recurring-title recurring-head';
+    const titleText = document.createElement('span');
+    titleText.textContent = row.title;
+    title.append(createCategoryBadge(document, row.title), titleText);
     const text = document.createElement('span');
     text.className = 'recurring-text';
     text.textContent = row.text;
