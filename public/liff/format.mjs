@@ -222,3 +222,51 @@ export function describeFilterResult(shown, total, truncated) {
   const text = `พบ ${shown} จาก ${total} รายการ`;
   return truncated ? `${text} (ค้นเฉพาะรายการที่แสดง)` : text;
 }
+
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+export function thaiMonthShort(month) {
+  return THAI_MONTHS[Number(month.split('-')[1]) - 1];
+}
+
+export function formatFullThaiDate(isoDate) {
+  const [year, month, day] = isoDate.split('-');
+  return `${Number(day)} ${thaiMonthShort(`${year}-${month}`)} ${Number(year) + 543}`;
+}
+
+// ค่าที่มากกว่า 0 แต่เล็กมากต้องยังเห็นเป็นแท่ง ไม่ให้ดูเหมือนไม่มียอด
+function barHeight(value, max) {
+  if (max === 0 || value <= 0) return 0;
+  return Math.max((value / max) * 100, 2);
+}
+
+export function trendBars(months) {
+  const max = Math.max(0, ...months.flatMap((entry) => [entry.income, entry.expense]));
+  return months.map((entry) => {
+    const label = thaiMonthShort(entry.month);
+    return {
+      month: entry.month,
+      label,
+      income: entry.income,
+      expense: entry.expense,
+      incomeHeight: barHeight(entry.income, max),
+      expenseHeight: barHeight(entry.expense, max),
+      description: `${label} รายรับ ${formatBaht(entry.income)} รายจ่าย ${formatBaht(entry.expense)}`,
+    };
+  });
+}
+
+// เทียบเป็นสตางค์เพื่อไม่ให้ทศนิยมลอยตัวทำให้เปอร์เซ็นต์เพี้ยน
+export function describeExpenseComparison(months) {
+  if (months.length < 2) return { level: 'none', text: '' };
+  const current = Math.round(months[months.length - 1].expense * 100);
+  const previous = Math.round(months[months.length - 2].expense * 100);
+  if (previous === 0) return { level: 'none', text: 'เดือนก่อนไม่มีรายจ่ายให้เทียบ' };
+  const diff = current - previous;
+  if (diff === 0) return { level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' };
+  const percent = Math.round((Math.abs(diff) / previous) * 100);
+  const amount = formatBaht(Math.abs(diff) / 100);
+  return diff > 0
+    ? { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${percent}% (+${amount})` }
+    : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };
+}

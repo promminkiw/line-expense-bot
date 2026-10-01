@@ -23,6 +23,10 @@ import {
   filterTransactions,
   isFilterActive,
   describeFilterResult,
+  thaiMonthShort,
+  formatFullThaiDate,
+  trendBars,
+  describeExpenseComparison,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -428,5 +432,95 @@ describe('describeFilterResult', () => {
 
   it('warns that only the displayed entries were searched when the month is truncated', () => {
     expect(describeFilterResult(0, 500, true)).toBe('พบ 0 จาก 500 รายการ (ค้นเฉพาะรายการที่แสดง)');
+  });
+});
+
+describe('thaiMonthShort and formatFullThaiDate', () => {
+  it('abbreviates the month in Thai', () => {
+    expect(thaiMonthShort('2026-01')).toBe('ม.ค.');
+    expect(thaiMonthShort('2026-09')).toBe('ก.ย.');
+    expect(thaiMonthShort('2026-12')).toBe('ธ.ค.');
+  });
+
+  it('writes a full date with the Buddhist year and no leading zero on the day', () => {
+    expect(formatFullThaiDate('2026-09-05')).toBe('5 ก.ย. 2569');
+    expect(formatFullThaiDate('2025-12-31')).toBe('31 ธ.ค. 2568');
+  });
+});
+
+describe('trendBars', () => {
+  const months = [
+    { month: '2026-07', income: 0, expense: 0 },
+    { month: '2026-08', income: 20000, expense: 5000 },
+    { month: '2026-09', income: 10000, expense: 10000 },
+  ];
+
+  it('scales every bar against the largest value of the window', () => {
+    const bars = trendBars(months);
+
+    expect(bars.map((bar) => bar.label)).toEqual(['ก.ค.', 'ส.ค.', 'ก.ย.']);
+    expect(bars[1].incomeHeight).toBe(100);
+    expect(bars[1].expenseHeight).toBe(25);
+    expect(bars[2].incomeHeight).toBe(50);
+    expect(bars[2].expenseHeight).toBe(50);
+  });
+
+  it('keeps zero as zero and gives tiny non-zero values a visible minimum', () => {
+    const bars = trendBars([
+      { month: '2026-08', income: 0, expense: 0 },
+      { month: '2026-09', income: 1000000, expense: 1 },
+    ]);
+
+    expect(bars[0].incomeHeight).toBe(0);
+    expect(bars[0].expenseHeight).toBe(0);
+    expect(bars[1].expenseHeight).toBe(2);
+  });
+
+  it('gives all zero heights when the whole window is empty', () => {
+    const bars = trendBars([{ month: '2026-09', income: 0, expense: 0 }]);
+
+    expect(bars[0].incomeHeight).toBe(0);
+    expect(bars[0].expenseHeight).toBe(0);
+  });
+
+  it('describes each month in words for screen readers', () => {
+    expect(trendBars(months)[1].description).toBe('ส.ค. รายรับ 20,000 บาท รายจ่าย 5,000 บาท');
+  });
+});
+
+describe('describeExpenseComparison', () => {
+  const pair = (previous, current) => [
+    { month: '2026-08', income: 0, expense: previous },
+    { month: '2026-09', income: 0, expense: current },
+  ];
+
+  it('reports an increase with percent and amount', () => {
+    expect(describeExpenseComparison(pair(1000, 1250))).toEqual({
+      level: 'up',
+      text: 'รายจ่ายมากกว่าเดือนก่อน 25% (+250 บาท)',
+    });
+  });
+
+  it('reports a decrease with percent and amount', () => {
+    expect(describeExpenseComparison(pair(1000, 400.5))).toEqual({
+      level: 'down',
+      text: 'รายจ่ายน้อยกว่าเดือนก่อน 60% (-599.5 บาท)',
+    });
+  });
+
+  it('reports equal spending', () => {
+    expect(describeExpenseComparison(pair(300, 300))).toEqual({ level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' });
+  });
+
+  it('cannot compare when the previous month had no expenses', () => {
+    expect(describeExpenseComparison(pair(0, 500))).toEqual({ level: 'none', text: 'เดือนก่อนไม่มีรายจ่ายให้เทียบ' });
+  });
+
+  it('has nothing to compare with fewer than two months', () => {
+    expect(describeExpenseComparison([{ month: '2026-09', income: 0, expense: 5 }])).toEqual({ level: 'none', text: '' });
+  });
+
+  it('compares in satang so decimals do not drift', () => {
+    expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
   });
 });

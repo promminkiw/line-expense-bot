@@ -20,6 +20,8 @@ import {
   describeRecurringFailure,
   shouldCloseRecurringEditor,
   filterTransactions,
+  trendBars,
+  describeExpenseComparison,
   isFilterActive,
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
@@ -84,6 +86,14 @@ const els = {
   budgetsError: document.getElementById('budgets-error'),
   budgetsErrorText: document.getElementById('budgets-error-text'),
   budgetsRetry: document.getElementById('budgets-retry'),
+  trendBars: document.getElementById('trend-bars'),
+  trendComparison: document.getElementById('trend-comparison'),
+  trendLegend: document.getElementById('trend-legend'),
+  trendLoading: document.getElementById('trend-loading'),
+  trendSkeleton: document.getElementById('trend-skeleton'),
+  trendError: document.getElementById('trend-error'),
+  trendErrorText: document.getElementById('trend-error-text'),
+  trendRetry: document.getElementById('trend-retry'),
   budgetEditor: document.getElementById('budget-editor'),
   budgetForm: document.getElementById('budget-form'),
   budgetTitle: document.getElementById('budget-title'),
@@ -142,6 +152,8 @@ const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
 const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4 });
 const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
+const trendGuard = createLatestGuard();
+const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, count: 1, variant: 'card' });
 els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
@@ -405,6 +417,68 @@ function showBudgetsError(err) {
   els.budgetsError.hidden = false;
 }
 
+// แท่งวาดที่ความสูงสุดท้ายไว้เลย แล้วเล่นแอนิเมชันเฉพาะตอน animate และแท็บสรุปมองเห็นอยู่
+function renderTrend(months, currentMonthKey, { animate = false } = {}) {
+  trendLoading.set(false);
+  els.trendError.hidden = true;
+  els.trendBars.replaceChildren();
+  for (const bar of trendBars(months)) {
+    const item = document.createElement('li');
+    item.className = `trend-col${bar.month === currentMonthKey ? ' current' : ''}`;
+    const pair = document.createElement('div');
+    pair.className = 'trend-pair';
+    pair.setAttribute('aria-hidden', 'true');
+    for (const [kind, height] of [['income', bar.incomeHeight], ['expense', bar.expenseHeight]]) {
+      const column = document.createElement('span');
+      column.className = `trend-bar ${kind}`;
+      column.style.height = `${height}%`;
+      column.dataset.width = String(height);
+      column.dataset.property = 'height';
+      pair.append(column);
+    }
+    const label = document.createElement('span');
+    label.className = 'trend-label';
+    label.setAttribute('aria-hidden', 'true');
+    label.textContent = bar.label;
+    const description = document.createElement('span');
+    description.className = 'sr-only';
+    description.textContent = bar.description;
+    item.append(pair, label, description);
+    els.trendBars.append(item);
+  }
+  els.trendBars.hidden = false;
+  els.trendLegend.hidden = false;
+  const comparison = describeExpenseComparison(months);
+  els.trendComparison.textContent = comparison.text;
+  els.trendComparison.className = `trend-comparison ${comparison.level}`;
+  els.trendComparison.hidden = !comparison.text;
+  if (animate && !els.panelSummary.hidden) playBars(window, els.trendBars);
+}
+
+function showTrendError(err) {
+  trendLoading.set(false);
+  els.trendBars.hidden = true;
+  els.trendLegend.hidden = true;
+  els.trendComparison.hidden = true;
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.trendErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดกราฟแนวโน้มไม่สำเร็จ';
+  els.trendRetry.hidden = loginRequired;
+  els.trendError.hidden = false;
+}
+
+// กราฟแนวโน้มโหลดแยกจากรายการ ถ้าพังส่วนอื่นยังใช้ได้ และไม่ throw
+async function loadTrend({ animate = false } = {}) {
+  const month = els.month.value;
+  const requestId = trendGuard.start();
+  const isCurrent = () => month === els.month.value && trendGuard.isCurrent(requestId);
+  try {
+    const { months } = await api.getTrend(month);
+    if (isCurrent()) renderTrend(months, month, { animate });
+  } catch (err) {
+    if (isCurrent()) showTrendError(err);
+  }
+}
+
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
 async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
   const month = els.month.value;
@@ -439,11 +513,17 @@ async function loadMonth({ reset = false } = {}) {
     els.budgetsError.hidden = true;
     budgetsLoading.set(true);
     els.budgets.hidden = false;
+    els.trendBars.hidden = true;
+    els.trendLegend.hidden = true;
+    els.trendComparison.hidden = true;
+    els.trendError.hidden = true;
+    trendLoading.set(true);
     els.exportStatus.textContent = '';
     setStatus('กำลังโหลด...', { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
   const budgetsLoaded = loadBudgets({ animate: reset });
+  const trendLoaded = loadTrend({ animate: reset });
   try {
     const data = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
@@ -452,6 +532,7 @@ async function loadMonth({ reset = false } = {}) {
     if (month === els.month.value) showLoadError(err);
   }
   await budgetsLoaded;
+  await trendLoaded;
 }
 
 async function ensureCategories() {
@@ -675,6 +756,11 @@ els.budgetsRetry.addEventListener('click', () => {
   budgetsLoading.set(true);
   loadBudgets();
 });
+els.trendRetry.addEventListener('click', () => {
+  els.trendError.hidden = true;
+  trendLoading.set(true);
+  loadTrend({ animate: true });
+});
 
 function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
@@ -849,7 +935,10 @@ const tabController = createTabController({
     setBanner('');
     window.scrollTo(0, 0);
     if (id === 'list') replayClass(els.list, 'enter');
-    if (id === 'summary') playBars(window, els.chartRows);
+    if (id === 'summary') {
+      playBars(window, els.chartRows);
+      playBars(window, els.trendBars);
+    }
     if (id === 'budgets') playBars(window, els.budgetRows);
   },
 });
