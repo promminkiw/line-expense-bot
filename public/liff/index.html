@@ -106,7 +106,7 @@
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
-      <h2 id="recurring-editor-title"></h2>
+      <h2 id="recurring-editor-title" tabindex="-1" autofocus></h2>
       <label>หมวด
         <select id="recurring-category" required></select>
       </label>
@@ -130,6 +130,15 @@
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="recurring-confirm-delete" aria-labelledby="recurring-confirm-title">
+    <h2 id="recurring-confirm-title">ลบรายการประจำนี้?</h2>
+    <p id="recurring-confirm-category" class="confirm-category"></p>
+    <p id="recurring-confirm-text" class="confirm-detail"></p>
+    <div class="actions">
+      <button type="button" id="recurring-confirm-cancel" autofocus>ยกเลิก</button>
+      <button type="button" id="recurring-confirm-ok" class="danger-solid">ลบ</button>
+    </div>
   </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>

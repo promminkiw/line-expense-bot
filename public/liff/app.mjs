@@ -90,6 +90,11 @@ const els = {
   recurringEditorError: document.getElementById('recurring-editor-error'),
   recurringDelete: document.getElementById('recurring-delete'),
   recurringCancel: document.getElementById('recurring-cancel'),
+  recurringConfirm: document.getElementById('recurring-confirm-delete'),
+  recurringConfirmCategory: document.getElementById('recurring-confirm-category'),
+  recurringConfirmText: document.getElementById('recurring-confirm-text'),
+  recurringConfirmCancel: document.getElementById('recurring-confirm-cancel'),
+  recurringConfirmOk: document.getElementById('recurring-confirm-ok'),
   recurringSave: document.querySelector('#recurring-form button[type="submit"]'),
 };
 
@@ -104,7 +109,6 @@ let editingBudget = null;
 let budgetBusy = false;
 let editingRecurring = null;
 let recurringBusy = false;
-let deleteArmed = false;
 const budgetsGuard = createLatestGuard();
 
 function setStatus(text) {
@@ -567,7 +571,6 @@ async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
 
 function openRecurringEditor(row = null) {
   editingRecurring = row;
-  deleteArmed = false;
   els.recurringEditorTitle.textContent = row ? 'แก้รายการประจำ' : 'เพิ่มรายการประจำ';
   if (row) {
     els.recurringCategory.value = row.categoryId;
@@ -579,24 +582,26 @@ function openRecurringEditor(row = null) {
   els.recurringNote.value = row ? row.note : '';
   els.recurringActive.checked = row ? row.active : true;
   els.recurringDelete.hidden = !row;
-  els.recurringDelete.textContent = 'ลบ';
   els.recurringBusy.hidden = true;
   els.recurringEditorError.hidden = true;
   els.recurringEditor.showModal();
 }
 
-function setRecurringBusy(isBusy) {
+function setRecurringBusy(isBusy, kind) {
   recurringBusy = isBusy;
   els.recurringSave.disabled = isBusy;
   els.recurringDelete.disabled = isBusy;
   els.recurringCancel.disabled = isBusy;
+  els.recurringConfirmCancel.disabled = isBusy;
+  els.recurringConfirmOk.disabled = isBusy;
+  els.recurringConfirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
   els.recurringBusy.hidden = !isBusy;
   els.recurringEditorError.hidden = true;
 }
 
 async function runRecurringAction(action, kind, focusRuleId = null) {
   if (recurringBusy) return;
-  setRecurringBusy(true);
+  setRecurringBusy(true, kind);
   let failure = null;
   let failureStatus;
   try {
@@ -607,6 +612,8 @@ async function runRecurringAction(action, kind, focusRuleId = null) {
   } finally {
     setRecurringBusy(false);
   }
+  // ปิด dialog ยืนยันก่อน เพื่อให้ error แสดงในฟอร์มที่อยู่ข้างหลังได้
+  els.recurringConfirm.close();
   // กฎถูกลบไปแล้ว: ปิดฟอร์ม โหลดใหม่ แล้วแจ้งที่สถานะหน้า เหมือนตัวแก้รายการ
   if (failure && shouldCloseRecurringEditor(failureStatus)) {
     els.recurringEditor.close();
@@ -636,15 +643,19 @@ els.recurringForm.addEventListener('submit', (event) => {
   const target = editingRecurring;
   runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save', target ? target.id : null);
 });
-// กดลบสองครั้ง ครั้งแรกเปลี่ยนข้อความปุ่มเพื่อกันกดพลาด
+// ถามยืนยันก่อนลบ เพื่อกันกดพลาด
 els.recurringDelete.addEventListener('click', () => {
-  if (!deleteArmed) {
-    deleteArmed = true;
-    els.recurringDelete.textContent = 'กดอีกครั้งเพื่อลบ';
-    return;
-  }
+  els.recurringConfirmCategory.textContent = editingRecurring.title;
+  els.recurringConfirmText.textContent = editingRecurring.text;
+  els.recurringConfirm.showModal();
+});
+els.recurringConfirmCancel.addEventListener('click', () => els.recurringConfirm.close());
+els.recurringConfirmOk.addEventListener('click', () => {
   const target = editingRecurring;
   runRecurringAction(() => api.deleteRecurring(target.id), 'delete');
+});
+els.recurringConfirm.addEventListener('cancel', (event) => {
+  if (recurringBusy) event.preventDefault();
 });
 els.recurringCancel.addEventListener('click', () => els.recurringEditor.close());
 els.recurringEditor.addEventListener('cancel', (event) => {
