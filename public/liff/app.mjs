@@ -176,6 +176,7 @@ function showLoadError(err) {
   // ล้างเฉพาะ skeleton ที่ค้าง ไม่ล้างรายการจริงตอน reload ล้มเหลว
   if (els.list.querySelector('.skeleton')) els.list.replaceChildren();
   els.summarySkeleton.hidden = true;
+  els.filters.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
   setBanner(
@@ -185,24 +186,10 @@ function showLoadError(err) {
   );
 }
 
-function fillCategoryOptions() {
-  const groups = groupCategoryOptions(categories);
-  for (const select of [els.category, els.recurringCategory]) {
-    select.replaceChildren();
-    for (const type of ['expense', 'income']) {
-      const group = document.createElement('optgroup');
-      group.label = TYPE_LABELS[type];
-      for (const category of groups[type]) {
-        const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = category.name;
-        group.append(option);
-      }
-      select.append(group);
-    }
-  }
-  const selected = els.filterCategory.value;
-  els.filterCategory.replaceChildren(new Option('ทุกหมวด', ''));
+function fillGroupedSelect(select, groups, placeholderOption = null) {
+  const selected = select.value;
+  select.replaceChildren();
+  if (placeholderOption) select.append(placeholderOption);
   for (const type of ['expense', 'income']) {
     const group = document.createElement('optgroup');
     group.label = TYPE_LABELS[type];
@@ -212,9 +199,19 @@ function fillCategoryOptions() {
       option.textContent = category.name;
       group.append(option);
     }
-    els.filterCategory.append(group);
+    select.append(group);
   }
+  return selected;
+}
+
+function fillCategoryOptions() {
+  const groups = groupCategoryOptions(categories);
+  fillGroupedSelect(els.category, groups);
+  fillGroupedSelect(els.recurringCategory, groups);
+  const selected = fillGroupedSelect(els.filterCategory, groups, new Option('ทุกหมวด', ''));
+  // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
   els.filterCategory.value = selected;
+  if (els.filterCategory.value !== selected) els.filterCategory.value = '';
 }
 
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
@@ -314,6 +311,8 @@ function currentFilter() {
 
 // ไม่แตะ class enter: การกรองต้องไม่เล่นแอนิเมชันเข้าฉากแถวซ้ำ
 function renderList() {
+  // ระหว่างโหลดหรือโหลดพลาด ห้ามล้าง skeleton ด้วยสถานะว่างปลอม
+  if (els.filters.hidden && els.list.querySelector('.skeleton')) return;
   const filter = currentFilter();
   const active = isFilterActive(filter);
   const shown = filterTransactions(lastTransactions, filter);
@@ -321,7 +320,9 @@ function renderList() {
   // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
   els.filters.hidden = lastTransactions.length === 0 && !active;
   els.filterClear.hidden = !active;
-  els.filterStatus.textContent = active ? describeFilterResult(shown.length, lastTransactions.length, lastTruncated) : '';
+  const filterText = active ? describeFilterResult(shown.length, lastTransactions.length, lastTruncated) : '';
+  // เขียนเฉพาะเมื่อข้อความเปลี่ยน ไม่ให้ screen reader อ่านซ้ำทุกตัวอักษร
+  if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
   if (lastTransactions.length === 0) {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
     setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
@@ -329,7 +330,8 @@ function renderList() {
     return;
   }
   if (shown.length === 0) {
-    setStatus('ไม่พบรายการที่ค้นหา', { loading: true });
+    // ตัวกรองบอก "พบ 0 จาก N" ใน filter-status อยู่แล้ว จึงไม่ประกาศซ้ำ
+    setStatus('');
     els.list.append(createEmptyState(document, 'search', 'li'));
     return;
   }
@@ -427,6 +429,8 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.filters.hidden = true;
+    lastTransactions = [];
+    lastTruncated = false;
     els.chart.hidden = true;
     els.summaryEmpty.hidden = true;
     els.summarySkeleton.hidden = false;

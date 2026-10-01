@@ -385,6 +385,7 @@ describe('filterTransactions', () => {
   });
 
   it('matches the query against the category name and the note, ignoring case and outer spaces', () => {
+    expect(filterTransactions(items, { query: 'BTS' }).map((item) => item.id)).toEqual(['2']);
     expect(filterTransactions(items, { query: '  bts ' }).map((item) => item.id)).toEqual(['2']);
     expect(filterTransactions(items, { query: 'อาหาร' }).map((item) => item.id)).toEqual(['1', '4']);
     expect(filterTransactions(items, { query: 'ไก่' }).map((item) => item.id)).toEqual(['1']);
@@ -406,6 +407,11 @@ describe('isFilterActive', () => {
   it('is false for empty or whitespace-only filters', () => {
     expect(isFilterActive({ query: '', categoryId: '', type: '' })).toBe(false);
     expect(isFilterActive({ query: '   ', categoryId: '', type: '' })).toBe(false);
+  });
+
+  it('is false when called without a filter', () => {
+    expect(isFilterActive()).toBe(false);
+    expect(isFilterActive({})).toBe(false);
   });
 
   it('is true when any field is set', () => {

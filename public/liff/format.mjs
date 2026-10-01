@@ -214,7 +214,7 @@ export function filterTransactions(transactions, { query = '', categoryId = '', 
   });
 }
 
-export function isFilterActive({ query, categoryId, type }) {
+export function isFilterActive({ query = '', categoryId = '', type = '' } = {}) {
   return Boolean(query.trim() || categoryId || type);
 }
 
