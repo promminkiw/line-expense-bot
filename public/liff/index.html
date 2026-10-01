@@ -52,12 +52,14 @@
         <ul id="chart-rows" class="chart-rows"></ul>
         <p id="chart-empty" class="chart-empty" hidden></p>
       </section>
+      <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
     </div>
     <div id="panel-budgets" class="panel" hidden>
       <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
         <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
         <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)</p>
-        <p id="budgets-loading" class="budgets-loading" role="status" hidden>กำลังโหลดงบ...</p>
+        <p id="budgets-loading" class="budgets-loading sr-only" role="status" hidden>กำลังโหลดงบ...</p>
+        <ul id="budgets-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <ul id="budget-rows" class="budget-rows"></ul>
         <div id="budgets-error" class="budgets-error" hidden>
           <p id="budgets-error-text"></p>
@@ -69,7 +71,8 @@
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
         <h2 id="recurring-title">รายการประจำ</h2>
         <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้กฎที่หยุดไว้) จะเริ่มเดือนหน้า</p>
-        <p id="recurring-loading" class="recurring-loading" role="status" hidden>กำลังโหลดรายการประจำ...</p>
+        <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
+        <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <p id="recurring-empty" class="recurring-empty" hidden>ยังไม่มีรายการประจำ</p>
         <ul id="recurring-rows" class="recurring-rows"></ul>
         <div id="recurring-error" class="budgets-error" hidden>

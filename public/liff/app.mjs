@@ -24,6 +24,7 @@ import {
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
+import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 
@@ -61,6 +62,8 @@ const els = {
   budgets: document.getElementById('budgets'),
   budgetRows: document.getElementById('budget-rows'),
   budgetsLoading: document.getElementById('budgets-loading'),
+  budgetsSkeleton: document.getElementById('budgets-skeleton'),
+  summarySkeleton: document.getElementById('summary-skeleton'),
   budgetsError: document.getElementById('budgets-error'),
   budgetsErrorText: document.getElementById('budgets-error-text'),
   budgetsRetry: document.getElementById('budgets-retry'),
@@ -77,6 +80,7 @@ const els = {
   recurring: document.getElementById('recurring'),
   recurringRows: document.getElementById('recurring-rows'),
   recurringLoading: document.getElementById('recurring-loading'),
+  recurringSkeleton: document.getElementById('recurring-skeleton'),
   recurringEmpty: document.getElementById('recurring-empty'),
   recurringError: document.getElementById('recurring-error'),
   recurringErrorText: document.getElementById('recurring-error-text'),
@@ -117,15 +121,23 @@ let recurringBusy = false;
 let pendingRecurringFocus = null;
 const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
+const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4 });
+const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
+els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
 
-function setStatus(text) {
+function setStatus(text, { loading = false } = {}) {
   els.status.textContent = text;
   els.status.hidden = !text;
+  // ข้อความโหลดยังอยู่ให้ screen reader แต่ทางสายตาใช้ skeleton แทน
+  els.status.classList.toggle('sr-only', loading);
 }
 
 const setBanner = createBannerSetter(els.banner);
 
 function showLoadError(err) {
+  // ล้างเฉพาะ skeleton ที่ค้าง ไม่ล้างรายการจริงตอน reload ล้มเหลว
+  if (els.list.querySelector('.skeleton')) els.list.replaceChildren();
+  els.summarySkeleton.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
   setBanner(
@@ -222,6 +234,7 @@ function renderChart() {
 }
 
 function render({ transactions, summary, truncated }) {
+  els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
   els.totals.textContent = `รายรับ ${formatBaht(sum.income)} · รายจ่าย ${formatBaht(sum.expense)}`;
   els.totals.hidden = false;
@@ -247,7 +260,7 @@ function render({ transactions, summary, truncated }) {
 
 function renderBudgets(budgets, focusCategoryId = null) {
   els.budgetRows.replaceChildren();
-  els.budgetsLoading.hidden = true;
+  budgetsLoading.set(false);
   els.budgetsError.hidden = true;
   els.budgets.hidden = false;
   for (const row of budgetRows(budgets)) {
@@ -288,7 +301,7 @@ function renderBudgets(budgets, focusCategoryId = null) {
 
 function showBudgetsError(err) {
   els.budgetRows.replaceChildren();
-  els.budgetsLoading.hidden = true;
+  budgetsLoading.set(false);
   els.budgets.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.budgetsErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ';
@@ -317,17 +330,18 @@ async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
   if (reset) {
     setBanner('');
-    els.list.replaceChildren();
+    els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.chart.hidden = true;
+    els.summarySkeleton.hidden = false;
     // เปิดส่วนงบพร้อมข้อความโหลดไว้ก่อน รายการด้านล่างจะได้ไม่กระโดดตอนงบมาช้า
     els.budgetRows.replaceChildren();
     els.budgetsError.hidden = true;
-    els.budgetsLoading.hidden = false;
+    budgetsLoading.set(true);
     els.budgets.hidden = false;
     els.exportStatus.textContent = '';
-    setStatus('กำลังโหลด...');
+    setStatus('กำลังโหลด...', { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
   const budgetsLoaded = loadBudgets();
@@ -543,13 +557,13 @@ els.budgetEditor.addEventListener('close', () => {
 });
 els.budgetsRetry.addEventListener('click', () => {
   els.budgetsError.hidden = true;
-  els.budgetsLoading.hidden = false;
+  budgetsLoading.set(true);
   loadBudgets();
 });
 
 function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
-  els.recurringLoading.hidden = true;
+  recurringLoading.set(false);
   els.recurringError.hidden = true;
   els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
@@ -578,7 +592,7 @@ function renderRecurring(rules, focusRuleId = null) {
 
 function showRecurringError(err) {
   els.recurringRows.replaceChildren();
-  els.recurringLoading.hidden = true;
+  recurringLoading.set(false);
   els.recurringEmpty.hidden = true;
   els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
@@ -706,7 +720,7 @@ els.recurringEditor.addEventListener('close', () => {
 });
 els.recurringRetry.addEventListener('click', () => {
   els.recurringError.hidden = true;
-  els.recurringLoading.hidden = false;
+  recurringLoading.set(true);
   loadRecurring();
 });
 
@@ -744,7 +758,7 @@ async function boot() {
     // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
     els.recurringEmpty.hidden = true;
     els.recurringError.hidden = true;
-    els.recurringLoading.hidden = false;
+    recurringLoading.set(true);
     els.recurring.hidden = false;
     await Promise.all([loadMonth({ reset: true }), loadRecurring()]);
   } catch (err) {
