@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Readable } from 'node:stream';
 import { createImageDownloader, MAX_IMAGE_BYTES } from './download-image.js';
 
@@ -51,9 +51,86 @@ describe('createImageDownloader', () => {
     expect((await downloadImage('m1')).status).toBe('ok');
   });
 
+  it('keeps the limit at 3.75 MB so the base64 payload stays under 5 MB', () => {
+    expect(MAX_IMAGE_BYTES).toBe(3932160);
+  });
+
   it('lets a download error propagate so the bot can log and apologise', async () => {
     const blobClient = { getMessageContent: vi.fn().mockRejectedValue(new Error('LINE down')) };
 
     await expect(createImageDownloader({ blobClient })('m1')).rejects.toThrow('LINE down');
+  });
+
+  describe('download timeout', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('rejects when getMessageContent never resolves', async () => {
+      vi.useFakeTimers();
+      const blobClient = { getMessageContent: vi.fn(() => new Promise(() => {})) };
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await assertion;
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('rejects and destroys the stream when it stalls mid-way', async () => {
+      vi.useFakeTimers();
+      const stream = new Readable({ read() {} });
+      stream.push(JPEG);
+      const blobClient = { getMessageContent: vi.fn().mockResolvedValue(stream) };
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await assertion;
+      expect(stream.destroyed).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('destroys a stream that arrives after the timeout already fired', async () => {
+      vi.useFakeTimers();
+      const stream = new Readable({ read() {} });
+      let deliver;
+      const blobClient = { getMessageContent: vi.fn(() => new Promise((resolve) => { deliver = resolve; })) };
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await assertion;
+      deliver(stream);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(stream.destroyed).toBe(true);
+    });
+
+    it('clears the timer on the normal path and on a download error', async () => {
+      vi.useFakeTimers();
+      const { downloadImage } = setup([JPEG]);
+      await downloadImage('m1');
+      expect(vi.getTimerCount()).toBe(0);
+
+      const blobClient = { getMessageContent: vi.fn().mockRejectedValue(new Error('LINE down')) };
+      await expect(createImageDownloader({ blobClient })('m1')).rejects.toThrow('LINE down');
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('uses a 15 second timeout by default', async () => {
+      vi.useFakeTimers();
+      const blobClient = { getMessageContent: vi.fn(() => new Promise(() => {})) };
+      const pending = createImageDownloader({ blobClient })('m1');
+      const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
+
+      await vi.advanceTimersByTimeAsync(14999);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      await assertion;
+    });
   });
 });

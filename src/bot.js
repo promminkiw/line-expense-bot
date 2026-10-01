@@ -16,7 +16,7 @@ const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไห�
 const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
 const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
 const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
-const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
+const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
 const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
 const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปใหม่ได้เลย';
 const SLIP_CANCELLED_REPLY = 'ยกเลิกสลิปแล้ว ไม่ได้บันทึกรายการ';
@@ -404,4 +404,5 @@ module.exports = {
   SLIP_UNSUPPORTED_REPLY,
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
+  SLIP_TTL_MS,
 };
