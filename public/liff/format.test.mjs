@@ -12,6 +12,7 @@ import {
   hasChartData,
   describeExportFailure,
   budgetRows,
+  createLatestGuard,
   formatMonthLabel,
   describeBudgetFailure,
   LOGIN_REQUIRED_MESSAGE,
@@ -211,6 +212,13 @@ describe('describeExportFailure', () => {
 });
 
 describe('budgetRows', () => {
+  it('treats a zero budget as not set instead of showing NaN percent', () => {
+    const [row] = budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 0, spent: 0 }]);
+
+    expect(row).toMatchObject({ budget: null, level: 'none', percent: null, width: 0 });
+    expect(row.text).toBe('ใช้ไป 0 บาท · ยังไม่ตั้งงบ');
+  });
+
   it('describes spending against the budget with a level and a capped bar', () => {
     const rows = budgetRows([
       { categoryId: 'c1', category: 'อาหาร', budget: 5000, spent: 4030 },
@@ -277,5 +285,18 @@ describe('describeBudgetFailure', () => {
     expect(describeBudgetFailure(404)).toBe('ไม่พบหมวดนี้แล้ว');
     expect(describeBudgetFailure(500)).toBe('บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(describeBudgetFailure(undefined)).toBe('บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+});
+
+describe('createLatestGuard', () => {
+  it('treats only the newest started request as current', () => {
+    const guard = createLatestGuard();
+
+    const first = guard.start();
+    expect(guard.isCurrent(first)).toBe(true);
+
+    const second = guard.start();
+    expect(guard.isCurrent(first)).toBe(false);
+    expect(guard.isCurrent(second)).toBe(true);
   });
 });

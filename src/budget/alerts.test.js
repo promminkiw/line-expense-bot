@@ -38,6 +38,11 @@ describe('findBudgetAlerts', () => {
     expect(alerts.map((alert) => alert.level)).toEqual(['warn']);
   });
 
+  it('gives no alert for a zero budget instead of showing NaN percent', () => {
+    expect(findBudgetAlerts([row()], byMonth('2026-09', [status({ budget: 0, spent: 0 })]))).toEqual([]);
+    expect(findBudgetAlerts([row()], byMonth('2026-09', [status({ budget: 0, spent: 60 })]))).toEqual([]);
+  });
+
   it('gives no alert below 80 percent', () => {
     expect(findBudgetAlerts([row({ amount: 60 })], byMonth('2026-09', [status({ spent: 3999.99 })]))).toEqual([]);
   });

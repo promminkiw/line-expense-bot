@@ -3,10 +3,13 @@ const { isValidCalendarDate } = require('../utils/date');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
+const MIN_YEAR = 2000;
+const MAX_YEAR = 2100;
 
 function parseMonth(value) {
   const match = MONTH_PATTERN.exec(value || '');
-  if (!match) {
+  // จำกัดปีเพราะปีนอกช่วงนี้ทำให้ DB ตอบ 500
+  if (!match || Number(match[1]) < MIN_YEAR || Number(match[1]) > MAX_YEAR) {
     return null;
   }
   // วันที่ 0 ของเดือนถัดไปคือวันสุดท้ายของเดือนที่ต้องการ

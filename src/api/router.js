@@ -17,8 +17,12 @@ function createApiRouter({
   liffId,
   logger = console,
   now = () => new Date(),
-  allowExport = () => true,
+  allowExport,
 }) {
+  // ไม่มี default เพราะถ้าลืมส่ง limit จะหายเงียบๆ
+  if (typeof allowExport !== 'function') {
+    throw new TypeError('createApiRouter requires allowExport');
+  }
   const router = express.Router();
 
   // parse ในนี้เพื่อให้ error ของ body ไปถึง error handler ของ router และตอบเป็น JSON ไม่ใช่ข้อความจาก error handler ของ app

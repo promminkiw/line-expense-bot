@@ -48,7 +48,7 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 \- transactions: id, user\_id, type (income/expense), category\_id, amount (numeric), note, occurred\_on (date), source (text/slip/recurring), created\_at
 
-\- budgets: id, user\_id, category\_id, month, amount
+\- budgets: id, user\_id, category\_id, month (วันที่ 1 ที่งบเริ่มมีผล), amount (null = ไม่ตั้งงบตั้งแต่เดือนนั้น)
 
 \- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on
 

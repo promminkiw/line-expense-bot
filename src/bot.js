@@ -13,7 +13,7 @@ const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
 const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
-const NO_ENTRIES_COMMENT ='ยังไม่มีรายการในช่วงนี้';
+const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },

@@ -51,6 +51,14 @@ function setup(overrides = {}) {
   return deps;
 }
 
+describe('createApiRouter', () => {
+  it('refuses to build without an export limiter so the limit cannot vanish silently', () => {
+    const { allowExport, ...deps } = setup();
+
+    expect(() => createApiRouter(deps)).toThrow('allowExport');
+  });
+});
+
 async function start(deps) {
   const app = express();
   app.use('/api', createApiRouter(deps));
@@ -67,8 +75,11 @@ function call(base, path, { token = 'good', method = 'GET', body } = {}) {
 }
 
 afterEach(async () => {
+  // บางเทสต์ไม่เปิด server
+  if (!server) return;
   server.closeAllConnections();
   await new Promise((resolve) => server.close(resolve));
+  server = undefined;
 });
 
 describe('GET /api/config', () => {
@@ -473,11 +484,27 @@ describe('budgets', () => {
     expect(deps.repository.setBudget).not.toHaveBeenCalled();
   });
 
+  it('rejects an empty or array body when setting', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const body of [{}, [], [{ month: '2026-09', amount: 5000 }]]) {
+      const res = await call(base, '/budgets/c-food', { method: 'PUT', body });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: 'Invalid month' });
+    }
+    const noBody = await call(base, '/budgets/c-food', { method: 'PUT' });
+    expect(noBody.status).toBe(400);
+    expect(deps.repository.setBudget).not.toHaveBeenCalled();
+  });
+
   it('returns 404 for an income category or a category of someone else', async () => {
     const deps = setup();
     const base = await start(deps);
 
-    for (const id of ['c-salary', 'c-not-mine']) {
+    // id ที่ไม่ใช่ UUID ต้องไม่ถูกส่งต่อไปถึง DB ผ่าน setBudget
+    for (const id of ['c-salary', 'c-not-mine', 'not-a-uuid%27']) {
       const res = await call(base, `/budgets/${id}`, { method: 'PUT', body: { month: '2026-09', amount: 5000 } });
 
       expect(res.status).toBe(404);

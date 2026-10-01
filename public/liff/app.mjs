@@ -13,6 +13,7 @@ import {
   groupCategoryOptions,
   describeEditFailure,
   budgetRows,
+  createLatestGuard,
   formatMonthLabel,
   describeBudgetFailure,
   LOGIN_REQUIRED_MESSAGE,
@@ -52,12 +53,16 @@ const els = {
   confirmOk: document.getElementById('confirm-ok'),
   budgets: document.getElementById('budgets'),
   budgetRows: document.getElementById('budget-rows'),
+  budgetsLoading: document.getElementById('budgets-loading'),
   budgetsError: document.getElementById('budgets-error'),
+  budgetsErrorText: document.getElementById('budgets-error-text'),
+  budgetsRetry: document.getElementById('budgets-retry'),
   budgetEditor: document.getElementById('budget-editor'),
   budgetForm: document.getElementById('budget-form'),
   budgetTitle: document.getElementById('budget-title'),
   budgetScope: document.getElementById('budget-scope'),
   budgetAmount: document.getElementById('budget-amount'),
+  budgetBusy: document.getElementById('budget-busy'),
   budgetError: document.getElementById('budget-error'),
   budgetRemove: document.getElementById('budget-remove'),
   budgetCancel: document.getElementById('budget-cancel'),
@@ -73,6 +78,7 @@ let lastSummary = [];
 let exporting = false;
 let editingBudget = null;
 let budgetBusy = false;
+const budgetsGuard = createLatestGuard();
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -183,8 +189,9 @@ function render({ transactions, summary, truncated }) {
   }
 }
 
-function renderBudgets(budgets) {
+function renderBudgets(budgets, focusCategoryId = null) {
   els.budgetRows.replaceChildren();
+  els.budgetsLoading.hidden = true;
   els.budgetsError.hidden = true;
   els.budgets.hidden = false;
   for (const row of budgetRows(budgets)) {
@@ -216,25 +223,33 @@ function renderBudgets(budgets) {
     button.addEventListener('click', () => openBudgetEditor(row));
     item.append(button);
     els.budgetRows.append(item);
+    // render ใหม่ทำให้ปุ่มเดิมหาย จึงคืน focus ให้ปุ่มของหมวดที่เพิ่งแก้
+    if (focusCategoryId === row.categoryId) button.focus();
   }
 }
 
 function showBudgetsError(err) {
   els.budgetRows.replaceChildren();
+  els.budgetsLoading.hidden = true;
   els.budgets.hidden = false;
-  els.budgetsError.textContent =
-    err instanceof ApiError && err.status === 401 ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ ลองใหม่อีกครั้ง';
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.budgetsErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ';
+  // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
+  els.budgetsRetry.hidden = loginRequired;
   els.budgetsError.hidden = false;
 }
 
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
-async function loadBudgets() {
+async function loadBudgets({ focusCategoryId = null } = {}) {
   const month = els.month.value;
+  const requestId = budgetsGuard.start();
+  // เดือนเดียวกันที่ถูกโหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
+  const isCurrent = () => month === els.month.value && budgetsGuard.isCurrent(requestId);
   try {
     const { budgets } = await api.listBudgets(month);
-    if (month === els.month.value) renderBudgets(budgets);
+    if (isCurrent()) renderBudgets(budgets, focusCategoryId);
   } catch (err) {
-    if (month === els.month.value) showBudgetsError(err);
+    if (isCurrent()) showBudgetsError(err);
   }
 }
 
@@ -247,7 +262,11 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.chart.hidden = true;
-    els.budgets.hidden = true;
+    // เปิดส่วนงบพร้อมข้อความโหลดไว้ก่อน รายการด้านล่างจะได้ไม่กระโดดตอนงบมาช้า
+    els.budgetRows.replaceChildren();
+    els.budgetsError.hidden = true;
+    els.budgetsLoading.hidden = false;
+    els.budgets.hidden = false;
     els.exportStatus.textContent = '';
     setStatus('กำลังโหลด...');
   }
@@ -413,6 +432,7 @@ function openBudgetEditor(row) {
   els.budgetScope.textContent = `มีผลตั้งแต่เดือน ${formatMonthLabel(editingBudget.month)} เป็นต้นไป`;
   els.budgetAmount.value = row.budget === null ? '' : String(row.budget);
   els.budgetRemove.hidden = row.budget === null;
+  els.budgetBusy.hidden = true;
   els.budgetError.hidden = true;
   els.budgetEditor.showModal();
 }
@@ -422,8 +442,9 @@ function setBudgetBusy(isBusy) {
   els.budgetSave.disabled = isBusy;
   els.budgetRemove.disabled = isBusy;
   els.budgetCancel.disabled = isBusy;
-  els.budgetError.textContent = isBusy ? 'กำลังบันทึก...' : '';
-  els.budgetError.hidden = !isBusy;
+  els.budgetBusy.hidden = !isBusy;
+  // ข้อความ error อยู่ใน role=alert แยกจากข้อความกำลังบันทึก
+  els.budgetError.hidden = true;
 }
 
 async function saveBudget(amount) {
@@ -444,7 +465,7 @@ async function saveBudget(amount) {
     return;
   }
   els.budgetEditor.close();
-  await loadBudgets();
+  await loadBudgets({ focusCategoryId: target.categoryId });
 }
 
 els.budgetForm.addEventListener('submit', (event) => {
@@ -456,6 +477,15 @@ els.budgetCancel.addEventListener('click', () => els.budgetEditor.close());
 // กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
 els.budgetEditor.addEventListener('cancel', (event) => {
   if (budgetBusy) event.preventDefault();
+});
+// Esc ครั้งที่สอง browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
+els.budgetEditor.addEventListener('close', () => {
+  if (budgetBusy) els.budgetEditor.showModal();
+});
+els.budgetsRetry.addEventListener('click', () => {
+  els.budgetsError.hidden = true;
+  els.budgetsLoading.hidden = false;
+  loadBudgets();
 });
 
 async function boot() {

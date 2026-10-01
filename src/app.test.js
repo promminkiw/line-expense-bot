@@ -196,6 +196,7 @@ describe('/api', () => {
       verifyIdToken: vi.fn().mockResolvedValue('U1'),
       users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
+      allowExport: vi.fn().mockReturnValue(true),
       liffId: 'liff-123',
       logger: { error: vi.fn() },
     });
