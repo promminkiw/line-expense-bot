@@ -72,6 +72,8 @@ function setup(overrides = {}) {
 
 describe('createApiRouter', () => {
   it('refuses to build without an export limiter so the limit cannot vanish silently', () => {
+    // ตั้งใจแยก allowExport ออกจาก deps เพื่อทดสอบกรณีไม่มี limiter
+    // eslint-disable-next-line no-unused-vars
     const { allowExport, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('allowExport');
