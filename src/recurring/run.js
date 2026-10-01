@@ -19,7 +19,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
       try {
         created = await repository.applyRecurringRule({ ruleId: rule.id, dueOn, eventId });
       } catch (err) {
-        logger.error('Failed to apply recurring rule', { ruleId: rule.id }, err);
+        logger.error('Failed to apply recurring rule', { ruleId: rule.id, reason: err.message });
         result.failed += 1;
         continue;
       }
@@ -28,21 +28,21 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
         continue;
       }
       result.created += 1;
-      const text = [
-        'บันทึกรายการประจำให้อัตโนมัติ',
-        formatItem({
-          type: rule.type,
-          category: rule.categoryName,
-          amount: rule.amount,
-          date: dueOn,
-          note: rule.note,
-        }),
-      ].join('\n');
       try {
+        const text = [
+          'บันทึกรายการประจำให้อัตโนมัติ',
+          formatItem({
+            type: rule.type,
+            category: rule.categoryName,
+            amount: rule.amount,
+            date: dueOn,
+            note: rule.note,
+          }),
+        ].join('\n');
         await pushText(rule.lineUserId, text, buildUndoQuickReply(eventId));
       } catch (err) {
-        // บันทึกสำเร็จแล้ว push พังไม่ต้องย้อนรายการ
-        logger.error('Failed to push recurring notice', { ruleId: rule.id }, err);
+        // บันทึกสำเร็จแล้ว push พังไม่ต้องย้อนรายการ และไม่ log err ทั้งก้อนเพราะ cause.details อาจมียอดเงิน
+        logger.error('Failed to push recurring notice', { ruleId: rule.id, reason: err.message });
         result.pushFailed += 1;
       }
     }

@@ -30,6 +30,11 @@ describe('createRecurringRouter', () => {
     expect(() => createRecurringRouter({ cronSecret: '', run: vi.fn() })).toThrow('cronSecret');
   });
 
+  it('refuses a secret that is not a non-empty string', () => {
+    expect(() => createRecurringRouter({ cronSecret: 12345, run: vi.fn() })).toThrow('requires cronSecret');
+    expect(() => createRecurringRouter({ cronSecret: undefined, run: vi.fn() })).toThrow('requires cronSecret');
+  });
+
   it('runs the job and returns the counts when the bearer secret matches', async () => {
     const run = vi.fn().mockResolvedValue({ due: 2, created: 1, skipped: 1, failed: 0, pushFailed: 1 });
     const base = await start({ cronSecret: 's3cret', run });

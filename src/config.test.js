@@ -9,7 +9,7 @@ const VALID_ENV = {
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test',
   LIFF_ID: '1234567890-AbCdEfGh',
   LINE_LOGIN_CHANNEL_ID: '1234567890',
-  CRON_SECRET: 'cron-secret-789',
+  CRON_SECRET: 'cron-secret-789-0123456789-0123456789-abcdefg',
 };
 
 describe('loadConfig', () => {
@@ -26,7 +26,7 @@ describe('loadConfig', () => {
       supabaseServiceRoleKey: 'sb_secret_test',
       liffId: '1234567890-AbCdEfGh',
       lineLoginChannelId: '1234567890',
-      cronSecret: 'cron-secret-789',
+      cronSecret: 'cron-secret-789-0123456789-0123456789-abcdefg',
     });
   });
 
@@ -41,6 +41,17 @@ describe('loadConfig', () => {
     expect(() => loadConfig({})).toThrow(
       'Missing environment variables: LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN, ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, LIFF_ID, LINE_LOGIN_CHANNEL_ID, CRON_SECRET'
     );
+  });
+
+  it('rejects a CRON_SECRET shorter than 32 characters without echoing it', () => {
+    const short = 'a'.repeat(31);
+    expect(() => loadConfig({ ...VALID_ENV, CRON_SECRET: short })).toThrow(
+      new Error('CRON_SECRET must be at least 32 characters')
+    );
+  });
+
+  it('accepts a CRON_SECRET of exactly 32 characters', () => {
+    expect(loadConfig({ ...VALID_ENV, CRON_SECRET: 'a'.repeat(32) }).cronSecret).toBe('a'.repeat(32));
   });
 
   it('treats empty string as missing', () => {

@@ -9,7 +9,7 @@ function safeEqual(a, b) {
 }
 
 function createRecurringRouter({ cronSecret, run, logger = console }) {
-  if (!cronSecret) {
+  if (typeof cronSecret !== 'string' || cronSecret.length === 0) {
     throw new TypeError('createRecurringRouter requires cronSecret');
   }
   const router = express.Router();
