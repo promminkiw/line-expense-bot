@@ -71,7 +71,8 @@ function sanitizeNote(note) {
   if (typeof note !== 'string') {
     return '';
   }
-  const cleaned = note.replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+  // toWellFormed แทน surrogate เดี่ยวที่โมเดลส่งมาเอง เพราะ jsonb ปฏิเสธและบันทึกสลิปไม่ได้
+  const cleaned = note.toWellFormed().replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
   return Array.from(cleaned).slice(0, MAX_NOTE_LENGTH).join('');
 }
 

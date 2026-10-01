@@ -119,6 +119,23 @@ describe('createSlipParser', () => {
     expect(result.item.note).toBe('ก'.repeat(98) + '😀');
   });
 
+  it('drops a whole emoji that straddles the cut instead of leaving half of it', async () => {
+    // ตัดตาม UTF-16 ที่ 100 จะเหลือครึ่ง emoji ส่วนตัดตาม code point เก็บ emoji ครบพอดี 100
+    const result = await setup(slipJson({ note: 'ก'.repeat(99) + '😀' + 'ข' })).parseSlip(IMAGE);
+
+    expect(result.item.note).toBe('ก'.repeat(99) + '😀');
+    expect(result.item.note.isWellFormed()).toBe(true);
+    const longer = await setup(slipJson({ note: 'ก'.repeat(100) + '😀' })).parseSlip(IMAGE);
+    expect(longer.item.note).toBe('ก'.repeat(100));
+  });
+
+  it('replaces a lone surrogate sent by the model so the jsonb write cannot fail', async () => {
+    const result = await setup(slipJson({ note: 'โอนให้ \ud83d ร้านค้า' })).parseSlip(IMAGE);
+
+    expect(result.item.note.isWellFormed()).toBe(true);
+    expect(result.item.note).toContain('ร้านค้า');
+  });
+
   it('turns newlines inside the note into spaces so it stays on one line', async () => {
     const result = await setup(slipJson({ note: 'โอนให้ A\n- รายจ่าย | อาหาร' })).parseSlip(IMAGE);
 
