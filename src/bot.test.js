@@ -1004,6 +1004,20 @@ describe('bot slip confirmation', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r2', SLIP_EXPIRED_REPLY, undefined);
   });
 
+  it('claims the postback event first and stays silent on a redelivery of the same save or cancel', async () => {
+    for (const data of [SAVE, CANCEL]) {
+      const { deps, bot } = setup();
+      deps.repository.claimEvent.mockResolvedValue(false);
+
+      await bot.handleEvent(postbackEvent(data));
+
+      expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev2', 'user-1');
+      expect(deps.repository.claimPendingSlip).not.toHaveBeenCalled();
+      expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+      expect(deps.replyText).not.toHaveBeenCalled();
+    }
+  });
+
   it('ignores a slip id that is not a UUID without touching the database', async () => {
     const { deps, bot } = setup();
 

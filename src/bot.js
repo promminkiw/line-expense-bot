@@ -289,8 +289,16 @@ function createBot({
     return repository.claimPendingSlip(userId, params.get('slip'), new Date(now() - SLIP_TTL_MS).toISOString());
   }
 
-  async function handleSlipSave(params, lineUserId) {
+  // LINE ส่ง postback เดิมซ้ำได้ ถ้าไม่จองก่อนจะได้ข้อความหมดเวลาทั้งที่บันทึกสำเร็จแล้ว
+  async function claimPostback(event, userId) {
+    return repository.claimEvent(event.webhookEventId, userId);
+  }
+
+  async function handleSlipSave(event, params, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
+    if (!(await claimPostback(event, userId))) {
+      return null;
+    }
     // โหลดหมวดก่อนจองสลิป ถ้าโหลดพังสลิปที่รอยืนยันยังอยู่ให้กดใหม่ได้
     const categoryIds = await users.loadCategoryIds(userId);
     const slip = await claimSlip(params, userId);
@@ -313,8 +321,11 @@ function createBot({
     };
   }
 
-  async function handleSlipCancel(params, lineUserId) {
+  async function handleSlipCancel(event, params, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
+    if (!(await claimPostback(event, userId))) {
+      return null;
+    }
     const slip = await claimSlip(params, userId);
     return { text: slip ? SLIP_CANCELLED_REPLY : SLIP_EXPIRED_REPLY };
   }
@@ -330,7 +341,9 @@ function createBot({
       if (!UUID_PATTERN.test(params.get('slip') || '')) {
         return null;
       }
-      return action === SLIP_SAVE_ACTION ? handleSlipSave(params, lineUserId) : handleSlipCancel(params, lineUserId);
+      return action === SLIP_SAVE_ACTION
+        ? handleSlipSave(event, params, lineUserId)
+        : handleSlipCancel(event, params, lineUserId);
     }
     return null;
   }

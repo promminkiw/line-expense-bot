@@ -149,7 +149,7 @@ describe('createSlipParser', () => {
   });
 
   it('is unreadable when the image is not a slip', async () => {
-    const { parseSlip } = setup(slipJson({ is_slip: false, rejection_kind: 'not_a_financial_document', amount: 0 }));
+    const { parseSlip } = setup(slipJson({ is_slip: false, rejection_kind: 'not_a_financial_document' }));
 
     expect(await parseSlip(IMAGE)).toEqual({
       status: 'unreadable',
@@ -241,10 +241,20 @@ describe('createSlipParser', () => {
     expect(result.extrasNote).toBe('ก'.repeat(99) + EMOJI);
   });
 
-  it('throws ParseError when the response is cut off or refused', async () => {
-    for (const stop_reason of ['max_tokens', 'refusal']) {
-      await expect(setup(slipJson(), { stop_reason }).parseSlip(IMAGE)).rejects.toBeInstanceOf(ParseError);
-    }
+  it('throws ParseError when the response is refused', async () => {
+    await expect(setup(slipJson(), { stop_reason: 'refusal' }).parseSlip(IMAGE)).rejects.toBeInstanceOf(ParseError);
+  });
+
+  it('is unreadable as too_long, not an error, when a very long receipt cuts the response off', async () => {
+    const result = await setup(slipJson(), { stop_reason: 'max_tokens' }).parseSlip(IMAGE);
+
+    expect(result).toEqual({
+      status: 'unreadable',
+      reason: 'too_long',
+      itemCount: 0,
+      rejectedAmounts: [],
+      rejectionKind: 'other',
+    });
   });
 
   it('throws ParseError for a response with no text, bad JSON or the wrong shape', async () => {
@@ -445,6 +455,6 @@ describe('createSlipParser with several items', () => {
     expect(system).toContain('one item per product');
     expect(system).toContain('extras_note');
     expect(system).toContain('slip_total');
-    expect(create.mock.calls[0][0].max_tokens).toBeGreaterThanOrEqual(2048);
+    expect(create.mock.calls[0][0].max_tokens).toBeGreaterThanOrEqual(4096);
   });
 });
