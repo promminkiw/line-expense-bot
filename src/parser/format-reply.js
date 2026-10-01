@@ -49,4 +49,4 @@ function formatSlipConfirmReply(items, { dateAssumed = false, extrasNote = '', s
   return lines.join('\n');
 }
 
-module.exports = { formatSavedReply, formatSlipConfirmReply, formatAmount };
+module.exports = { formatSavedReply, formatSlipConfirmReply, formatAmount, formatItem };

@@ -418,4 +418,5 @@ module.exports = {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   SLIP_TTL_MS,
+  buildUndoQuickReply,
 };

@@ -15,13 +15,23 @@ function capTextLength(text) {
   return text.slice(0, end) + '...';
 }
 
+function buildTextMessage(text, quickReplyItems) {
+  const message = { type: 'text', text: capTextLength(text) };
+  if (quickReplyItems && quickReplyItems.length > 0) {
+    message.quickReply = { items: quickReplyItems };
+  }
+  return message;
+}
+
 function createReplyText(client) {
   return async function replyText(replyToken, text, quickReplyItems) {
-    const message = { type: 'text', text: capTextLength(text) };
-    if (quickReplyItems && quickReplyItems.length > 0) {
-      message.quickReply = { items: quickReplyItems };
-    }
-    await client.replyMessage({ replyToken, messages: [message] });
+    await client.replyMessage({ replyToken, messages: [buildTextMessage(text, quickReplyItems)] });
+  };
+}
+
+function createPushText(client) {
+  return async function pushText(to, text, quickReplyItems) {
+    await client.pushMessage({ to, messages: [buildTextMessage(text, quickReplyItems)] });
   };
 }
 
@@ -31,4 +41,4 @@ function createReplyFlex(client) {
   };
 }
 
-module.exports = { capTextLength, createReplyText, createReplyFlex };
+module.exports = { capTextLength, createReplyText, createReplyFlex, createPushText };
