@@ -250,6 +250,13 @@ function createBot({
     }
     const { slip } = outcome;
     if (slip.status !== 'ok') {
+      // log เฉพาะเหตุผลและตัวเลข ไม่ใส่รูปหรือชื่อสินค้า
+      logger.info('Slip unreadable', {
+        userId,
+        reason: slip.reason,
+        itemCount: slip.itemCount,
+        rejectedAmounts: slip.rejectedAmounts,
+      });
       return { text: SLIP_UNREADABLE_REPLY };
     }
     await clearExpiredSlips(userId);
@@ -260,6 +267,7 @@ function createBot({
         extrasNote: slip.extrasNote,
         slipTotal: slip.slipTotal,
         truncatedTo: slip.truncatedTo,
+        skippedCount: slip.skippedCount,
       }),
       quickReply: buildSlipQuickReply(slipId),
     };

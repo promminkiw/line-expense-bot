@@ -109,10 +109,22 @@ describe('formatSlipConfirmReply', () => {
     expect(text).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
   });
 
-  it('keeps the fixed line order: extras, total, cut, date, confirm', () => {
+  it('says how many items were skipped because the price could not be read', () => {
+    const text = formatSlipConfirmReply([MILK, TOOTHPASTE], { skippedCount: 2 });
+
+    expect(text).toContain('ข้าม 2 รายการที่อ่านราคาไม่ได้');
+  });
+
+  it('does not mention skipped items when none were skipped', () => {
+    expect(formatSlipConfirmReply([MILK], { skippedCount: 0 })).not.toContain('ข้าม');
+    expect(formatSlipConfirmReply([MILK])).not.toContain('ข้าม');
+  });
+
+  it('keeps the fixed line order: extras, total, skipped, cut, date, confirm', () => {
     const lines = formatSlipConfirmReply([MILK, TOOTHPASTE], {
       extrasNote: 'VAT 7%',
       slipTotal: 100,
+      skippedCount: 1,
       truncatedTo: 20,
       dateAssumed: true,
     }).split('\n');
@@ -120,6 +132,7 @@ describe('formatSlipConfirmReply', () => {
     expect(lines.slice(3)).toEqual([
       'หมายเหตุ: VAT 7% (ไม่ได้บันทึก)',
       'ยอดสุทธิบนสลิป 100 บาท',
+      'ข้าม 1 รายการที่อ่านราคาไม่ได้',
       'มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก',
       'อ่านวันที่ไม่ได้ จึงใช้วันนี้',
       CONFIRM,

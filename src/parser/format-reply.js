@@ -26,7 +26,7 @@ function formatSavedReply(items) {
   return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
 }
 
-function formatSlipConfirmReply(items, { dateAssumed = false, extrasNote = '', slipTotal = 0, truncatedTo = 0 } = {}) {
+function formatSlipConfirmReply(items, { dateAssumed = false, extrasNote = '', slipTotal = 0, truncatedTo = 0, skippedCount = 0 } = {}) {
   const header = items.length > 1 ? `อ่านสลิปได้ ${items.length} รายการ` : 'อ่านสลิปได้ดังนี้';
   const lines = [header, ...items.map(formatItem)];
   if (extrasNote) {
@@ -35,6 +35,9 @@ function formatSlipConfirmReply(items, { dateAssumed = false, extrasNote = '', s
     if (slipTotal > 0) {
       lines.push(`ยอดสุทธิบนสลิป ${formatAmount(slipTotal)} บาท`);
     }
+  }
+  if (skippedCount > 0) {
+    lines.push(`ข้าม ${skippedCount} รายการที่อ่านราคาไม่ได้`);
   }
   if (truncatedTo > 0) {
     lines.push(`มีสินค้ามากกว่า ${truncatedTo} รายการ บันทึกเฉพาะ ${truncatedTo} รายการแรก`);

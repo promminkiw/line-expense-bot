@@ -107,7 +107,7 @@ function setup(overrides = {}) {
       ),
     },
     allowRequest: vi.fn().mockReturnValue(true),
-    logger: { error: vi.fn() },
+    logger: { error: vi.fn(), info: vi.fn() },
     ...overrides,
   };
   return { deps, bot: createBot(deps) };
@@ -767,6 +767,40 @@ describe('bot slip image', () => {
 
     expect(deps.repository.savePendingSlip).not.toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNREADABLE_REPLY, undefined);
+  });
+
+  it('logs only the reason, item count and rejected amounts when the slip is unreadable', async () => {
+    const parseSlip = vi.fn().mockResolvedValue({
+      status: 'unreadable',
+      reason: 'no_valid_items',
+      itemCount: 2,
+      rejectedAmounts: [-5, 0],
+      note: 'secret',
+    });
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.logger.info).toHaveBeenCalledWith('Slip unreadable', {
+      userId: 'user-1',
+      reason: 'no_valid_items',
+      itemCount: 2,
+      rejectedAmounts: [-5, 0],
+    });
+    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_UNREADABLE_REPLY, undefined);
+  });
+
+  it('shows how many items were skipped on the confirm card without changing the saved reply', async () => {
+    const parseSlip = vi.fn().mockResolvedValue(slipResult({ skippedCount: 1 }));
+    const { deps, bot } = setup({ parseSlip });
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.replyText.mock.calls[0][1]).toContain('ข้าม 1 รายการที่อ่านราคาไม่ได้');
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+    expect(deps.replyText.mock.calls[1][1]).toBe(
+      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง'
+    );
   });
 
   it('explains when the image is too large or not a supported image, without calling Claude', async () => {

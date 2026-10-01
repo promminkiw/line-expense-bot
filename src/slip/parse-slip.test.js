@@ -42,6 +42,7 @@ describe('createSlipParser', () => {
       extrasNote: '',
       slipTotal: 0,
       truncatedTo: 0,
+      skippedCount: 0,
     });
   });
 
@@ -149,12 +150,17 @@ describe('createSlipParser', () => {
   it('is unreadable when the image is not a slip', async () => {
     const { parseSlip } = setup(slipJson({ is_slip: false, amount: 0 }));
 
-    expect(await parseSlip(IMAGE)).toEqual({ status: 'unreadable' });
+    expect(await parseSlip(IMAGE)).toEqual({ status: 'unreadable', reason: 'not_slip', itemCount: 0, rejectedAmounts: [] });
   });
 
-  it('is unreadable when the amount is missing, not positive, rounds to zero or is too large', async () => {
+  it('is unreadable when the only item has a missing, not positive, zero-rounded or too large amount', async () => {
     for (const amount of [0, -5, 0.004, MAX_AMOUNT + 1, null]) {
-      expect(await setup(slipJson({ amount })).parseSlip(IMAGE)).toEqual({ status: 'unreadable' });
+      expect(await setup(slipJson({ amount })).parseSlip(IMAGE)).toEqual({
+        status: 'unreadable',
+        reason: 'no_valid_items',
+        itemCount: 1,
+        rejectedAmounts: [typeof amount === 'number' ? amount : null],
+      });
     }
   });
 
@@ -207,6 +213,7 @@ describe('createSlipParser with several items', () => {
       extrasNote: '',
       slipTotal: 0,
       truncatedTo: 0,
+      skippedCount: 0,
     });
   });
 
@@ -269,15 +276,72 @@ describe('createSlipParser with several items', () => {
   });
 
   it('is unreadable when there are no items', async () => {
-    expect(await setup(slipJson({ items: [] })).parseSlip(IMAGE)).toEqual({ status: 'unreadable' });
+    expect(await setup(slipJson({ items: [] })).parseSlip(IMAGE)).toEqual({
+      status: 'unreadable',
+      reason: 'no_items',
+      itemCount: 0,
+      rejectedAmounts: [],
+    });
   });
 
-  it('is unreadable when any item has an invalid amount', async () => {
+  it('skips only the invalid item and keeps the others in order', async () => {
+    const result = await setup(slipJson({ items: [MILK, { ...TOOTHPASTE, amount: -5 }, { ...MILK, note: 'ขนม' }] })).parseSlip(IMAGE);
+
+    expect(result.status).toBe('ok');
+    expect(result.items.map((item) => item.note)).toEqual(['นมสด', 'ขนม']);
+    expect(result.skippedCount).toBe(1);
+  });
+
+  it('skips each kind of invalid amount while keeping a valid sibling', async () => {
     for (const amount of [0, -10, 0.004, MAX_AMOUNT + 1, null]) {
       const result = await setup(slipJson({ items: [MILK, { ...TOOTHPASTE, amount }] })).parseSlip(IMAGE);
 
-      expect(result).toEqual({ status: 'unreadable' });
+      expect(result).toMatchObject({ status: 'ok', skippedCount: 1 });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].note).toBe('นมสด');
     }
+  });
+
+  it('is unreadable with the reason and rejected amounts when no item is valid', async () => {
+    const result = await setup(slipJson({ items: [{ ...MILK, amount: -5 }, { ...TOOTHPASTE, amount: 0 }] })).parseSlip(IMAGE);
+
+    expect(result).toEqual({ status: 'unreadable', reason: 'no_valid_items', itemCount: 2, rejectedAmounts: [-5, 0] });
+  });
+
+  it('reports zero skipped items on a clean receipt', async () => {
+    const result = await setup(slipJson({ items: [MILK, TOOTHPASTE] })).parseSlip(IMAGE);
+
+    expect(result.skippedCount).toBe(0);
+  });
+
+  it('counts skipped items only among the first 20 and still reports the cut', async () => {
+    const items = Array.from({ length: MAX_SLIP_ITEMS + 3 }, (_, index) => ({
+      ...MILK,
+      amount: index === 1 || index >= MAX_SLIP_ITEMS ? -1 : 35,
+    }));
+    const result = await setup(slipJson({ items })).parseSlip(IMAGE);
+
+    expect(result.skippedCount).toBe(1);
+    expect(result.items).toHaveLength(MAX_SLIP_ITEMS - 1);
+    expect(result.truncatedTo).toBe(MAX_SLIP_ITEMS);
+  });
+
+  it('caps the rejected amounts at 20 and shows non-numbers as null', async () => {
+    const items = Array.from({ length: MAX_SLIP_ITEMS }, (_, index) => ({ ...MILK, amount: index === 0 ? 'x' : -1 }));
+    const result = await setup(slipJson({ items })).parseSlip(IMAGE);
+
+    expect(result.rejectedAmounts).toHaveLength(20);
+    expect(result.rejectedAmounts[0]).toBeNull();
+  });
+
+  it('tells Claude to leave discounts, negative prices and free items out of the items', async () => {
+    const { create, parseSlip } = setup(slipJson({ items: [MILK] }));
+
+    await parseSlip(IMAGE);
+
+    const { system } = create.mock.calls[0][0];
+    expect(system).toContain('negative');
+    expect(system).toContain('free items');
   });
 
   it('falls back to the other category per item and sanitizes each note', async () => {
