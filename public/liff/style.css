@@ -51,6 +51,8 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .budgets h2 { margin: 0; font-size: 16px; }
 .budgets-hint { margin: 4px 0 0; font-size: 13px; color: #555; }
 .budgets-error { margin: 12px 0 0; color: #666; }
+.budgets-error p { margin: 0 0 8px; }
+.budgets-loading { margin: 12px 0 0; color: #666; }
 .budget-rows { list-style: none; margin: 4px 0 0; padding: 0; }
 .budget-button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px 0; border: none; background: none; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
 .budget-label { overflow-wrap: anywhere; font-weight: 600; }
@@ -62,4 +64,4 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .budget-row.warn .budget-fill { background: #b26a00; }
 .budget-row.over .budget-fill { background: #c62828; }
 .budget-row.over .budget-value { color: #c62828; }
-#budget-editor h2 { margin: 0; font-size: 18px; }
+#budget-editor h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }

@@ -32,8 +32,12 @@
     <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
       <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
       <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)</p>
+      <p id="budgets-loading" class="budgets-loading" role="status" hidden>กำลังโหลดงบ...</p>
       <ul id="budget-rows" class="budget-rows"></ul>
-      <p id="budgets-error" class="budgets-error" hidden></p>
+      <div id="budgets-error" class="budgets-error" hidden>
+        <p id="budgets-error-text"></p>
+        <button type="button" id="budgets-retry">ลองใหม่</button>
+      </div>
     </section>
     <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
     <ul id="list" class="list"></ul>
@@ -79,6 +83,7 @@
       <label>งบต่อเดือน (บาท)
         <input id="budget-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
       </label>
+      <p id="budget-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
       <p id="budget-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="budget-remove" class="danger">ไม่ตั้งงบ</button>

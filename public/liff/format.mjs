@@ -119,10 +119,20 @@ export function formatMonthLabel(month) {
   return `${value}/${year}`;
 }
 
+// ให้ผลของ request ล่าสุดเท่านั้นได้แสดง กันผลที่ช้ากว่ามาทับ
+export function createLatestGuard() {
+  let latest = 0;
+  return {
+    start: () => ++latest,
+    isCurrent: (id) => id === latest,
+  };
+}
+
 // ปัด % ลงและเทียบเป็นสตางค์ ให้ตรงกับเส้นที่บอทใช้เตือนในแชต
 export function budgetRows(budgets) {
   const rows = budgets.map((row) => {
-    if (row.budget === null) {
+    // งบ 0 บาทเทียบเป็นเปอร์เซ็นต์ไม่ได้ จึงถือว่าไม่ได้ตั้งงบ
+    if (row.budget === null || row.budget <= 0) {
       return {
         categoryId: row.categoryId,
         category: row.category,
