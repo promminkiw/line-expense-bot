@@ -76,7 +76,7 @@ dialog input, dialog select { display: block; width: 100%; margin-top: 4px; padd
 .recurring-title { display: block; overflow-wrap: anywhere; font-weight: 600; }
 .recurring-text { display: block; overflow-wrap: anywhere; color: var(--muted); }
 .recurring-row.paused .recurring-title, .recurring-row.paused .recurring-text { color: var(--muted); }
-#recurring-add, #recurring-retry { font: inherit; min-height: 44px; padding: 10px 16px; font-size: 16px; border: 1px solid var(--primary); border-radius: 8px; background: var(--surface); color: var(--primary); }
+#recurring-add, #recurring-retry, #budgets-retry, #banner-retry { font: inherit; min-height: 44px; padding: 10px 16px; font-size: 16px; border: 1px solid var(--primary); border-radius: 8px; background: var(--surface); color: var(--primary); }
 #recurring-add { margin-top: 12px; }
 #recurring-add:disabled { opacity: 0.6; }
 #recurring-editor h2, #recurring-confirm-delete h2 { margin: 0; font-size: 18px; }
@@ -144,7 +144,7 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 16px 0; }
 .filters input, .filters select { min-height: 44px; padding: 8px 10px; font: inherit; font-size: 16px; color: var(--text); background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; }
 .filters input[type="search"] { grid-column: 1 / -1; }
-#filter-clear { grid-column: 1 / -1; min-height: 44px; font: inherit; color: var(--primary); background: none; border: 1px solid var(--primary); border-radius: 8px; }
+#filter-clear { grid-column: 1 / -1; min-height: 44px; font: inherit; color: var(--primary); background: var(--surface); border: 1px solid var(--primary); border-radius: 8px; }
 .filter-status { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
 
 .trend { margin: 12px 16px 0; padding: 12px; background: var(--surface); border-radius: 8px; }
@@ -183,3 +183,6 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .profile-error { margin: 12px 16px 0; }
 .profile-stale { margin: 4px 0 0; font-size: 12px; color: var(--danger); }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+#month { min-height: 44px; font: inherit; }
+#banner-retry { margin: 8px 16px 0; }
+@media (max-width: 359px) { .stat-cards, .profile-stats { grid-template-columns: 1fr; } }

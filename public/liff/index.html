@@ -33,7 +33,10 @@
       <h1 id="page-title">รายการของฉัน</h1>
       <input type="month" id="month" aria-label="เลือกเดือน">
     </header>
-    <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
+    <div class="banner-area">
+      <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="banner-retry" hidden>ลองใหม่</button>
+    </div>
     <div id="panel-list" class="panel">
       <div id="totals" class="stat-cards" hidden>
         <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income" class="stat-value"></span></div>
@@ -60,6 +63,8 @@
         <button type="button" id="export-button" disabled>Export CSV</button>
         <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
       </div>
+      <div id="summary-empty" hidden></div>
+      <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
         <div class="chart-head">
           <h2 id="chart-title">สรุปตามหมวด</h2>
@@ -83,8 +88,6 @@
           <button type="button" id="trend-retry">ลองใหม่</button>
         </div>
       </section>
-      <div id="summary-empty" hidden></div>
-      <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
     </div>
     <div id="panel-budgets" class="panel" hidden>
       <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>

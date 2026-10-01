@@ -116,6 +116,13 @@ async function boot({ inClient = true, loggedIn = true, overrides = {} } = {}) {
   // reduced motion resolves count-up and bar growth at once; animated paths are covered in motion.test.mjs
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   vi.stubGlobal('scrollTo', () => {});
+  // jsdom has no modal dialog support; mirror the open attribute so the edit flow can run
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open');
+  };
   await import('./app.mjs');
   await settle();
   return liff;
@@ -127,6 +134,37 @@ afterEach(() => {
 });
 
 const byId = (id) => document.getElementById(id);
+
+// route(method, path) returns an override (same shape as makeFetch) or undefined for the default response
+function routeFetch(route) {
+  const calls = [];
+  const fallback = makeFetch({});
+  vi.stubGlobal('fetch', async (url, options = {}) => {
+    const path = new URL(url, 'http://localhost').pathname;
+    const method = options.method ?? 'GET';
+    calls.push(`${method} ${path}`);
+    const override = route(method, path);
+    return override === undefined ? fallback(url, options) : makeFetch({ [path]: override })(url, options);
+  });
+  return calls;
+}
+
+const clickTab = (id) => document.querySelector(`#bottom-nav button[data-tab="${id}"]`).click();
+
+async function submitEditOfFirstRow() {
+  document.querySelector('#list .row-button').click();
+  await settle();
+  byId('edit-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  await settle();
+}
+
+async function deleteFirstRow() {
+  document.querySelector('#list .row-button').click();
+  await settle();
+  byId('delete-button').click();
+  byId('confirm-ok').click();
+  await settle();
+}
 
 describe('index.html static invariants', () => {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -159,6 +197,7 @@ describe('index.html static invariants', () => {
   it('starts every JS-controlled loading and error element hidden', () => {
     const ids = [
       'banner',
+      'banner-retry',
       'filters',
       'filter-clear',
       'summary-skeleton',
@@ -392,15 +431,74 @@ describe('LIFF page after a normal boot', () => {
     expect(byId('profile-stale').hidden).toBe(true);
   });
 
-  it('clears the banner when the tab changes', () => {
-    document.querySelector('#bottom-nav button[data-tab="summary"]').click();
-    byId('banner').textContent = 'x';
-    byId('banner').hidden = false;
+  it('clears a transient banner message when the tab changes', async () => {
+    routeFetch((method) => (method === 'PATCH' ? { status: 404 } : undefined));
+    await submitEditOfFirstRow();
+    expect(byId('banner').textContent).toBe('ไม่พบรายการนี้แล้ว');
+    expect(byId('banner').hidden).toBe(false);
 
-    document.querySelector('#bottom-nav button[data-tab="list"]').click();
+    clickTab('summary');
 
     expect(byId('banner').hidden).toBe(true);
     expect(byId('banner').textContent).toBe('');
+    expect(byId('banner-retry').hidden).toBe(true);
+  });
+
+  it('keeps the summary skeleton and empty state above the trend card', () => {
+    const panel = byId('panel-summary');
+    const order = (id) => [...panel.children].indexOf(byId(id));
+
+    expect(order('summary-empty')).toBeLessThan(order('trend'));
+    expect(order('summary-skeleton')).toBeLessThan(order('trend'));
+    expect(order('chart')).toBeLessThan(order('trend'));
+  });
+});
+
+describe('LIFF profile freshness after edits', () => {
+  const profileCalls = (calls) => calls.filter((call) => call === 'GET /api/profile').length;
+
+  it('reloads the profile after an edit and after a delete', async () => {
+    await boot();
+    const calls = routeFetch((method) => (method === 'PATCH' || method === 'DELETE' ? {} : undefined));
+
+    await submitEditOfFirstRow();
+    expect(profileCalls(calls)).toBe(1);
+    expect(byId('editor').open).toBe(false);
+
+    await deleteFirstRow();
+    expect(profileCalls(calls)).toBe(2);
+    expect(byId('confirm-delete').open).toBe(false);
+  });
+
+  it('shows the stale notice when the reload fails, then reloads on profile tab entry', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'PATCH') return {};
+      return path === '/api/profile' ? { status: 500 } : undefined;
+    });
+    await submitEditOfFirstRow();
+
+    expect(byId('profile-stale').hidden).toBe(false);
+    expect(byId('profile-card').hidden).toBe(false);
+    expect(byId('profile-error').hidden).toBe(true);
+
+    const calls = routeFetch(() => undefined);
+    clickTab('profile');
+    await settle();
+
+    expect(profileCalls(calls)).toBe(1);
+    expect(byId('profile-stale').hidden).toBe(true);
+    expect(byId('profile-balance').textContent).toBe('24,900 บาท');
+  });
+
+  it('does not reload a fresh profile on tab entry', async () => {
+    await boot();
+    const calls = routeFetch(() => undefined);
+
+    clickTab('profile');
+    await settle();
+
+    expect(profileCalls(calls)).toBe(0);
   });
 });
 
@@ -509,6 +607,72 @@ describe('LIFF page when loading fails', () => {
     expect(byId('profile-error').hidden).toBe(true);
     expect(byId('profile-card').hidden).toBe(false);
     expect(byId('profile-name').textContent).toBe('สมชาย');
+  });
+
+  it('keeps the load error visible after switching tabs and back when /api/transactions fails', async () => {
+    await boot({ overrides: { '/api/transactions': { status: 500 } } });
+
+    clickTab('summary');
+    expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('banner').hidden).toBe(false);
+    clickTab('list');
+
+    expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('banner').hidden).toBe(false);
+    expect(byId('banner-retry').hidden).toBe(false);
+    expect(document.querySelectorAll('#list .row')).toHaveLength(0);
+  });
+
+  it('shows the boot load error on every tab after a boot failure', async () => {
+    await boot({ overrides: { '/api/categories': new TypeError('network down') } });
+
+    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile', 'list']) {
+      clickTab(id);
+      expect(byId('banner').hidden, id).toBe(false);
+      expect(byId('banner').textContent, id).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+      expect(byId('banner-retry').hidden, id).toBe(false);
+    }
+  });
+
+  it('offers no retry for the login-required message', async () => {
+    await boot({ overrides: { '/api/transactions': { status: 401 } } });
+
+    clickTab('summary');
+
+    expect(byId('banner').textContent).toBe('กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง');
+    expect(byId('banner-retry').hidden).toBe(true);
+  });
+
+  it('reloads the month and clears the error when the retry button is clicked', async () => {
+    await boot({ overrides: { '/api/transactions': { status: 500 } } });
+    expect(byId('banner-retry').hidden).toBe(false);
+    const calls = routeFetch(() => undefined);
+
+    byId('banner-retry').click();
+    await settle();
+
+    expect(calls).toContain('GET /api/transactions');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+    expect(byId('banner').hidden).toBe(true);
+    expect(byId('banner-retry').hidden).toBe(true);
+    clickTab('summary');
+    clickTab('list');
+    expect(byId('banner').hidden).toBe(true);
+  });
+
+  it('keeps the stale list and the filter bar when a non-reset reload fails', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'PATCH') return {};
+      return path === '/api/transactions' ? { status: 500 } : undefined;
+    });
+
+    await submitEditOfFirstRow();
+
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+    expect(byId('filters').hidden).toBe(false);
+    expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('banner-retry').hidden).toBe(false);
   });
 
   it('redirects to LINE login instead of loading data when not logged in', async () => {

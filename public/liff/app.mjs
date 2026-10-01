@@ -54,6 +54,7 @@ const els = {
   tabs: document.querySelectorAll('#chart .tabs button'),
   status: document.getElementById('status'),
   banner: document.getElementById('banner'),
+  bannerRetry: document.getElementById('banner-retry'),
   list: document.getElementById('list'),
   filters: document.getElementById('filters'),
   search: document.getElementById('search'),
@@ -204,20 +205,36 @@ function setStatus(text, { loading = false } = {}) {
   els.status.classList.toggle('sr-only', loading);
 }
 
-const setBanner = createBannerSetter(els.banner);
+const setBannerText = createBannerSetter(els.banner);
+
+function setBanner(text, { retryable = false } = {}) {
+  setBannerText(text);
+  els.bannerRetry.hidden = !text || !retryable;
+}
+
+// error โหลดข้อมูลค้างไว้ข้ามการสลับแท็บ เพราะแท็บอื่นไม่มีที่แสดงข้อความของตัวเอง
+let loadError = null;
 
 function showLoadError(err) {
-  // ล้างเฉพาะ skeleton ที่ค้าง ไม่ล้างรายการจริงตอน reload ล้มเหลว
-  if (els.list.querySelector('.skeleton')) els.list.replaceChildren();
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  loadError = {
+    text: loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง',
+    // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
+    retryable: !loginRequired,
+  };
+  // ล้างเฉพาะ skeleton ที่ค้าง ไม่ล้างรายการจริงและแถบกรองตอน reload ล้มเหลว
+  if (els.list.querySelector('.skeleton')) {
+    els.list.replaceChildren();
+    els.filters.hidden = true;
+  }
   els.summarySkeleton.hidden = true;
-  els.filters.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
-  setBanner(
-    err instanceof ApiError && err.status === 401
-      ? LOGIN_REQUIRED_MESSAGE
-      : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง'
-  );
+  setBanner(loadError.text, { retryable: loadError.retryable });
+}
+
+function showStickyLoadError() {
+  setBanner(loadError ? loadError.text : '', { retryable: loadError ? loadError.retryable : false });
 }
 
 function fillGroupedSelect(select, groups, placeholderOption = null) {
@@ -321,6 +338,10 @@ function renderChart({ animate = false } = {}) {
 }
 
 function render({ transactions, summary, truncated }, { animate = false } = {}) {
+  if (loadError) {
+    loadError = null;
+    setBanner('');
+  }
   els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
   showAmount(els.statIncome, sum.income);
@@ -571,11 +592,12 @@ async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
   }
 }
 
-// ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ status เสมอ
+// ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ banner เสมอ
 // reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
 async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
   if (reset) {
+    loadError = null;
     setBanner('');
     els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
     els.totals.hidden = true;
@@ -1010,6 +1032,10 @@ els.recurringEditor.addEventListener('cancel', (event) => {
 els.recurringEditor.addEventListener('close', () => {
   if (recurringBusy) els.recurringEditor.showModal();
 });
+els.bannerRetry.addEventListener('click', () => {
+  if (api) loadMonth({ reset: true });
+  else window.location.reload();
+});
 els.recurringRetry.addEventListener('click', () => {
   els.recurringError.hidden = true;
   recurringLoading.set(true);
@@ -1023,7 +1049,8 @@ const tabController = createTabController({
   monthEl: els.month,
   panelFor: (id) => document.getElementById(`panel-${id}`),
   onChange: (id) => {
-    setBanner('');
+    // ข้อความชั่วคราวหายเมื่อสลับแท็บ แต่ error โหลดข้อมูลต้องยังเห็นอยู่
+    showStickyLoadError();
     window.scrollTo(0, 0);
     if (id === 'list') replayClass(els.list, 'enter');
     if (id === 'summary') {

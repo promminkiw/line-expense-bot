@@ -79,8 +79,8 @@ docs/superpowers/plans/     แผนงานรายขั้น
 - ตรวจ LINE signature ของทุก webhook request
 - หน้า LIFF ส่ง ID token ไปให้ server verify กับ LINE แล้วจึงอ้างอิงผู้ใช้
 - เปิด RLS ทุกตาราง และ function ใน DB จำกัดให้ `service_role` เท่านั้น
-- มี rate limit ที่ endpoint ที่เสี่ยงถูกเรียกถี่
-- endpoint cron `/internal/recurring/run` ป้องกันด้วย secret (`CRON_SECRET`)
+- มี rate limit ข้อความที่ส่งเข้าบอท (10 ครั้ง/นาที/ผู้ใช้) และ `POST /api/exports` (5 ครั้ง/นาที/ผู้ใช้)
+- endpoint cron `/internal/recurring/run` ป้องกันด้วย secret (`CRON_SECRET`) และตั้งใจไม่มี rate limit
 
 ## สถานะ
 
