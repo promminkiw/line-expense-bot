@@ -123,7 +123,7 @@ function createSlipParser({ client, model, now = () => new Date() }) {
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: buildSystemPrompt(today),
         messages: [
           {
@@ -143,8 +143,9 @@ function createSlipParser({ client, model, now = () => new Date() }) {
       }
     );
 
+    // ใบเสร็จยาวผิดปกติทำให้ JSON ถูกตัดกลางทาง ตอบแบบอ่านไม่ได้แทนข้อความระบบมีปัญหา
     if (response.stop_reason === 'max_tokens') {
-      throw new ParseError('Claude response was truncated');
+      return { ...unreadable('too_long', 0, []), rejectionKind: 'other' };
     }
     if (response.stop_reason === 'refusal') {
       throw new ParseError('Claude refused to answer');
