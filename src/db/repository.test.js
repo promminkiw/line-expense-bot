@@ -206,16 +206,24 @@ describe('repository.claimEvent', () => {
 });
 
 describe('repository.insertTransactions', () => {
-  it('inserts all rows in one call', async () => {
-    const { supabase, calls } = fakeSupabase({ data: null, error: null });
-    const rows = [{ user_id: 'user-1', amount: 60 }];
+  it('inserts all rows in one call and returns the new ids in order', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'tx-1' }, { id: 'tx-2' }], error: null });
+    const rows = [{ user_id: 'user-1', amount: 60 }, { user_id: 'user-1', amount: 40 }];
 
-    await createRepository(supabase).insertTransactions(rows);
+    const ids = await createRepository(supabase).insertTransactions(rows);
 
     expect(calls).toEqual([
       ['from', 'transactions'],
       ['insert', rows],
+      ['select', 'id'],
     ]);
+    expect(ids).toEqual(['tx-1', 'tx-2']);
+  });
+
+  it('returns an empty list when the database sends no rows back', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createRepository(supabase).insertTransactions([{ amount: 1 }])).toEqual([]);
   });
 
   it('throws DatabaseError when insert fails', async () => {

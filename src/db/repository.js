@@ -107,9 +107,11 @@ function createRepository(supabase) {
     return data.length > 0;
   }
 
+  // คืน id ตามลำดับแถวที่ใส่ ใช้ทำลิงก์จากการ์ดไปหน้าแก้ไข
   async function insertTransactions(rows) {
-    const { error } = await supabase.from('transactions').insert(rows);
+    const { data, error } = await supabase.from('transactions').insert(rows).select('id');
     throwIfError('insertTransactions', error);
+    return (data ?? []).map((row) => row.id);
   }
 
   async function deleteTransactionsByEvent(userId, webhookEventId) {

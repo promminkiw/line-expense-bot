@@ -74,6 +74,13 @@ function imageEvent({ eventId = 'ev-img', replyToken = 'r-img', messageId = 'm1'
   return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'image', id: messageId } };
 }
 
+function replyFlexOf(deps, index = 0) {
+  const [replyToken, flex] = deps.replyFlex.mock.calls[index];
+  expect(flex.quickReply).toBeUndefined();
+  const buttons = flex.contents.footer.contents.map((button) => ({ type: 'action', action: button.action }));
+  return { replyToken, text: flex.altText, quickReply: buttons };
+}
+
 function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
@@ -135,11 +142,12 @@ describe('bot text message', () => {
         line_event_id: 'ev1',
       },
     ]);
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r1',
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
-      UNDO_QUICK_REPLY
-    );
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
+      quickReply: UNDO_QUICK_REPLY,
+    });
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 
   it('replies with the clarification question without saving', async () => {
@@ -214,7 +222,11 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
-    expect(deps.replyText).toHaveBeenCalledWith('r1', expect.stringContaining('บันทึกแล้ว'), UNDO_QUICK_REPLY);
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: expect.stringContaining('บันทึกแล้ว'),
+      quickReply: UNDO_QUICK_REPLY,
+    });
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to clear pending clarification',
       { userId: 'user-1' },
@@ -609,11 +621,11 @@ describe('bot budget alerts', () => {
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
     expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r1',
-      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
-      UNDO_QUICK_REPLY
-    );
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
+      quickReply: UNDO_QUICK_REPLY,
+    });
   });
 
   it('alerts again on the next save while still above 80 percent', async () => {
@@ -625,18 +637,16 @@ describe('bot budget alerts', () => {
     await bot.handleEvent(textEvent('กินข้าว 60', { replyToken: 'r1', eventId: 'ev1' }));
     await bot.handleEvent(textEvent('กินข้าว 60', { replyToken: 'r2', eventId: 'ev2' }));
 
-    expect(deps.replyText).toHaveBeenNthCalledWith(
-      1,
-      'r1',
-      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
-      UNDO_QUICK_REPLY
-    );
-    expect(deps.replyText).toHaveBeenNthCalledWith(
-      2,
-      'r2',
-      `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,090 จาก 5,000 บาท (81%)`,
-      expect.anything()
-    );
+    expect(replyFlexOf(deps, 0)).toEqual({
+      replyToken: 'r1',
+      text: `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
+      quickReply: UNDO_QUICK_REPLY,
+    });
+    expect(replyFlexOf(deps, 1)).toEqual({
+      replyToken: 'r2',
+      text: `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,090 จาก 5,000 บาท (81%)`,
+      quickReply: expect.anything(),
+    });
   });
 
   it('checks the budget after saving so the new entry is counted', async () => {
@@ -647,7 +657,7 @@ describe('bot budget alerts', () => {
     expect(deps.repository.insertTransactions.mock.invocationCallOrder[0]).toBeLessThan(
       deps.repository.getBudgetStatus.mock.invocationCallOrder[0]
     );
-    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVED, UNDO_QUICK_REPLY);
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r1', text: SAVED, quickReply: UNDO_QUICK_REPLY });
   });
 
   it('keeps the saved reply and adds the failure line and logs when the budget check fails', async () => {
@@ -657,11 +667,11 @@ describe('bot budget alerts', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r1',
-      `${SAVED}\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
-      UNDO_QUICK_REPLY
-    );
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: `${SAVED}\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
+      quickReply: UNDO_QUICK_REPLY,
+    });
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to check budgets', { userId: 'user-1' }, error);
   });
 
@@ -684,7 +694,7 @@ describe('bot budget alerts', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60 สองวัน'));
 
-    const text = deps.replyText.mock.calls[0][1];
+    const { text } = replyFlexOf(deps);
     expect(text.split('เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toHaveLength(2);
     expect(text.startsWith('บันทึกแล้ว')).toBe(true);
     expect(text.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
@@ -707,7 +717,7 @@ describe('bot budget alerts', () => {
     await bot.handleEvent(textEvent('ได้เงิน 500'));
 
     expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
-    expect(deps.replyText.mock.calls[0][1]).not.toContain('เช็กงบไม่สำเร็จ');
+    expect(replyFlexOf(deps).text).not.toContain('เช็กงบไม่สำเร็จ');
   });
 });
 
@@ -726,7 +736,8 @@ describe('bot slip image', () => {
     expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
-    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_CONFIRM_TEXT, SLIP_QUICK_REPLY);
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: SLIP_QUICK_REPLY });
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 
   it('says so when the date was not readable', async () => {
@@ -735,7 +746,7 @@ describe('bot slip image', () => {
 
     await bot.handleEvent(imageEvent());
 
-    expect(deps.replyText.mock.calls[0][1]).toContain('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
+    expect(replyFlexOf(deps).text).toContain('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
   });
 
   it('clears this user expired pending slips before keeping a new one', async () => {
@@ -757,7 +768,8 @@ describe('bot slip image', () => {
     await bot.handleEvent(imageEvent());
 
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to delete expired pending slips', { userId: 'user-1' }, error);
-    expect(deps.replyText).toHaveBeenCalledWith('r-img', SLIP_CONFIRM_TEXT, SLIP_QUICK_REPLY);
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: SLIP_QUICK_REPLY });
+    expect(deps.replyText).not.toHaveBeenCalled();
   });
 
   it('asks the user to resend when the amount cannot be read', async () => {
@@ -819,9 +831,9 @@ describe('bot slip image', () => {
 
     await bot.handleEvent(imageEvent());
 
-    expect(deps.replyText.mock.calls[0][1]).toContain('ข้าม 1 รายการที่อ่านราคาไม่ได้');
+    expect(replyFlexOf(deps).text).toContain('ข้าม 1 รายการที่อ่านราคาไม่ได้');
     await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
-    expect(deps.replyText.mock.calls[1][1]).toBe(
+    expect(replyFlexOf(deps, 1).text).toBe(
       'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง'
     );
   });
@@ -932,7 +944,7 @@ describe('bot slip image', () => {
 
     expect(maxInFlight).toBeGreaterThan(0);
     expect(maxInFlight).toBeLessThanOrEqual(3);
-    expect(deps.replyText).toHaveBeenCalledTimes(10);
+    expect(deps.replyFlex).toHaveBeenCalledTimes(10);
   });
 
   it('ignores an image sent in a group', async () => {
@@ -968,16 +980,16 @@ describe('bot slip confirmation', () => {
         line_event_id: 'ev-img',
       },
     ]);
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r2',
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง',
-      [
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r2',
+      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง',
+      quickReply: [
         {
           type: 'action',
           action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
         },
-      ]
-    );
+      ],
+    });
   });
 
   it('appends the budget alert after saving a slip', async () => {
@@ -989,7 +1001,7 @@ describe('bot slip confirmation', () => {
     await bot.handleEvent(postbackEvent(SAVE));
 
     expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
-    expect(deps.replyText.mock.calls[0][1]).toBe(
+    expect(replyFlexOf(deps).text).toBe(
       'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)'
     );
   });
@@ -1116,16 +1128,16 @@ describe('bot slip confirmation', () => {
 
     await bot.handleEvent(postbackEvent(SAVE));
 
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r2',
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ',
-      [
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r2',
+      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ',
+      quickReply: [
         {
           type: 'action',
           action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
         },
-      ]
-    );
+      ],
+    });
   });
 
   it('ignores an undo postback without an event id', async () => {
@@ -1169,7 +1181,7 @@ describe('bot slip with several items', () => {
 
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM, SLIP_EXTRA_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
-    expect(deps.replyText.mock.calls[0][1]).toBe(
+    expect(replyFlexOf(deps).text).toBe(
       'อ่านสลิปได้ 2 รายการ\n' +
         '- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n' +
         '- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n' +
@@ -1212,10 +1224,10 @@ describe('bot slip with several items', () => {
         line_event_id: 'ev-img',
       },
     ]);
-    expect(deps.replyText.mock.calls[0][1]).toBe(
+    expect(replyFlexOf(deps).text).toBe(
       'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน'
     );
-    expect(deps.replyText.mock.calls[0][2][0].action.data).toBe('action=undo&event=ev-img');
+    expect(replyFlexOf(deps).quickReply[0].action.data).toBe('action=undo&event=ev-img');
   });
 
   it('emits one budget alert when two items of the receipt are in the same category', async () => {
@@ -1231,7 +1243,7 @@ describe('bot slip with several items', () => {
 
     await bot.handleEvent(postbackEvent(SAVE));
 
-    const text = deps.replyText.mock.calls[0][1];
+    const { text } = replyFlexOf(deps);
     expect(text.split('ใกล้เต็มงบ')).toHaveLength(2);
     expect(text).toContain('ใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 170 จาก 200 บาท (85%)');
   });
@@ -1250,7 +1262,7 @@ describe('bot slip with several items', () => {
 
     await bot.handleEvent(postbackEvent(SAVE));
 
-    const text = deps.replyText.mock.calls[0][1];
+    const { text } = replyFlexOf(deps);
     expect(text).toContain('ใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)');
     expect(text).toContain('เกินงบ สุขภาพ เดือน 09/2026: ใช้ไป 100 จาก 100 บาท (100%)');
   });
@@ -1261,6 +1273,93 @@ describe('bot slip with several items', () => {
 
     await bot.handleEvent(imageEvent());
 
-    expect(deps.replyText.mock.calls[0][1]).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
+    expect(replyFlexOf(deps).text).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
+  });
+});
+
+describe('bot edit links on the saved card', () => {
+  const LIFF_URL = 'https://liff.line.me/liff-1';
+  const rowActions = (deps, index = 0) =>
+    deps.replyFlex.mock.calls[index][1].contents.body.contents
+      .filter((node) => node.type === 'box' && node.layout === 'horizontal')
+      .map((row) => row.action);
+
+  it('links the saved row to its transaction and date in the web page', async () => {
+    const { deps, bot } = setup({ liffUrl: LIFF_URL });
+    deps.repository.insertTransactions.mockResolvedValue(['tx-1']);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(rowActions(deps)).toEqual([{ type: 'uri', label: 'แก้ไข', uri: `${LIFF_URL}?tx=tx-1&d=2026-09-29` }]);
+  });
+
+  it('links every row of a receipt to its own transaction', async () => {
+    const { deps, bot } = setup({ liffUrl: LIFF_URL });
+    deps.users.loadCategoryIds.mockResolvedValue(
+      new Map([
+        ['expense:อาหาร', 'cat-food'],
+        ['expense:สุขภาพ', 'cat-health'],
+      ])
+    );
+    deps.repository.claimPendingSlip.mockResolvedValue({
+      webhookEventId: 'ev-img',
+      items: [SLIP_ITEM, SLIP_EXTRA_ITEM],
+    });
+    deps.repository.insertTransactions.mockResolvedValue(['tx-a', 'tx-b']);
+
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+
+    expect(rowActions(deps).map((action) => action.uri)).toEqual([
+      `${LIFF_URL}?tx=tx-a&d=2026-09-28`,
+      `${LIFF_URL}?tx=tx-b&d=2026-09-28`,
+    ]);
+  });
+
+  it('adds no links when the insert returns no ids or no web page is configured', async () => {
+    const withoutIds = setup({ liffUrl: LIFF_URL });
+    await withoutIds.bot.handleEvent(textEvent('กินข้าว 60'));
+    const withoutUrl = setup();
+    withoutUrl.deps.repository.insertTransactions.mockResolvedValue(['tx-1']);
+    await withoutUrl.bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(rowActions(withoutIds.deps)).toEqual([undefined]);
+    expect(rowActions(withoutUrl.deps)).toEqual([undefined]);
+  });
+});
+
+describe('bot edit links stay safe', () => {
+  const LIFF_URL = 'https://liff.line.me/liff-1';
+  const linkOf = (deps) =>
+    deps.replyFlex.mock.calls[0][1].contents.body.contents.find((node) => node.action).action.uri;
+
+  it('leaves the date out of the link when it is not a plain YYYY-MM-DD date', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'ok', items: [{ ...FOOD_ITEM, date: '2026-09-29 \n' }] });
+    const { deps, bot } = setup({ liffUrl: LIFF_URL, parseMessage });
+    deps.repository.insertTransactions.mockResolvedValue(['tx-1']);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(linkOf(deps)).toBe(`${LIFF_URL}?tx=tx-1`);
+  });
+
+  it('encodes the transaction id so the link never contains spaces or brackets', async () => {
+    const { deps, bot } = setup({ liffUrl: LIFF_URL });
+    deps.repository.insertTransactions.mockResolvedValue(['a b[1]']);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(linkOf(deps)).not.toMatch(/[\s[\]]/);
+    expect(linkOf(deps)).toMatch(/^https:\/\/liff\.line\.me\/liff-1\?tx=/);
+  });
+
+  it('still sends the card without links when the web address is not a usable https url', async () => {
+    const { deps, bot } = setup({ liffUrl: 'liff.line.me/no-scheme' });
+    deps.repository.insertTransactions.mockResolvedValue(['tx-1']);
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyFlex).toHaveBeenCalledTimes(1);
+    const rows = deps.replyFlex.mock.calls[0][1].contents.body.contents.filter((node) => node.action);
+    expect(rows).toEqual([]);
   });
 });
