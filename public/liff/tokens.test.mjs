@@ -34,6 +34,7 @@ const TEXT_PAIRS = [
   ['muted', 'bg'],
   ['muted', 'surface'],
   ['primary', 'surface'],
+  ['income', 'surface'],
   ['danger', 'surface'],
   ['on-primary', 'primary'],
   ['on-danger', 'danger'],

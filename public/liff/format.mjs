@@ -34,6 +34,14 @@ export function groupByDate(transactions) {
   return groups;
 }
 
+// ปัดเป็นสตางค์ก่อนเทียบ กัน float noise เช่น 0.1 + 0.2
+export function formatDayNet(items) {
+  const cents = items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+  if (cents === 0) return '0';
+  const text = (Math.abs(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return `${cents > 0 ? '+' : '-'}${text}`;
+}
+
 export function groupCategoryOptions(categories) {
   return {
     expense: categories.filter((category) => category.type === 'expense'),

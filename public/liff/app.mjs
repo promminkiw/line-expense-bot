@@ -6,6 +6,7 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
+  formatDayNet,
   summaryTotals,
   chartRows,
   hasChartData,
@@ -30,6 +31,8 @@ import {
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
+import { parseEditLink } from './deep-link.mjs';
+import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
@@ -265,6 +268,86 @@ function fillCategoryOptions() {
   if (els.filterCategory.value !== selected) els.filterCategory.value = '';
 }
 
+const SWIPE_REVEAL_WIDTH = 88;
+// เมาส์ยิง click ตามหลังการลากเสร็จ จึงเมินคลิกที่มาติดกับการปัด (นิ้วบนมือถือไม่ยิง click หลังลาก)
+const CLICK_AFTER_DRAG_MS = 300;
+const LINKED_TRANSACTION_MISSING = 'ไม่พบรายการนี้ อาจถูกลบหรือยกเลิกไปแล้ว';
+let openSwipeRow = null;
+let lastDragEndAt = 0;
+let swipeDeleting = false;
+
+function setRowOpen(row, open) {
+  if (open) {
+    if (openSwipeRow && openSwipeRow !== row) setRowOpen(openSwipeRow, false);
+    openSwipeRow = row;
+  } else if (openSwipeRow === row) {
+    openSwipeRow = null;
+  }
+  row.classList.remove('dragging');
+  row.classList.toggle('swiped', open);
+  row.style.setProperty('--swipe', `${open ? SWIPE_REVEAL_WIDTH : 0}px`);
+}
+
+function attachSwipe(row) {
+  const swipe = createSwipeTracker({ revealWidth: SWIPE_REVEAL_WIDTH });
+  let tracking = false;
+  let captured = false;
+  row.addEventListener('pointerdown', (event) => {
+    if (event.button > 0 || event.isPrimary === false) return;
+    tracking = true;
+    captured = false;
+    swipe.start(event.clientX, event.clientY, row === openSwipeRow ? SWIPE_REVEAL_WIDTH : 0);
+  });
+  row.addEventListener('pointermove', (event) => {
+    if (!tracking) return;
+    const state = swipe.move(event.clientX, event.clientY);
+    if (!state.dragging) return;
+    if (!captured) {
+      captured = true;
+      // ให้เมาส์ที่ลากออกนอกแถวยังส่ง pointerup กลับมา
+      try {
+        row.setPointerCapture(event.pointerId);
+      } catch {
+        // เบราว์เซอร์ที่ไม่รองรับ (หรือ jsdom) ข้ามได้
+      }
+    }
+    row.classList.add('dragging');
+    row.style.setProperty('--swipe', `${state.offset}px`);
+  });
+  const finish = () => {
+    if (!tracking) return;
+    tracking = false;
+    const result = swipe.end();
+    if (result.dragged) lastDragEndAt = Date.now();
+    setRowOpen(row, result.open);
+  };
+  row.addEventListener('pointerup', finish);
+  row.addEventListener('pointercancel', finish);
+}
+
+// ปุ่มลบที่เผยจากการปัดลบทันที (ปัด + กดปุ่ม คือสองขั้นที่ผู้ใช้เลือกแทน modal ยืนยัน)
+async function deleteBySwipe(item, button) {
+  if (swipeDeleting) return;
+  swipeDeleting = true;
+  button.disabled = true;
+  let failure = null;
+  try {
+    await api.deleteTransaction(item.id);
+  } catch (err) {
+    failure = describeEditFailure(err instanceof ApiError ? err.status : undefined, 'delete');
+  } finally {
+    swipeDeleting = false;
+  }
+  if (!failure || failure.closeAndReload) {
+    await loadMonth();
+    profileStale = true;
+    loadProfile();
+  } else {
+    button.disabled = false;
+  }
+  if (failure) setBanner(failure.message);
+}
+
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
 function renderRow(item) {
   const row = document.createElement('li');
@@ -288,8 +371,23 @@ function renderRow(item) {
   amount.className = 'amount';
   amount.textContent = formatSignedBaht(item);
   button.append(createCategoryBadge(document, item.categoryName), text, amount);
-  button.addEventListener('click', () => openEditor(item));
-  row.append(button);
+  button.addEventListener('click', () => {
+    if (Date.now() - lastDragEndAt < CLICK_AFTER_DRAG_MS) return;
+    // แถวที่เผยปุ่มลบอยู่ แตะเนื้อหาให้ปิดก่อน ไม่เปิดตัวแก้ไข
+    if (row === openSwipeRow) {
+      setRowOpen(row, false);
+      return;
+    }
+    openEditor(item);
+  });
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'row-delete';
+  deleteButton.setAttribute('aria-label', `ลบรายการ ${item.categoryName}`);
+  deleteButton.textContent = 'ลบ';
+  deleteButton.addEventListener('click', () => deleteBySwipe(item, deleteButton));
+  row.append(deleteButton, button);
+  attachSwipe(row);
   return row;
 }
 
@@ -372,6 +470,7 @@ function renderList() {
   const active = isFilterActive(filter);
   const shown = filterTransactions(lastTransactions, filter);
   els.list.replaceChildren();
+  openSwipeRow = null;
   // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
   els.filters.hidden = lastTransactions.length === 0 && !active;
   els.filterClear.hidden = !active;
@@ -395,7 +494,13 @@ function renderList() {
   for (const group of groupByDate(shown)) {
     const heading = document.createElement('li');
     heading.className = 'day';
-    heading.textContent = formatThaiDate(group.date);
+    const date = document.createElement('span');
+    date.className = 'day-date';
+    date.textContent = formatThaiDate(group.date);
+    const net = document.createElement('span');
+    net.className = 'day-net';
+    net.textContent = formatDayNet(group.items);
+    heading.append(date, net);
     els.list.append(heading);
     for (const item of group.items) {
       const rowEl = renderRow(item);
@@ -1063,6 +1168,17 @@ const tabController = createTabController({
 });
 tabController.select(DEFAULT_TAB);
 
+// ลิงก์จากการ์ดในแชต: โหลดเดือนของรายการแล้วเปิดตัวแก้ไข ถ้าโหลดพังให้ banner เดิมบอกเอง
+function openLinkedTransaction(link) {
+  if (loadError) return;
+  const item = lastTransactions.find((transaction) => transaction.id === link.id);
+  if (item) {
+    openEditor(item);
+  } else {
+    setBanner(LINKED_TRANSACTION_MISSING);
+  }
+}
+
 async function boot() {
   try {
     const config = await (
@@ -1079,7 +1195,10 @@ async function boot() {
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
-    els.month.value = currentMonth(new Date());
+    // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
+    const link = parseEditLink(window.location.search);
+    if (link) window.history.replaceState(null, '', window.location.pathname);
+    els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
     // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
@@ -1090,6 +1209,7 @@ async function boot() {
     els.profileError.hidden = true;
     profileLoading.set(true);
     await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
+    if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
   }

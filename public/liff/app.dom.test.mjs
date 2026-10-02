@@ -78,8 +78,9 @@ function makeFetch(overrides) {
 }
 
 // returns the fake liff; liff.fetched lists requested paths and liff.loadingSnapshot is the DOM state when transactions were requested
-async function boot({ inClient = true, loggedIn = true, overrides = {} } = {}) {
+async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '' } = {}) {
   vi.resetModules();
+  window.history.replaceState(null, '', `/liff/${search}`);
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-15T05:00:00Z'));
   document.documentElement.innerHTML = html;
@@ -258,7 +259,8 @@ describe('LIFF page after a normal boot', () => {
     expect(rows).toHaveLength(3);
     expect(document.querySelector('#list .skeleton')).toBeNull();
     expect(byId('summary-skeleton').hidden).toBe(true);
-    expect([...document.querySelectorAll('#list .day')].map((day) => day.textContent)).toEqual(['02/10', '01/10']);
+    expect([...document.querySelectorAll('#list .day .day-date')].map((day) => day.textContent)).toEqual(['02/10', '01/10']);
+    expect([...document.querySelectorAll('#list .day .day-net')].map((net) => net.textContent)).toEqual(['-60', '+24,960']);
     expect(rows[0].querySelector('.row-title').textContent).toBe('อาหาร');
     expect(rows[0].querySelector('.row-note').textContent).toBe('ข้าวมันไก่');
     expect(rows[0].querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-food');
@@ -275,6 +277,9 @@ describe('LIFF page after a normal boot', () => {
 
   it('shows the three month stat cards', () => {
     expect(byId('totals').hidden).toBe(false);
+    // คงเหลือเป็นตัวหลักอยู่บนสุด รายรับ/รายจ่ายอยู่แถวรองข้างใต้
+    expect(byId('totals').firstElementChild.classList.contains('balance')).toBe(true);
+    expect(byId('totals').querySelector('.stat-sub').children).toHaveLength(2);
     expect(byId('stat-income').textContent).toBe('25,000 บาท');
     expect(byId('stat-expense').textContent).toBe('100 บาท');
     expect(byId('stat-balance').textContent).toBe('24,900 บาท');
@@ -682,5 +687,180 @@ describe('LIFF page when loading fails', () => {
     expect(byId('banner').hidden).toBe(true);
     expect(liff.fetched).toEqual(['/api/config']);
     expect(document.querySelectorAll('#list .row')).toHaveLength(0);
+  });
+});
+
+
+describe('LIFF page opened from a card link', () => {
+  it('opens the editor of the linked transaction and cleans the address', async () => {
+    await boot({ search: '?tx=t2&d=2026-10-01' });
+
+    expect(byId('editor').open).toBe(true);
+    expect(byId('edit-amount').value).toBe('40');
+    expect(byId('edit-date').value).toBe('2026-10-01');
+    expect(window.location.search).toBe('');
+  });
+
+  it('switches to the month of the linked date before looking for the transaction', async () => {
+    await boot({ search: '?tx=t1&d=2026-09-29' });
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(byId('editor').open).toBe(true);
+  });
+
+  it('says so when the linked transaction is no longer there', async () => {
+    await boot({ search: '?tx=gone&d=2026-10-02' });
+
+    expect(byId('editor').open).toBe(false);
+    expect(byId('banner').hidden).toBe(false);
+    expect(byId('banner').textContent).toBe('ไม่พบรายการนี้ อาจถูกลบหรือยกเลิกไปแล้ว');
+  });
+
+  it('ignores a link with a malformed id and shows the normal list', async () => {
+    await boot({ search: '?tx=%3Cscript%3E&d=2026-09-29' });
+
+    expect(byId('editor').open).toBe(false);
+    expect(byId('month').value).toBe('2026-10');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+  });
+
+  it('does not open an editor on a normal visit', async () => {
+    await boot();
+
+    expect(byId('editor').open).toBe(false);
+  });
+});
+
+function pointer(element, type, x, y) {
+  element.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, button: 0 }));
+}
+
+// dx คือระยะที่ปัดไปทางซ้าย (ค่าบวก = ซ้าย)
+function swipeRow(row, dx) {
+  pointer(row, 'pointerdown', 300, 100);
+  pointer(row, 'pointermove', 300 - dx / 2, 101);
+  pointer(row, 'pointermove', 300 - dx, 101);
+  pointer(row, 'pointerup', 300 - dx, 101);
+}
+
+const firstRows = () => [...document.querySelectorAll('#list .row')];
+
+describe('LIFF list swipe to delete', () => {
+  it('gives every row a delete button labelled with its category, hidden until swiped', async () => {
+    await boot();
+    const [row] = firstRows();
+    const button = row.querySelector('.row-delete');
+
+    expect(button.getAttribute('aria-label')).toBe('ลบรายการ อาหาร');
+    expect(button.textContent).toBe('ลบ');
+    expect(row.classList.contains('swiped')).toBe(false);
+  });
+
+  it('reveals the delete button when swiped left past half of its width', async () => {
+    await boot();
+    const [row] = firstRows();
+
+    swipeRow(row, 60);
+
+    expect(row.classList.contains('swiped')).toBe(true);
+    expect(row.style.getPropertyValue('--swipe')).toBe('88px');
+  });
+
+  it('snaps back after a short swipe and does not open the editor from the click that follows', async () => {
+    await boot();
+    const [row] = firstRows();
+
+    swipeRow(row, 20);
+    row.querySelector('.row-button').click();
+    await settle();
+
+    expect(row.classList.contains('swiped')).toBe(false);
+    expect(row.style.getPropertyValue('--swipe')).toBe('0px');
+    expect(byId('editor').open).toBe(false);
+  });
+
+  it('leaves vertical scrolling alone', async () => {
+    await boot();
+    const [row] = firstRows();
+
+    pointer(row, 'pointerdown', 300, 100);
+    pointer(row, 'pointermove', 297, 140);
+    pointer(row, 'pointermove', 230, 150);
+    pointer(row, 'pointerup', 230, 150);
+
+    expect(row.classList.contains('swiped')).toBe(false);
+  });
+
+  it('does nothing when swiped to the right', async () => {
+    await boot();
+    const [row] = firstRows();
+
+    swipeRow(row, -60);
+
+    expect(row.classList.contains('swiped')).toBe(false);
+    expect(row.style.getPropertyValue('--swipe')).toBe('0px');
+  });
+
+  it('deletes the transaction when the revealed button is tapped, without a confirm dialog, and reloads', async () => {
+    await boot();
+    const calls = routeFetch((method) => (method === 'DELETE' ? {} : undefined));
+    const [row] = firstRows();
+    swipeRow(row, 60);
+
+    row.querySelector('.row-delete').click();
+    await settle();
+
+    expect(calls).toContain('DELETE /api/transactions/t1');
+    expect(calls.indexOf('GET /api/transactions')).toBeGreaterThan(calls.indexOf('DELETE /api/transactions/t1'));
+    expect(byId('confirm-delete').open).toBe(false);
+    expect(byId('editor').open).toBe(false);
+  });
+
+  it('shows the failure in the banner and keeps the list when the delete fails', async () => {
+    await boot();
+    routeFetch((method) => (method === 'DELETE' ? { status: 500 } : undefined));
+    const [row] = firstRows();
+    swipeRow(row, 60);
+
+    row.querySelector('.row-delete').click();
+    await settle();
+
+    expect(byId('banner').hidden).toBe(false);
+    expect(byId('banner').textContent).toBe('ลบไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+  });
+
+  it('closes a revealed row when its content is tapped instead of opening the editor', async () => {
+    await boot();
+    const [row] = firstRows();
+    swipeRow(row, 60);
+    vi.setSystemTime(new Date(Date.now() + 1000));
+
+    row.querySelector('.row-button').click();
+    await settle();
+
+    expect(row.classList.contains('swiped')).toBe(false);
+    expect(byId('editor').open).toBe(false);
+  });
+
+  it('keeps only one row open at a time', async () => {
+    await boot();
+    const [first, second] = firstRows();
+
+    swipeRow(first, 60);
+    swipeRow(second, 60);
+
+    expect(first.classList.contains('swiped')).toBe(false);
+    expect(second.classList.contains('swiped')).toBe(true);
+  });
+
+  it('still opens the editor on a plain tap', async () => {
+    await boot();
+    const [row] = firstRows();
+
+    row.querySelector('.row-button').click();
+    await settle();
+
+    expect(byId('editor').open).toBe(true);
   });
 });

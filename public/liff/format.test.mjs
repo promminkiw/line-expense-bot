@@ -4,6 +4,7 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
+  formatDayNet,
   groupCategoryOptions,
   describeEditFailure,
   describeDeleteTarget,
@@ -577,5 +578,25 @@ describe('profileView', () => {
     expect(view.countText).toBe('0 รายการ');
     expect(view.balanceText).toBe('0 บาท');
     expect(view.negative).toBe(false);
+  });
+});
+
+describe('formatDayNet', () => {
+  it('shows income minus expense with a sign', () => {
+    const items = [
+      { type: 'expense', amount: 60 },
+      { type: 'expense', amount: 35 },
+      { type: 'income', amount: 30 },
+    ];
+    expect(formatDayNet(items)).toBe('-65');
+    expect(formatDayNet([{ type: 'income', amount: 30000 }])).toBe('+30,000');
+  });
+
+  it('shows 0 without a sign when income and expense cancel out', () => {
+    expect(formatDayNet([{ type: 'income', amount: 50 }, { type: 'expense', amount: 50 }])).toBe('0');
+  });
+
+  it('does not show float noise from satang amounts', () => {
+    expect(formatDayNet([{ type: 'expense', amount: 0.1 }, { type: 'expense', amount: 0.2 }])).toBe('-0.3');
   });
 });
