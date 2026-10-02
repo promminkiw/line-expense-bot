@@ -72,6 +72,7 @@ const els = {
   date: document.getElementById('edit-date'),
   note: document.getElementById('edit-note'),
   error: document.getElementById('edit-error'),
+  busy: document.getElementById('edit-busy'),
   deleteButton: document.getElementById('delete-button'),
   saveButton: document.querySelector('#edit-form button[type="submit"]'),
   cancelButton: document.getElementById('cancel-button'),
@@ -92,6 +93,7 @@ const els = {
   budgetsErrorText: document.getElementById('budgets-error-text'),
   budgetsRetry: document.getElementById('budgets-retry'),
   trendBars: document.getElementById('trend-bars'),
+  trendEmpty: document.getElementById('trend-empty'),
   trendComparison: document.getElementById('trend-comparison'),
   trendLegend: document.getElementById('trend-legend'),
   trendLoading: document.getElementById('trend-loading'),
@@ -177,6 +179,7 @@ const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLo
 const profileGuard = createLatestGuard();
 const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, count: 1, variant: 'card' });
 let profileRendered = false;
+let profileLoginRequired = false;
 // ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
 let profileStale = false;
 let profileInFlight = false;
@@ -273,6 +276,8 @@ const SWIPE_REVEAL_WIDTH = 88;
 const CLICK_AFTER_DRAG_MS = 300;
 const LINKED_TRANSACTION_MISSING = 'ไม่พบรายการนี้ อาจถูกลบหรือยกเลิกไปแล้ว';
 let openSwipeRow = null;
+// แถวที่จะรับ focus หลังโหลดรายการใหม่ (ปุ่มของแถวเดิมถูกถอดไปตอน reload)
+let pendingListFocus = null;
 let lastDragEndAt = 0;
 let swipeDeleting = false;
 
@@ -330,6 +335,8 @@ async function deleteBySwipe(item, button) {
   if (swipeDeleting) return;
   swipeDeleting = true;
   button.disabled = true;
+  const tab = tabController.current;
+  const focusId = neighbourRowId(item.id);
   let failure = null;
   try {
     await api.deleteTransaction(item.id);
@@ -339,18 +346,39 @@ async function deleteBySwipe(item, button) {
     swipeDeleting = false;
   }
   if (!failure || failure.closeAndReload) {
+    pendingListFocus = { id: focusId };
     await loadMonth();
+    pendingListFocus = null;
     profileStale = true;
     loadProfile();
   } else {
     button.disabled = false;
   }
-  if (failure) setBanner(failure.message);
+  // ผู้ใช้ย้ายไปแท็บอื่นระหว่างรอแล้ว ข้อความนี้เป็นเรื่องของแท็บรายการ จึงไม่ขึ้นในแท็บใหม่
+  if (failure && tabController.current === tab) setBanner(failure.message);
+}
+
+// แถวที่อยู่ติดกันที่ยังเห็นอยู่ ใช้รับ focus หลังลบ (ถัดไปก่อน ไม่มีก็แถวก่อนหน้า)
+function neighbourRowId(id) {
+  const rows = [...els.list.querySelectorAll('.row')];
+  const index = rows.findIndex((row) => row.dataset.id === id);
+  const neighbour = index === -1 ? null : rows[index + 1] || rows[index - 1];
+  return neighbour ? neighbour.dataset.id : null;
+}
+
+function applyPendingListFocus() {
+  if (!pendingListFocus) return;
+  const { id } = pendingListFocus;
+  pendingListFocus = null;
+  const row = id ? [...els.list.querySelectorAll('.row')].find((candidate) => candidate.dataset.id === id) : null;
+  // ไม่มีแถวให้โฟกัสแล้ว (เดือนว่างหรือลบแถวสุดท้าย) ให้อยู่ที่ตัวเลือกเดือน
+  (row ? row.querySelector('.row-button') : els.month).focus();
 }
 
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
 function renderRow(item) {
   const row = document.createElement('li');
+  row.dataset.id = item.id;
   row.className = `row ${item.type} ${categoryStyle(item.categoryName).className}`;
   const button = document.createElement('button');
   button.type = 'button';
@@ -481,12 +509,14 @@ function renderList() {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
     setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
+    applyPendingListFocus();
     return;
   }
   if (shown.length === 0) {
     // ตัวกรองบอก "พบ 0 จาก N" ใน filter-status อยู่แล้ว จึงไม่ประกาศซ้ำ
     setStatus('');
     els.list.append(createEmptyState(document, 'search', 'li'));
+    applyPendingListFocus();
     return;
   }
   setStatus('');
@@ -509,6 +539,7 @@ function renderList() {
       els.list.append(rowEl);
     }
   }
+  applyPendingListFocus();
 }
 
 function renderBudgets(budgets, focusCategoryId = null, { animate = false } = {}) {
@@ -594,17 +625,21 @@ function renderTrend(months, currentMonthKey, { animate = false } = {}) {
     item.append(pair, label, description);
     els.trendBars.append(item);
   }
-  els.trendBars.hidden = false;
-  els.trendLegend.hidden = false;
-  const comparison = describeExpenseComparison(months);
+  // ทั้ง 6 เดือนเป็นศูนย์ ไม่มีอะไรให้วาด บอกผู้ใช้แทนการโชว์แกนว่าง
+  const hasData = months.some((month) => month.income > 0 || month.expense > 0);
+  els.trendEmpty.hidden = hasData;
+  els.trendBars.hidden = !hasData;
+  els.trendLegend.hidden = !hasData;
+  const comparison = hasData ? describeExpenseComparison(months) : { text: '', level: '' };
   els.trendComparison.textContent = comparison.text;
   els.trendComparison.className = `trend-comparison ${comparison.level}`;
   els.trendComparison.hidden = !comparison.text;
-  if (animate && !els.panelSummary.hidden) playBars(window, els.trendBars);
+  if (animate && hasData && !els.panelSummary.hidden) playBars(window, els.trendBars);
 }
 
 function showTrendError(err) {
   trendLoading.set(false);
+  els.trendEmpty.hidden = true;
   els.trendBars.hidden = true;
   els.trendLegend.hidden = true;
   els.trendComparison.hidden = true;
@@ -630,6 +665,7 @@ async function loadTrend({ animate = false } = {}) {
 function renderProfile(profile) {
   const view = profileView(profile);
   profileRendered = true;
+  profileLoginRequired = false;
   profileStale = false;
   els.profileStaleNotice.hidden = true;
   profileLoading.set(false);
@@ -654,6 +690,7 @@ function showProfileError(err) {
   }
   profileLoading.set(false);
   const loginRequired = err instanceof ApiError && err.status === 401;
+  profileLoginRequired = loginRequired;
   els.profileErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดโปรไฟล์ไม่สำเร็จ';
   els.profileRetry.hidden = loginRequired;
   els.profileError.hidden = false;
@@ -675,7 +712,8 @@ async function loadProfile() {
 
 // เข้าแท็บโปรไฟล์แล้วยอดเก่าหรือยังไม่เคยโหลดสำเร็จ ให้โหลดใหม่
 function refreshProfileOnEntry() {
-  if (!api || profileInFlight || (profileRendered && !profileStale)) return;
+  // ต้องเข้าสู่ระบบใหม่ ขอซ้ำทุกครั้งที่เข้าแท็บก็ได้ 401 เหมือนเดิม
+  if (!api || profileInFlight || profileLoginRequired || (profileRendered && !profileStale)) return;
   if (!profileRendered) {
     els.profileError.hidden = true;
     profileLoading.set(true);
@@ -718,6 +756,7 @@ async function loadMonth({ reset = false } = {}) {
     els.budgetsError.hidden = true;
     budgetsLoading.set(true);
     els.budgets.hidden = false;
+    els.trendEmpty.hidden = true;
     els.trendBars.hidden = true;
     els.trendLegend.hidden = true;
     els.trendComparison.hidden = true;
@@ -780,12 +819,19 @@ function setBusy(isBusy, kind) {
   els.confirmCancel.disabled = isBusy;
   els.confirmOk.disabled = isBusy;
   els.confirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
-  els.error.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
-  els.error.hidden = !isBusy;
+  els.busy.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
+  els.busy.hidden = !isBusy;
+  // เริ่มงานใหม่ล้างข้อความผิดพลาดเก่า ส่วนตอนจบให้ผู้เรียกตั้งข้อความผิดพลาดเอง
+  if (isBusy) {
+    els.error.textContent = '';
+    els.error.hidden = true;
+  }
 }
 
 async function runEdit(action, kind) {
   if (busy) return;
+  // แก้แล้วกลับไปที่แถวเดิม ลบแล้วไปแถวข้างเคียง
+  const focusId = kind === 'delete' ? neighbourRowId(editing.id) : editing.id;
   setBusy(true, kind);
   let failure = null;
   try {
@@ -798,14 +844,18 @@ async function runEdit(action, kind) {
   els.confirm.close();
   if (!failure) {
     els.editor.close();
+    pendingListFocus = { id: focusId };
     await loadMonth();
+    pendingListFocus = null;
     profileStale = true;
     loadProfile();
     return;
   }
   if (failure.closeAndReload) {
     els.editor.close();
+    pendingListFocus = { id: focusId };
     await loadMonth();
+    pendingListFocus = null;
     profileStale = true;
     loadProfile();
     setBanner(failure.message);
@@ -1137,9 +1187,23 @@ els.recurringEditor.addEventListener('cancel', (event) => {
 els.recurringEditor.addEventListener('close', () => {
   if (recurringBusy) els.recurringEditor.showModal();
 });
-els.bannerRetry.addEventListener('click', () => {
-  if (api) loadMonth({ reset: true });
-  else window.location.reload();
+els.bannerRetry.addEventListener('click', async () => {
+  if (!api) {
+    window.location.reload();
+    return;
+  }
+  if (initialLoadDone) {
+    loadMonth({ reset: true });
+    return;
+  }
+  // boot ล้มก่อนโหลดหมวดและรายการประจำเสร็จ โหลดแค่เดือนจะทิ้งแท็บอื่นว่าง จึงเริ่มโหลดทุกอย่างใหม่
+  loadError = null;
+  setBanner('');
+  try {
+    await loadAll();
+  } catch (err) {
+    showLoadError(err);
+  }
 });
 els.recurringRetry.addEventListener('click', () => {
   els.recurringError.hidden = true;
@@ -1179,6 +1243,23 @@ function openLinkedTransaction(link) {
   }
 }
 
+let initialLoadDone = false;
+
+// โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
+async function loadAll() {
+  ({ categories } = await api.listCategories());
+  fillCategoryOptions();
+  // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
+  els.recurringEmpty.hidden = true;
+  els.recurringError.hidden = true;
+  recurringLoading.set(true);
+  els.recurring.hidden = false;
+  els.profileError.hidden = true;
+  profileLoading.set(true);
+  await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
+  initialLoadDone = true;
+}
+
 async function boot() {
   try {
     const config = await (
@@ -1199,16 +1280,7 @@ async function boot() {
     const link = parseEditLink(window.location.search);
     if (link) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
-    ({ categories } = await api.listCategories());
-    fillCategoryOptions();
-    // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
-    els.recurringEmpty.hidden = true;
-    els.recurringError.hidden = true;
-    recurringLoading.set(true);
-    els.recurring.hidden = false;
-    els.profileError.hidden = true;
-    profileLoading.set(true);
-    await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
+    await loadAll();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);

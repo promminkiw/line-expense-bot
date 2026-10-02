@@ -29,6 +29,7 @@
     <symbol id="empty-recurring" viewBox="0 0 64 64"><path d="M44 12l8 8-8 8"/><path d="M52 20H24a12 12 0 0 0-12 12v4"/><path d="M20 52l-8-8 8-8"/><path d="M12 44h28a12 12 0 0 0 12-12v-4"/></symbol>
   </svg>
   <main id="app">
+    <div class="top-sticky">
     <header class="bar">
       <h1 id="page-title">รายการของฉัน</h1>
       <input type="month" id="month" aria-label="เลือกเดือน">
@@ -36,6 +37,7 @@
     <div class="banner-area">
       <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
       <button type="button" id="banner-retry" hidden>ลองใหม่</button>
+    </div>
     </div>
     <div id="panel-list" class="panel">
       <div id="totals" class="stat-cards" hidden>
@@ -81,6 +83,7 @@
       <section id="trend" class="trend" aria-labelledby="trend-title">
         <h2 id="trend-title">แนวโน้ม 6 เดือนล่าสุด</h2>
         <p id="trend-comparison" class="trend-comparison" hidden></p>
+        <p id="trend-empty" class="chart-empty" hidden>ยังไม่มีรายการใน 6 เดือนล่าสุด</p>
         <p id="trend-loading" class="sr-only" role="status" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
         <ul id="trend-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <ul id="trend-bars" class="trend-bars" role="list" hidden></ul>
@@ -159,9 +162,9 @@
     </div>
   </main>
   <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
-  <dialog id="editor">
+  <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
-      <h2>แก้ไขรายการ</h2>
+      <h2 id="editor-title">แก้ไขรายการ</h2>
       <label>จำนวนเงิน (บาท)
         <input id="edit-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
       </label>
@@ -174,6 +177,7 @@
       <label>โน้ต
         <input id="edit-note" type="text" maxlength="200">
       </label>
+      <p id="edit-busy" class="confirm-detail" role="status" hidden></p>
       <p id="edit-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="delete-button" class="danger">ลบ</button>
