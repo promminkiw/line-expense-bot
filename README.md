@@ -25,16 +25,16 @@ flowchart LR
   LINE[LINE app / LIFF] --> Express
   subgraph Render[Render Web Service]
     subgraph Express[Express server]
-      Webhook[/webhook]
-      Api[/api]
-      Static[/liff static]
-      Health[/health]
+      Webhook["/webhook"]
+      Api["/api"]
+      Static["/liff static"]
+      Health["/health"]
     end
   end
   Webhook --> Claude[Claude API]
   Webhook --> Supabase[(Supabase)]
   Api --> Supabase
-  Cron[cron-job.org] -->|POST วันละครั้ง| Run[/internal/recurring/run]
+  Cron[cron-job.org] -->|POST วันละครั้ง| Run["/internal/recurring/run"]
   Cron -->|GET ทุก 10 นาที| Health
   Run --> Express
 ```
