@@ -4,6 +4,7 @@ const { parseMonth, isValidAmount, validateTransactionUpdate, validateRecurringR
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
 const { toBangkokDateString } = require('../utils/date');
 const { lastRunOnAfterSave } = require('../recurring/schedule');
+const { monthsEndingAt, buildTrend } = require('./trend');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_RECURRING_RULES = 50;
@@ -75,6 +76,35 @@ function createApiRouter({
       // ยอดรวมและกราฟใช้ summary จาก SQL จึงนับครบแม้รายการที่ส่งมาถูกตัดตาม max-rows
       summary,
       truncated: totalCount > transactions.length,
+    });
+  });
+
+  router.get('/trend', async (req, res) => {
+    const month = req.query.month;
+    const range = typeof month === 'string' ? parseMonth(month) : null;
+    if (!range) {
+      res.status(400).json({ error: 'Invalid month' });
+      return;
+    }
+    const months = monthsEndingAt(month);
+    const rows = await repository.getMonthlyTotals(req.userId, `${months[0]}-01`, range.to);
+    res.json({ months: buildTrend(month, rows) });
+  });
+
+  router.get('/profile', async (req, res) => {
+    const [displayName, totals] = await Promise.all([
+      repository.getDisplayName(req.userId),
+      repository.getLifetimeTotals(req.userId),
+    ]);
+    // คิดเป็นสตางค์เพื่อไม่ให้ทศนิยมลอยตัวเพี้ยน
+    const balanceSatang = Math.round(totals.income * 100) - Math.round(totals.expense * 100);
+    res.json({
+      displayName,
+      income: totals.income,
+      expense: totals.expense,
+      balance: balanceSatang / 100,
+      entryCount: totals.entryCount,
+      firstDate: totals.firstDate,
     });
   });
 

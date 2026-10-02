@@ -42,15 +42,34 @@ function findBudgetAlerts(rows, statusByMonth) {
   return alerts;
 }
 
+const BUDGET_CHECK_FAILED_NOTICE = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
+
+function alertParts(alert) {
+  const [year, month] = alert.month.split('-');
+  return {
+    monthText: `${month}/${year}`,
+    percent: Math.floor((toSatang(alert.spent) * 100) / toSatang(alert.budget)),
+    label: alert.level === 'over' ? 'เกินงบ' : 'ใกล้เต็มงบ',
+  };
+}
+
 function formatBudgetAlerts(alerts) {
   return alerts
     .map((alert) => {
-      const [year, month] = alert.month.split('-');
-      const percent = Math.floor((toSatang(alert.spent) * 100) / toSatang(alert.budget));
-      const label = alert.level === 'over' ? 'เกินงบ' : 'ใกล้เต็มงบ';
-      return `${label} ${alert.category} เดือน ${month}/${year}: ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (${percent}%)`;
+      const { monthText, percent, label } = alertParts(alert);
+      return `${label} ${alert.category} เดือน ${monthText}: ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (${percent}%)`;
     })
     .join('\n');
 }
 
-module.exports = { budgetMonths, findBudgetAlerts, formatBudgetAlerts };
+// รูปแบบสั้นสำหรับการ์ด: ชื่อเรื่องบรรทัดเดียว + รายละเอียดแยกบรรทัดเล็ก
+function describeBudgetAlert(alert) {
+  const { monthText, percent, label } = alertParts(alert);
+  return {
+    level: alert.level,
+    title: `${label} ${alert.category} ${percent}%`,
+    detail: `ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (เดือน ${monthText})`,
+  };
+}
+
+module.exports = { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, BUDGET_CHECK_FAILED_NOTICE };

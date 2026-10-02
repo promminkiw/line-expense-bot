@@ -1,0 +1,40 @@
+/* ค่าสีทั้งหมดอยู่ที่นี่ที่เดียว เทสต์ tokens.test.mjs ตรวจ contrast จากไฟล์นี้ ต้องใช้รูปแบบ #rrggbb เท่านั้น */
+:root {
+  color-scheme: light;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #707070;
+  --border: #d6d6d6;
+  --track: #e6e6e8;
+  --skeleton: #e6e6e8;
+  --outline: #86868b;
+  /* น้ำเงินใช้กับปุ่มและลิงก์เท่านั้น ส่วนเขียวใช้เฉพาะรายรับ */
+  --primary: #0071e3;
+  --on-primary: #ffffff;
+  --income: #1d7a35;
+  --danger: #d70015;
+  --on-danger: #ffffff;
+  --warn: #b64400;
+  --notice-bg: #fff4d6;
+  --notice-text: #6b4e00;
+  /* ไอคอนหมวดโทนเดียว: หมวดรายรับเป็นเขียว ที่เหลือเป็นเทาเข้ม ไม่แยกสีรายหมวด */
+  --cat-food-fg: #515154;
+  --cat-food-bg: #ffffff;
+  --cat-transport-fg: #515154;
+  --cat-transport-bg: #ffffff;
+  --cat-shopping-fg: #515154;
+  --cat-shopping-bg: #ffffff;
+  --cat-bill-fg: #515154;
+  --cat-bill-bg: #ffffff;
+  --cat-health-fg: #515154;
+  --cat-health-bg: #ffffff;
+  --cat-fun-fg: #515154;
+  --cat-fun-bg: #ffffff;
+  --cat-salary-fg: #1d7a35;
+  --cat-salary-bg: #ffffff;
+  --cat-side-fg: #1d7a35;
+  --cat-side-bg: #ffffff;
+  --cat-other-fg: #515154;
+  --cat-other-bg: #ffffff;
+}

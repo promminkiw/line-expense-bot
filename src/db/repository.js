@@ -107,9 +107,11 @@ function createRepository(supabase) {
     return data.length > 0;
   }
 
+  // คืน id ตามลำดับแถวที่ใส่ ใช้ทำลิงก์จากการ์ดไปหน้าแก้ไข
   async function insertTransactions(rows) {
-    const { error } = await supabase.from('transactions').insert(rows);
+    const { data, error } = await supabase.from('transactions').insert(rows).select('id');
     throwIfError('insertTransactions', error);
+    return (data ?? []).map((row) => row.id);
   }
 
   async function deleteTransactionsByEvent(userId, webhookEventId) {
@@ -201,6 +203,31 @@ function createRepository(supabase) {
       total: Number(row.total),
       entryCount: Number(row.entry_count),
     }));
+  }
+
+  async function getLifetimeTotals(userId) {
+    const { data, error } = await supabase.rpc('lifetime_totals', { p_user_id: userId });
+    throwIfError('getLifetimeTotals', error);
+    // aggregate คืนหนึ่งแถวเสมอ แต่กันไว้เผื่อผลว่าง
+    const row = data[0] || {};
+    return {
+      income: Number(row.income ?? 0),
+      expense: Number(row.expense ?? 0),
+      entryCount: Number(row.entry_count ?? 0),
+      firstDate: row.first_date ?? null,
+    };
+  }
+
+  async function getMonthlyTotals(userId, from, to) {
+    const { data, error } = await supabase.rpc('monthly_totals', { p_user_id: userId, p_from: from, p_to: to });
+    throwIfError('getMonthlyTotals', error);
+    return data.map((row) => ({ month: row.month, type: row.type, total: Number(row.total) }));
+  }
+
+  async function getDisplayName(userId) {
+    const { data, error } = await supabase.from('users').select('display_name').eq('id', userId).maybeSingle();
+    throwIfError('getDisplayName', error);
+    return data ? data.display_name : null;
   }
 
   async function getBudgetStatus(userId, month) {
@@ -447,6 +474,9 @@ function createRepository(supabase) {
     listDueRecurringRules,
     applyRecurringRule,
     summarizeTransactions,
+    getLifetimeTotals,
+    getMonthlyTotals,
+    getDisplayName,
     getBudgetStatus,
     setBudget,
     getPendingClarification,

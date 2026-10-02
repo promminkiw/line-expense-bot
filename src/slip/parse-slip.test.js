@@ -119,6 +119,7 @@ describe('createSlipParser', () => {
     const note = '\n\u0000' + 'ก'.repeat(48) + EMOJI;
     const result = await setup(slipJson({ note })).parseSlip(IMAGE);
 
+    // eslint-disable-next-line no-control-regex -- ตั้งใจตรวจว่าไม่เหลืออักขระควบคุม
     expect(result.items[0].note).not.toMatch(/[\u0000-\u001f\u007f]/);
     expect(Array.from(result.items[0].note).length).toBeLessThanOrEqual(50);
     expect(result.items[0].note.isWellFormed()).toBe(true);

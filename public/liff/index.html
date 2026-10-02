@@ -2,58 +2,163 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>รายการรายรับรายจ่าย</title>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="cat-food" viewBox="0 0 24 24"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 3.5c0 1.6 1 1.6 1 3.2M12 3.5c0 1.6 1 1.6 1 3.2M16 3.5c0 1.6 1 1.6 1 3.2"/></symbol>
+    <symbol id="cat-transport" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 11h16"/><circle cx="8" cy="19.5" r="1.2"/><circle cx="16" cy="19.5" r="1.2"/></symbol>
+    <symbol id="cat-shopping" viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></symbol>
+    <symbol id="cat-bill" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></symbol>
+    <symbol id="cat-health" viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></symbol>
+    <symbol id="cat-fun" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z"/></symbol>
+    <symbol id="cat-salary" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/></symbol>
+    <symbol id="cat-side" viewBox="0 0 24 24"><ellipse cx="12" cy="7" rx="6" ry="2.5"/><path d="M6 7v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7"/><path d="M6 12v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-5"/></symbol>
+    <symbol id="cat-other" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></symbol>
+    <symbol id="tab-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="tab-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+    <symbol id="tab-budget" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11v4"/><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M16 14.5h.01"/></symbol>
+    <symbol id="tab-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M20 6H8a4 4 0 0 0-4 4v1"/><path d="M7 21l-3-3 3-3"/><path d="M4 18h12a4 4 0 0 0 4-4v-1"/></symbol>
+    <symbol id="tab-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
+    <symbol id="empty-list" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="4"/><path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M22 26h20M22 34h20M22 42h12"/></symbol>
+    <symbol id="empty-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></symbol>
+    <symbol id="empty-chart" viewBox="0 0 64 64"><path d="M12 52h40"/><rect x="16" y="34" width="8" height="18" rx="2"/><rect x="28" y="22" width="8" height="30" rx="2"/><rect x="40" y="12" width="8" height="40" rx="2"/></symbol>
+    <symbol id="empty-recurring" viewBox="0 0 64 64"><path d="M44 12l8 8-8 8"/><path d="M52 20H24a12 12 0 0 0-12 12v4"/><path d="M20 52l-8-8 8-8"/><path d="M12 44h28a12 12 0 0 0 12-12v-4"/></symbol>
+  </svg>
   <main id="app">
     <header class="bar">
-      <h1>รายการของฉัน</h1>
+      <h1 id="page-title">รายการของฉัน</h1>
       <input type="month" id="month" aria-label="เลือกเดือน">
     </header>
-    <p id="totals" class="totals" hidden></p>
-    <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV</p>
-    <div class="export">
-      <button type="button" id="export-button" disabled>Export CSV</button>
-      <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
+    <div class="banner-area">
+      <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
+      <button type="button" id="banner-retry" hidden>ลองใหม่</button>
     </div>
-    <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
-      <div class="chart-head">
-        <h2 id="chart-title">สรุปตามหมวด</h2>
-        <div class="tabs" role="group" aria-label="ประเภทกราฟ">
-          <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
-          <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
+    <div id="panel-list" class="panel">
+      <div id="totals" class="stat-cards" hidden>
+        <div class="stat balance"><span class="stat-label">คงเหลือเดือนนี้</span><span id="stat-balance" class="stat-value"></span></div>
+        <div class="stat-sub">
+          <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income" class="stat-value"></span></div>
+          <div class="stat expense"><span class="stat-label">รายจ่าย</span><span id="stat-expense" class="stat-value"></span></div>
         </div>
       </div>
-      <ul id="chart-rows" class="chart-rows"></ul>
-      <p id="chart-empty" class="chart-empty" hidden></p>
-    </section>
-    <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
-      <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
-      <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)</p>
-      <p id="budgets-loading" class="budgets-loading" role="status" hidden>กำลังโหลดงบ...</p>
-      <ul id="budget-rows" class="budget-rows"></ul>
-      <div id="budgets-error" class="budgets-error" hidden>
-        <p id="budgets-error-text"></p>
-        <button type="button" id="budgets-retry">ลองใหม่</button>
+      <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
+      <div id="filters" class="filters" hidden>
+        <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+        <select id="filter-type" aria-label="กรองตามประเภท">
+          <option value="">ทุกประเภท</option>
+          <option value="expense">รายจ่าย</option>
+          <option value="income">รายรับ</option>
+        </select>
+        <select id="filter-category" aria-label="กรองตามหมวด"></select>
+        <button type="button" id="filter-clear" hidden>ล้างตัวกรอง</button>
+        <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
-    </section>
-    <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
-      <h2 id="recurring-title">รายการประจำ</h2>
-      <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้กฎที่หยุดไว้) จะเริ่มเดือนหน้า</p>
-      <p id="recurring-loading" class="recurring-loading" role="status" hidden>กำลังโหลดรายการประจำ...</p>
-      <p id="recurring-empty" class="recurring-empty" hidden>ยังไม่มีรายการประจำ</p>
-      <ul id="recurring-rows" class="recurring-rows"></ul>
-      <div id="recurring-error" class="budgets-error" hidden>
-        <p id="recurring-error-text"></p>
-        <button type="button" id="recurring-retry">ลองใหม่</button>
+      <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
+      <ul id="list" class="list"></ul>
+    </div>
+    <div id="panel-summary" class="panel" hidden>
+      <div class="export">
+        <button type="button" id="export-button" disabled>Export CSV</button>
+        <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
       </div>
-      <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
-    </section>
-    <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
-    <ul id="list" class="list"></ul>
+      <div id="summary-empty" hidden></div>
+      <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
+        <div class="chart-head">
+          <h2 id="chart-title">สรุปตามหมวด</h2>
+          <div class="tabs" role="group" aria-label="ประเภทกราฟ">
+            <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
+            <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
+          </div>
+        </div>
+        <ul id="chart-rows" class="chart-rows"></ul>
+        <p id="chart-empty" class="chart-empty" hidden></p>
+      </section>
+      <section id="trend" class="trend" aria-labelledby="trend-title">
+        <h2 id="trend-title">แนวโน้ม 6 เดือนล่าสุด</h2>
+        <p id="trend-comparison" class="trend-comparison" hidden></p>
+        <p id="trend-loading" class="sr-only" role="status" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
+        <ul id="trend-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <ul id="trend-bars" class="trend-bars" role="list" hidden></ul>
+        <p id="trend-legend" class="trend-legend" hidden><span class="legend income">รายรับ</span><span class="legend expense">รายจ่าย</span></p>
+        <div id="trend-error" class="budgets-error" hidden>
+          <p id="trend-error-text"></p>
+          <button type="button" id="trend-retry">ลองใหม่</button>
+        </div>
+      </section>
+    </div>
+    <div id="panel-budgets" class="panel" hidden>
+      <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
+        <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
+        <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)</p>
+        <p id="budgets-loading" class="budgets-loading sr-only" role="status" hidden>กำลังโหลดงบ...</p>
+        <ul id="budgets-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <ul id="budget-rows" class="budget-rows"></ul>
+        <div id="budgets-error" class="budgets-error" hidden>
+          <p id="budgets-error-text"></p>
+          <button type="button" id="budgets-retry">ลองใหม่</button>
+        </div>
+      </section>
+    </div>
+    <div id="panel-recurring" class="panel" hidden>
+      <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
+        <h2 id="recurring-title">รายการประจำ</h2>
+        <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้กฎที่หยุดไว้) จะเริ่มเดือนหน้า</p>
+        <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
+        <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <div id="recurring-empty" hidden></div>
+        <ul id="recurring-rows" class="recurring-rows"></ul>
+        <div id="recurring-error" class="budgets-error" hidden>
+          <p id="recurring-error-text"></p>
+          <button type="button" id="recurring-retry">ลองใหม่</button>
+        </div>
+        <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
+      </section>
+    </div>
+    <div id="panel-profile" class="panel" hidden>
+      <p id="profile-loading" class="sr-only" role="status" hidden>กำลังโหลดโปรไฟล์...</p>
+      <ul id="profile-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="profile-error" class="budgets-error profile-error" hidden>
+        <p id="profile-error-text"></p>
+        <button type="button" id="profile-retry">ลองใหม่</button>
+      </div>
+      <section id="profile-card" class="profile-card" aria-labelledby="profile-name" hidden>
+        <div class="profile-head">
+          <span id="profile-avatar" class="profile-avatar" aria-hidden="true"></span>
+          <div>
+            <h2 id="profile-name" class="profile-name"></h2>
+            <p id="profile-since" class="profile-since"></p>
+          </div>
+        </div>
+        <div class="balance-card">
+          <span class="stat-label">ยอดเงินคงเหลือ</span>
+          <span id="profile-balance" class="balance-value"></span>
+          <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง</span>
+          <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
+        </div>
+        <div class="profile-stats">
+          <div class="stat income"><span class="stat-label">รายรับสะสม</span><span id="profile-income" class="stat-value"></span></div>
+          <div class="stat expense"><span class="stat-label">รายจ่ายสะสม</span><span id="profile-expense" class="stat-value"></span></div>
+          <div class="stat"><span class="stat-label">จำนวนรายการ</span><span id="profile-count" class="stat-value"></span></div>
+        </div>
+        <section class="profile-tips" aria-labelledby="tips-title">
+          <h3 id="tips-title">วิธีใช้บอท</h3>
+          <ul>
+            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" บอทบันทึกให้ทันที</li>
+            <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
+            <li>ส่งรูปสลิปหรือใบเสร็จ บอทอ่านยอดแล้วถามยืนยันก่อนบันทึก</li>
+            <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          </ul>
+        </section>
+        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
+      </section>
+    </div>
   </main>
+  <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
   <dialog id="editor">
     <form id="edit-form">
       <h2>แก้ไขรายการ</h2>

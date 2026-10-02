@@ -6,6 +6,7 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
+  formatDayNet,
   summaryTotals,
   chartRows,
   hasChartData,
@@ -14,19 +15,39 @@ import {
   describeEditFailure,
   budgetRows,
   createLatestGuard,
+  profileView,
   formatMonthLabel,
   describeBudgetFailure,
   recurringRows,
   describeRecurringFailure,
   shouldCloseRecurringEditor,
+  filterTransactions,
+  trendBars,
+  describeExpenseComparison,
+  isFilterActive,
+  describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
+import { createBannerSetter } from './banner.mjs';
+import { DEFAULT_TAB, createTabController } from './tabs.mjs';
+import { categoryStyle, createCategoryBadge } from './categories.mjs';
+import { parseEditLink } from './deep-link.mjs';
+import { createSwipeTracker } from './swipe.mjs';
+import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
+import { animateNumber, replayClass, playBars } from './motion.mjs';
+import { createEmptyState } from './empty-state.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 
 const els = {
   month: document.getElementById('month'),
   totals: document.getElementById('totals'),
+  statIncome: document.getElementById('stat-income'),
+  statExpense: document.getElementById('stat-expense'),
+  statBalance: document.getElementById('stat-balance'),
+  summaryEmpty: document.getElementById('summary-empty'),
+  panelSummary: document.getElementById('panel-summary'),
+  panelBudgets: document.getElementById('panel-budgets'),
   truncated: document.getElementById('truncated'),
   exportButton: document.getElementById('export-button'),
   exportStatus: document.getElementById('export-status'),
@@ -35,7 +56,15 @@ const els = {
   chartEmpty: document.getElementById('chart-empty'),
   tabs: document.querySelectorAll('#chart .tabs button'),
   status: document.getElementById('status'),
+  banner: document.getElementById('banner'),
+  bannerRetry: document.getElementById('banner-retry'),
   list: document.getElementById('list'),
+  filters: document.getElementById('filters'),
+  search: document.getElementById('search'),
+  filterType: document.getElementById('filter-type'),
+  filterCategory: document.getElementById('filter-category'),
+  filterClear: document.getElementById('filter-clear'),
+  filterStatus: document.getElementById('filter-status'),
   editor: document.getElementById('editor'),
   form: document.getElementById('edit-form'),
   amount: document.getElementById('edit-amount'),
@@ -57,9 +86,19 @@ const els = {
   budgets: document.getElementById('budgets'),
   budgetRows: document.getElementById('budget-rows'),
   budgetsLoading: document.getElementById('budgets-loading'),
+  budgetsSkeleton: document.getElementById('budgets-skeleton'),
+  summarySkeleton: document.getElementById('summary-skeleton'),
   budgetsError: document.getElementById('budgets-error'),
   budgetsErrorText: document.getElementById('budgets-error-text'),
   budgetsRetry: document.getElementById('budgets-retry'),
+  trendBars: document.getElementById('trend-bars'),
+  trendComparison: document.getElementById('trend-comparison'),
+  trendLegend: document.getElementById('trend-legend'),
+  trendLoading: document.getElementById('trend-loading'),
+  trendSkeleton: document.getElementById('trend-skeleton'),
+  trendError: document.getElementById('trend-error'),
+  trendErrorText: document.getElementById('trend-error-text'),
+  trendRetry: document.getElementById('trend-retry'),
   budgetEditor: document.getElementById('budget-editor'),
   budgetForm: document.getElementById('budget-form'),
   budgetTitle: document.getElementById('budget-title'),
@@ -73,6 +112,7 @@ const els = {
   recurring: document.getElementById('recurring'),
   recurringRows: document.getElementById('recurring-rows'),
   recurringLoading: document.getElementById('recurring-loading'),
+  recurringSkeleton: document.getElementById('recurring-skeleton'),
   recurringEmpty: document.getElementById('recurring-empty'),
   recurringError: document.getElementById('recurring-error'),
   recurringErrorText: document.getElementById('recurring-error-text'),
@@ -96,6 +136,21 @@ const els = {
   recurringConfirmCancel: document.getElementById('recurring-confirm-cancel'),
   recurringConfirmOk: document.getElementById('recurring-confirm-ok'),
   recurringSave: document.querySelector('#recurring-form button[type="submit"]'),
+  profileCard: document.getElementById('profile-card'),
+  profileAvatar: document.getElementById('profile-avatar'),
+  profileName: document.getElementById('profile-name'),
+  profileSince: document.getElementById('profile-since'),
+  profileBalance: document.getElementById('profile-balance'),
+  profileIncome: document.getElementById('profile-income'),
+  profileExpense: document.getElementById('profile-expense'),
+  profileCount: document.getElementById('profile-count'),
+  profileLoading: document.getElementById('profile-loading'),
+  profileSkeleton: document.getElementById('profile-skeleton'),
+  profileError: document.getElementById('profile-error'),
+  profileErrorText: document.getElementById('profile-error-text'),
+  profileRetry: document.getElementById('profile-retry'),
+  profileClose: document.getElementById('profile-close'),
+  profileStaleNotice: document.getElementById('profile-stale'),
 };
 
 let api;
@@ -104,6 +159,8 @@ let editing = null;
 let busy = false;
 let chartType = 'expense';
 let lastSummary = [];
+let lastTransactions = [];
+let lastTruncated = false;
 let exporting = false;
 let editingBudget = null;
 let budgetBusy = false;
@@ -113,66 +170,239 @@ let recurringBusy = false;
 let pendingRecurringFocus = null;
 const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
+const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4 });
+const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
+const trendGuard = createLatestGuard();
+const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, count: 1, variant: 'card' });
+const profileGuard = createLatestGuard();
+const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, count: 1, variant: 'card' });
+let profileRendered = false;
+// ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
+let profileStale = false;
+let profileInFlight = false;
+els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
+els.summaryEmpty.append(createEmptyState(document, 'summary'));
+els.recurringEmpty.append(createEmptyState(document, 'recurring'));
 
-function setStatus(text) {
-  els.status.textContent = text;
-  els.status.hidden = !text;
+// เก็บค่าเดิมและตัวยกเลิกของแต่ละช่อง เพื่อนับต่อจากค่าเดิมและไม่ให้แอนิเมชันซ้อนกัน
+const shownAmounts = new Map();
+function showAmount(el, value) {
+  const previous = shownAmounts.get(el);
+  if (previous) previous.cancel();
+  const from = previous ? previous.value : 0;
+  const cancel = animateNumber({
+    win: window,
+    from,
+    to: value,
+    onFrame: (current) => {
+      el.textContent = formatBaht(Math.round(current * 100) / 100);
+    },
+  });
+  shownAmounts.set(el, { value, cancel });
 }
 
+function setStatus(text, { loading = false } = {}) {
+  els.status.textContent = text;
+  els.status.hidden = !text;
+  // ข้อความโหลดยังอยู่ให้ screen reader แต่ทางสายตาใช้ skeleton แทน
+  els.status.classList.toggle('sr-only', loading);
+}
+
+const setBannerText = createBannerSetter(els.banner);
+
+function setBanner(text, { retryable = false } = {}) {
+  setBannerText(text);
+  els.bannerRetry.hidden = !text || !retryable;
+}
+
+// error โหลดข้อมูลค้างไว้ข้ามการสลับแท็บ เพราะแท็บอื่นไม่มีที่แสดงข้อความของตัวเอง
+let loadError = null;
+
 function showLoadError(err) {
-  setStatus(
-    err instanceof ApiError && err.status === 401
-      ? LOGIN_REQUIRED_MESSAGE
-      : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง'
-  );
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  loadError = {
+    text: loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง',
+    // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
+    retryable: !loginRequired,
+  };
+  // ล้างเฉพาะ skeleton ที่ค้าง ไม่ล้างรายการจริงและแถบกรองตอน reload ล้มเหลว
+  if (els.list.querySelector('.skeleton')) {
+    els.list.replaceChildren();
+    els.filters.hidden = true;
+  }
+  els.summarySkeleton.hidden = true;
+  // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
+  setStatus('');
+  setBanner(loadError.text, { retryable: loadError.retryable });
+}
+
+function showStickyLoadError() {
+  setBanner(loadError ? loadError.text : '', { retryable: loadError ? loadError.retryable : false });
+}
+
+function fillGroupedSelect(select, groups, placeholderOption = null) {
+  const selected = select.value;
+  select.replaceChildren();
+  if (placeholderOption) select.append(placeholderOption);
+  for (const type of ['expense', 'income']) {
+    const group = document.createElement('optgroup');
+    group.label = TYPE_LABELS[type];
+    for (const category of groups[type]) {
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = category.name;
+      group.append(option);
+    }
+    select.append(group);
+  }
+  return selected;
 }
 
 function fillCategoryOptions() {
   const groups = groupCategoryOptions(categories);
-  for (const select of [els.category, els.recurringCategory]) {
-    select.replaceChildren();
-    for (const type of ['expense', 'income']) {
-      const group = document.createElement('optgroup');
-      group.label = TYPE_LABELS[type];
-      for (const category of groups[type]) {
-        const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = category.name;
-        group.append(option);
-      }
-      select.append(group);
-    }
+  fillGroupedSelect(els.category, groups);
+  fillGroupedSelect(els.recurringCategory, groups);
+  const selected = fillGroupedSelect(els.filterCategory, groups, new Option('ทุกหมวด', ''));
+  // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
+  els.filterCategory.value = selected;
+  if (els.filterCategory.value !== selected) els.filterCategory.value = '';
+}
+
+const SWIPE_REVEAL_WIDTH = 88;
+// เมาส์ยิง click ตามหลังการลากเสร็จ จึงเมินคลิกที่มาติดกับการปัด (นิ้วบนมือถือไม่ยิง click หลังลาก)
+const CLICK_AFTER_DRAG_MS = 300;
+const LINKED_TRANSACTION_MISSING = 'ไม่พบรายการนี้ อาจถูกลบหรือยกเลิกไปแล้ว';
+let openSwipeRow = null;
+let lastDragEndAt = 0;
+let swipeDeleting = false;
+
+function setRowOpen(row, open) {
+  if (open) {
+    if (openSwipeRow && openSwipeRow !== row) setRowOpen(openSwipeRow, false);
+    openSwipeRow = row;
+  } else if (openSwipeRow === row) {
+    openSwipeRow = null;
   }
+  row.classList.remove('dragging');
+  row.classList.toggle('swiped', open);
+  row.style.setProperty('--swipe', `${open ? SWIPE_REVEAL_WIDTH : 0}px`);
+}
+
+function attachSwipe(row) {
+  const swipe = createSwipeTracker({ revealWidth: SWIPE_REVEAL_WIDTH });
+  let tracking = false;
+  let captured = false;
+  row.addEventListener('pointerdown', (event) => {
+    if (event.button > 0 || event.isPrimary === false) return;
+    tracking = true;
+    captured = false;
+    swipe.start(event.clientX, event.clientY, row === openSwipeRow ? SWIPE_REVEAL_WIDTH : 0);
+  });
+  row.addEventListener('pointermove', (event) => {
+    if (!tracking) return;
+    const state = swipe.move(event.clientX, event.clientY);
+    if (!state.dragging) return;
+    if (!captured) {
+      captured = true;
+      // ให้เมาส์ที่ลากออกนอกแถวยังส่ง pointerup กลับมา
+      try {
+        row.setPointerCapture(event.pointerId);
+      } catch {
+        // เบราว์เซอร์ที่ไม่รองรับ (หรือ jsdom) ข้ามได้
+      }
+    }
+    row.classList.add('dragging');
+    row.style.setProperty('--swipe', `${state.offset}px`);
+  });
+  const finish = () => {
+    if (!tracking) return;
+    tracking = false;
+    const result = swipe.end();
+    if (result.dragged) lastDragEndAt = Date.now();
+    setRowOpen(row, result.open);
+  };
+  row.addEventListener('pointerup', finish);
+  row.addEventListener('pointercancel', finish);
+}
+
+// ปุ่มลบที่เผยจากการปัดลบทันที (ปัด + กดปุ่ม คือสองขั้นที่ผู้ใช้เลือกแทน modal ยืนยัน)
+async function deleteBySwipe(item, button) {
+  if (swipeDeleting) return;
+  swipeDeleting = true;
+  button.disabled = true;
+  let failure = null;
+  try {
+    await api.deleteTransaction(item.id);
+  } catch (err) {
+    failure = describeEditFailure(err instanceof ApiError ? err.status : undefined, 'delete');
+  } finally {
+    swipeDeleting = false;
+  }
+  if (!failure || failure.closeAndReload) {
+    await loadMonth();
+    profileStale = true;
+    loadProfile();
+  } else {
+    button.disabled = false;
+  }
+  if (failure) setBanner(failure.message);
 }
 
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
 function renderRow(item) {
   const row = document.createElement('li');
-  row.className = `row ${item.type}`;
+  row.className = `row ${item.type} ${categoryStyle(item.categoryName).className}`;
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'row-button';
-  const label = document.createElement('span');
-  label.textContent = item.note ? `${item.categoryName} · ${item.note}` : item.categoryName;
+  const text = document.createElement('span');
+  text.className = 'row-text';
+  const title = document.createElement('span');
+  title.className = 'row-title';
+  title.textContent = item.categoryName;
+  text.append(title);
+  if (item.note) {
+    const note = document.createElement('span');
+    note.className = 'row-note';
+    note.textContent = item.note;
+    text.append(note);
+  }
   const amount = document.createElement('span');
   amount.className = 'amount';
   amount.textContent = formatSignedBaht(item);
-  button.append(label, amount);
-  button.addEventListener('click', () => openEditor(item));
-  row.append(button);
+  button.append(createCategoryBadge(document, item.categoryName), text, amount);
+  button.addEventListener('click', () => {
+    if (Date.now() - lastDragEndAt < CLICK_AFTER_DRAG_MS) return;
+    // แถวที่เผยปุ่มลบอยู่ แตะเนื้อหาให้ปิดก่อน ไม่เปิดตัวแก้ไข
+    if (row === openSwipeRow) {
+      setRowOpen(row, false);
+      return;
+    }
+    openEditor(item);
+  });
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'row-delete';
+  deleteButton.setAttribute('aria-label', `ลบรายการ ${item.categoryName}`);
+  deleteButton.textContent = 'ลบ';
+  deleteButton.addEventListener('click', () => deleteBySwipe(item, deleteButton));
+  row.append(deleteButton, button);
+  attachSwipe(row);
   return row;
 }
 
-function renderChart() {
+// animate = true เฉพาะตอนโหลดเดือนใหม่ ส่วน render ซ้ำหลังแก้ไขต้องอัปเดตเงียบๆ ไม่ให้แท่งกระพริบ
+function renderChart({ animate = false } = {}) {
   for (const tab of els.tabs) {
     tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
   els.chartRows.replaceChildren();
-  // เดือนที่ไม่มีรายการเลยมีข้อความว่างใต้รายการอยู่แล้ว ไม่ต้องแสดงซ้ำในกราฟ
   if (!hasChartData(lastSummary)) {
     els.chart.hidden = true;
+    els.summaryEmpty.hidden = false;
     return;
   }
+  els.summaryEmpty.hidden = true;
   const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
@@ -185,8 +415,10 @@ function renderChart() {
     const item = document.createElement('li');
     item.className = `chart-row ${chartType}`;
     const label = document.createElement('span');
-    label.className = 'chart-label';
-    label.textContent = row.category;
+    label.className = 'chart-label chart-label-wrap';
+    const labelText = document.createElement('span');
+    labelText.textContent = row.category;
+    label.append(createCategoryBadge(document, row.category), labelText);
     const value = document.createElement('span');
     value.className = 'chart-value';
     value.textContent = `${formatBaht(row.total)} · ${row.shareText}`;
@@ -195,39 +427,93 @@ function renderChart() {
     const fill = document.createElement('div');
     fill.className = 'chart-fill';
     fill.style.width = `${row.width}%`;
+    fill.dataset.width = String(row.width);
     track.append(fill);
     item.append(label, value, track);
     els.chartRows.append(item);
   }
+  if (animate && !els.panelSummary.hidden) playBars(window, els.chartRows);
 }
 
-function render({ transactions, summary, truncated }) {
+function render({ transactions, summary, truncated }, { animate = false } = {}) {
+  if (loadError) {
+    loadError = null;
+    setBanner('');
+  }
+  els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
-  els.totals.textContent = `รายรับ ${formatBaht(sum.income)} · รายจ่าย ${formatBaht(sum.expense)}`;
+  showAmount(els.statIncome, sum.income);
+  showAmount(els.statExpense, sum.expense);
+  showAmount(els.statBalance, Math.round((sum.income - sum.expense) * 100) / 100);
   els.totals.hidden = false;
   els.truncated.hidden = !truncated;
   lastSummary = summary;
-  renderChart();
+  renderChart({ animate });
   els.list.replaceChildren();
-  if (transactions.length === 0) {
-    setStatus('ยังไม่มีรายการในเดือนนี้');
+  // เข้าฉากแถวเฉพาะตอนโหลดเดือนใหม่ render หลังแก้ไขต้องไม่เล่นซ้ำ
+  if (animate) replayClass(els.list, 'enter');
+  else els.list.classList.remove('enter');
+  lastTransactions = transactions;
+  lastTruncated = truncated;
+  renderList();
+}
+
+function currentFilter() {
+  return { query: els.search.value, categoryId: els.filterCategory.value, type: els.filterType.value };
+}
+
+// ไม่แตะ class enter: การกรองต้องไม่เล่นแอนิเมชันเข้าฉากแถวซ้ำ
+function renderList() {
+  // ระหว่างโหลดหรือโหลดพลาด ห้ามล้าง skeleton ด้วยสถานะว่างปลอม
+  if (els.filters.hidden && els.list.querySelector('.skeleton')) return;
+  const filter = currentFilter();
+  const active = isFilterActive(filter);
+  const shown = filterTransactions(lastTransactions, filter);
+  els.list.replaceChildren();
+  openSwipeRow = null;
+  // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
+  els.filters.hidden = lastTransactions.length === 0 && !active;
+  els.filterClear.hidden = !active;
+  const filterText = active ? describeFilterResult(shown.length, lastTransactions.length, lastTruncated) : '';
+  // เขียนเฉพาะเมื่อข้อความเปลี่ยน ไม่ให้ screen reader อ่านซ้ำทุกตัวอักษร
+  if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
+  if (lastTransactions.length === 0) {
+    // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
+    setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
+    els.list.append(createEmptyState(document, 'list', 'li'));
+    return;
+  }
+  if (shown.length === 0) {
+    // ตัวกรองบอก "พบ 0 จาก N" ใน filter-status อยู่แล้ว จึงไม่ประกาศซ้ำ
+    setStatus('');
+    els.list.append(createEmptyState(document, 'search', 'li'));
     return;
   }
   setStatus('');
-  for (const group of groupByDate(transactions)) {
+  let rowIndex = 0;
+  for (const group of groupByDate(shown)) {
     const heading = document.createElement('li');
     heading.className = 'day';
-    heading.textContent = formatThaiDate(group.date);
+    const date = document.createElement('span');
+    date.className = 'day-date';
+    date.textContent = formatThaiDate(group.date);
+    const net = document.createElement('span');
+    net.className = 'day-net';
+    net.textContent = formatDayNet(group.items);
+    heading.append(date, net);
     els.list.append(heading);
     for (const item of group.items) {
-      els.list.append(renderRow(item));
+      const rowEl = renderRow(item);
+      rowEl.style.setProperty('--i', String(Math.min(rowIndex, 10)));
+      rowIndex += 1;
+      els.list.append(rowEl);
     }
   }
 }
 
-function renderBudgets(budgets, focusCategoryId = null) {
+function renderBudgets(budgets, focusCategoryId = null, { animate = false } = {}) {
   els.budgetRows.replaceChildren();
-  els.budgetsLoading.hidden = true;
+  budgetsLoading.set(false);
   els.budgetsError.hidden = true;
   els.budgets.hidden = false;
   for (const row of budgetRows(budgets)) {
@@ -237,8 +523,10 @@ function renderBudgets(budgets, focusCategoryId = null) {
     button.type = 'button';
     button.className = 'budget-button';
     const label = document.createElement('span');
-    label.className = 'budget-label';
-    label.textContent = row.category;
+    label.className = 'budget-label budget-label-wrap';
+    const labelText = document.createElement('span');
+    labelText.textContent = row.category;
+    label.append(createCategoryBadge(document, row.category), labelText);
     const action = document.createElement('span');
     action.className = 'budget-edit';
     action.textContent = row.budget === null ? 'ตั้งงบ' : 'แก้งบ';
@@ -253,6 +541,7 @@ function renderBudgets(budgets, focusCategoryId = null) {
       const fill = document.createElement('span');
       fill.className = 'budget-fill';
       fill.style.width = `${row.width}%`;
+      fill.dataset.width = String(row.width);
       track.append(fill);
       button.append(track);
     }
@@ -262,11 +551,12 @@ function renderBudgets(budgets, focusCategoryId = null) {
     // render ใหม่ทำให้ปุ่มเดิมหาย จึงคืน focus ให้ปุ่มของหมวดที่เพิ่งแก้
     if (focusCategoryId === row.categoryId) button.focus();
   }
+  if (animate && !els.panelBudgets.hidden) playBars(window, els.budgetRows);
 }
 
 function showBudgetsError(err) {
   els.budgetRows.replaceChildren();
-  els.budgetsLoading.hidden = true;
+  budgetsLoading.set(false);
   els.budgets.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.budgetsErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ';
@@ -275,47 +565,179 @@ function showBudgetsError(err) {
   els.budgetsError.hidden = false;
 }
 
+// แท่งวาดที่ความสูงสุดท้ายไว้เลย แล้วเล่นแอนิเมชันเฉพาะตอน animate และแท็บสรุปมองเห็นอยู่
+function renderTrend(months, currentMonthKey, { animate = false } = {}) {
+  trendLoading.set(false);
+  els.trendError.hidden = true;
+  els.trendBars.replaceChildren();
+  for (const bar of trendBars(months)) {
+    const item = document.createElement('li');
+    item.className = `trend-col${bar.month === currentMonthKey ? ' current' : ''}`;
+    const pair = document.createElement('div');
+    pair.className = 'trend-pair';
+    pair.setAttribute('aria-hidden', 'true');
+    for (const [kind, height] of [['income', bar.incomeHeight], ['expense', bar.expenseHeight]]) {
+      const column = document.createElement('span');
+      column.className = `trend-bar ${kind}`;
+      column.style.height = `${height}%`;
+      column.dataset.width = String(height);
+      column.dataset.property = 'height';
+      pair.append(column);
+    }
+    const label = document.createElement('span');
+    label.className = 'trend-label';
+    label.setAttribute('aria-hidden', 'true');
+    label.textContent = bar.label;
+    const description = document.createElement('span');
+    description.className = 'sr-only';
+    description.textContent = bar.description;
+    item.append(pair, label, description);
+    els.trendBars.append(item);
+  }
+  els.trendBars.hidden = false;
+  els.trendLegend.hidden = false;
+  const comparison = describeExpenseComparison(months);
+  els.trendComparison.textContent = comparison.text;
+  els.trendComparison.className = `trend-comparison ${comparison.level}`;
+  els.trendComparison.hidden = !comparison.text;
+  if (animate && !els.panelSummary.hidden) playBars(window, els.trendBars);
+}
+
+function showTrendError(err) {
+  trendLoading.set(false);
+  els.trendBars.hidden = true;
+  els.trendLegend.hidden = true;
+  els.trendComparison.hidden = true;
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.trendErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดกราฟแนวโน้มไม่สำเร็จ';
+  els.trendRetry.hidden = loginRequired;
+  els.trendError.hidden = false;
+}
+
+// กราฟแนวโน้มโหลดแยกจากรายการ ถ้าพังส่วนอื่นยังใช้ได้ และไม่ throw
+async function loadTrend({ animate = false } = {}) {
+  const month = els.month.value;
+  const requestId = trendGuard.start();
+  const isCurrent = () => month === els.month.value && trendGuard.isCurrent(requestId);
+  try {
+    const { months } = await api.getTrend(month);
+    if (isCurrent()) renderTrend(months, month, { animate });
+  } catch (err) {
+    if (isCurrent()) showTrendError(err);
+  }
+}
+
+function renderProfile(profile) {
+  const view = profileView(profile);
+  profileRendered = true;
+  profileStale = false;
+  els.profileStaleNotice.hidden = true;
+  profileLoading.set(false);
+  els.profileError.hidden = true;
+  els.profileAvatar.textContent = view.initial;
+  els.profileName.textContent = view.name;
+  els.profileSince.textContent = view.sinceText;
+  showAmount(els.profileBalance, view.balance);
+  els.profileBalance.classList.toggle('negative', view.negative);
+  els.profileIncome.textContent = view.incomeText;
+  els.profileExpense.textContent = view.expenseText;
+  els.profileCount.textContent = view.countText;
+  els.profileCard.hidden = false;
+}
+
+function showProfileError(err) {
+  // โหลดซ้ำที่พังไม่ควรทับการ์ดที่แสดงอยู่แล้ว
+  if (profileRendered) {
+    profileStale = true;
+    els.profileStaleNotice.hidden = false;
+    return;
+  }
+  profileLoading.set(false);
+  const loginRequired = err instanceof ApiError && err.status === 401;
+  els.profileErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดโปรไฟล์ไม่สำเร็จ';
+  els.profileRetry.hidden = loginRequired;
+  els.profileError.hidden = false;
+}
+
+// ยอดสะสมไม่ผูกกับเดือน โหลดแยกและไม่ throw
+async function loadProfile() {
+  const requestId = profileGuard.start();
+  profileInFlight = true;
+  try {
+    const profile = await api.getProfile();
+    if (profileGuard.isCurrent(requestId)) renderProfile(profile);
+  } catch (err) {
+    if (profileGuard.isCurrent(requestId)) showProfileError(err);
+  } finally {
+    if (profileGuard.isCurrent(requestId)) profileInFlight = false;
+  }
+}
+
+// เข้าแท็บโปรไฟล์แล้วยอดเก่าหรือยังไม่เคยโหลดสำเร็จ ให้โหลดใหม่
+function refreshProfileOnEntry() {
+  if (!api || profileInFlight || (profileRendered && !profileStale)) return;
+  if (!profileRendered) {
+    els.profileError.hidden = true;
+    profileLoading.set(true);
+  }
+  loadProfile();
+}
+
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
-async function loadBudgets({ focusCategoryId = null } = {}) {
+async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
   const month = els.month.value;
   const requestId = budgetsGuard.start();
   // เดือนเดียวกันที่ถูกโหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
   const isCurrent = () => month === els.month.value && budgetsGuard.isCurrent(requestId);
   try {
     const { budgets } = await api.listBudgets(month);
-    if (isCurrent()) renderBudgets(budgets, focusCategoryId);
+    if (isCurrent()) renderBudgets(budgets, focusCategoryId, { animate });
   } catch (err) {
     if (isCurrent()) showBudgetsError(err);
   }
 }
 
-// ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ status เสมอ
+// ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ banner เสมอ
 // reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
 async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
   if (reset) {
-    els.list.replaceChildren();
+    loadError = null;
+    setBanner('');
+    els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
     els.totals.hidden = true;
     els.truncated.hidden = true;
+    els.filters.hidden = true;
+    lastTransactions = [];
+    lastTruncated = false;
     els.chart.hidden = true;
+    els.summaryEmpty.hidden = true;
+    els.summarySkeleton.hidden = false;
     // เปิดส่วนงบพร้อมข้อความโหลดไว้ก่อน รายการด้านล่างจะได้ไม่กระโดดตอนงบมาช้า
     els.budgetRows.replaceChildren();
     els.budgetsError.hidden = true;
-    els.budgetsLoading.hidden = false;
+    budgetsLoading.set(true);
     els.budgets.hidden = false;
+    els.trendBars.hidden = true;
+    els.trendLegend.hidden = true;
+    els.trendComparison.hidden = true;
+    els.trendError.hidden = true;
+    trendLoading.set(true);
     els.exportStatus.textContent = '';
-    setStatus('กำลังโหลด...');
+    setStatus('กำลังโหลด...', { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
-  const budgetsLoaded = loadBudgets();
+  const budgetsLoaded = loadBudgets({ animate: reset });
+  const trendLoaded = loadTrend({ animate: reset });
   try {
     const data = await api.listTransactions(month);
     // ทิ้งผลของเดือนเก่าเมื่อผู้ใช้เปลี่ยนเดือนไปแล้ว
-    if (month === els.month.value) render(data);
+    if (month === els.month.value) render(data, { animate: reset });
   } catch (err) {
     if (month === els.month.value) showLoadError(err);
   }
   await budgetsLoaded;
+  await trendLoaded;
 }
 
 async function ensureCategories() {
@@ -377,12 +799,16 @@ async function runEdit(action, kind) {
   if (!failure) {
     els.editor.close();
     await loadMonth();
+    profileStale = true;
+    loadProfile();
     return;
   }
   if (failure.closeAndReload) {
     els.editor.close();
     await loadMonth();
-    setStatus(failure.message);
+    profileStale = true;
+    loadProfile();
+    setBanner(failure.message);
     return;
   }
   els.error.textContent = failure.message;
@@ -426,6 +852,22 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
+
+// ถอด enter ก่อนกรอง ไม่งั้นแถวที่สร้างใหม่จะเล่นแอนิเมชันเข้าฉากตาม CSS แล้วกระพริบตอนพิมพ์
+function refilter() {
+  els.list.classList.remove('enter');
+  renderList();
+}
+for (const control of [els.search, els.filterType, els.filterCategory]) {
+  control.addEventListener('input', refilter);
+}
+els.filterClear.addEventListener('click', () => {
+  els.search.value = '';
+  els.filterType.value = '';
+  els.filterCategory.value = '';
+  refilter();
+  els.search.focus();
+});
 
 for (const tab of els.tabs) {
   tab.addEventListener('click', () => {
@@ -520,13 +962,27 @@ els.budgetEditor.addEventListener('close', () => {
 });
 els.budgetsRetry.addEventListener('click', () => {
   els.budgetsError.hidden = true;
-  els.budgetsLoading.hidden = false;
+  budgetsLoading.set(true);
   loadBudgets();
+});
+els.trendRetry.addEventListener('click', () => {
+  els.trendError.hidden = true;
+  trendLoading.set(true);
+  loadTrend({ animate: true });
+});
+els.profileRetry.addEventListener('click', () => {
+  els.profileError.hidden = true;
+  profileLoading.set(true);
+  loadProfile();
+});
+// closeWindow ใช้ได้เฉพาะในแอป LINE
+els.profileClose.addEventListener('click', () => {
+  if (liff.isInClient()) liff.closeWindow();
 });
 
 function renderRecurring(rules, focusRuleId = null) {
   els.recurringRows.replaceChildren();
-  els.recurringLoading.hidden = true;
+  recurringLoading.set(false);
   els.recurringError.hidden = true;
   els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
@@ -538,8 +994,10 @@ function renderRecurring(rules, focusRuleId = null) {
     button.type = 'button';
     button.className = 'recurring-button';
     const title = document.createElement('span');
-    title.className = 'recurring-title';
-    title.textContent = row.title;
+    title.className = 'recurring-title recurring-head';
+    const titleText = document.createElement('span');
+    titleText.textContent = row.title;
+    title.append(createCategoryBadge(document, row.title), titleText);
     const text = document.createElement('span');
     text.className = 'recurring-text';
     text.textContent = row.text;
@@ -553,7 +1011,7 @@ function renderRecurring(rules, focusRuleId = null) {
 
 function showRecurringError(err) {
   els.recurringRows.replaceChildren();
-  els.recurringLoading.hidden = true;
+  recurringLoading.set(false);
   els.recurringEmpty.hidden = true;
   els.recurringAdd.disabled = false;
   els.recurring.hidden = false;
@@ -633,7 +1091,7 @@ async function runRecurringAction(action, kind, focusRuleId = null) {
   if (failure && shouldCloseRecurringEditor(failureStatus)) {
     els.recurringEditor.close();
     await loadRecurring();
-    setStatus(failure);
+    setBanner(failure);
     return;
   }
   if (failure) {
@@ -679,11 +1137,47 @@ els.recurringEditor.addEventListener('cancel', (event) => {
 els.recurringEditor.addEventListener('close', () => {
   if (recurringBusy) els.recurringEditor.showModal();
 });
+els.bannerRetry.addEventListener('click', () => {
+  if (api) loadMonth({ reset: true });
+  else window.location.reload();
+});
 els.recurringRetry.addEventListener('click', () => {
   els.recurringError.hidden = true;
-  els.recurringLoading.hidden = false;
+  recurringLoading.set(true);
   loadRecurring();
 });
+
+const tabController = createTabController({
+  doc: document,
+  nav: document.getElementById('bottom-nav'),
+  titleEl: document.getElementById('page-title'),
+  monthEl: els.month,
+  panelFor: (id) => document.getElementById(`panel-${id}`),
+  onChange: (id) => {
+    // ข้อความชั่วคราวหายเมื่อสลับแท็บ แต่ error โหลดข้อมูลต้องยังเห็นอยู่
+    showStickyLoadError();
+    window.scrollTo(0, 0);
+    if (id === 'list') replayClass(els.list, 'enter');
+    if (id === 'summary') {
+      playBars(window, els.chartRows);
+      playBars(window, els.trendBars);
+    }
+    if (id === 'budgets') playBars(window, els.budgetRows);
+    if (id === 'profile') refreshProfileOnEntry();
+  },
+});
+tabController.select(DEFAULT_TAB);
+
+// ลิงก์จากการ์ดในแชต: โหลดเดือนของรายการแล้วเปิดตัวแก้ไข ถ้าโหลดพังให้ banner เดิมบอกเอง
+function openLinkedTransaction(link) {
+  if (loadError) return;
+  const item = lastTransactions.find((transaction) => transaction.id === link.id);
+  if (item) {
+    openEditor(item);
+  } else {
+    setBanner(LINKED_TRANSACTION_MISSING);
+  }
+}
 
 async function boot() {
   try {
@@ -694,21 +1188,28 @@ async function boot() {
       })
     ).json();
     await liff.init({ liffId: config.liffId });
+    els.profileClose.hidden = !liff.isInClient();
     if (!liff.isLoggedIn()) {
       liff.login();
       return;
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
-    els.month.value = currentMonth(new Date());
+    // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
+    const link = parseEditLink(window.location.search);
+    if (link) window.history.replaceState(null, '', window.location.pathname);
+    els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     ({ categories } = await api.listCategories());
     fillCategoryOptions();
     // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
     els.recurringEmpty.hidden = true;
     els.recurringError.hidden = true;
-    els.recurringLoading.hidden = false;
+    recurringLoading.set(true);
     els.recurring.hidden = false;
-    await Promise.all([loadMonth({ reset: true }), loadRecurring()]);
+    els.profileError.hidden = true;
+    profileLoading.set(true);
+    await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
+    if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
   }

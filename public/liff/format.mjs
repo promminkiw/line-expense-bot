@@ -34,6 +34,14 @@ export function groupByDate(transactions) {
   return groups;
 }
 
+// ปัดเป็นสตางค์ก่อนเทียบ กัน float noise เช่น 0.1 + 0.2
+export function formatDayNet(items) {
+  const cents = items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+  if (cents === 0) return '0';
+  const text = (Math.abs(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return `${cents > 0 ? '+' : '-'}${text}`;
+}
+
 export function groupCategoryOptions(categories) {
   return {
     expense: categories.filter((category) => category.type === 'expense'),
@@ -202,4 +210,87 @@ export function describeRecurringFailure(status, action) {
 
 export function shouldCloseRecurringEditor(status) {
   return status === 404;
+}
+
+export function filterTransactions(transactions, { query = '', categoryId = '', type = '' } = {}) {
+  const needle = query.trim().toLowerCase();
+  return transactions.filter((item) => {
+    if (type && item.type !== type) return false;
+    if (categoryId && item.categoryId !== categoryId) return false;
+    if (!needle) return true;
+    return `${item.categoryName} ${item.note || ''}`.toLowerCase().includes(needle);
+  });
+}
+
+export function isFilterActive({ query = '', categoryId = '', type = '' } = {}) {
+  return Boolean(query.trim() || categoryId || type);
+}
+
+export function describeFilterResult(shown, total, truncated) {
+  const text = `พบ ${shown} จาก ${total} รายการ`;
+  return truncated ? `${text} (ค้นเฉพาะรายการที่แสดง)` : text;
+}
+
+const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+export function thaiMonthShort(month) {
+  return THAI_MONTHS[Number(month.split('-')[1]) - 1];
+}
+
+export function formatFullThaiDate(isoDate) {
+  const [year, month, day] = isoDate.split('-');
+  return `${Number(day)} ${thaiMonthShort(`${year}-${month}`)} ${Number(year) + 543}`;
+}
+
+// ค่าที่มากกว่า 0 แต่เล็กมากต้องยังเห็นเป็นแท่ง ไม่ให้ดูเหมือนไม่มียอด
+function barHeight(value, max) {
+  if (max === 0 || value <= 0) return 0;
+  return Math.max((value / max) * 100, 2);
+}
+
+export function trendBars(months) {
+  const max = Math.max(0, ...months.flatMap((entry) => [entry.income, entry.expense]));
+  return months.map((entry) => {
+    const label = thaiMonthShort(entry.month);
+    return {
+      month: entry.month,
+      label,
+      income: entry.income,
+      expense: entry.expense,
+      incomeHeight: barHeight(entry.income, max),
+      expenseHeight: barHeight(entry.expense, max),
+      description: `${label} รายรับ ${formatBaht(entry.income)} รายจ่าย ${formatBaht(entry.expense)}`,
+    };
+  });
+}
+
+// เทียบเป็นสตางค์เพื่อไม่ให้ทศนิยมลอยตัวทำให้เปอร์เซ็นต์เพี้ยน
+export function describeExpenseComparison(months) {
+  if (months.length < 2) return { level: 'none', text: '' };
+  const current = Math.round(months[months.length - 1].expense * 100);
+  const previous = Math.round(months[months.length - 2].expense * 100);
+  if (previous === 0) return { level: 'none', text: 'เดือนก่อนไม่มีรายจ่ายให้เทียบ' };
+  const diff = current - previous;
+  if (diff === 0) return { level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' };
+  const percent = Math.round((Math.abs(diff) / previous) * 100);
+  const amount = formatBaht(Math.abs(diff) / 100);
+  return diff > 0
+    ? { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${percent}% (+${amount})` }
+    : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };
+}
+
+export function profileView(profile) {
+  const name = (profile.displayName || '').trim() || 'ผู้ใช้';
+  return {
+    name,
+    // Array.from นับตาม code point ชื่อที่ขึ้นต้นด้วย emoji จะไม่ถูกตัดครึ่ง
+    initial: Array.from(name)[0].toUpperCase(),
+    balance: profile.balance,
+    balanceText: formatBaht(profile.balance),
+    negative: profile.balance < 0,
+    incomeText: formatBaht(profile.income),
+    expenseText: formatBaht(profile.expense),
+    countText: `${profile.entryCount.toLocaleString('en-US')} รายการ`,
+    sinceText: profile.firstDate ? `เริ่มบันทึกตั้งแต่ ${formatFullThaiDate(profile.firstDate)}` : 'ยังไม่เคยบันทึกรายการ',
+  };
 }

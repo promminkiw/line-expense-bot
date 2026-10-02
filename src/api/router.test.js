@@ -54,6 +54,12 @@ function setup(overrides = {}) {
       })),
       updateRecurringRule: vi.fn().mockResolvedValue(true),
       deleteRecurringRule: vi.fn().mockResolvedValue(true),
+      getMonthlyTotals: vi.fn().mockResolvedValue([
+        { month: '2026-09', type: 'expense', total: 60 },
+        { month: '2026-08', type: 'income', total: 25000 },
+      ]),
+      getLifetimeTotals: vi.fn().mockResolvedValue({ income: 25000.1, expense: 60.2, entryCount: 3, firstDate: '2026-08-03' }),
+      getDisplayName: vi.fn().mockResolvedValue('สมชาย'),
     },
     allowExport: vi.fn().mockReturnValue(true),
     liffId: 'liff-123',
@@ -66,6 +72,8 @@ function setup(overrides = {}) {
 
 describe('createApiRouter', () => {
   it('refuses to build without an export limiter so the limit cannot vanish silently', () => {
+    // ตั้งใจแยก allowExport ออกจาก deps เพื่อทดสอบกรณีไม่มี limiter
+    // eslint-disable-next-line no-unused-vars
     const { allowExport, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('allowExport');
@@ -745,5 +753,78 @@ describe('recurring rules API', () => {
     const base = await start(setup());
 
     expect((await call(base, '/recurring', { token: null })).status).toBe(401);
+  });
+});
+
+describe('GET /api/trend', () => {
+  it('returns 6 months ending at the requested month, filled with zeros', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/trend?month=2026-09');
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.getMonthlyTotals).toHaveBeenCalledWith('user-1', '2026-04-01', '2026-09-30');
+    const { months } = await res.json();
+    expect(months.map((entry) => entry.month)).toEqual(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09']);
+    expect(months[4]).toEqual({ month: '2026-08', income: 25000, expense: 0 });
+    expect(months[5]).toEqual({ month: '2026-09', income: 0, expense: 60 });
+  });
+
+  it('rejects a missing, malformed or non-string month', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const query of ['', '?month=2026-13', '?month=abc', '?month=2026-09&month=2026-08']) {
+      const res = await call(base, `/trend${query}`);
+      expect(res.status).toBe(400);
+    }
+    expect(deps.repository.getMonthlyTotals).not.toHaveBeenCalled();
+  });
+
+  it('requires login', async () => {
+    const base = await start(setup());
+
+    expect((await call(base, '/trend?month=2026-09', { token: null })).status).toBe(401);
+  });
+});
+
+describe('GET /api/profile', () => {
+  it('returns the name, lifetime totals and a balance computed in satang', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/profile');
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.getLifetimeTotals).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.getDisplayName).toHaveBeenCalledWith('user-1');
+    // 25000.10 - 60.20 ต้องได้ 24939.9 พอดี ไม่ใช่ 24939.899999999998
+    expect(await res.json()).toEqual({
+      displayName: 'สมชาย',
+      income: 25000.1,
+      expense: 60.2,
+      balance: 24939.9,
+      entryCount: 3,
+      firstDate: '2026-08-03',
+    });
+  });
+
+  it('allows a negative balance and a missing name', async () => {
+    const deps = setup();
+    deps.repository.getLifetimeTotals.mockResolvedValue({ income: 100, expense: 250.5, entryCount: 2, firstDate: '2026-09-01' });
+    deps.repository.getDisplayName.mockResolvedValue(null);
+    const base = await start(deps);
+
+    const body = await (await call(base, '/profile')).json();
+
+    expect(body.balance).toBe(-150.5);
+    expect(body.displayName).toBeNull();
+  });
+
+  it('requires login', async () => {
+    const base = await start(setup());
+
+    expect((await call(base, '/profile', { token: null })).status).toBe(401);
   });
 });

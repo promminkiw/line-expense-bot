@@ -1,19 +1,18 @@
 const { createConcurrencyLimit } = require('./slip/concurrency-limit');
-const { formatSavedReply, formatSlipConfirmReply } = require('./parser/format-reply');
+const { buildSavedFlex, buildSlipConfirmFlex } = require('./parser/saved-flex');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
 const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
 const { getFixedReply } = require('./menu/fixed-replies');
-const { budgetMonths, findBudgetAlerts, formatBudgetAlerts } = require('./budget/alerts');
+const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
-const BUDGET_CHECK_FAILED_REPLY = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
 const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
 const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
 const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
@@ -33,6 +32,9 @@ const SUMMARY_PERIOD_BUTTONS = [
   { label: 'เดือนนี้', text: 'สรุปเดือนนี้' },
 ];
 const UNDO_ACTION = 'undo';
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// LINE จำกัดความยาว uri ของ action ที่ 1000 ตัวอักษร
+const MAX_URI_LENGTH = 1000;
 // เกิน 10 นาทีถือว่าเป็นเรื่องใหม่ กันไม่ให้ข้อความใหม่ถูกรวมกับคำถามเก่าโดยไม่ตั้งใจ
 const PENDING_TTL_MS = 10 * 60 * 1000;
 // จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
@@ -62,6 +64,15 @@ function buildUndoQuickReply(webhookEventId) {
       },
     },
   ];
+}
+
+function buildSavedReply(items, budget, webhookEventId, editUrls) {
+  return buildSavedFlex(items, {
+    alerts: budget.alerts,
+    budgetCheckFailed: budget.failed,
+    buttons: buildUndoQuickReply(webhookEventId),
+    editUrls,
+  });
 }
 
 function buildSlipQuickReply(slipId) {
@@ -127,18 +138,38 @@ function createBot({
   }
 
   // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
+  // ลิงก์เข้าหน้าแก้ไขรายการ: ใส่วันที่ไปด้วยเพื่อให้หน้าเว็บเปิดเดือนที่ถูกต้องก่อนหารายการ
+  function buildEditUrls(rows, ids) {
+    if (!liffUrl || !Array.isArray(ids) || ids.length !== rows.length) {
+      return undefined;
+    }
+    return ids.map((id, index) => buildEditUrl(id, rows[index].occurred_on));
+  }
+
+  function buildEditUrl(id, date) {
+    try {
+      const url = new URL(liffUrl);
+      url.searchParams.set('tx', String(id));
+      if (ISO_DATE_PATTERN.test(date)) url.searchParams.set('d', date);
+      const text = url.toString();
+      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async function checkBudgets(userId, rows) {
     const months = budgetMonths(rows);
     if (months.length === 0) {
-      return '';
+      return { alerts: [], failed: false };
     }
     try {
       const statuses = await Promise.all(months.map((month) => repository.getBudgetStatus(userId, month)));
       const statusByMonth = new Map(months.map((month, index) => [month, statuses[index]]));
-      return formatBudgetAlerts(findBudgetAlerts(rows, statusByMonth));
+      return { alerts: findBudgetAlerts(rows, statusByMonth), failed: false };
     } catch (err) {
       logger.error('Failed to check budgets', { userId }, err);
-      return BUDGET_CHECK_FAILED_REPLY;
+      return { alerts: [], failed: true };
     }
   }
 
@@ -203,17 +234,13 @@ function createBot({
       userId,
       webhookEventId: event.webhookEventId,
     });
-    await repository.insertTransactions(rows);
+    const ids = await repository.insertTransactions(rows);
     // ล้างหลังบันทึกสำเร็จ ถ้าบันทึกพังผู้ใช้ส่งคำตอบซ้ำได้โดยบริบทยังอยู่
     if (history.length > 0) {
       await forgetConversation(userId);
     }
-    const saved = formatSavedReply(result.items);
-    const alerts = await checkBudgets(userId, rows);
-    return {
-      text: alerts ? `${saved}\n\n${alerts}` : saved,
-      quickReply: buildUndoQuickReply(event.webhookEventId),
-    };
+    const budget = await checkBudgets(userId, rows);
+    return { flex: buildSavedReply(result.items, budget, event.webhookEventId, buildEditUrls(rows, ids)) };
   }
 
   // ล้างของหมดอายุเป็นแค่การดูแลตาราง ถ้าพังยังอ่านสลิปต่อได้
@@ -263,14 +290,14 @@ function createBot({
     await clearExpiredSlips(userId);
     const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.items);
     return {
-      text: formatSlipConfirmReply(slip.items, {
+      flex: buildSlipConfirmFlex(slip.items, {
         dateAssumed: slip.dateAssumed,
         extrasNote: slip.extrasNote,
         slipTotal: slip.slipTotal,
         truncatedTo: slip.truncatedTo,
         skippedCount: slip.skippedCount,
+        buttons: buildSlipQuickReply(slipId),
       }),
-      quickReply: buildSlipQuickReply(slipId),
     };
   }
 
@@ -312,13 +339,9 @@ function createBot({
       webhookEventId: slip.webhookEventId,
       source: 'slip',
     });
-    await repository.insertTransactions(rows);
-    const saved = formatSavedReply(slip.items);
-    const alerts = await checkBudgets(userId, rows);
-    return {
-      text: alerts ? `${saved}\n\n${alerts}` : saved,
-      quickReply: buildUndoQuickReply(slip.webhookEventId),
-    };
+    const ids = await repository.insertTransactions(rows);
+    const budget = await checkBudgets(userId, rows);
+    return { flex: buildSavedReply(slip.items, budget, slip.webhookEventId, buildEditUrls(rows, ids)) };
   }
 
   async function handleSlipCancel(event, params, lineUserId) {

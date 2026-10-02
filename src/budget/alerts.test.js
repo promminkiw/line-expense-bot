@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { budgetMonths, findBudgetAlerts, formatBudgetAlerts } from './alerts.js';
+import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert } from './alerts.js';
 
 function row({ type = 'expense', categoryId = 'c-food', amount = 60, date = '2026-09-29' } = {}) {
   return { type, category_id: categoryId, amount, occurred_on: date };
@@ -135,5 +135,22 @@ describe('formatBudgetAlerts', () => {
 
   it('returns an empty string when there is nothing to say', () => {
     expect(formatBudgetAlerts([])).toBe('');
+  });
+});
+
+describe('describeBudgetAlert', () => {
+  it('splits an alert into a short title and a detail line', () => {
+    expect(describeBudgetAlert({ level: 'warn', month: '2026-09', category: 'อาหาร', spent: 135, budget: 150 })).toEqual({
+      level: 'warn',
+      title: 'ใกล้เต็มงบ อาหาร 90%',
+      detail: 'ใช้ไป 135 จาก 150 บาท (เดือน 09/2026)',
+    });
+  });
+
+  it('labels an over-budget alert and rounds the percent down', () => {
+    const described = describeBudgetAlert({ level: 'over', month: '2026-09', category: 'เดินทาง', spent: 1234.5, budget: 1000 });
+
+    expect(described.level).toBe('over');
+    expect(described.title).toBe('เกินงบ เดินทาง 123%');
   });
 });

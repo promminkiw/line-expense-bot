@@ -4,6 +4,7 @@ import {
   formatThaiDate,
   currentMonth,
   groupByDate,
+  formatDayNet,
   groupCategoryOptions,
   describeEditFailure,
   describeDeleteTarget,
@@ -20,6 +21,14 @@ import {
   describeRecurringFailure,
   shouldCloseRecurringEditor,
   LOGIN_REQUIRED_MESSAGE,
+  filterTransactions,
+  isFilterActive,
+  describeFilterResult,
+  thaiMonthShort,
+  formatFullThaiDate,
+  trendBars,
+  describeExpenseComparison,
+  profileView,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -365,5 +374,229 @@ describe('shouldCloseRecurringEditor', () => {
     expect(shouldCloseRecurringEditor(400)).toBe(false);
     expect(shouldCloseRecurringEditor(401)).toBe(false);
     expect(shouldCloseRecurringEditor(undefined)).toBe(false);
+  });
+});
+
+describe('filterTransactions', () => {
+  const items = [
+    { id: '1', type: 'expense', categoryId: 'c-food', categoryName: 'อาหาร', note: 'ข้าวมันไก่', amount: 60 },
+    { id: '2', type: 'expense', categoryId: 'c-trip', categoryName: 'เดินทาง', note: 'BTS', amount: 40 },
+    { id: '3', type: 'income', categoryId: 'c-salary', categoryName: 'เงินเดือน', note: '', amount: 25000 },
+    { id: '4', type: 'expense', categoryId: 'c-food', categoryName: 'อาหาร', note: null, amount: 45 },
+  ];
+
+  it('returns everything when no filter is set', () => {
+    expect(filterTransactions(items, {})).toEqual(items);
+    expect(filterTransactions(items)).toEqual(items);
+  });
+
+  it('matches the query against the category name and the note, ignoring case and outer spaces', () => {
+    expect(filterTransactions(items, { query: 'BTS' }).map((item) => item.id)).toEqual(['2']);
+    expect(filterTransactions(items, { query: '  bts ' }).map((item) => item.id)).toEqual(['2']);
+    expect(filterTransactions(items, { query: 'อาหาร' }).map((item) => item.id)).toEqual(['1', '4']);
+    expect(filterTransactions(items, { query: 'ไก่' }).map((item) => item.id)).toEqual(['1']);
+  });
+
+  it('filters by category and by type and combines the conditions', () => {
+    expect(filterTransactions(items, { categoryId: 'c-food' }).map((item) => item.id)).toEqual(['1', '4']);
+    expect(filterTransactions(items, { type: 'income' }).map((item) => item.id)).toEqual(['3']);
+    expect(filterTransactions(items, { type: 'expense', categoryId: 'c-food', query: 'ข้าว' }).map((item) => item.id)).toEqual(['1']);
+    expect(filterTransactions(items, { type: 'income', categoryId: 'c-food' })).toEqual([]);
+  });
+
+  it('handles a missing note without throwing', () => {
+    expect(filterTransactions(items, { query: 'null' })).toEqual([]);
+  });
+});
+
+describe('isFilterActive', () => {
+  it('is false for empty or whitespace-only filters', () => {
+    expect(isFilterActive({ query: '', categoryId: '', type: '' })).toBe(false);
+    expect(isFilterActive({ query: '   ', categoryId: '', type: '' })).toBe(false);
+  });
+
+  it('is false when called without a filter', () => {
+    expect(isFilterActive()).toBe(false);
+    expect(isFilterActive({})).toBe(false);
+  });
+
+  it('is true when any field is set', () => {
+    expect(isFilterActive({ query: 'a', categoryId: '', type: '' })).toBe(true);
+    expect(isFilterActive({ query: '', categoryId: 'c1', type: '' })).toBe(true);
+    expect(isFilterActive({ query: '', categoryId: '', type: 'income' })).toBe(true);
+  });
+});
+
+describe('describeFilterResult', () => {
+  it('reports shown and total counts', () => {
+    expect(describeFilterResult(3, 20, false)).toBe('พบ 3 จาก 20 รายการ');
+  });
+
+  it('warns that only the displayed entries were searched when the month is truncated', () => {
+    expect(describeFilterResult(0, 500, true)).toBe('พบ 0 จาก 500 รายการ (ค้นเฉพาะรายการที่แสดง)');
+  });
+});
+
+describe('thaiMonthShort and formatFullThaiDate', () => {
+  it('abbreviates the month in Thai', () => {
+    expect(thaiMonthShort('2026-01')).toBe('ม.ค.');
+    expect(thaiMonthShort('2026-09')).toBe('ก.ย.');
+    expect(thaiMonthShort('2026-12')).toBe('ธ.ค.');
+  });
+
+  it('writes a full date with the Buddhist year and no leading zero on the day', () => {
+    expect(formatFullThaiDate('2026-09-05')).toBe('5 ก.ย. 2569');
+    expect(formatFullThaiDate('2025-12-31')).toBe('31 ธ.ค. 2568');
+  });
+});
+
+describe('trendBars', () => {
+  const months = [
+    { month: '2026-07', income: 0, expense: 0 },
+    { month: '2026-08', income: 20000, expense: 5000 },
+    { month: '2026-09', income: 10000, expense: 10000 },
+  ];
+
+  it('scales every bar against the largest value of the window', () => {
+    const bars = trendBars(months);
+
+    expect(bars.map((bar) => bar.label)).toEqual(['ก.ค.', 'ส.ค.', 'ก.ย.']);
+    expect(bars[1].incomeHeight).toBe(100);
+    expect(bars[1].expenseHeight).toBe(25);
+    expect(bars[2].incomeHeight).toBe(50);
+    expect(bars[2].expenseHeight).toBe(50);
+  });
+
+  it('keeps zero as zero and gives tiny non-zero values a visible minimum', () => {
+    const bars = trendBars([
+      { month: '2026-08', income: 0, expense: 0 },
+      { month: '2026-09', income: 1000000, expense: 1 },
+    ]);
+
+    expect(bars[0].incomeHeight).toBe(0);
+    expect(bars[0].expenseHeight).toBe(0);
+    expect(bars[1].expenseHeight).toBe(2);
+  });
+
+  it('gives all zero heights when the whole window is empty', () => {
+    const bars = trendBars([{ month: '2026-09', income: 0, expense: 0 }]);
+
+    expect(bars[0].incomeHeight).toBe(0);
+    expect(bars[0].expenseHeight).toBe(0);
+  });
+
+  it('describes each month in words for screen readers', () => {
+    expect(trendBars(months)[1].description).toBe('ส.ค. รายรับ 20,000 บาท รายจ่าย 5,000 บาท');
+  });
+});
+
+describe('describeExpenseComparison', () => {
+  const pair = (previous, current) => [
+    { month: '2026-08', income: 0, expense: previous },
+    { month: '2026-09', income: 0, expense: current },
+  ];
+
+  it('reports an increase with percent and amount', () => {
+    expect(describeExpenseComparison(pair(1000, 1250))).toEqual({
+      level: 'up',
+      text: 'รายจ่ายมากกว่าเดือนก่อน 25% (+250 บาท)',
+    });
+  });
+
+  it('reports a decrease with percent and amount', () => {
+    expect(describeExpenseComparison(pair(1000, 400.5))).toEqual({
+      level: 'down',
+      text: 'รายจ่ายน้อยกว่าเดือนก่อน 60% (-599.5 บาท)',
+    });
+  });
+
+  it('reports equal spending', () => {
+    expect(describeExpenseComparison(pair(300, 300))).toEqual({ level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' });
+  });
+
+  it('cannot compare when the previous month had no expenses', () => {
+    expect(describeExpenseComparison(pair(0, 500))).toEqual({ level: 'none', text: 'เดือนก่อนไม่มีรายจ่ายให้เทียบ' });
+  });
+
+  it('has nothing to compare with fewer than two months', () => {
+    expect(describeExpenseComparison([{ month: '2026-09', income: 0, expense: 5 }])).toEqual({ level: 'none', text: '' });
+  });
+
+  it('compares in satang so decimals do not drift', () => {
+    expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
+    expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
+    expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
+  });
+});
+
+describe('profileView', () => {
+  const profile = {
+    displayName: '  สมชาย ใจดี ',
+    income: 25000,
+    expense: 1234.5,
+    balance: 23765.5,
+    entryCount: 1234,
+    firstDate: '2026-08-03',
+  };
+
+  it('builds the display texts', () => {
+    expect(profileView(profile)).toEqual({
+      name: 'สมชาย ใจดี',
+      initial: 'ส',
+      balance: 23765.5,
+      balanceText: '23,765.5 บาท',
+      negative: false,
+      incomeText: '25,000 บาท',
+      expenseText: '1,234.5 บาท',
+      countText: '1,234 รายการ',
+      sinceText: 'เริ่มบันทึกตั้งแต่ 3 ส.ค. 2569',
+    });
+  });
+
+  it('marks a negative balance', () => {
+    const view = profileView({ ...profile, income: 100, expense: 250.5, balance: -150.5 });
+
+    expect(view.negative).toBe(true);
+    expect(view.balanceText).toBe('-150.5 บาท');
+  });
+
+  it('falls back to a generic name when the name is missing or blank', () => {
+    expect(profileView({ ...profile, displayName: null }).name).toBe('ผู้ใช้');
+    expect(profileView({ ...profile, displayName: '   ' }).name).toBe('ผู้ใช้');
+    expect(profileView({ ...profile, displayName: null }).initial).toBe('ผ');
+  });
+
+  it('takes the first code point as the initial so an emoji name is not split', () => {
+    expect(profileView({ ...profile, displayName: 'abc' }).initial).toBe('A');
+    expect(profileView({ ...profile, displayName: '\u{1F600} Sam' }).initial).toBe('\u{1F600}');
+  });
+
+  it('handles a user without any entries', () => {
+    const view = profileView({ displayName: null, income: 0, expense: 0, balance: 0, entryCount: 0, firstDate: null });
+
+    expect(view.sinceText).toBe('ยังไม่เคยบันทึกรายการ');
+    expect(view.countText).toBe('0 รายการ');
+    expect(view.balanceText).toBe('0 บาท');
+    expect(view.negative).toBe(false);
+  });
+});
+
+describe('formatDayNet', () => {
+  it('shows income minus expense with a sign', () => {
+    const items = [
+      { type: 'expense', amount: 60 },
+      { type: 'expense', amount: 35 },
+      { type: 'income', amount: 30 },
+    ];
+    expect(formatDayNet(items)).toBe('-65');
+    expect(formatDayNet([{ type: 'income', amount: 30000 }])).toBe('+30,000');
+  });
+
+  it('shows 0 without a sign when income and expense cancel out', () => {
+    expect(formatDayNet([{ type: 'income', amount: 50 }, { type: 'expense', amount: 50 }])).toBe('0');
+  });
+
+  it('does not show float noise from satang amounts', () => {
+    expect(formatDayNet([{ type: 'expense', amount: 0.1 }, { type: 'expense', amount: 0.2 }])).toBe('-0.3');
   });
 });

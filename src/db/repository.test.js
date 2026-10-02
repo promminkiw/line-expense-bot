@@ -206,16 +206,24 @@ describe('repository.claimEvent', () => {
 });
 
 describe('repository.insertTransactions', () => {
-  it('inserts all rows in one call', async () => {
-    const { supabase, calls } = fakeSupabase({ data: null, error: null });
-    const rows = [{ user_id: 'user-1', amount: 60 }];
+  it('inserts all rows in one call and returns the new ids in order', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'tx-1' }, { id: 'tx-2' }], error: null });
+    const rows = [{ user_id: 'user-1', amount: 60 }, { user_id: 'user-1', amount: 40 }];
 
-    await createRepository(supabase).insertTransactions(rows);
+    const ids = await createRepository(supabase).insertTransactions(rows);
 
     expect(calls).toEqual([
       ['from', 'transactions'],
       ['insert', rows],
+      ['select', 'id'],
     ]);
+    expect(ids).toEqual(['tx-1', 'tx-2']);
+  });
+
+  it('returns an empty list when the database sends no rows back', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createRepository(supabase).insertTransactions([{ amount: 1 }])).toEqual([]);
   });
 
   it('throws DatabaseError when insert fails', async () => {
@@ -1111,5 +1119,105 @@ describe('DatabaseError', () => {
 
   it('omits safe fields that the original error does not have', () => {
     expect(new DatabaseError('x', { message: 'boom' }).cause).toEqual({ message: 'boom' });
+  });
+});
+
+describe('repository.getLifetimeTotals', () => {
+  it('calls the SQL function and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [{ income: '25000.00', expense: '1234.50', entry_count: '12', first_date: '2026-08-03' }],
+      error: null,
+    });
+
+    const totals = await createRepository(supabase).getLifetimeTotals('user-1');
+
+    expect(totals).toEqual({ income: 25000, expense: 1234.5, entryCount: 12, firstDate: '2026-08-03' });
+    expect(calls).toEqual([['rpc', 'lifetime_totals', { p_user_id: 'user-1' }]]);
+  });
+
+  it('returns zeros and a null first date when the user has no entries', async () => {
+    const { supabase } = fakeSupabase({
+      data: [{ income: 0, expense: 0, entry_count: 0, first_date: null }],
+      error: null,
+    });
+
+    expect(await createRepository(supabase).getLifetimeTotals('user-1')).toEqual({
+      income: 0,
+      expense: 0,
+      entryCount: 0,
+      firstDate: null,
+    });
+  });
+
+  it('treats an empty result as no entries', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).getLifetimeTotals('user-1')).toEqual({
+      income: 0,
+      expense: 0,
+      entryCount: 0,
+      firstDate: null,
+    });
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).getLifetimeTotals('user-1')).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.getMonthlyTotals', () => {
+  it('calls the SQL function for this user and range and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [
+        { month: '2026-09', type: 'expense', total: '500.25' },
+        { month: '2026-09', type: 'income', total: 25000 },
+      ],
+      error: null,
+    });
+
+    const rows = await createRepository(supabase).getMonthlyTotals('user-1', '2026-05-01', '2026-10-31');
+
+    expect(rows).toEqual([
+      { month: '2026-09', type: 'expense', total: 500.25 },
+      { month: '2026-09', type: 'income', total: 25000 },
+    ]);
+    expect(calls).toEqual([
+      ['rpc', 'monthly_totals', { p_user_id: 'user-1', p_from: '2026-05-01', p_to: '2026-10-31' }],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).getMonthlyTotals('user-1', '2026-05-01', '2026-10-31')).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.getDisplayName', () => {
+  it('reads the display name of this user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { display_name: 'สมชาย' }, error: null });
+
+    expect(await createRepository(supabase).getDisplayName('user-1')).toBe('สมชาย');
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['select', 'display_name'],
+      ['eq', 'id', 'user-1'],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('returns null when the user or the name is missing', async () => {
+    expect(await createRepository(fakeSupabase({ data: null, error: null }).supabase).getDisplayName('user-1')).toBeNull();
+    expect(
+      await createRepository(fakeSupabase({ data: { display_name: null }, error: null }).supabase).getDisplayName('user-1')
+    ).toBeNull();
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).getDisplayName('user-1')).rejects.toBeInstanceOf(DatabaseError);
   });
 });
