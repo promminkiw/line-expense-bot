@@ -84,4 +84,4 @@ docs/superpowers/plans/     แผนงานรายขั้น
 
 ## สถานะ
 
-อยู่ระหว่างเตรียม deploy (ขั้นที่ 10) มีไฟล์ `render.yaml` และแผนทีละขั้นที่ `docs/superpowers/plans/2026-10-02-deploy-render.md` (Render Free + cron-job.org พิงกันหลับ)
+Deploy บน Render แล้ว (Free, Singapore) webhook และ LIFF ชี้ไปที่ Render, cron-job.org พิง `/health` ทุก 10 นาทีและเรียก `/internal/recurring/run` วันละครั้ง ดูขั้นตอนที่ `docs/superpowers/plans/2026-10-02-deploy-render.md` (push เข้า `main` = deploy อัตโนมัติ)
