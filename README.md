@@ -84,4 +84,4 @@ docs/superpowers/plans/     แผนงานรายขั้น
 
 ## สถานะ
 
-อยู่ระหว่างเตรียม deploy (ขั้นที่ 10)
+อยู่ระหว่างเตรียม deploy (ขั้นที่ 10) มีไฟล์ `render.yaml` และแผนทีละขั้นที่ `docs/superpowers/plans/2026-10-02-deploy-render.md` (Render Free + cron-job.org พิงกันหลับ)

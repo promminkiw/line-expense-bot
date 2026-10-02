@@ -1,0 +1,33 @@
+# Blueprint ของ Render: Web Service เดียว (webhook + API + หน้า LIFF)
+# ค่า secret ไม่อยู่ในไฟล์นี้ Render จะถามตอนสร้างจาก Blueprint (sync: false)
+services:
+  - type: web
+    name: line-expense-bot
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: CLAUDE_MODEL
+        value: claude-haiku-4-5
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LIFF_ID
+        sync: false
+      - key: LINE_LOGIN_CHANNEL_ID
+        sync: false
+      - key: CRON_SECRET
+        sync: false
