@@ -109,7 +109,7 @@
 - Request method: **POST** (ในส่วน Advanced)
 - Headers: ชื่อ `Authorization` ค่า `Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว)
 - Schedule: วันละครั้ง (เช่น 06:00) ตั้ง time zone เป็น Asia/Bangkok
-- Timeout: 60 วินาที (เผื่อ server ตื่นช้า)
+- Timeout: ค่าสูงสุดที่ cron-job.org ให้คือ 30 วินาที (ตรวจจาก FAQ ของเขา 2026-10-02) ถ้า server หลับอยู่ (ตื่นประมาณ 1 นาที) งานนี้จะ timeout ได้ จึงต้องมีงาน B พิงกันหลับ
 - เปิด **Notify on failure** (endpoint ตอบ 500 เมื่อมีกฎที่ทำไม่สำเร็จ)
 - ทดสอบด้วยปุ่ม Test run: ควรได้ HTTP 200 และ JSON คล้าย `{"due":0,"created":0,"skipped":0,"failed":0,"pushFailed":0}`
 - ถ้าได้ 401: ค่า header ไม่ตรง ตรวจตัวพิมพ์ใหญ่ B และ secret ให้ตรงกับใน Render
