@@ -14,6 +14,7 @@ const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
 const { createImageDownloader } = require('./src/slip/download-image');
 const { createSlipParser } = require('./src/slip/parse-slip');
+const { preprocessImage } = require('./src/slip/preprocess-image');
 const { createPendingSlipSweeper, startPendingSlipSweeper } = require('./src/slip/pending-sweep');
 const { createIdTokenVerifier } = require('./src/api/verify-id-token');
 const { createApiRouter } = require('./src/api/router');
@@ -38,7 +39,7 @@ const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const parseMessage = createMessageParser({ client: anthropic, model: config.claudeModel });
 const commentSummary = createSummaryCommenter({ client: anthropic, model: config.claudeModel });
 const downloadImage = createImageDownloader({ blobClient: lineBlobClient });
-const parseSlip = createSlipParser({ client: anthropic, model: config.claudeModel });
+const parseSlip = createSlipParser({ client: anthropic, model: config.claudeModel, preprocessImage });
 
 // server ใช้ service role key ตรงๆ ไม่มีการ login จึงไม่ต้องเก็บหรือต่ออายุ session
 const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {

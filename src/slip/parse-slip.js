@@ -118,9 +118,10 @@ function toRejectionKind(value) {
   return REJECTION_KINDS.includes(value) && value !== 'none' ? value : 'other';
 }
 
-function createSlipParser({ client, model, now = () => new Date() }) {
-  return async function parseSlip({ data: imageData, mediaType }) {
+function createSlipParser({ client, model, now = () => new Date(), preprocessImage = async (image) => image }) {
+  return async function parseSlip(image) {
     const today = toBangkokDateString(now());
+    const { data: imageData, mediaType } = await preprocessImage(image);
     const response = await client.messages.create(
       {
         model,

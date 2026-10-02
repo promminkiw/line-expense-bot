@@ -68,6 +68,23 @@ describe('createSlipParser', () => {
     expect(options).toEqual(expect.objectContaining({ timeout: 20000, maxRetries: 1, signal: expect.anything() }));
   });
 
+  it('sends the image returned by the preprocessor instead of the original', async () => {
+    const create = vi.fn().mockResolvedValue({
+      stop_reason: 'end_turn',
+      content: [{ type: 'text', text: JSON.stringify(slipJson()) }],
+    });
+    const preprocessImage = vi.fn().mockResolvedValue({ data: 'WFla', mediaType: 'image/png' });
+    const parseSlip = createSlipParser({ client: { messages: { create } }, model: 'test-model', now: () => NOW, preprocessImage });
+
+    await parseSlip(IMAGE);
+
+    expect(preprocessImage).toHaveBeenCalledWith(IMAGE);
+    expect(create.mock.calls[0][0].messages[0].content[0]).toEqual({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/png', data: 'WFla' },
+    });
+  });
+
   it('tells Claude to convert Buddhist era years and to leave the date empty when not visible', async () => {
     const { create, parseSlip } = setup(slipJson());
 
