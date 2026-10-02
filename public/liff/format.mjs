@@ -279,12 +279,21 @@ export function describeExpenseComparison(months) {
     : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };
 }
 
+const graphemeSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+
+// grapheme แรกของชื่อ: emoji แบบ ZWJ และพยัญชนะไทยพร้อมวรรณยุกต์ไม่ถูกตัดครึ่ง (เบราว์เซอร์เก่าใช้ code point แทน)
+function firstGrapheme(text) {
+  if (graphemeSegmenter) {
+    for (const { segment } of graphemeSegmenter.segment(text)) return segment;
+  }
+  return Array.from(text)[0];
+}
+
 export function profileView(profile) {
   const name = (profile.displayName || '').trim() || 'ผู้ใช้';
   return {
     name,
-    // Array.from นับตาม code point ชื่อที่ขึ้นต้นด้วย emoji จะไม่ถูกตัดครึ่ง
-    initial: Array.from(name)[0].toUpperCase(),
+    initial: firstGrapheme(name).toUpperCase(),
     balance: profile.balance,
     balanceText: formatBaht(profile.balance),
     negative: profile.balance < 0,

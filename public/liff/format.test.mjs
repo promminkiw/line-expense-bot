@@ -563,7 +563,8 @@ describe('profileView', () => {
   it('falls back to a generic name when the name is missing or blank', () => {
     expect(profileView({ ...profile, displayName: null }).name).toBe('ผู้ใช้');
     expect(profileView({ ...profile, displayName: '   ' }).name).toBe('ผู้ใช้');
-    expect(profileView({ ...profile, displayName: null }).initial).toBe('ผ');
+    // ตัวย่อเป็น grapheme แรก: พยัญชนะไทยมาพร้อมสระและวรรณยุกต์ของมัน
+    expect(profileView({ ...profile, displayName: null }).initial).toBe('ผู้');
   });
 
   it('takes the first code point as the initial so an emoji name is not split', () => {
@@ -598,5 +599,21 @@ describe('formatDayNet', () => {
 
   it('does not show float noise from satang amounts', () => {
     expect(formatDayNet([{ type: 'expense', amount: 0.1 }, { type: 'expense', amount: 0.2 }])).toBe('-0.3');
+  });
+});
+
+describe('profileView initial', () => {
+  const view = (displayName) => profileView({ displayName, income: 0, expense: 0, balance: 0, entryCount: 0, firstDate: null });
+
+  it('keeps a whole emoji sequence joined by zero width joiners', () => {
+    expect(view('\u{1F468}\u200D\u{1F469}\u200D\u{1F467} ครอบครัว').initial).toBe('\u{1F468}\u200D\u{1F469}\u200D\u{1F467}');
+  });
+
+  it('keeps a Thai consonant together with its tone mark', () => {
+    expect(view('ก้อง').initial).toBe('ก้');
+  });
+
+  it('upper-cases a Latin initial', () => {
+    expect(view('john').initial).toBe('J');
   });
 });
