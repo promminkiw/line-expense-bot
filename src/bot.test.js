@@ -217,12 +217,32 @@ describe('bot text message', () => {
     expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(deps.replyFlex).toHaveBeenCalled();
-    expect(deps.replyText).not.toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to load pending clarification',
       { userId: 'user-1' },
       expect.any(Error)
     );
+  });
+
+  it('clears the pending conversation after saving when the context load failed', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('ขนม 30'));
+
+    expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
+    expect(deps.replyFlex).toHaveBeenCalled();
+  });
+
+  it('still replies system error when parsing fails after the context load failed', async () => {
+    const parseMessage = vi.fn().mockRejectedValue(new Error('claude down'));
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
   });
 
   it('still asks back and remembers the question when the context load failed', async () => {

@@ -119,12 +119,12 @@ function createBot({
       pending = await repository.getPendingClarification(userId);
     } catch (err) {
       logger.error('Failed to load pending clarification', { userId }, err);
-      return [];
+      return { messages: [], loadFailed: true };
     }
     if (!pending || now() - Date.parse(pending.updatedAt) > PENDING_TTL_MS) {
-      return [];
+      return { messages: [], loadFailed: false };
     }
-    return pending.messages;
+    return { messages: pending.messages, loadFailed: false };
   }
 
   // การจำบริบทเป็นตัวช่วย ถ้า DB พังตรงนี้ยังตอบผู้ใช้ตามปกติได้
@@ -223,7 +223,7 @@ function createBot({
     if (summaryCommand) {
       return handleSummary(summaryCommand, userId);
     }
-    const history = await loadHistory(userId);
+    const { messages: history, loadFailed } = await loadHistory(userId);
     const result = await parseMessage(event.message.text, history);
     if (result.status === 'clarify') {
       const messages = [
@@ -243,7 +243,8 @@ function createBot({
     });
     const ids = await repository.insertTransactions(rows);
     // ล้างหลังบันทึกสำเร็จ ถ้าบันทึกพังผู้ใช้ส่งคำตอบซ้ำได้โดยบริบทยังอยู่
-    if (history.length > 0) {
+    // อ่านบริบทไม่ได้อาจมีแถวค้างอยู่ จึงล้างไว้ก่อนกันไปปนข้อความถัดไป
+    if (history.length > 0 || loadFailed) {
       await forgetConversation(userId);
     }
     const budget = await checkBudgets(userId, rows);
