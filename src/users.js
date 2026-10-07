@@ -1,11 +1,20 @@
-function createUserService({ repository, getDisplayName, logger = console }) {
+// getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
+const PROFILE_TIMEOUT_MS = 3000;
+
+function createUserService({ repository, getDisplayName, logger = console, profileTimeoutMs = PROFILE_TIMEOUT_MS }) {
   async function fetchDisplayName(lineUserId) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('LINE profile request timed out')), profileTimeoutMs);
+    });
     try {
-      return await getDisplayName(lineUserId);
+      return await Promise.race([getDisplayName(lineUserId), timeout]);
     } catch (err) {
       // ชื่อเป็นแค่ข้อมูลประกอบ ดึงไม่ได้ก็ยังสมัครผู้ใช้ต่อได้
       logger.error('Failed to fetch LINE profile', { lineUserId }, err);
       return null;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
