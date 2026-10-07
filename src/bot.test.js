@@ -1464,6 +1464,22 @@ describe('bot reply deadline', () => {
     });
   });
 
+  it('does not keep a clarify question that finished after the deadline', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setup({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('ข้าวเที่ยง'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+    parse.resolve({ status: 'clarify', question: 'ข้าวเที่ยงกี่บาท' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(deps.repository.savePendingClarification).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledTimes(1);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+  });
+
   it('logs a failure that happens after the deadline without replying again', async () => {
     vi.useFakeTimers();
     const parse = deferred();

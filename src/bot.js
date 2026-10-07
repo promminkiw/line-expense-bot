@@ -210,7 +210,7 @@ function createBot({
     return { flex: buildSummaryFlex(summary, comment) };
   }
 
-  async function handleText(event, lineUserId) {
+  async function handleText(event, lineUserId, deadline) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
@@ -232,6 +232,10 @@ function createBot({
     const { messages: history, loadFailed } = await loadHistory(userId);
     const result = await parseMessage(event.message.text, history);
     if (result.status === 'clarify') {
+      // ผู้ใช้ไม่เคยเห็นคำถามนี้ จึงไม่จำไว้เป็นบริบทของข้อความถัดไป
+      if (deadline.passed) {
+        return null;
+      }
       const messages = [
         ...history,
         { role: 'user', text: event.message.text },
@@ -385,13 +389,13 @@ function createBot({
     return null;
   }
 
-  async function buildReply(event, lineUserId) {
+  async function buildReply(event, lineUserId, deadline) {
     if (event.type === 'follow') {
       await users.ensureUser(lineUserId);
       return null;
     }
     if (isTextMessage(event)) {
-      return handleText(event, lineUserId);
+      return handleText(event, lineUserId, deadline);
     }
     if (isImageMessage(event)) {
       return handleImage(event, lineUserId);
@@ -404,10 +408,14 @@ function createBot({
 
   // งานที่ค้างยังทำต่อจนจบ ผลที่มาช้าถูกทิ้งเพราะ reply token อาจหมดอายุแล้ว
   async function buildReplyBeforeDeadline(event, lineUserId) {
-    const work = buildReply(event, lineUserId);
+    const deadlineState = { passed: false };
+    const work = buildReply(event, lineUserId, deadlineState);
     let timer;
     const deadline = new Promise((resolve) => {
-      timer = setTimeout(() => resolve(DEADLINE_PASSED), replyDeadlineMs);
+      timer = setTimeout(() => {
+        deadlineState.passed = true;
+        resolve(DEADLINE_PASSED);
+      }, replyDeadlineMs);
     });
     try {
       const result = await Promise.race([work, deadline]);
