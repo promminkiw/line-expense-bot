@@ -9,6 +9,11 @@ const { getFixedReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
+const SLOW_PROCESSING_REPLY =
+  'ระบบตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
+// LINE ไม่ระบุอายุของ reply token ที่แน่นอน ตอบก่อนราว 1 นาทีที่มักใช้ได้ ผู้ใช้จะได้ไม่เงียบหาย
+const REPLY_DEADLINE_MS = 50000;
+const DEADLINE_PASSED = Symbol('deadline passed');
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
@@ -108,6 +113,7 @@ function createBot({
   allowRequest,
   liffUrl,
   now = () => Date.now(),
+  replyDeadlineMs = REPLY_DEADLINE_MS,
   logger = console,
 }) {
   const runSlipTask = createConcurrencyLimit(MAX_CONCURRENT_SLIPS);
@@ -396,6 +402,30 @@ function createBot({
     return null;
   }
 
+  // งานที่ค้างยังทำต่อจนจบ ผลที่มาช้าถูกทิ้งเพราะ reply token อาจหมดอายุแล้ว
+  async function buildReplyBeforeDeadline(event, lineUserId) {
+    const work = buildReply(event, lineUserId);
+    let timer;
+    const deadline = new Promise((resolve) => {
+      timer = setTimeout(() => resolve(DEADLINE_PASSED), replyDeadlineMs);
+    });
+    try {
+      const result = await Promise.race([work, deadline]);
+      if (result !== DEADLINE_PASSED) {
+        return result;
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+    const context = { lineUserId, eventType: event.type };
+    logger.error('Event passed the reply deadline', context);
+    work.then(
+      () => logger.info('Dropped a reply that finished after the deadline', context),
+      (err) => logger.error('Failed to process event after the reply deadline', context, err)
+    );
+    return event.type === 'follow' ? null : { text: SLOW_PROCESSING_REPLY };
+  }
+
   async function handleEvent(event) {
     // ข้อมูลการเงินเป็นเรื่องส่วนตัว ห้ามตอบลงกลุ่มหรือห้องแชต
     if (!isFromUser(event)) {
@@ -404,7 +434,7 @@ function createBot({
     const lineUserId = event.source.userId;
     let reply;
     try {
-      reply = await buildReply(event, lineUserId);
+      reply = await buildReplyBeforeDeadline(event, lineUserId);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
       reply = event.type === 'follow' ? null : { text: SYSTEM_ERROR_REPLY };
@@ -438,6 +468,8 @@ function createBot({
 module.exports = {
   createBot,
   SYSTEM_ERROR_REPLY,
+  SLOW_PROCESSING_REPLY,
+  REPLY_DEADLINE_MS,
   RATE_LIMITED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
