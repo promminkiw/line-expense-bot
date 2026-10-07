@@ -208,6 +208,37 @@ describe('bot text message', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
   });
 
+  it('treats a failed context load as no context and still saves', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+    expect(deps.replyFlex).toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to load pending clarification',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
+  });
+
+  it('still asks back and remembers the question when the context load failed', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'ซื้ออะไรกี่บาท' });
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('ซื้อของ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ซื้ออะไรกี่บาท', undefined);
+    expect(deps.repository.savePendingClarification).toHaveBeenCalledWith('user-1', [
+      { role: 'user', text: 'ซื้อของ' },
+      { role: 'assistant', text: 'ซื้ออะไรกี่บาท' },
+    ]);
+  });
+
   it('still replies saved and logs when forgetting the pending conversation fails', async () => {
     const { deps, bot } = setup();
     deps.repository.getPendingClarification.mockResolvedValue({

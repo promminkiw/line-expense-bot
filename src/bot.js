@@ -112,8 +112,15 @@ function createBot({
 }) {
   const runSlipTask = createConcurrencyLimit(MAX_CONCURRENT_SLIPS);
 
+  // บริบทเป็นตัวช่วย ถ้าอ่านไม่ได้ให้ถือว่าเป็นเรื่องใหม่ ดีกว่าตอบว่าระบบมีปัญหา
   async function loadHistory(userId) {
-    const pending = await repository.getPendingClarification(userId);
+    let pending;
+    try {
+      pending = await repository.getPendingClarification(userId);
+    } catch (err) {
+      logger.error('Failed to load pending clarification', { userId }, err);
+      return [];
+    }
     if (!pending || now() - Date.parse(pending.updatedAt) > PENDING_TTL_MS) {
       return [];
     }
