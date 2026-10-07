@@ -12,6 +12,18 @@ function setup(chunks) {
   return { blobClient, downloadImage: createImageDownloader({ blobClient }) };
 }
 
+function quietLogger() {
+  return { info: vi.fn() };
+}
+
+function fetchFailed() {
+  return Object.assign(new TypeError('fetch failed'), { cause: { code: 'UND_ERR_CONNECT_TIMEOUT' } });
+}
+
+function httpError(status) {
+  return Object.assign(new Error(`Request failed with status code: ${status}`), { name: 'HTTPFetchError', status });
+}
+
 describe('createImageDownloader', () => {
   it('downloads the message content and returns it as base64 with the detected type', async () => {
     const { blobClient, downloadImage } = setup([JPEG.subarray(0, 3), JPEG.subarray(3)]);
@@ -61,52 +73,131 @@ describe('createImageDownloader', () => {
     await expect(createImageDownloader({ blobClient })('m1')).rejects.toThrow('LINE down');
   });
 
+  describe('retry', () => {
+    it('retries once after a connection failure and returns the image', async () => {
+      const blobClient = {
+        getMessageContent: vi.fn().mockRejectedValueOnce(fetchFailed()).mockResolvedValueOnce(Readable.from([JPEG])),
+      };
+      const logger = quietLogger();
+
+      const result = await createImageDownloader({ blobClient, retryDelayMs: 0, logger })('m1');
+
+      expect(result).toEqual({ status: 'ok', mediaType: 'image/jpeg', data: JPEG.toString('base64') });
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(2);
+      expect(logger.info).toHaveBeenCalledWith('Retrying LINE image download', { reason: 'TypeError', status: null });
+      expect(JSON.stringify(logger.info.mock.calls)).not.toContain('m1');
+    });
+
+    it('retries once when LINE answers 5xx', async () => {
+      const blobClient = {
+        getMessageContent: vi.fn().mockRejectedValueOnce(httpError(503)).mockResolvedValueOnce(Readable.from([PNG])),
+      };
+      const logger = quietLogger();
+
+      const result = await createImageDownloader({ blobClient, retryDelayMs: 0, logger })('m1');
+
+      expect(result.status).toBe('ok');
+      expect(logger.info).toHaveBeenCalledWith('Retrying LINE image download', { reason: 'HTTPFetchError', status: 503 });
+    });
+
+    it('does not retry when LINE answers 4xx', async () => {
+      const blobClient = { getMessageContent: vi.fn().mockRejectedValue(httpError(404)) };
+
+      await expect(createImageDownloader({ blobClient, retryDelayMs: 0, logger: quietLogger() })('m1')).rejects.toThrow(
+        'status code: 404'
+      );
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a plain error', async () => {
+      const blobClient = { getMessageContent: vi.fn().mockRejectedValue(new Error('LINE down')) };
+
+      await expect(createImageDownloader({ blobClient, retryDelayMs: 0, logger: quietLogger() })('m1')).rejects.toThrow(
+        'LINE down'
+      );
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a too large image', async () => {
+      const blobClient = { getMessageContent: vi.fn().mockResolvedValue(Readable.from([Buffer.alloc(MAX_IMAGE_BYTES + 1)])) };
+
+      expect(await createImageDownloader({ blobClient, retryDelayMs: 0, logger: quietLogger() })('m1')).toEqual({
+        status: 'too_large',
+      });
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects with the second error when the retry also fails', async () => {
+      const blobClient = {
+        getMessageContent: vi.fn().mockRejectedValueOnce(fetchFailed()).mockRejectedValueOnce(httpError(502)),
+      };
+
+      await expect(createImageDownloader({ blobClient, retryDelayMs: 0, logger: quietLogger() })('m1')).rejects.toThrow(
+        'status code: 502'
+      );
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('download timeout', () => {
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it('rejects when getMessageContent never resolves', async () => {
+    it('retries once after a timeout and rejects when the retry also times out', async () => {
       vi.useFakeTimers();
       const blobClient = { getMessageContent: vi.fn(() => new Promise(() => {})) };
-      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000, logger: quietLogger() })('m1');
       const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
 
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(2);
       await vi.advanceTimersByTimeAsync(1000);
 
       await assertion;
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('rejects and destroys the stream when it stalls mid-way', async () => {
+    it('destroys both streams when each attempt stalls mid-way', async () => {
       vi.useFakeTimers();
-      const stream = new Readable({ read() {} });
-      stream.push(JPEG);
-      const blobClient = { getMessageContent: vi.fn().mockResolvedValue(stream) };
-      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const first = new Readable({ read() {} });
+      const second = new Readable({ read() {} });
+      first.push(JPEG);
+      second.push(JPEG);
+      const blobClient = { getMessageContent: vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(second) };
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000, logger: quietLogger() })('m1');
       const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
 
-      await vi.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(2500);
 
       await assertion;
-      expect(stream.destroyed).toBe(true);
+      expect(first.destroyed).toBe(true);
+      expect(second.destroyed).toBe(true);
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('destroys a stream that arrives after the timeout already fired', async () => {
+    it('destroys a stream that arrives after its attempt already timed out', async () => {
       vi.useFakeTimers();
-      const stream = new Readable({ read() {} });
+      const late = new Readable({ read() {} });
       let deliver;
-      const blobClient = { getMessageContent: vi.fn(() => new Promise((resolve) => { deliver = resolve; })) };
-      const pending = createImageDownloader({ blobClient, timeoutMs: 1000 })('m1');
+      const blobClient = {
+        getMessageContent: vi
+          .fn()
+          .mockImplementationOnce(() => new Promise((resolve) => { deliver = resolve; }))
+          .mockImplementationOnce(() => new Promise(() => {})),
+      };
+      const pending = createImageDownloader({ blobClient, timeoutMs: 1000, logger: quietLogger() })('m1');
       const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
 
       await vi.advanceTimersByTimeAsync(1000);
-      await assertion;
-      deliver(stream);
+      deliver(late);
       await vi.advanceTimersByTimeAsync(0);
+      expect(late.destroyed).toBe(true);
+      await vi.advanceTimersByTimeAsync(1500);
 
-      expect(stream.destroyed).toBe(true);
+      await assertion;
     });
 
     it('clears the timer on the normal path and on a download error', async () => {
@@ -120,15 +211,20 @@ describe('createImageDownloader', () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('uses a 15 second timeout by default', async () => {
+    it('uses a 15 second timeout per attempt and waits 500 ms before the retry by default', async () => {
       vi.useFakeTimers();
       const blobClient = { getMessageContent: vi.fn(() => new Promise(() => {})) };
-      const pending = createImageDownloader({ blobClient })('m1');
+      const pending = createImageDownloader({ blobClient, logger: quietLogger() })('m1');
       const assertion = expect(pending).rejects.toThrow('LINE image download timed out');
 
       await vi.advanceTimersByTimeAsync(14999);
-      expect(vi.getTimerCount()).toBe(1);
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(499);
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(blobClient.getMessageContent).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(15000);
 
       await assertion;
     });
