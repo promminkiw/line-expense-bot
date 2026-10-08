@@ -1667,7 +1667,7 @@ describe('bot bill card buttons', () => {
     await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
 
     expect(deps.bills.respond).toHaveBeenCalledWith('user-1', BILL, 'confirm');
-    expect(deps.replyText).toHaveBeenCalledWith('r1', 'บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว', undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว', undefined);
   });
 
   it('answers every other outcome with its own message', async () => {
@@ -1681,7 +1681,7 @@ describe('bot bill card buttons', () => {
 
       await bot.handleEvent(postbackEvent(`action=${action}&bill=${BILL}`));
 
-      expect(deps.replyText).toHaveBeenCalledWith('r1', reply, undefined);
+      expect(deps.replyText).toHaveBeenCalledWith('r2', reply, undefined);
     }
   });
 
@@ -1691,7 +1691,7 @@ describe('bot bill card buttons', () => {
 
     await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', BILL_REPLIES.already_confirmed, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_confirmed, undefined);
   });
 
   it('ignores a bill id that is not a UUID', async () => {
