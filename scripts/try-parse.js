@@ -1,11 +1,11 @@
 // สคริปต์ลองเรียก Claude จริงโดยไม่ต้องผ่าน LINE ใช้ปรับ prompt
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const Anthropic = require('@anthropic-ai/sdk');
 const { loadConfig } = require('../src/config');
 const { createMessageParser } = require('../src/parser/parse-message');
 
 async function main() {
-  const text = process.argv.slice(2).join(' ');
+  const text = process.argv.slice(2).join(' ').trim();
   if (!text) {
     console.error('Usage: npm run try-parse -- "<message>"');
     process.exitCode = 1;

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const Anthropic = require('@anthropic-ai/sdk');
 const { messagingApi } = require('@line/bot-sdk');
 const { createClient } = require('@supabase/supabase-js');

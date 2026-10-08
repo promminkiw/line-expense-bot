@@ -222,10 +222,14 @@ function createBot({
     if (fixedReply) {
       return { text: fixedReply };
     }
+    const summaryCommand = parseSummaryCommand(event.message.text);
+    // เมนูสรุปเป็นแค่ปุ่มเลือกช่วงเวลา ไม่เรียก Claude จึงไม่นับ rate limit
+    if (summaryCommand === 'menu') {
+      return handleSummary(summaryCommand, userId);
+    }
     if (!allowRequest(lineUserId)) {
       return { text: RATE_LIMITED_REPLY };
     }
-    const summaryCommand = parseSummaryCommand(event.message.text);
     if (summaryCommand) {
       return handleSummary(summaryCommand, userId);
     }
