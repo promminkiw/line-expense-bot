@@ -260,6 +260,7 @@ describe('index.html static invariants', () => {
       'bill-form-no-friends',
       'bill-form-friends-loading',
       'bill-form-friends-error',
+      'bill-form-categories-error',
       'bill-form-go-profile',
       'budgets-error',
       'recurring-loading',
@@ -716,7 +717,7 @@ describe('LIFF page when loading fails', () => {
   it('shows the boot load error on every tab after a boot failure', async () => {
     await boot({ overrides: { '/api/categories': new TypeError('network down') } });
 
-    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile', 'list']) {
+    for (const id of ['list', 'summary', 'budgets', 'recurring', 'bills', 'profile', 'list']) {
       clickTab(id);
       expect(byId('banner').hidden, id).toBe(false);
       expect(byId('banner').textContent, id).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1604,6 +1605,7 @@ describe('LIFF bills tab', () => {
   it('loads the bills when the tab opens and shows both lists', async () => {
     await openBills();
 
+    expect(byId('bills-incoming-title').textContent).toBe('บิลที่เพื่อนส่งมา');
     expect(incomingCard().querySelector('.bill-title').textContent).toBe('ชาบู');
     expect(incomingCard().querySelector('.bill-meta').textContent).toBe('ดี · 07/10');
     expect(incomingCard().querySelector('.bill-share').textContent).toBe('ส่วนของคุณ 200 บาท');
@@ -1695,11 +1697,33 @@ describe('LIFF bills tab', () => {
     const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-own/cancel' ? { status: 'cancelled' } : undefined) });
 
     ownedCard().querySelector('.bill-cancel').click();
-    expect(byId('bill-dialog-text').textContent).toBe('ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ ส่วนที่บันทึกไปแล้วยังอยู่');
+    expect(byId('bill-dialog-text').textContent).toBe(
+      'ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ รายจ่ายส่วนของคุณจะถูกลบ ส่วนที่เพื่อนยืนยันแล้วยังอยู่'
+    );
     byId('bill-dialog-ok').click();
     await settle();
 
     expect(calls).toContain('POST /api/bills/b-own/cancel');
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  it('does not mention the owner share when cancelling a bill without one', async () => {
+    const bill = { ...RESPONSES['/api/bills'].owned[0], ownerShare: 0 };
+    const calls = await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills') return { owned: [bill], incoming: [] };
+        return path === '/api/bills/b-own/cancel' ? { status: 'cancelled' } : undefined;
+      },
+    });
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-text').textContent).toBe('ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ ส่วนที่เพื่อนยืนยันแล้วยังอยู่');
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/cancel');
+    expect(calls).not.toContain('GET /api/transactions');
   });
 
   it('flags members the push did not reach and shares the bill link with them', async () => {
@@ -1782,6 +1806,52 @@ describe('LIFF bills tab', () => {
 
     expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
     expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
+  });
+
+  it('reloads transactions after confirming in the bills tab', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+    expect(calls).not.toContain('GET /api/transactions');
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  // reload ที่พังทำให้การ์ดยังเป็นสถานะที่แก้ในหน่วยความจำ จึงตรวจการ map สถานะได้
+  function answerRoute(answerPath, answerBody) {
+    let listCalls = 0;
+    return (method, path) => {
+      if (path === answerPath) return answerBody;
+      if (path !== '/api/bills') return undefined;
+      listCalls += 1;
+      return listCalls > 1 ? { status: 500 } : undefined;
+    };
+  }
+
+  it('says already confirmed, not saved, when the bill was confirmed before', async () => {
+    const calls = await openBills({ route: answerRoute('/api/bills/b-in/confirm', { status: 'already_confirmed' }) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('คุณยืนยันบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยืนยันแล้ว');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+    expect(calls).not.toContain('GET /api/transactions');
+  });
+
+  it('says already declined when declining a bill declined before', async () => {
+    const calls = await openBills({ route: answerRoute('/api/bills/b-in/decline', { status: 'already_declined' }) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('คุณปฏิเสธบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ปฏิเสธ');
+    expect(calls).not.toContain('GET /api/transactions');
   });
 
   it('keeps the confirmed message when the reload after confirm fails', async () => {
@@ -1906,6 +1976,32 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
     expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว');
     expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('reloads transactions after creating a bill', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  it('does not reload transactions after creating a bill without an owner share', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+    byId('bill-form-owner-share').value = '0';
+    byId('bill-form-owner-share').dispatchEvent(new Event('input'));
+    shareInputs()[0].value = '1000';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('POST /api/bills');
+    expect(calls).not.toContain('GET /api/transactions');
   });
 
   it('tells the owner when some friends were not notified', async () => {
@@ -2093,6 +2189,19 @@ describe('LIFF bills tab', () => {
     expect(calls.filter((call) => call === 'GET /api/bills').length).toBe(before + 1);
   });
 
+  it('after a server error on create it warns to check the list and reloads bills', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { status: 500 } : undefined));
+    fillValidForm();
+    const before = calls.filter((call) => call === 'GET /api/bills').length;
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่');
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBe(before + 1);
+  });
+
   it('Not friends error refreshes the friend list and keeps the typed fields', async () => {
     await openForm();
     fillValidForm();
@@ -2137,13 +2246,36 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-submit').disabled).toBe(false);
   });
 
+  it('shows a category load failure, not no expense category, when categories fail to load', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    let categoryCalls = 0;
+    routeFetch((method, path) => {
+      if (path !== '/api/categories') return undefined;
+      categoryCalls += 1;
+      return categoryCalls === 1 ? { status: 500 } : undefined;
+    });
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-categories-error').hidden).toBe(false);
+    expect(byId('bill-form-categories-error-text').textContent).toBe('โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+
+    byId('bill-form-categories-retry').click();
+    await settle();
+    expect(byId('bill-form-categories-error').hidden).toBe(true);
+    expect(byId('bill-form-category').selectedOptions[0].textContent).toBe('อาหาร');
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
   it('blocks submit when no expense category is available', async () => {
     await boot({ overrides: { '/api/categories': { categories: [] } } });
-    routeFetch(() => undefined);
-    vi.stubGlobal('fetch', ((original) => async (url, options = {}) => {
-      if (new URL(url, 'http://localhost').pathname === '/api/categories') return { ok: true, status: 200, json: async () => ({ categories: [] }) };
-      return original(url, options);
-    })(globalThis.fetch));
+    const incomeOnly = { categories: CATEGORIES.filter((category) => category.type === 'income') };
+    routeFetch((method, path) => (path === '/api/categories' ? incomeOnly : undefined));
     clickTab('bills');
     await settle();
     byId('bill-new').click();

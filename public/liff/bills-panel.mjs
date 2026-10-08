@@ -5,8 +5,8 @@ import { MEMBER_STATUS_LABELS, outstandingAmount, describeBillError, describeBil
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 
-// แท็บหารบิลโหลดเมื่อเข้าแท็บครั้งแรก และโหลดใหม่หลังทุกการกระทำ เพราะสถานะของเพื่อนเปลี่ยนจากฝั่งอื่นได้
-export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard }) {
+// โหลดเมื่อเข้าแท็บครั้งแรก และหลังตอบหรือยกเลิกบิล เพราะสถานะของเพื่อนเปลี่ยนจากฝั่งอื่นได้ ส่วนติ๊กคืนแล้วแก้ในหน่วยความจำ
+export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard, onTransactionsChanged }) {
   let data = null;
   let loading = null;
   let dialogAction = null;
@@ -159,7 +159,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       ...data,
       incoming: data.incoming.map((item) => {
         if (item.id !== bill.id) return item;
-        return resultStatus === 'cancelled' ? { ...item, status: 'cancelled' } : { ...item, myStatus: resultStatus };
+        // คำตอบเดิมคือสถานะเดียวกัน ต่างแค่ครั้งนี้ไม่ได้บันทึกใหม่
+        return resultStatus === 'cancelled' ? { ...item, status: 'cancelled' } : { ...item, myStatus: resultStatus.replace(/^already_/, '') };
       }),
     };
     render();
@@ -178,13 +179,13 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       if (statusOf(err) !== 0) await load({ afterAction: true });
       return false;
     }
-    const resultStatus = result && result.status;
-    const requested = answer === 'confirm' ? 'confirmed' : 'declined';
-    const mismatch = describeBillAnswer(answer, resultStatus);
-    if (mismatch) setStatus(mismatch);
+    const resultStatus = (result && result.status) || (answer === 'confirm' ? 'confirmed' : 'declined');
+    const earlier = describeBillAnswer(resultStatus);
+    if (earlier) setStatus(earlier);
     else setStatus(answer === 'confirm' ? 'ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ' : 'ปฏิเสธบิลแล้ว');
-    applyAnswerLocally(bill, resultStatus || requested);
-    await load({ afterAction: true });
+    applyAnswerLocally(bill, resultStatus);
+    // มีแค่การยืนยันครั้งนี้ที่เพิ่มรายจ่ายใหม่ให้ผู้ใช้
+    await Promise.all([load({ afterAction: true }), resultStatus === 'confirmed' && onTransactionsChanged()]);
     return true;
   }
 
@@ -260,9 +261,10 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   }
 
   function askCancel(bill) {
+    const ownerPart = bill.ownerShare > 0 ? ' รายจ่ายส่วนของคุณจะถูกลบ' : '';
     openDialog({
       title: 'ยกเลิกบิล',
-      text: `ยกเลิกบิล ${bill.title}? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ ส่วนที่บันทึกไปแล้วยังอยู่`,
+      text: `ยกเลิกบิล ${bill.title}? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้${ownerPart} ส่วนที่เพื่อนยืนยันแล้วยังอยู่`,
       okLabel: 'ยกเลิกบิล',
       run: async () => {
         try {
@@ -273,7 +275,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
           return message;
         }
         setStatus('ยกเลิกบิลแล้ว');
-        await load({ afterAction: true });
+        // server ลบรายจ่ายส่วนของเจ้าของไปพร้อมการยกเลิก
+        await Promise.all([load({ afterAction: true }), bill.ownerShare > 0 && onTransactionsChanged()]);
         return null;
       },
     });

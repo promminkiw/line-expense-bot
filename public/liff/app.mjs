@@ -251,6 +251,7 @@ const billsPanel = createBillsPanel({
   liff,
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
+  onTransactionsChanged: reloadTransactions,
 });
 const billForm = createBillForm({
   doc: document,
@@ -267,6 +268,9 @@ const billForm = createBillForm({
     friendsError: document.getElementById('bill-form-friends-error'),
     friendsErrorText: document.getElementById('bill-form-friends-error-text'),
     friendsRetry: document.getElementById('bill-form-friends-retry'),
+    categoriesError: document.getElementById('bill-form-categories-error'),
+    categoriesErrorText: document.getElementById('bill-form-categories-error-text'),
+    categoriesRetry: document.getElementById('bill-form-categories-retry'),
     goProfile: document.getElementById('bill-form-go-profile'),
     splitControls: document.getElementById('bill-form-split-controls'),
     ownerShare: document.getElementById('bill-form-owner-share'),
@@ -280,13 +284,14 @@ const billForm = createBillForm({
   ensureCategories,
   onUncertain: () => billsPanel.reload(),
   onOpenProfile: () => tabController.select('profile'),
-  onCreated: async (result) => {
+  onCreated: async (result, bill) => {
     const status = document.getElementById('bills-status');
     status.textContent =
       result.notNotified.length > 0
         ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
         : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
-    await billsPanel.reload({ afterAction: true });
+    // server บันทึกส่วนของเจ้าของเป็นรายจ่ายตอนสร้างบิล
+    await Promise.all([billsPanel.reload({ afterAction: true }), bill.ownerShare > 0 && reloadTransactions()]);
   },
 });
 document.getElementById('bill-new').addEventListener('click', () => {
@@ -902,6 +907,13 @@ async function ensureCategories() {
     }
   }
   return categories.length > 0;
+}
+
+// รายการจากบิลถูกเพิ่มหรือลบจากแท็บหารบิล รายการของเดือนและยอดสะสมจึงต้องโหลดใหม่
+async function reloadTransactions() {
+  await loadMonth();
+  profileStale = true;
+  loadProfile();
 }
 
 async function openEditor(item) {

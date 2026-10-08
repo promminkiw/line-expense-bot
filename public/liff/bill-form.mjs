@@ -6,6 +6,7 @@ const DEFAULT_CATEGORY = 'อาหาร';
 const FRIENDS_LOAD_FAILED = 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
 const CREATE_RESULT_UNKNOWN = 'ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่';
 const NO_EXPENSE_CATEGORY = 'ไม่มีหมวดรายจ่ายให้เลือก';
+const CATEGORIES_LOAD_FAILED = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
 
 function todayIso() {
   // วันตามเวลาไทยเหมือนวันที่ที่บอทใช้บันทึก
@@ -15,7 +16,7 @@ function todayIso() {
 export function createBillForm({ doc, els, getApi, getCategories, ensureCategories, onCreated, onUncertain, onOpenProfile }) {
   let friends = [];
   let friendsState = 'loading';
-  let categoriesLoaded = false;
+  let categoriesState = 'loading';
   let submitting = false;
   // เพิ่มทุกครั้งที่เปิดฟอร์ม ผลของคำขอรอบเก่าจะได้ไม่ไปทับฟอร์มรอบใหม่
   let openToken = 0;
@@ -106,6 +107,28 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     validate();
   }
 
+  function showCategoriesState() {
+    els.categoriesError.hidden = categoriesState !== 'failed';
+    els.categoriesErrorText.textContent = CATEGORIES_LOAD_FAILED;
+  }
+
+  async function loadCategories() {
+    const token = openToken;
+    // เติมเฉพาะตอนที่ยังไม่มีตัวเลือก ไม่ให้ทับหมวดที่ผู้ใช้เลือกไปแล้ว
+    const hadOptions = els.category.options.length > 0;
+    if (categoriesState === 'failed') {
+      categoriesState = 'loading';
+      showCategoriesState();
+      validate();
+    }
+    const loaded = await ensureCategories();
+    if (token !== openToken) return;
+    if (loaded && !hadOptions) fillCategories();
+    categoriesState = loaded ? 'ready' : 'failed';
+    showCategoriesState();
+    validate();
+  }
+
   // ยอดเปลี่ยนหรือเลือกคนเพิ่มแล้วเริ่มจากหารเท่าใหม่ทุกครั้ง แก้รายคนทีหลังได้
   function splitEven() {
     const rows = [...els.members.querySelectorAll('.bill-form-member')];
@@ -126,7 +149,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     const total = amountOf(els.total);
     const chosen = picked();
     const missingCategory = els.category.value === '';
-    const noCategory = categoriesLoaded && missingCategory;
+    const noCategory = categoriesState === 'ready' && missingCategory;
     if (noCategory) {
       message = NO_EXPENSE_CATEGORY;
     } else if (!els.title.value.trim() || !toSatang(total)) {
@@ -151,26 +174,19 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
 
   async function open() {
     openToken += 1;
-    const token = openToken;
     els.form.reset();
     els.error.textContent = '';
     els.date.value = todayIso();
-    const hadCategories = getCategories().length > 0;
     fillCategories();
-    categoriesLoaded = hadCategories;
+    categoriesState = getCategories().length > 0 ? 'ready' : 'loading';
+    showCategoriesState();
     friends = [];
     renderFriends();
     friendsState = 'loading';
     showFriendsState();
     validate();
     els.dialog.showModal();
-    const categoriesDone = ensureCategories().then(() => {
-      if (token !== openToken) return;
-      if (!hadCategories) fillCategories();
-      categoriesLoaded = true;
-      validate();
-    });
-    await Promise.all([loadFriends(), categoriesDone]);
+    await Promise.all([loadFriends(), loadCategories()]);
   }
 
   async function submit() {
@@ -195,8 +211,8 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0;
       failure = describeBillError(status, 'create', err.error);
-      if (status === 0) {
-        // ไม่มีคำตอบจาก server บิลอาจถูกสร้างไปแล้ว จึงโหลดรายการให้ผู้ใช้ตรวจ
+      if (status === 0 || status >= 500) {
+        // ไม่มีคำตอบหรือ server พังกลางทาง บิลอาจถูกสร้างไปแล้ว จึงโหลดรายการให้ผู้ใช้ตรวจ
         failure = CREATE_RESULT_UNKNOWN;
         await onUncertain();
       } else if (status === 400 && err.error === 'Not friends') {
@@ -208,7 +224,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     validate();
     if (result) {
       els.dialog.close();
-      await onCreated(result);
+      await onCreated(result, body);
       return;
     }
     // validate ล้างข้อความ จึงใส่ error ของ server กลับหลังคำนวณปุ่มแล้ว
@@ -226,6 +242,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     validate();
   });
   els.friendsRetry.addEventListener('click', loadFriends);
+  els.categoriesRetry.addEventListener('click', loadCategories);
   els.goProfile.addEventListener('click', () => {
     els.dialog.close();
     onOpenProfile();

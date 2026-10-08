@@ -138,7 +138,7 @@
       </div>
       <div id="bills-body" hidden>
         <section class="bills-section" aria-labelledby="bills-incoming-title">
-          <h2 id="bills-incoming-title">รอฉันยืนยัน</h2>
+          <h2 id="bills-incoming-title">บิลที่เพื่อนส่งมา</h2>
           <ul id="bills-incoming" class="bill-list"></ul>
           <p id="bills-incoming-empty" class="bills-empty" hidden>ยังไม่มีบิลที่รอคุณยืนยัน</p>
         </section>
@@ -279,6 +279,10 @@
       <label>หมวด
         <select id="bill-form-category" required></select>
       </label>
+      <div id="bill-form-categories-error" class="budgets-error" hidden>
+        <p id="bill-form-categories-error-text" role="alert"></p>
+        <button type="button" id="bill-form-categories-retry">ลองใหม่</button>
+      </div>
       <fieldset class="bill-form-split">
         <legend>หารกับ</legend>
         <p id="bill-form-friends-loading" class="bills-empty" role="status" hidden>กำลังโหลดรายชื่อเพื่อน...</p>

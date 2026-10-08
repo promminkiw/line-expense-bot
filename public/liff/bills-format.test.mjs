@@ -68,13 +68,12 @@ describe('labels and messages', () => {
     expect(describeBillError(500, 'paid')).toBe('บันทึกการคืนเงินไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 
-  it('describes an answer only when the server outcome differs from the request', () => {
-    expect(describeBillAnswer('confirm', 'confirmed')).toBeNull();
-    expect(describeBillAnswer('decline', 'declined')).toBeNull();
-    expect(describeBillAnswer('confirm', 'cancelled')).toBe('บิลนี้ถูกยกเลิกแล้ว');
-    expect(describeBillAnswer('decline', 'cancelled')).toBe('บิลนี้ถูกยกเลิกแล้ว');
-    expect(describeBillAnswer('decline', 'confirmed')).toBe('คุณยืนยันบิลนี้ไปแล้ว');
-    expect(describeBillAnswer('confirm', 'declined')).toBe('คุณปฏิเสธบิลนี้ไปแล้ว');
+  it('describes an earlier answer or a cancelled bill, and nothing for a fresh answer', () => {
+    expect(describeBillAnswer('confirmed')).toBeNull();
+    expect(describeBillAnswer('declined')).toBeNull();
+    expect(describeBillAnswer('cancelled')).toBe('บิลนี้ถูกยกเลิกแล้ว');
+    expect(describeBillAnswer('already_confirmed')).toBe('คุณยืนยันบิลนี้ไปแล้ว');
+    expect(describeBillAnswer('already_declined')).toBe('คุณปฏิเสธบิลนี้ไปแล้ว');
   });
 
   it('builds the link to a bill on the web page', () => {
