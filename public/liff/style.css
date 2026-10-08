@@ -135,6 +135,8 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .skeleton-profile-head { height: 56px; margin-top: 0; border-radius: 28px; }
 .skeleton-balance { height: 142px; margin-top: 16px; border-radius: 28px; }
 .skeleton-stats { height: 80px; margin-top: 12px; border-radius: 28px; }
+.skeleton-friends-card { height: 150px; margin-top: 0; border-radius: 20px; }
+.skeleton-friends-row { height: 48px; }
 .skeleton-tips { height: 162px; margin-top: 12px; border-radius: 28px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

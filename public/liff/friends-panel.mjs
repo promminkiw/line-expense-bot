@@ -1,5 +1,6 @@
 import { qrcode } from './vendor/qrcode.mjs';
 import { ApiError } from './api.mjs';
+import { createLoadingIndicator } from './skeleton.mjs';
 import {
   normalizeFriendCodeInput,
   formatFriendCode,
@@ -18,6 +19,14 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   let loaded = false;
   let loading = null;
   let dialogAction = null;
+  let dialogBusy = false;
+  let lookingUp = false;
+  const loadingIndicator = createLoadingIndicator({
+    doc,
+    textEl: els.loadingText,
+    skeletonEl: els.skeleton,
+    variants: ['friends-card', 'friends-row'],
+  });
 
   const inviteUrl = () => buildInviteUrl(getLiffId(), code);
 
@@ -26,7 +35,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     qr.addData(inviteUrl());
     qr.make();
     // svg มาจาก library และเนื้อหาเป็นลิงก์ที่เราสร้างเอง ไม่มีข้อความจากผู้ใช้
-    els.qr.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    els.qr.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, alt: 'QR code ลิงก์ชวนเพื่อน' });
   }
 
   function showCode(next) {
@@ -55,13 +64,13 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     showCode(overview.code);
     els.rows.replaceChildren(...overview.friends.map(renderRow));
     els.empty.hidden = overview.friends.length > 0;
-    els.loadingText.hidden = true;
+    loadingIndicator.set(false);
     els.error.hidden = true;
     els.body.hidden = false;
   }
 
   function showLoadError(err) {
-    els.loadingText.hidden = true;
+    loadingIndicator.set(false);
     els.body.hidden = true;
     els.errorText.textContent = describeFriendError(statusOf(err), 'load');
     els.error.hidden = false;
@@ -72,7 +81,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     if (!api) return Promise.resolve();
     els.section.hidden = false;
     els.error.hidden = true;
-    if (!loaded) els.loadingText.hidden = false;
+    if (!loaded) loadingIndicator.set(true);
     loading = api
       .getFriends()
       .then((overview) => {
@@ -91,6 +100,12 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     return load();
   }
 
+  function setDialogBusy(busy) {
+    dialogBusy = busy;
+    els.dialogOk.disabled = busy;
+    els.dialogCancel.disabled = busy;
+  }
+
   // run คืนข้อความ error ที่จะแสดงใน dialog หรือ null เมื่อสำเร็จ
   function openDialog({ title, text, okLabel, danger = false, run }) {
     els.dialogTitle.textContent = title;
@@ -98,12 +113,21 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.dialogOk.textContent = okLabel;
     els.dialogOk.className = danger ? 'danger-solid' : 'primary';
     els.dialogError.textContent = '';
-    els.dialogOk.disabled = false;
+    setDialogBusy(false);
     dialogAction = run;
     els.dialog.showModal();
   }
 
+  function setLookingUp(busy) {
+    lookingUp = busy;
+    els.addSubmit.disabled = busy;
+    if (busy) els.form.setAttribute('aria-busy', 'true');
+    else els.form.removeAttribute('aria-busy');
+  }
+
   async function openAdd(rawCode) {
+    // กดค้นหาซ้ำระหว่างรอ จะยิง lookup สองครั้งและเปิด dialog ซ้อน
+    if (lookingUp) return;
     els.addError.textContent = '';
     els.status.textContent = '';
     const normalized = normalizeFriendCodeInput(rawCode);
@@ -112,17 +136,20 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       return;
     }
     if (!getApi()) return;
-    await ensureLoaded();
-    if (normalized === code) {
-      els.addError.textContent = OWN_CODE_MESSAGE;
-      return;
-    }
+    setLookingUp(true);
     let friend;
     try {
+      await ensureLoaded();
+      if (normalized === code) {
+        els.addError.textContent = OWN_CODE_MESSAGE;
+        return;
+      }
       ({ friend } = await getApi().lookupFriend(normalized));
     } catch (err) {
       els.addError.textContent = describeFriendError(statusOf(err), 'add');
       return;
+    } finally {
+      setLookingUp(false);
     }
     openDialog({
       title: 'เพิ่มเพื่อน',
@@ -202,10 +229,10 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   }
 
   els.dialogOk.addEventListener('click', async () => {
-    if (!dialogAction || els.dialogOk.disabled) return;
-    els.dialogOk.disabled = true;
+    if (!dialogAction || dialogBusy) return;
+    setDialogBusy(true);
     const message = await dialogAction();
-    els.dialogOk.disabled = false;
+    setDialogBusy(false);
     if (message) {
       els.dialogError.textContent = message;
       return;
@@ -213,6 +240,10 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.dialog.close();
   });
   els.dialogCancel.addEventListener('click', () => els.dialog.close());
+  // กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
+  els.dialog.addEventListener('cancel', (event) => {
+    if (dialogBusy) event.preventDefault();
+  });
   els.dialog.addEventListener('close', () => {
     dialogAction = null;
   });

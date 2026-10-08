@@ -193,6 +193,8 @@ const friendsPanel = createFriendsPanel({
   els: {
     section: document.getElementById('friends'),
     loadingText: document.getElementById('friends-loading'),
+    skeleton: document.getElementById('friends-skeleton'),
+    addSubmit: document.getElementById('friend-add-submit'),
     error: document.getElementById('friends-error'),
     errorText: document.getElementById('friends-error-text'),
     retry: document.getElementById('friends-retry'),
@@ -1326,6 +1328,8 @@ async function boot() {
     if (link) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     await loadAll();
+    // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
+    if (tabController.current === 'profile') friendsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
