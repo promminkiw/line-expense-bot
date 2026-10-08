@@ -23,6 +23,9 @@ const TRANSACTIONS = [
 
 const RESPONSES = {
   '/api/config': { liffId: 'liff-1' },
+  '/api/friends': { code: 'ABCD2345', friends: [{ id: 'f-1', displayName: 'บี' }] },
+  '/api/friends/lookup': { friend: { id: 'f-2', displayName: 'ซี' } },
+  '/api/friends/code': { code: 'WXYZ6789' },
   '/api/categories': { categories: CATEGORIES },
   '/api/transactions': {
     transactions: TRANSACTIONS,
@@ -78,7 +81,7 @@ function makeFetch(overrides) {
 }
 
 // returns the fake liff; liff.fetched lists requested paths and liff.loadingSnapshot is the DOM state when transactions were requested
-async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '' } = {}) {
+async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '', holdInit = false } = {}) {
   vi.resetModules();
   window.history.replaceState(null, '', `/liff/${search}`);
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -89,6 +92,7 @@ async function boot({ inClient = true, loggedIn = true, overrides = {}, search =
   const liff = {
     init: async (options) => {
       initOptions.push(options);
+      if (holdInit) await new Promise((resolve) => (liff.releaseInit = resolve));
     },
     isLoggedIn: () => loggedIn,
     login: vi.fn(),
@@ -234,6 +238,10 @@ describe('index.html static invariants', () => {
       'profile-close',
       'trend-empty',
       'edit-busy',
+      'friends',
+      'friend-qr',
+      'friends-skeleton',
+      'friend-dialog-busy',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -1076,5 +1084,468 @@ describe('LIFF small tickets', () => {
     await settle();
 
     expect(document.activeElement).toBe(byId('month'));
+  });
+});
+
+describe('LIFF friends section', () => {
+  // boot() installs its own fetch stub, so the route must be applied after it and before the tab opens
+  async function openProfile({ route = () => undefined, ...liffOverrides } = {}) {
+    const liff = await boot();
+    Object.assign(liff, liffOverrides);
+    const calls = routeFetch(route);
+    clickTab('profile');
+    await settle();
+    return calls;
+  }
+
+  it('loads my code and friends when the profile tab opens', async () => {
+    await openProfile();
+
+    expect(byId('friends').hidden).toBe(false);
+    expect(byId('friend-code').textContent).toBe('ABCD-2345');
+    expect([...document.querySelectorAll('#friend-rows .friend-name')].map((el) => el.textContent)).toEqual(['บี']);
+    expect(byId('friends-empty').hidden).toBe(true);
+  });
+
+  it('shows the empty note when there are no friends yet', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined) });
+
+    expect(byId('friends-empty').hidden).toBe(false);
+  });
+
+  it('shows an error with retry when the friend list fails', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends' ? { status: 500 } : undefined) });
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ');
+    routeFetch(() => undefined);
+    byId('friends-retry').click();
+    await settle();
+    expect(byId('friend-code').textContent).toBe('ABCD-2345');
+  });
+
+  it('rejects a malformed code and my own code before asking the server', async () => {
+    const calls = await openProfile();
+
+    for (const [text, message] of [
+      ['1234', 'รหัสเพื่อนต้องเป็นตัวอักษรหรือตัวเลข 8 ตัว'],
+      ['abcd-2345', 'นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน'],
+    ]) {
+      byId('friend-code-input').value = text;
+      byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+      await settle();
+      expect(byId('friend-add-error').textContent).toBe(message);
+    }
+    expect(calls.filter((call) => call.includes('/lookup'))).toEqual([]);
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('looks up a code, confirms and adds the friend', async () => {
+    const calls = await openProfile({
+      route: (method, path) =>
+        method === 'POST' && path === '/api/friends' ? { friend: { id: 'f-2', displayName: 'ซี' } } : undefined,
+    });
+
+    byId('friend-code-input').value = 'wxyz-2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+
+    byId('friend-dialog-ok').click();
+    await settle();
+    expect(calls).toContain('POST /api/friends');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('friend-status').textContent).toBe('เพิ่ม ซี เป็นเพื่อนแล้ว');
+    expect(byId('friend-code-input').value).toBe('');
+  });
+
+  it('shows why a lookup failed', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends/lookup' ? { status: 404 } : undefined) });
+
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
+  });
+
+  it('removes a friend after confirming', async () => {
+    const calls = await openProfile({ route: (method) => (method === 'DELETE' ? {} : undefined) });
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-text').textContent).toBe('ลบ บี ออกจากเพื่อน? เพิ่มกลับได้ด้วยรหัสเพื่อน');
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('DELETE /api/friends/f-1');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('renews the code after confirming', async () => {
+    await openProfile();
+
+    byId('friend-code-renew').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-code').textContent).toBe('WXYZ-6789');
+    expect(byId('friend-status').textContent).toBe('เปลี่ยนรหัสแล้ว ลิงก์และ QR เดิมใช้ไม่ได้แล้ว');
+  });
+
+  it('toggles the QR code of the invite link', async () => {
+    await openProfile();
+
+    byId('friend-qr-toggle').click();
+    expect(byId('friend-qr').hidden).toBe(false);
+    expect(byId('friend-qr').querySelector('svg')).not.toBeNull();
+    expect(byId('friend-qr-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(byId('friend-qr').querySelector('svg').getAttribute('role')).toBe('img');
+    expect(byId('friend-qr').querySelector('description').textContent).toBe('QR code ลิงก์ชวนเพื่อน');
+    byId('friend-qr-toggle').click();
+    expect(byId('friend-qr').hidden).toBe(true);
+  });
+
+  it('shares the invite link with the LINE share picker when it is available', async () => {
+    const shareTargetPicker = vi.fn().mockResolvedValue({ status: 'success' });
+    await openProfile({ isApiAvailable: (name) => name === 'shareTargetPicker', shareTargetPicker });
+
+    byId('friend-share').click();
+    await settle();
+
+    const [[messages]] = shareTargetPicker.mock.calls;
+    expect(messages[0].type).toBe('text');
+    expect(messages[0].text).toContain('https://liff.line.me/liff-1?friend=ABCD2345');
+    expect(byId('friend-status').textContent).toBe('ส่งลิงก์แล้ว');
+  });
+
+  it('copies the link when the share picker is not available', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await openProfile({ isApiAvailable: () => false });
+
+    byId('friend-share').click();
+    await settle();
+
+    expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?friend=ABCD2345');
+    expect(byId('friend-status').textContent).toBe('คัดลอกลิงก์แล้ว ส่งให้เพื่อนได้เลย');
+  });
+  it('opens the profile tab and asks to add the friend from an invite link', async () => {
+    await boot({ search: '?friend=wxyz-2345' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+    expect(window.location.search).toBe('');
+  });
+
+  it('says it is my own code when I open my own invite link', async () => {
+    await boot({ search: '?friend=ABCD2345' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friends-body').hidden).toBe(false);
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('friend-add-error').textContent).toBe('นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน');
+  });
+
+  it('shows not-found for an unknown invite code', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 404 } } });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friends-body').hidden).toBe(false);
+    expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
+  });
+
+  it('shows the rate-limit message for an invite lookup', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 429 } } });
+    await settle();
+
+    expect(byId('friend-add-error').textContent).toBe('ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่');
+  });
+
+  it('reads the friend code from liff.state after login', async () => {
+    await boot({ search: `?liff.state=${encodeURIComponent('?friend=WXYZ2345')}` });
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps the profile tab and cleans the url after the user closes the invite dialog', async () => {
+    await boot({ search: '?friend=WXYZ2345' });
+    await settle();
+    byId('friend-dialog-cancel').click();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(window.location.search).toBe('');
+  });
+
+  it('resumes the invite after the friend list load is retried', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends': { status: 500 } } });
+    await settle();
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ กดลองใหม่แล้วจะเพิ่มเพื่อนต่อให้');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+
+    routeFetch(() => undefined);
+    byId('friends-retry').click();
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+  });
+
+  it('keeps the invite when the first load fails', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/categories': new Error('offline') } });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+  });
+
+  it('stays on the list tab when the link has no friend code', async () => {
+    await boot({ search: '?friend=bad' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+  });
+});
+
+describe('LIFF friends section guards and failure paths', () => {
+  // holds the first request matching method+path until release(body) so the in-flight state can be inspected
+  function holdRequest(method, path) {
+    const fallback = makeFetch({});
+    const calls = [];
+    let release;
+    let held = false;
+    const gate = new Promise((resolve) => (release = resolve));
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const requestPath = new URL(url, 'http://localhost').pathname;
+      const requestMethod = options.method ?? 'GET';
+      calls.push(`${requestMethod} ${requestPath}`);
+      if (requestMethod === method && requestPath === path && !held) {
+        held = true;
+        const body = await gate;
+        return makeFetch({ [path]: body })(url, options);
+      }
+      return fallback(url, options);
+    });
+    return { calls, release: (body) => release(body) };
+  }
+
+  async function openProfileWith(route) {
+    await boot();
+    const calls = routeFetch(route ?? (() => undefined));
+    clickTab('profile');
+    await settle();
+    return calls;
+  }
+
+  const submitCode = async (text) => {
+    byId('friend-code-input').value = text;
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+  };
+
+  it('keeps the friend dialog open while the request is running', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('DELETE', '/api/friends/f-1');
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-cancel').disabled).toBe(true);
+    const cancelEvent = new Event('cancel', { cancelable: true });
+    byId('friend-dialog').dispatchEvent(cancelEvent);
+    expect(cancelEvent.defaultPrevented).toBe(true);
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+
+    hold.release({});
+    await settle();
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('friend-dialog-cancel').disabled).toBe(false);
+  });
+
+  it('re-enables the dialog when the action throws', async () => {
+    let removed = false;
+    await openProfileWith((method, path) => {
+      if (method === 'DELETE') {
+        removed = true;
+        return {};
+      }
+      // รายชื่อที่โหลดใหม่หลังลบไม่มี friends ทำให้ render พัง
+      return removed && path === '/api/friends' ? { code: 'ABCD2345' } : undefined;
+    });
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-error').textContent).toBe('ลบเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('friend-dialog-ok').disabled).toBe(false);
+    expect(byId('friend-dialog-cancel').disabled).toBe(false);
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+    const cancelEvent = new Event('cancel', { cancelable: true });
+    byId('friend-dialog').dispatchEvent(cancelEvent);
+    expect(cancelEvent.defaultPrevented).toBe(false);
+  });
+
+  it('shows a busy line in the dialog while the action runs', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('DELETE', '/api/friends/f-1');
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-busy').hidden).toBe(false);
+    expect(byId('friend-dialog-busy').textContent).toBe('กำลังดำเนินการ...');
+    hold.release({});
+    await settle();
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+  });
+
+  it('shows a searching label on the lookup button while it runs', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('GET', '/api/friends/lookup');
+
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe('กำลังค้นหา...');
+
+    hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe('ค้นหา');
+  });
+
+  it('loads friends when the profile tab was opened before boot finished', async () => {
+    const liff = await boot({ holdInit: true });
+    clickTab('profile');
+    await settle();
+    expect(byId('friend-code').textContent).toBe('');
+
+    liff.releaseInit();
+    await settle();
+
+    expect(byId('friend-code').textContent).toBe('ABCD-2345');
+  });
+
+  it('shows a visible loading state while friends load', async () => {
+    await boot();
+    const hold = holdRequest('GET', '/api/friends');
+    clickTab('profile');
+    await settle();
+
+    expect(byId('friends-skeleton').hidden).toBe(false);
+    expect(byId('friends-skeleton').children.length).toBeGreaterThan(0);
+
+    hold.release({ code: 'ABCD2345', friends: [] });
+    await settle();
+    expect(byId('friends-skeleton').hidden).toBe(true);
+  });
+
+  it('ignores a second submit while a lookup is in flight', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('GET', '/api/friends/lookup');
+    const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
+
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('friend-add-submit').disabled).toBe(true);
+    expect(byId('friend-add-form').getAttribute('aria-busy')).toBe('true');
+    hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+
+    expect(hold.calls.filter((call) => call.endsWith('/lookup'))).toHaveLength(1);
+    expect(showModal).toHaveBeenCalledTimes(1);
+    expect(byId('friend-add-submit').disabled).toBe(false);
+    expect(byId('friend-add-form').hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('keeps the dialog open with an error when adding the friend fails', async () => {
+    await openProfileWith((method, path) => (method === 'POST' && path === '/api/friends' ? { status: 500 } : undefined));
+    await submitCode('WXYZ2345');
+
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-error').textContent).toBe('เพิ่มเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-ok').disabled).toBe(false);
+  });
+
+  it('treats a 404 on removal as done and reloads the list', async () => {
+    const calls = await openProfileWith((method) => (method === 'DELETE' ? { status: 404 } : undefined));
+    const before = calls.filter((call) => call === 'GET /api/friends').length;
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(calls.filter((call) => call === 'GET /api/friends').length).toBe(before + 1);
+  });
+
+  it('shows the link in the status when the clipboard is missing', async () => {
+    vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+    const liff = await boot();
+    Object.assign(liff, { isApiAvailable: () => false });
+    clickTab('profile');
+    await settle();
+
+    byId('friend-share').click();
+    await settle();
+
+    expect(byId('friend-status').textContent).toBe('ส่งลิงก์นี้ให้เพื่อน: https://liff.line.me/liff-1?friend=ABCD2345');
+  });
+
+  it('stays silent when the user closes the share picker', async () => {
+    const liff = await boot();
+    Object.assign(liff, { isApiAvailable: () => true, shareTargetPicker: vi.fn().mockResolvedValue(undefined) });
+    clickTab('profile');
+    await settle();
+
+    byId('friend-share').click();
+    await settle();
+
+    expect(byId('friend-status').textContent).toBe('');
+  });
+
+  it('asks the user to reopen from LINE when the friend list returns 401', async () => {
+    await openProfileWith((method, path) => (path === '/api/friends' ? { status: 401 } : undefined));
+
+    expect(byId('friends-error-text').textContent).toBe('กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง');
+  });
+
+  it('redraws the open QR code after the code is renewed', async () => {
+    await openProfileWith();
+    byId('friend-qr-toggle').click();
+    const before = byId('friend-qr').innerHTML;
+
+    byId('friend-code-renew').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-qr').innerHTML).not.toBe(before);
   });
 });

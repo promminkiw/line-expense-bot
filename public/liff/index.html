@@ -161,6 +161,37 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
+      <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
+        <h2 id="friends-title">เพื่อน</h2>
+        <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
+        <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
+        <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <div id="friends-error" class="budgets-error" hidden>
+          <p id="friends-error-text"></p>
+          <button type="button" id="friends-retry">ลองใหม่</button>
+        </div>
+        <div id="friends-body" hidden>
+          <div class="friend-code-card">
+            <span class="stat-label">รหัสเพื่อนของฉัน</span>
+            <span id="friend-code" class="friend-code"></span>
+            <div class="friend-actions">
+              <button type="button" id="friend-share">ส่งลิงก์ชวนเพื่อน</button>
+              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr">แสดง QR</button>
+              <button type="button" id="friend-code-renew">เปลี่ยนรหัส</button>
+            </div>
+            <div id="friend-qr" class="friend-qr" hidden></div>
+          </div>
+          <p id="friend-status" class="export-status" role="status" aria-live="polite"></p>
+          <form id="friend-add-form" class="friend-add" novalidate>
+            <label for="friend-code-input">เพิ่มเพื่อนด้วยรหัส</label>
+            <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters" maxlength="12" placeholder="เช่น ABCD-2345">
+            <button type="submit" id="friend-add-submit">ค้นหา</button>
+            <p id="friend-add-error" class="error" role="alert"></p>
+          </form>
+          <ul id="friend-rows" class="friend-rows"></ul>
+          <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
+        </div>
+      </section>
     </div>
   </main>
   <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
@@ -187,6 +218,16 @@
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="friend-dialog" aria-labelledby="friend-dialog-title">
+    <h2 id="friend-dialog-title"></h2>
+    <p id="friend-dialog-text" class="confirm-detail"></p>
+    <p id="friend-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
+    <p id="friend-dialog-error" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="friend-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="friend-dialog-ok" class="primary"></button>
+    </div>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
     <h2 id="confirm-title"></h2>

@@ -28,10 +28,11 @@ import {
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
+import { createFriendsPanel } from './friends-panel.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseEditLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -184,6 +185,44 @@ let profileLoginRequired = false;
 // ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
 let profileStale = false;
 let profileInFlight = false;
+
+// LIFF ID มาจาก /api/config ตอน boot ใช้สร้างลิงก์ชวนเพื่อน
+let liffId = null;
+const friendsPanel = createFriendsPanel({
+  doc: document,
+  els: {
+    section: document.getElementById('friends'),
+    loadingText: document.getElementById('friends-loading'),
+    skeleton: document.getElementById('friends-skeleton'),
+    addSubmit: document.getElementById('friend-add-submit'),
+    error: document.getElementById('friends-error'),
+    errorText: document.getElementById('friends-error-text'),
+    retry: document.getElementById('friends-retry'),
+    body: document.getElementById('friends-body'),
+    code: document.getElementById('friend-code'),
+    share: document.getElementById('friend-share'),
+    qrToggle: document.getElementById('friend-qr-toggle'),
+    qr: document.getElementById('friend-qr'),
+    renew: document.getElementById('friend-code-renew'),
+    status: document.getElementById('friend-status'),
+    form: document.getElementById('friend-add-form'),
+    input: document.getElementById('friend-code-input'),
+    addError: document.getElementById('friend-add-error'),
+    rows: document.getElementById('friend-rows'),
+    empty: document.getElementById('friends-empty'),
+    dialog: document.getElementById('friend-dialog'),
+    dialogTitle: document.getElementById('friend-dialog-title'),
+    dialogText: document.getElementById('friend-dialog-text'),
+    dialogError: document.getElementById('friend-dialog-error'),
+    dialogBusy: document.getElementById('friend-dialog-busy'),
+    dialogOk: document.getElementById('friend-dialog-ok'),
+    dialogCancel: document.getElementById('friend-dialog-cancel'),
+  },
+  getApi: () => api,
+  liff,
+  getLiffId: () => liffId,
+  clipboard: navigator.clipboard,
+});
 els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
@@ -1232,7 +1271,10 @@ const tabController = createTabController({
       playBars(window, els.trendBars);
     }
     if (id === 'budgets') playBars(window, els.budgetRows);
-    if (id === 'profile') refreshProfileOnEntry();
+    if (id === 'profile') {
+      refreshProfileOnEntry();
+      friendsPanel.ensureLoaded();
+    }
   },
 });
 tabController.select(DEFAULT_TAB);
@@ -1274,6 +1316,7 @@ async function boot() {
       })
     ).json();
     await liff.init({ liffId: config.liffId });
+    liffId = config.liffId;
     els.profileClose.hidden = !liff.isInClient();
     if (!liff.isLoggedIn()) {
       liff.login();
@@ -1283,9 +1326,17 @@ async function boot() {
     els.exportButton.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
-    if (link) window.history.replaceState(null, '', window.location.pathname);
+    const friendCode = parseFriendLink(window.location.search);
+    if (link || friendCode) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
+    // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
+    if (friendCode) {
+      tabController.select('profile');
+      friendsPanel.openAdd(friendCode);
+    }
     await loadAll();
+    // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
+    if (tabController.current === 'profile') friendsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);

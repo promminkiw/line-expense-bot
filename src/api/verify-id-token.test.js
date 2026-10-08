@@ -7,10 +7,10 @@ function fakeFetch(status, payload) {
 
 describe('createIdTokenVerifier', () => {
   it('posts the token to LINE and returns the LINE user id', async () => {
-    const fetchImpl = fakeFetch(200, { sub: 'U123', aud: '1234567890' });
+    const fetchImpl = fakeFetch(200, { sub: 'U123', aud: '1234567890', name: 'Aom' });
     const verify = createIdTokenVerifier({ channelId: '1234567890', fetchImpl });
 
-    expect(await verify('token-abc')).toBe('U123');
+    expect(await verify('token-abc')).toEqual({ lineUserId: 'U123', name: 'Aom' });
 
     const [url, options] = fetchImpl.mock.calls[0];
     expect(url).toBe('https://api.line.me/oauth2/v2.1/verify');
@@ -19,6 +19,12 @@ describe('createIdTokenVerifier', () => {
     expect(new URLSearchParams(options.body).get('id_token')).toBe('token-abc');
     expect(new URLSearchParams(options.body).get('client_id')).toBe('1234567890');
     expect(options.signal).toEqual(expect.any(AbortSignal));
+  });
+
+  it.each([[{}], [{ name: '' }], [{ name: 42 }]])('returns a null name when the token payload has %j', async (extra) => {
+    const verify = createIdTokenVerifier({ channelId: '1', fetchImpl: fakeFetch(200, { sub: 'U123', ...extra }) });
+
+    expect(await verify('token')).toEqual({ lineUserId: 'U123', name: null });
   });
 
   it('rejects a missing token without calling LINE', async () => {

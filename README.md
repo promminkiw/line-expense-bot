@@ -15,7 +15,7 @@ LINE Official Account ที่บันทึกรายรับรายจ�
   - สรุป: กราฟตามหมวด แนวโน้ม 6 เดือน เทียบกับเดือนก่อน และ Export CSV
   - จัดการงบ: ตั้งงบต่อหมวดต่อเดือน
   - รอบเดือน: รายการประจำ
-  - โปรไฟล์: ยอดเงินคงเหลือสะสม (รายรับรวม - รายจ่ายรวม ไม่ใช่ยอดบัญชีจริง)
+  - โปรไฟล์: ยอดเงินคงเหลือสะสม (รายรับรวม - รายจ่ายรวม ไม่ใช่ยอดบัญชีจริง) และรายชื่อเพื่อน (เพิ่มด้วยลิงก์ชวน รหัสเพื่อน 8 ตัว หรือ QR code) สำหรับหารบิล
 - **Rich Menu** (สร้างเองใน LINE OA Manager ไม่อยู่ใน repo): ปุ่มสรุป / เปิดเว็บ (ลิงก์ LIFF) / ช่วยเหลือ
 
 ## สถาปัตยกรรม
@@ -62,7 +62,7 @@ flowchart LR
 ## โครงสร้างโฟลเดอร์
 
 ```
-src/                        โค้ดฝั่ง server (bot, api, parser, slip, summary, budget, recurring, export, db)
+src/                        โค้ดฝั่ง server (bot, api, parser, slip, summary, budget, recurring, export, friends, db)
 public/liff/                หน้าเว็บ LIFF และเทสต์ของหน้า
 supabase/                   SQL schema และ migration (รันตามลำดับ)
 scripts/                    สคริปต์ช่วยพัฒนา (try-parse)
@@ -90,7 +90,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
    | `CRON_SECRET` | secret ของ endpoint cron (ยาวอย่างน้อย 32 ตัวอักษร) |
    | `PORT` | (ไม่บังคับ) พอร์ตของ server ค่าเริ่มต้น 3000 |
 
-3. รัน SQL ใน `supabase/` ที่ Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `011`
+3. รัน SQL ใน `supabase/` ที่ Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `012`
 4. เริ่มเซิร์ฟเวอร์: `npm start`
 
 การทดสอบกับ LINE จริงจากเครื่องต้องมี tunnel (เช่น ngrok) แล้วชี้ Webhook URL และ LIFF Endpoint URL ไปที่ tunnel ซึ่งจะทำให้บอทที่ deploy อยู่หยุดตอบระหว่างนั้น ถ้าต้องพัฒนาบ่อยแนะนำให้สร้าง LINE channel แยกสำหรับทดสอบ
@@ -105,6 +105,8 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 4. ตั้ง cron-job.org 2 งาน:
    - `GET <URL>/health` ทุก 10 นาที (กัน Free plan หลับ)
    - `POST <URL>/internal/recurring/run` วันละครั้ง พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) และเปิดแจ้งเตือนเมื่อล้มเหลว (timeout สูงสุดของ cron-job.org คือ 30 วินาที)
+5. ที่ LINE Login channel แท็บ **LIFF** เปิด **shareTargetPicker** (ต้องติ๊กยอมรับ "Agreement Regarding Use of Information" ก่อนกด Enable) เพื่อให้ปุ่มส่งลิงก์ชวนเพื่อนเปิดหน้าเลือกแชตได้ ถ้าไม่เปิด หน้าเว็บจะคัดลอกลิงก์แทน
+6. ให้ LINE ชวนเพิ่มบอทเป็นเพื่อนตอนเปิดหน้าเว็บ: (1) ที่ LINE Login channel แท็บ **Basic settings** ช่อง **Linked LINE Official Account** กด Edit แล้วเลือกบอท (Messaging API channel กับ LINE Login channel ต้องอยู่ provider เดียวกัน) (2) แท็บ **LIFF** เปิด LIFF app ของบอท ตั้ง **Add friend option** เป็น **On (aggressive)** (แสดงหน้าถามเพิ่มเพื่อนหลังหน้ายินยอม) (3) ช่อง **Scopes** ของ LIFF app ต้องเปิด `openid` และ `profile` เพราะ server ใช้ชื่อใน ID token เติมชื่อของผู้ใช้ที่ยังไม่มีชื่อ หน้าชวนเพิ่มบอทแสดงตอนหน้ายินยอมของ LIFF เท่านั้น ผู้ใช้ที่เคยยินยอมไปแล้วจะไม่เห็นอีก การตรวจว่าเพื่อนเพิ่มบอทแล้วจริงจะทำในเฟส 2 ตอนที่บอทต้องส่งข้อความหาเพื่อน
 
 ## คำสั่งพัฒนา
 
@@ -119,12 +121,13 @@ CI (GitHub Actions) รัน lint, เทสต์ และตรวจ syntax
 - ตรวจ LINE signature ของทุก webhook request
 - หน้า LIFF ส่ง ID token ไปให้ server verify กับ LINE แล้วจึงอ้างอิงผู้ใช้
 - เปิด RLS ทุกตาราง และ function ใน DB จำกัดให้ `service_role` เท่านั้น
-- มี rate limit ข้อความและรูปที่ส่งเข้าบอท (10 ครั้ง/นาที/ผู้ใช้) และ `POST /api/exports` (5 ครั้ง/นาที/ผู้ใช้) ข้อความที่ไม่เรียก Claude ไม่ถูกนับ ได้แก่ ปุ่มช่วยเหลือ ปุ่มเปิดเว็บ และ `สรุป` ที่แสดงเมนูเลือกช่วง
+- มี rate limit ข้อความและรูปที่ส่งเข้าบอท (10 ครั้ง/นาที/ผู้ใช้), `POST /api/exports` (5 ครั้ง/นาที/ผู้ใช้) และการค้นหา/เพิ่มเพื่อนด้วยรหัส (10 ครั้ง/นาที/ผู้ใช้ กันการเดารหัส) ข้อความที่ไม่เรียก Claude ไม่ถูกนับ ได้แก่ ปุ่มช่วยเหลือ ปุ่มเปิดเว็บ และ `สรุป` ที่แสดงเมนูเลือกช่วง
 - endpoint cron `/internal/recurring/run` ป้องกันด้วย secret (`CRON_SECRET`) และตั้งใจไม่มี rate limit
 - ค่า secret ทั้งหมดอยู่ใน `.env` (ในเครื่อง) หรือ environment ของ Render เท่านั้น ไม่อยู่ใน repo
 
 ## ข้อจำกัดที่ทราบ
 
+- เพื่อนเห็นชื่อ LINE ของกันและกัน รหัสเพื่อนที่หลุดไปให้คนอื่นเปลี่ยนได้ในแท็บโปรไฟล์ (ลิงก์และ QR เดิมจะใช้ไม่ได้)
 - Render Free plan หลับเมื่อไม่มี traffic 15 นาที (ใช้ cron-job.org พิง `/health` กันไว้ ยังไม่ยืนยันว่ากันได้ตลอด) และ Supabase Free อาจ pause โปรเจกต์ถ้าไม่มีการใช้งานหลายวัน
 - ข้อความ push (รายการประจำ) นับโควตาของแพ็กเกจ LINE ส่วนข้อความตอบกลับ (reply) ไม่นับ
 - ถ้า LINE ปฏิเสธการ์ด Flex ผู้ใช้จะไม่ได้ข้อความตอบ (ใช้ reply token ไปแล้ว ส่งซ้ำไม่ได้) รายการอาจถูกบันทึกไปแล้ว ดู log ของ Render

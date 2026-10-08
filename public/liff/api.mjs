@@ -46,5 +46,10 @@ export function createApi({ fetchImpl, getIdToken }) {
     updateRecurring: (id, body) =>
       request(`/recurring/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
     deleteRecurring: (id) => request(`/recurring/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    getFriends: () => request('/friends'),
+    lookupFriend: (code) => request(`/friends/lookup?code=${encodeURIComponent(code)}`),
+    addFriend: (code) => request('/friends', { method: 'POST', body: JSON.stringify({ code }) }),
+    removeFriend: (id) => request(`/friends/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    regenerateFriendCode: () => request('/friends/code', { method: 'POST' }),
   };
 }

@@ -135,6 +135,8 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .skeleton-profile-head { height: 56px; margin-top: 0; border-radius: 28px; }
 .skeleton-balance { height: 142px; margin-top: 16px; border-radius: 28px; }
 .skeleton-stats { height: 80px; margin-top: 12px; border-radius: 28px; }
+.skeleton-friends-card { height: 150px; margin-top: 0; border-radius: 20px; }
+.skeleton-friends-row { height: 48px; }
 .skeleton-tips { height: 162px; margin-top: 12px; border-radius: 28px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
@@ -209,3 +211,24 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #month { min-height: 44px; font: inherit; }
 #banner-retry { margin: 8px 16px 0; }
 @media (max-width: 359px) { .stat-cards, .profile-stats { grid-template-columns: 1fr; } }
+.friends { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: 28px; }
+.friends h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.friends-hint { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.friend-code-card { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+.friend-code { font-size: 28px; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+.friend-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.friend-actions button, .friend-add button, #friends-retry { font: inherit; min-height: 44px; padding: 8px 16px; font-size: 15px; border: 1px solid var(--outline); border-radius: 9999px; background: var(--surface); color: var(--primary); }
+.friend-qr { width: 200px; max-width: 100%; margin-top: 12px; }
+.friend-qr svg { display: block; width: 100%; height: auto; }
+.friend-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 16px; }
+.friend-add label { grid-column: 1 / -1; font-size: 14px; }
+.friend-add input { min-height: 44px; padding: 8px 16px; font: inherit; font-size: 16px; text-transform: uppercase; color: var(--text); background: var(--surface); border: 1px solid var(--outline); border-radius: 9999px; }
+.friend-add .error { grid-column: 1 / -1; margin: 0; }
+.friend-add .error:empty { display: none; }
+.friend-rows { list-style: none; margin: 12px 0 0; padding: 0; }
+.friend-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-bottom: 1px solid var(--border); }
+.friend-name { overflow-wrap: anywhere; }
+.friend-remove { font: inherit; min-height: 44px; padding: 0 12px; border: none; background: none; color: var(--danger); }
+.friends-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+#friend-dialog h2 { margin: 0; font-size: 18px; }
+#friend-dialog .error:empty { display: none; }

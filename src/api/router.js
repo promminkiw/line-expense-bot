@@ -22,10 +22,14 @@ function createApiRouter({
   logger = console,
   now = () => new Date(),
   allowExport,
+  friendsRouter,
 }) {
   // ไม่มี default เพราะถ้าลืมส่ง limit จะหายเงียบๆ
   if (typeof allowExport !== 'function') {
     throw new TypeError('createApiRouter requires allowExport');
+  }
+  if (!friendsRouter) {
+    throw new TypeError('createApiRouter requires friendsRouter');
   }
   const router = express.Router();
 
@@ -39,8 +43,8 @@ function createApiRouter({
   // ใช้ user id จาก token ที่ LINE ยืนยันเท่านั้น ไม่เชื่อค่าที่ client ส่งมา
   router.use(async (req, res, next) => {
     try {
-      const lineUserId = await verifyIdToken(readBearerToken(req));
-      req.userId = await users.ensureUser(lineUserId);
+      const { lineUserId, name } = await verifyIdToken(readBearerToken(req));
+      req.userId = await users.ensureUser(lineUserId, { tokenName: name });
       next();
     } catch (err) {
       if (err instanceof AuthError) {
@@ -54,6 +58,8 @@ function createApiRouter({
       next(err);
     }
   });
+
+  router.use('/friends', friendsRouter);
 
   router.get('/categories', async (req, res) => {
     res.json({ categories: await repository.listCategories(req.userId) });

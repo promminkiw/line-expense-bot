@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { PGlite } from '@electric-sql/pglite';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+
+const { FRIEND_CODE_ALPHABET } = createRequire(import.meta.url)('../friends/code.js');
 
 // ลำดับเดียวกับที่ schema.sql บอกให้รันใน Supabase SQL Editor
 const MIGRATIONS = [
@@ -15,6 +18,7 @@ const MIGRATIONS = [
   '009_recurring.sql',
   '010_profile_and_trend.sql',
   '011_slip_category.sql',
+  '012_friends.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -299,6 +303,63 @@ describe('011_slip_category.sql', () => {
     expect(result).toEqual(
       [first, second].sort().map((userId) => ({ user_id: userId, type: 'expense' })),
     );
+  });
+});
+
+describe('012_friends.sql', () => {
+  it('accepts a well formed friend code and rejects any other shape', async () => {
+    const user = await createUser('U1');
+
+    await db.query('update users set friend_code = $1 where id = $2', ['ABCD2345', user]);
+
+    for (const bad of ['abcd2345', 'ABCD234', 'ABCDEFGI', 'ABCDEFG0']) {
+      await db.exec('savepoint bad_code');
+      await expect(db.query('update users set friend_code = $1 where id = $2', [bad, user])).rejects.toThrow('check constraint');
+      await db.exec('rollback to savepoint bad_code');
+    }
+  });
+
+  it('accepts every character of the JS friend code alphabet', async () => {
+    const user = await createUser('U1');
+
+    for (const char of FRIEND_CODE_ALPHABET) {
+      await db.query('update users set friend_code = $1 where id = $2', [char.repeat(8), user]);
+    }
+  });
+
+  it('does not let two users share a friend code', async () => {
+    const first = await createUser('U1');
+    const second = await createUser('U2');
+    await db.query('update users set friend_code = $1 where id = $2', ['ABCD2345', first]);
+
+    await expect(db.query('update users set friend_code = $1 where id = $2', ['ABCD2345', second])).rejects.toThrow(
+      'duplicate key',
+    );
+  });
+
+  it('does not let a user befriend themselves or the same friend twice', async () => {
+    const user = await createUser('U1');
+    const friend = await createUser('U2');
+    await db.query('insert into friendships (user_id, friend_id) values ($1, $2)', [user, friend]);
+
+    await db.exec('savepoint dup');
+    await expect(db.query('insert into friendships (user_id, friend_id) values ($1, $2)', [user, friend])).rejects.toThrow(
+      'duplicate key',
+    );
+    await db.exec('rollback to savepoint dup');
+    await expect(db.query('insert into friendships (user_id, friend_id) values ($1, $1)', [user])).rejects.toThrow(
+      'check constraint',
+    );
+  });
+
+  it('removes the friendships of a deleted user in both directions', async () => {
+    const user = await createUser('U1');
+    const friend = await createUser('U2');
+    await db.query('insert into friendships (user_id, friend_id) values ($1, $2), ($2, $1)', [user, friend]);
+
+    await db.query('delete from users where id = $1', [friend]);
+
+    expect(Number((await one('select count(*) from friendships')).count)).toBe(0);
   });
 });
 

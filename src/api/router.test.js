@@ -18,7 +18,7 @@ let server;
 function setup(overrides = {}) {
   const deps = {
     verifyIdToken: vi.fn(async (token) => {
-      if (token === 'good') return 'U1';
+      if (token === 'good') return { lineUserId: 'U1', name: 'Aom' };
       throw new AuthError('bad token');
     }),
     users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
@@ -62,6 +62,7 @@ function setup(overrides = {}) {
       getDisplayName: vi.fn().mockResolvedValue('สมชาย'),
     },
     allowExport: vi.fn().mockReturnValue(true),
+    friendsRouter: express.Router(),
     liffId: 'liff-123',
     logger: { error: vi.fn() },
     now: () => new Date('2026-09-30T03:00:00.000Z'),
@@ -77,6 +78,13 @@ describe('createApiRouter', () => {
     const { allowExport, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('allowExport');
+  });
+
+  it('refuses to build without the friends router', () => {
+    // eslint-disable-next-line no-unused-vars
+    const { friendsRouter, ...deps } = setup();
+
+    expect(() => createApiRouter(deps)).toThrow('friendsRouter');
   });
 });
 
@@ -175,7 +183,7 @@ describe('authentication', () => {
 
     await call(base, '/categories');
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1', { tokenName: 'Aom' });
     expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
   });
 });
@@ -826,5 +834,18 @@ describe('GET /api/profile', () => {
     const base = await start(setup());
 
     expect((await call(base, '/profile', { token: null })).status).toBe(401);
+  });
+});
+
+describe('/api/friends', () => {
+  it('reaches the friends router only after the ID token check, with the user id set', async () => {
+    const friendsRouter = express.Router();
+    friendsRouter.get('/', (req, res) => res.json({ userId: req.userId }));
+    const base = await start(setup({ friendsRouter }));
+
+    expect((await call(base, '/friends', { token: null })).status).toBe(401);
+    const res = await call(base, '/friends');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ userId: 'user-1' });
   });
 });
