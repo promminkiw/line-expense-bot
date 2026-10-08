@@ -1243,8 +1243,68 @@ describe('LIFF friends section', () => {
     await boot({ search: '?friend=ABCD2345' });
     await settle();
 
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friends-body').hidden).toBe(false);
     expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
     expect(byId('friend-add-error').textContent).toBe('นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน');
+  });
+
+  it('shows not-found for an unknown invite code', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 404 } } });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friends-body').hidden).toBe(false);
+    expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
+  });
+
+  it('shows the rate-limit message for an invite lookup', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 429 } } });
+    await settle();
+
+    expect(byId('friend-add-error').textContent).toBe('ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่');
+  });
+
+  it('reads the friend code from liff.state after login', async () => {
+    await boot({ search: `?liff.state=${encodeURIComponent('?friend=WXYZ2345')}` });
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps the profile tab and cleans the url after the user closes the invite dialog', async () => {
+    await boot({ search: '?friend=WXYZ2345' });
+    await settle();
+    byId('friend-dialog-cancel').click();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(window.location.search).toBe('');
+  });
+
+  it('resumes the invite after the friend list load is retried', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends': { status: 500 } } });
+    await settle();
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+
+    routeFetch(() => undefined);
+    byId('friends-retry').click();
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+  });
+
+  it('keeps the invite when the first load fails', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/categories': new Error('offline') } });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
   });
 
   it('stays on the list tab when the link has no friend code', async () => {

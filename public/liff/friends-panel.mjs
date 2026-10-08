@@ -21,6 +21,8 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   let dialogAction = null;
   let dialogBusy = false;
   let lookingUp = false;
+  // เก็บรหัสจากลิงก์ชวนไว้เมื่อโหลดรายชื่อไม่สำเร็จ จะได้ทำต่อหลังกดลองใหม่
+  let pendingInviteCode = null;
   const loadingIndicator = createLoadingIndicator({
     doc,
     textEl: els.loadingText,
@@ -87,11 +89,18 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       .then((overview) => {
         loaded = true;
         render(overview);
+        resumePendingInvite();
       }, showLoadError)
       .finally(() => {
         loading = null;
       });
     return loading;
+  }
+
+  function resumePendingInvite() {
+    const resumed = pendingInviteCode;
+    pendingInviteCode = null;
+    if (resumed) openAdd(resumed);
   }
 
   function ensureLoaded() {
@@ -140,6 +149,11 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     let friend;
     try {
       await ensureLoaded();
+      // ยังไม่รู้รหัสของตัวเอง จึงเทียบว่าเป็นรหัสตัวเองไม่ได้ ไม่ค้นหาต่อ
+      if (!loaded) {
+        pendingInviteCode = normalized;
+        return;
+      }
       if (normalized === code) {
         els.addError.textContent = OWN_CODE_MESSAGE;
         return;

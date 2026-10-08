@@ -1328,15 +1328,15 @@ async function boot() {
     const friendCode = parseFriendLink(window.location.search);
     if (link || friendCode) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
+    // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
+    if (friendCode) {
+      tabController.select('profile');
+      friendsPanel.openAdd(friendCode);
+    }
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
-    // ลิงก์ชวนเพื่อนและ QR พามาที่ส่วนเพื่อนแล้วถามยืนยันก่อนเพิ่ม
-    if (friendCode) {
-      tabController.select('profile');
-      await friendsPanel.openAdd(friendCode);
-    }
   } catch (err) {
     showLoadError(err);
   }
