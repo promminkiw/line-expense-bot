@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
+import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 
 describe('createSkeletonRows', () => {
   it('creates the requested number of hidden placeholder rows', () => {
@@ -21,6 +21,16 @@ describe('createSkeletonRows', () => {
     list.append(createSkeletonRows(document, 1));
 
     expect(list.firstElementChild.className).toBe('skeleton skeleton-row');
+  });
+});
+
+describe('createSkeletonBlocks', () => {
+  it('creates one hidden placeholder per variant in order', () => {
+    const list = document.createElement('ul');
+    list.append(createSkeletonBlocks(document, ['totals', 'filters']));
+
+    expect([...list.children].map((item) => item.className)).toEqual(['skeleton skeleton-totals', 'skeleton skeleton-filters']);
+    for (const item of list.children) expect(item.getAttribute('aria-hidden')).toBe('true');
   });
 });
 
@@ -45,5 +55,13 @@ describe('createLoadingIndicator', () => {
     expect(textEl.hidden).toBe(true);
     expect(skeletonEl.hidden).toBe(true);
     expect(skeletonEl.children).toHaveLength(2);
+  });
+
+  it('fills the skeleton from a list of variants when one is given', () => {
+    const textEl = document.createElement('p');
+    const skeletonEl = document.createElement('ul');
+    createLoadingIndicator({ doc: document, textEl, skeletonEl, variants: ['profile-head', 'balance'] });
+
+    expect([...skeletonEl.children].map((item) => item.className)).toEqual(['skeleton skeleton-profile-head', 'skeleton skeleton-balance']);
   });
 });
