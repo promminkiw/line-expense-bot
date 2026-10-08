@@ -40,7 +40,7 @@ function fakeSupabasePages(results) {
   const calls = [];
   let index = 0;
   const builder = {};
-  for (const method of ['select', 'eq', 'gte', 'lte', 'order', 'range']) {
+  for (const method of ['select', 'eq', 'gte', 'lte', 'gt', 'order', 'limit']) {
     builder[method] = vi.fn((...args) => {
       calls.push([method, ...args]);
       return builder;
@@ -451,76 +451,86 @@ describe('repository.listTransactions', () => {
 });
 
 describe('repository.listAllTransactions', () => {
-  const dbRow = { id: 't1', type: 'expense', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-09-01', category_id: 'c1' };
+  const dbRow = (id, occurredOn = '2026-09-01', createdAt = '2026-09-01T10:00:00+00:00') => ({
+    id,
+    type: 'expense',
+    amount: '60.00',
+    note: 'กินข้าว',
+    occurred_on: occurredOn,
+    category_id: 'c1',
+    created_at: createdAt,
+  });
+  const ids = (from, count) => Array.from({ length: count }, (_, index) => dbRow(`t${String(from + index).padStart(5, '0')}`));
 
-  it('reads this user rows oldest first in pages of 1000 until the total count', async () => {
-    const fullPage = Array.from({ length: 1000 }, () => dbRow);
+  it('reads this user rows in id order, each page after the last id, until an empty page', async () => {
     const { supabase, calls } = fakeSupabasePages([
-      { data: fullPage, count: 1001, error: null },
-      { data: [dbRow], count: 1001, error: null },
+      { data: ids(0, 1000), error: null },
+      { data: ids(1000, 1), error: null },
+      { data: [], error: null },
     ]);
 
     const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
 
     expect(rows).toHaveLength(1001);
-    expect(rows[0]).toEqual({ id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1' });
-    expect(calls.slice(0, 9)).toEqual([
+    expect(rows[0]).toEqual({ id: 't00000', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1' });
+    expect(calls.slice(0, 7)).toEqual([
       ['from', 'transactions'],
-      ['select', 'id, type, amount, note, occurred_on, category_id', { count: 'exact' }],
+      ['select', 'id, type, amount, note, occurred_on, category_id, created_at'],
       ['eq', 'user_id', 'user-1'],
       ['gte', 'occurred_on', '2026-09-01'],
       ['lte', 'occurred_on', '2026-09-30'],
-      ['order', 'occurred_on', { ascending: true }],
-      ['order', 'created_at', { ascending: true }],
       ['order', 'id', { ascending: true }],
-      ['range', 0, 999],
+      ['limit', 1000],
     ]);
-    expect(calls[17]).toEqual(['range', 1000, 1999]);
-    expect(calls).toHaveLength(18);
+    expect(calls.filter((call) => call[0] === 'gt')).toEqual([
+      ['gt', 'id', 't00999'],
+      ['gt', 'id', 't01000'],
+    ]);
+    // ไม่ใช้ offset อีกแล้ว แถวที่ถูกลบหรือเพิ่มระหว่างหน้าจึงไม่ทำให้แถวอื่นซ้ำหรือหาย
+    expect(calls.some((call) => call[0] === 'range')).toBe(false);
   });
 
   it('keeps reading when the server caps a page below 1000 rows', async () => {
     const { supabase, calls } = fakeSupabasePages([
-      { data: Array.from({ length: 500 }, () => dbRow), count: 700, error: null },
-      { data: Array.from({ length: 200 }, () => dbRow), count: 700, error: null },
+      { data: ids(0, 500), error: null },
+      { data: ids(500, 200), error: null },
+      { data: [], error: null },
     ]);
 
     const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
 
     expect(rows).toHaveLength(700);
-    expect(calls.filter((call) => call[0] === 'range')).toEqual([
-      ['range', 0, 999],
-      ['range', 500, 1499],
+    expect(calls.filter((call) => call[0] === 'gt')).toEqual([
+      ['gt', 'id', 't00499'],
+      ['gt', 'id', 't00699'],
     ]);
-    // หน้าถัดไปไม่ขอ count เพราะถ้ามีคนลบแถวระหว่างหน้า PostgREST ตอบ 416 เมื่อ offset เกินจำนวนจริง
-    expect(calls[10]).toEqual(['select', 'id, type, amount, note, occurred_on, category_id']);
-    expect(calls.slice(11, 17)).toEqual(calls.slice(2, 8));
   });
 
-  it('stops when a page comes back empty even if the count says more', async () => {
+  it('returns the rows oldest first by date, then by creation time, then by id', async () => {
     const { supabase } = fakeSupabasePages([
-      { data: [dbRow], count: 5, error: null },
-      { data: [], count: 5, error: null },
+      {
+        data: [
+          dbRow('a', '2026-09-02', '2026-09-02T08:00:00+00:00'),
+          dbRow('b', '2026-09-01', '2026-09-03T08:00:00+00:00'),
+          dbRow('c', '2026-09-01', '2026-09-01T09:00:00.5+00:00'),
+          dbRow('d', '2026-09-01', '2026-09-01T09:00:00.5+00:00'),
+        ],
+        error: null,
+      },
+      { data: [], error: null },
     ]);
 
-    expect(await createRepository(supabase).listAllTransactions('user-1', 'a', 'b')).toHaveLength(1);
+    const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
+
+    expect(rows.map((row) => row.id)).toEqual(['c', 'd', 'b', 'a']);
   });
 
-  it('reads until an empty page when the count is missing', async () => {
-    const { supabase } = fakeSupabasePages([
-      { data: [dbRow], count: null, error: null },
-      { data: [dbRow], count: null, error: null },
-      { data: [], count: null, error: null },
-    ]);
-
-    expect(await createRepository(supabase).listAllTransactions('user-1', 'a', 'b')).toHaveLength(2);
-  });
-
-  it('stops after one page when the month has fewer than 1000 rows', async () => {
-    const { supabase, calls } = fakeSupabasePages([{ data: [], count: 0, error: null }]);
+  it('stops after one request when the month has no rows', async () => {
+    const { supabase, calls } = fakeSupabasePages([{ data: [], error: null }]);
 
     expect(await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30')).toEqual([]);
-    expect(calls.filter((call) => call[0] === 'range')).toEqual([['range', 0, 999]]);
+    expect(calls.filter((call) => call[0] === 'from')).toHaveLength(1);
+    expect(calls.some((call) => call[0] === 'gt')).toBe(false);
   });
 
   it('throws DatabaseError when Supabase returns an error', async () => {
