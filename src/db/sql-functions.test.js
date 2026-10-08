@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { PGlite } from '@electric-sql/pglite';
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+
+const { FRIEND_CODE_ALPHABET } = createRequire(import.meta.url)('../friends/code.js');
 
 // ลำดับเดียวกับที่ schema.sql บอกให้รันใน Supabase SQL Editor
 const MIGRATIONS = [
@@ -313,6 +316,14 @@ describe('012_friends.sql', () => {
       await db.exec('savepoint bad_code');
       await expect(db.query('update users set friend_code = $1 where id = $2', [bad, user])).rejects.toThrow('check constraint');
       await db.exec('rollback to savepoint bad_code');
+    }
+  });
+
+  it('accepts every character of the JS friend code alphabet', async () => {
+    const user = await createUser('U1');
+
+    for (const char of FRIEND_CODE_ALPHABET) {
+      await db.query('update users set friend_code = $1 where id = $2', [char.repeat(8), user]);
     }
   });
 

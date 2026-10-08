@@ -112,6 +112,29 @@ describe('repository.createUser', () => {
   });
 });
 
+describe('repository.fillMissingDisplayName', () => {
+  it('updates the name only while it is still null', async () => {
+    const { supabase, calls } = fakeSupabase({ error: null });
+
+    await createRepository(supabase).fillMissingDisplayName('user-1', 'Aom');
+
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['update', { display_name: 'Aom' }],
+      ['eq', 'id', 'user-1'],
+      ['is', 'display_name', null],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).fillMissingDisplayName('user-1', 'Aom')).rejects.toThrow(
+      'Database fillMissingDisplayName failed: boom'
+    );
+  });
+});
+
 describe('repository.seedDefaultCategories', () => {
   it('inserts every default category and ignores existing ones', async () => {
     const { supabase, calls } = fakeSupabase({ data: null, error: null });
@@ -1311,6 +1334,17 @@ describe('repository friendships', () => {
         ],
         { onConflict: 'user_id,friend_id', ignoreDuplicates: true },
       ],
+    ]);
+  });
+
+  it('writes the pair rows ordered by user_id so concurrent mutual adds cannot deadlock', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).addFriendship('user-2', 'user-1');
+
+    expect(calls[1][1]).toEqual([
+      { user_id: 'user-1', friend_id: 'user-2' },
+      { user_id: 'user-2', friend_id: 'user-1' },
     ]);
   });
 

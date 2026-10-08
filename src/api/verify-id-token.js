@@ -41,7 +41,7 @@ function createIdTokenVerifier({ channelId, fetchImpl = fetch }) {
     if (!payload.sub) {
       throw new AuthError('ID token has no subject');
     }
-    return payload.sub;
+    return { lineUserId: payload.sub, name: typeof payload.name === 'string' && payload.name ? payload.name : null };
   };
 }
 

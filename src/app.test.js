@@ -194,7 +194,7 @@ describe('GET /liff/', () => {
 describe('/api', () => {
   function buildApiRouter() {
     return createApiRouter({
-      verifyIdToken: vi.fn().mockResolvedValue('U1'),
+      verifyIdToken: vi.fn().mockResolvedValue({ lineUserId: 'U1', name: null }),
       users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
       allowExport: vi.fn().mockReturnValue(true),

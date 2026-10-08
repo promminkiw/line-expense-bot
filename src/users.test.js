@@ -14,6 +14,7 @@ function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedVa
   const repository = {
     findUserIdByLineId: vi.fn().mockResolvedValue(null),
     createUser: vi.fn().mockResolvedValue('user-1'),
+    fillMissingDisplayName: vi.fn().mockResolvedValue(),
     seedDefaultCategories: vi.fn().mockResolvedValue(),
     getCategoryIds: vi.fn().mockResolvedValue(ALL_DEFAULT_IDS),
     ...repositoryOverrides,
@@ -122,6 +123,63 @@ describe('userService.ensureUser', () => {
 
       expect(vi.getTimerCount()).toBe(0);
     });
+  });
+});
+
+describe('userService.ensureUser with a token name', () => {
+  const existing = () => ({ findUserIdByLineId: vi.fn().mockResolvedValue('user-9') });
+
+  it('fills a missing display name for an existing user', async () => {
+    const { repository, service } = setup(existing());
+
+    expect(await service.ensureUser('U1', { tokenName: 'Aom' })).toBe('user-9');
+    expect(repository.fillMissingDisplayName).toHaveBeenCalledWith('user-9', 'Aom');
+  });
+
+  it('checks each user only once per process', async () => {
+    const { repository, service } = setup(existing());
+
+    await service.ensureUser('U1', { tokenName: 'Aom' });
+    await service.ensureUser('U1', { tokenName: 'Aom' });
+
+    expect(repository.fillMissingDisplayName).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not write when no token name is given', async () => {
+    const { repository, service } = setup(existing());
+
+    await service.ensureUser('U1');
+    await service.ensureUser('U1', { tokenName: null });
+
+    expect(repository.fillMissingDisplayName).not.toHaveBeenCalled();
+  });
+
+  it('fills the name of a new user when the LINE profile could not be fetched', async () => {
+    const { repository, service } = setup({}, vi.fn().mockRejectedValue(new Error('404')));
+
+    await service.ensureUser('U1', { tokenName: 'Aom' });
+
+    expect(repository.fillMissingDisplayName).toHaveBeenCalledWith('user-1', 'Aom');
+  });
+
+  it('skips the fill when the new user already got a name from the profile', async () => {
+    const { repository, service } = setup();
+
+    await service.ensureUser('U1', { tokenName: 'Aom' });
+
+    expect(repository.fillMissingDisplayName).not.toHaveBeenCalled();
+  });
+
+  it('ignores a failed fill, logs without the name and retries next time', async () => {
+    const fillMissingDisplayName = vi.fn().mockRejectedValueOnce(new Error('db down')).mockResolvedValue();
+    const { logger, service } = setup({ ...existing(), fillMissingDisplayName });
+
+    expect(await service.ensureUser('U1', { tokenName: 'Aom' })).toBe('user-9');
+    expect(logger.error).toHaveBeenCalledWith('Failed to fill display name', { userId: 'user-9' }, expect.any(Error));
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('Aom');
+
+    await service.ensureUser('U1', { tokenName: 'Aom' });
+    expect(fillMissingDisplayName).toHaveBeenCalledTimes(2);
   });
 });
 

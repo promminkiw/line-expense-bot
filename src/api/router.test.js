@@ -18,7 +18,7 @@ let server;
 function setup(overrides = {}) {
   const deps = {
     verifyIdToken: vi.fn(async (token) => {
-      if (token === 'good') return 'U1';
+      if (token === 'good') return { lineUserId: 'U1', name: 'Aom' };
       throw new AuthError('bad token');
     }),
     users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
@@ -183,7 +183,7 @@ describe('authentication', () => {
 
     await call(base, '/categories');
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1', { tokenName: 'Aom' });
     expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
   });
 });

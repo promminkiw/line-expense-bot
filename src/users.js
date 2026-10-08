@@ -24,14 +24,34 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     }
   }
 
-  async function ensureUser(lineUserId) {
+  // จำใน memory ว่าตรวจชื่อของ user ไหนแล้ว จะได้ไม่เขียน DB ทุก request
+  const namesChecked = new Set();
+
+  async function fillNameFromToken(userId, tokenName) {
+    if (!tokenName || namesChecked.has(userId)) {
+      return;
+    }
+    try {
+      await repository.fillMissingDisplayName(userId, tokenName);
+      namesChecked.add(userId);
+    } catch (err) {
+      // ชื่อเป็นแค่ข้อมูลประกอบ เติมไม่ได้ก็ไม่ควรทำให้ request ล้ม
+      logger.error('Failed to fill display name', { userId }, err);
+    }
+  }
+
+  async function ensureUser(lineUserId, { tokenName = null } = {}) {
     const existingId = await repository.findUserIdByLineId(lineUserId);
     if (existingId) {
+      await fillNameFromToken(existingId, tokenName);
       return existingId;
     }
     const displayName = await fetchDisplayName(lineUserId);
     const userId = await repository.createUser({ lineUserId, displayName });
     await repository.seedDefaultCategories(userId);
+    if (!displayName) {
+      await fillNameFromToken(userId, tokenName);
+    }
     return userId;
   }
 

@@ -43,8 +43,8 @@ function createApiRouter({
   // ใช้ user id จาก token ที่ LINE ยืนยันเท่านั้น ไม่เชื่อค่าที่ client ส่งมา
   router.use(async (req, res, next) => {
     try {
-      const lineUserId = await verifyIdToken(readBearerToken(req));
-      req.userId = await users.ensureUser(lineUserId);
+      const { lineUserId, name } = await verifyIdToken(readBearerToken(req));
+      req.userId = await users.ensureUser(lineUserId, { tokenName: name });
       next();
     } catch (err) {
       if (err instanceof AuthError) {

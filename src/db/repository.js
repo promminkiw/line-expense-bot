@@ -87,6 +87,16 @@ function createRepository(supabase) {
     return data.id;
   }
 
+  // เงื่อนไข is null กันเขียนทับชื่อที่มีอยู่แล้ว
+  async function fillMissingDisplayName(userId, displayName) {
+    const { error } = await supabase
+      .from('users')
+      .update({ display_name: displayName })
+      .eq('id', userId)
+      .is('display_name', null);
+    throwIfError('fillMissingDisplayName', error);
+  }
+
   async function seedDefaultCategories(userId) {
     const rows = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) =>
       names.map((name) => ({ user_id: userId, type, name }))
@@ -279,11 +289,14 @@ function createRepository(supabase) {
 
   // สองแถวอยู่ในคำสั่งเดียว จึงเกิดพร้อมกันหรือไม่เกิดเลย
   async function addFriendship(userId, friendId) {
+    const rows = [
+      { user_id: userId, friend_id: friendId },
+      { user_id: friendId, friend_id: userId },
+    ];
+    // เรียงตาม user_id ให้การเพิ่มพร้อมกันสองฝั่งล็อกแถวลำดับเดียวกัน จะได้ไม่ deadlock
+    rows.sort((a, b) => (a.user_id < b.user_id ? -1 : 1));
     const { error } = await supabase.from('friendships').upsert(
-      [
-        { user_id: userId, friend_id: friendId },
-        { user_id: friendId, friend_id: userId },
-      ],
+      rows,
       { onConflict: 'user_id,friend_id', ignoreDuplicates: true }
     );
     throwIfError('addFriendship', error);
@@ -560,6 +573,7 @@ function createRepository(supabase) {
     deleteAllExpiredPendingSlips,
     findUserIdByLineId,
     createUser,
+    fillMissingDisplayName,
     seedDefaultCategories,
     getCategoryIds,
     claimEvent,
