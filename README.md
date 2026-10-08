@@ -62,7 +62,7 @@ flowchart LR
 ## โครงสร้างโฟลเดอร์
 
 ```
-src/                        โค้ดฝั่ง server (bot, api, parser, slip, summary, budget, recurring, export, db)
+src/                        โค้ดฝั่ง server (bot, api, parser, slip, summary, budget, recurring, export, friends, db)
 public/liff/                หน้าเว็บ LIFF และเทสต์ของหน้า
 supabase/                   SQL schema และ migration (รันตามลำดับ)
 scripts/                    สคริปต์ช่วยพัฒนา (try-parse)
@@ -106,7 +106,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
    - `GET <URL>/health` ทุก 10 นาที (กัน Free plan หลับ)
    - `POST <URL>/internal/recurring/run` วันละครั้ง พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) และเปิดแจ้งเตือนเมื่อล้มเหลว (timeout สูงสุดของ cron-job.org คือ 30 วินาที)
 5. ใน LINE Developers console ของ LIFF app เปิด "shareTargetPicker" (ให้ปุ่มส่งลิงก์ชวนเพื่อนเปิดหน้าเลือกแชตได้ ถ้าไม่เปิด หน้าเว็บจะคัดลอกลิงก์แทน)
-6. ใน LINE Developers console ของ LINE Login channel ที่ผูกกับ LIFF เปิด "Add friend option" (เลือกแบบ aggressive) ให้ LINE ชวนเพิ่มบอทเป็นเพื่อนตอนเปิดหน้าเว็บครั้งแรก (การตรวจว่าเพื่อนเพิ่มบอทแล้วจริงจะทำในเฟส 2 ตอนที่บอทต้องส่งข้อความหาเพื่อน)
+6. ใน LINE Developers console ของ LINE Login channel ที่ผูกกับ LIFF: ก่อนอื่นต้องผูก Official Account ของ Messaging API ที่ใช้กับบอท (ช่อง "Linked LINE Official Account" ใน Basic settings, ต้องอยู่ provider เดียวกัน) แล้วจึงตั้ง "Add friend option" (เลือกแบบ aggressive) ที่แท็บ LIFF ของ channel นั้น เพื่อให้ LINE ชวนเพิ่มบอทเป็นเพื่อนตอนเปิดหน้าเว็บ ผู้ใช้ที่เคยกดยอมรับสิทธิ์ของ LIFF app ไปแล้วจะไม่เห็นหน้าชวนนี้ ขั้นนี้ยังต้องยืนยันตอนทดสอบด้วยแอป LINE จริง (การตรวจว่าเพื่อนเพิ่มบอทแล้วจริงจะทำในเฟส 2 ตอนที่บอทต้องส่งข้อความหาเพื่อน)
 
 ## คำสั่งพัฒนา
 

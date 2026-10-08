@@ -28,9 +28,11 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 2\. สรุปผล: พิมพ์ "สรุปวันนี้/สัปดาห์นี้/เดือนนี้" หรือกด Rich Menu คำนวณยอดด้วย SQL (ห้ามให้ Claude คิดเลข) แล้วให้ Claude เขียนคำอธิบายสั้นๆ ส่งเป็น Flex Message
 
-3\. เว็บ LIFF: แท็บล่าง 5 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ; รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
+3\. เว็บ LIFF: แท็บล่าง 5 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ; รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท และส่วนเพื่อน: รหัสเพื่อนของตัวเอง ส่งลิงก์ชวน/QR เพิ่มเพื่อนด้วยรหัส รายชื่อเพื่อน ลบเพื่อน เปลี่ยนรหัส), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
 
 API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend?month=` (6 เดือนสิ้นสุดเดือนที่เลือก) และ `GET /api/profile` (ชื่อ ยอดสะสม ยอดคงเหลือ จำนวนรายการ วันที่รายการแรก) ใช้ SQL `010_profile_and_trend.sql`
+
+API เพื่อน (ใช้ ID token เหมือน API อื่น): `GET /api/friends` (รหัสของตัวเองกับรายชื่อเพื่อน), `GET /api/friends/lookup?code=` (ดูชื่อเจ้าของรหัสก่อนยืนยัน), `POST /api/friends` (เพิ่มเพื่อนด้วย `code` ใน body เป็นเพื่อนกันทั้งสองฝั่ง), `POST /api/friends/code` (เปลี่ยนรหัสของตัวเอง), `DELETE /api/friends/:id` (ลบเพื่อนทั้งสองฝั่ง ตอบ 204); lookup กับ POST /api/friends ถูกจำกัด 10 ครั้ง/นาที/ผู้ใช้ ใช้ SQL `012_friends.sql`
 
 4\. Rich Menu: ปุ่ม สรุป / เปิดเว็บ / ช่วยเหลือ
 
@@ -46,7 +48,7 @@ API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend
 
 \## Database (Supabase)
 
-\- users: id, line\_user\_id (unique), display\_name, created\_at
+\- users: id, line\_user\_id (unique), display\_name (ถ้ายังว่าง server เติมจากชื่อใน ID token ตอนเรียก API จากหน้า LIFF), created\_at, friend\_code (unique, 8 ตัวจากชุดตัวอักษรที่ตัด I O 0 1 ออก, สร้างตอนผู้ใช้เปิดส่วนเพื่อนครั้งแรก จึงเป็น null ได้)
 
 \- categories: id, user\_id, name, type
 
@@ -57,6 +59,8 @@ API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend
 \- pending\_slips: id, user\_id, line\_event\_id, items (jsonb อาร์เรย์ของรายการจากสลิป), created\_at (พักรายการรอผู้ใช้กดยืนยัน หมดเวลา 10 นาที)
 
 \- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on (ทำงานเดือนละครั้ง, last\_run\_on คือวันครบกำหนดของรอบล่าสุดที่ทำงานหรือถูกข้าม)
+
+\- friendships: user\_id, friend\_id, created\_at (primary key คู่ user\_id+friend\_id; เก็บสองแถวต่อคู่เพื่อน คือ A->B และ B->A; ลบ user แล้วลบแถวตามด้วย cascade; user\_id ต้องไม่เท่ากับ friend\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น)
 
 \- ทุกตารางมี user\_id, เปิด RLS ทุกตาราง
 
