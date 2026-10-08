@@ -19,6 +19,7 @@ const MIGRATIONS = [
   '010_profile_and_trend.sql',
   '011_slip_category.sql',
   '012_friends.sql',
+  '013_bills.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -363,6 +364,106 @@ describe('012_friends.sql', () => {
   });
 });
 
+describe('013_bills.sql', () => {
+  async function setupBill({ ownerShare = 100, shares = [150, 150] } = {}) {
+    const owner = await createUser('U1');
+    const friends = [];
+    for (const [index] of shares.entries()) friends.push(await createUser(`F${index}`));
+    const food = await createCategory(owner, 'อาหาร', 'expense');
+    const total = ownerShare + shares.reduce((sum, share) => sum + share, 0);
+    const members = JSON.stringify(friends.map((userId, index) => ({ user_id: userId, share: shares[index] })));
+    const bill = (
+      await one('select create_bill($1, $2, $3, $4, $5, $6, $7) as id', [owner, 'เนื้อย่าง', total, food, '2026-10-08', ownerShare, members])
+    ).id;
+    return { owner, friends, food, bill, total };
+  }
+
+  it('creates the bill, the owner transaction and one pending row per member in one call', async () => {
+    const { owner, friends, bill } = await setupBill();
+
+    const saved = await one('select owner_id, title, total, status, owner_share, owner_transaction_id from bills where id = $1', [bill]);
+    expect(numbers(saved)).toMatchObject({ owner_id: owner, title: 'เนื้อย่าง', total: 400, status: 'open', owner_share: 100 });
+    const ownerTx = await one('select user_id, type, amount, note, occurred_on::text, source from transactions where id = $1', [
+      saved.owner_transaction_id,
+    ]);
+    expect(numbers(ownerTx)).toEqual({ user_id: owner, type: 'expense', amount: 100, note: 'เนื้อย่าง', occurred_on: '2026-10-08', source: 'bill' });
+    const members = await rows('select user_id, share, status, paid, notified from bill_members where bill_id = $1 order by share', [bill]);
+    expect(members.map(numbers).map((row) => row.user_id).sort()).toEqual([...friends].sort());
+    expect(members.every((row) => row.status === 'pending' && row.paid === false && row.notified === false)).toBe(true);
+  });
+
+  it('records no owner transaction when the owner share is zero', async () => {
+    const { bill } = await setupBill({ ownerShare: 0, shares: [200] });
+
+    expect((await one('select owner_transaction_id from bills where id = $1', [bill])).owner_transaction_id).toBeNull();
+    expect(Number((await one('select count(*) from transactions')).count)).toBe(0);
+  });
+
+  it('confirms a pending share once, recording the friend expense in the given category', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+
+    const first = await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood]);
+    const again = await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood]);
+
+    expect([first.status, again.status]).toEqual(['confirmed', 'confirmed']);
+    const member = await one('select status, transaction_id, responded_at from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]]);
+    expect(member.status).toBe('confirmed');
+    expect(member.responded_at).not.toBeNull();
+    const tx = await one('select user_id, category_id, amount, note, source from transactions where id = $1', [member.transaction_id]);
+    expect(numbers(tx)).toEqual({ user_id: friends[0], category_id: friendFood, amount: 150, note: 'เนื้อย่าง', source: 'bill' });
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(1);
+  });
+
+  it('declines a pending share and reports earlier answers without changing them', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+
+    expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[1]])).status).toBe('declined');
+    expect((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status).toBe('confirmed');
+    expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status).toBe('confirmed');
+    expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[1]])).status).toBe('declined');
+  });
+
+  it('refuses to confirm or decline once the bill is cancelled, and reports a stranger as not found', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+    const stranger = await createUser('S1');
+    await db.query("update bills set status = 'cancelled' where id = $1", [bill]);
+
+    expect((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status).toBe('cancelled');
+    expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[1]])).status).toBe('cancelled');
+    expect((await one('select decline_bill_share($1, $2) as status', [bill, stranger])).status).toBe('not_found');
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(0);
+  });
+
+  it('rejects a non-positive share, an unknown status and the same member twice', async () => {
+    const { friends, bill } = await setupBill();
+
+    for (const sql of [
+      ['update bill_members set share = 0 where bill_id = $1', [bill]],
+      ["update bill_members set status = 'maybe' where bill_id = $1", [bill]],
+      ["update bills set status = 'paid' where id = $1", [bill]],
+      ['insert into bill_members (bill_id, user_id, share) values ($1, $2, 10)', [bill, friends[0]]],
+    ]) {
+      await db.exec('savepoint bad');
+      await expect(db.query(sql[0], sql[1])).rejects.toThrow();
+      await db.exec('rollback to savepoint bad');
+    }
+  });
+
+  it('removes the members with the bill and keeps a confirmed expense when the bill is deleted', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+    await one('select confirm_bill_share($1, $2, $3)', [bill, friends[0], friendFood]);
+
+    await db.query('delete from bills where id = $1', [bill]);
+
+    expect(Number((await one('select count(*) from bill_members')).count)).toBe(0);
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(1);
+  });
+});
+
 describe('function permissions', () => {
   const calls = [
     ['summarize_transactions', "select * from summarize_transactions(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
@@ -370,6 +471,9 @@ describe('function permissions', () => {
     ['apply_recurring_rule', "select apply_recurring_rule(gen_random_uuid(), '2026-09-01', 'x')"],
     ['lifetime_totals', 'select * from lifetime_totals(gen_random_uuid())'],
     ['monthly_totals', "select * from monthly_totals(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
+    ['create_bill', "select create_bill(gen_random_uuid(), 'x', 1, gen_random_uuid(), '2026-10-08', 0, '[]'::jsonb)"],
+    ['confirm_bill_share', 'select confirm_bill_share(gen_random_uuid(), gen_random_uuid(), gen_random_uuid())'],
+    ['decline_bill_share', 'select decline_bill_share(gen_random_uuid(), gen_random_uuid())'],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว
@@ -388,6 +492,9 @@ describe('function permissions', () => {
     const query = db.query(sql);
     if (name === 'apply_recurring_rule') {
       await expect(query).rejects.toThrow('invalid recurring event id');
+    } else if (name === 'create_bill') {
+      // owner และหมวดสุ่มขึ้นมาจึงชน FK แต่ต้องผ่านการตรวจสิทธิ์มาก่อน
+      await expect(query).rejects.toThrow('foreign key');
     } else {
       await expect(query).resolves.toBeDefined();
     }
