@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createUserService } from './users.js';
 
 function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedValue('Aom')) {
@@ -70,6 +70,49 @@ describe('userService.ensureUser', () => {
 
     await expect(service.ensureUser('U1')).rejects.toThrow('db down');
     expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom' });
+  });
+
+  describe('profile timeout', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('creates the user with a null name when LINE profile takes too long', async () => {
+      vi.useFakeTimers();
+      const { repository, logger, service } = setup({}, vi.fn(() => new Promise(() => {})));
+      const pending = service.ensureUser('U1');
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(await pending).toBe('user-1');
+      expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null });
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to fetch LINE profile',
+        { lineUserId: 'U1' },
+        expect.objectContaining({ message: 'LINE profile request timed out' })
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('waits up to 3 seconds by default', async () => {
+      vi.useFakeTimers();
+      const { repository, service } = setup({}, vi.fn(() => new Promise(() => {})));
+      service.ensureUser('U1');
+
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(repository.createUser).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(repository.createUser).toHaveBeenCalled();
+    });
+
+    it('clears the timer when LINE profile answers in time', async () => {
+      vi.useFakeTimers();
+      const { service } = setup();
+
+      await service.ensureUser('U1');
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });
 

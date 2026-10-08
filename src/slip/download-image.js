@@ -1,6 +1,16 @@
 // เพดานนี้กันให้ base64 ของรูปไม่เกิน 5 MB ซึ่งเป็นขีดจำกัดรูปของ Claude
 const MAX_IMAGE_BYTES = 3.75 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 15000;
+const RETRY_DELAY_MS = 500;
+const DOWNLOAD_TIMEOUT_CODE = 'LINE_DOWNLOAD_TIMEOUT';
+
+// เครือข่ายหรือ LINE สะดุดชั่วคราวลองใหม่แล้วมักหาย ส่วน 4xx หรือ error อื่นลองซ้ำก็ไม่หาย
+function isRetryableDownloadError(err) {
+  if (err?.code === DOWNLOAD_TIMEOUT_CODE || err instanceof TypeError) {
+    return true;
+  }
+  return err?.name === 'HTTPFetchError' && Number.isInteger(err.status) && err.status >= 500;
+}
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
@@ -25,8 +35,8 @@ function detectMediaType(buffer) {
   return null;
 }
 
-function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS }) {
-  return async function downloadImage(messageId) {
+function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS, retryDelayMs = RETRY_DELAY_MS, logger = console }) {
+  async function downloadOnce(messageId) {
     let stream = null;
     let timedOut = false;
     let timer;
@@ -63,7 +73,7 @@ function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS }) 
         if (stream) {
           stream.destroy();
         }
-        reject(new Error('LINE image download timed out'));
+        reject(Object.assign(new Error('LINE image download timed out'), { code: DOWNLOAD_TIMEOUT_CODE }));
       }, timeoutMs);
     });
 
@@ -71,6 +81,23 @@ function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS }) 
       return await Promise.race([readImage(), timeout]);
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  return async function downloadImage(messageId) {
+    try {
+      return await downloadOnce(messageId);
+    } catch (err) {
+      if (!isRetryableDownloadError(err)) {
+        throw err;
+      }
+      // log แค่ชนิดของ error ไม่ใส่ message id ของรูป
+      logger.info('Retrying LINE image download', {
+        reason: err.code === DOWNLOAD_TIMEOUT_CODE ? 'timeout' : err.name,
+        status: err.status ?? null,
+      });
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      return downloadOnce(messageId);
     }
   };
 }

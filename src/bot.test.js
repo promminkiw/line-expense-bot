@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createBot,
   SYSTEM_ERROR_REPLY,
@@ -13,6 +13,8 @@ import {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   SLIP_TTL_MS,
+  SLOW_PROCESSING_REPLY,
+  REPLY_DEADLINE_MS,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
@@ -206,6 +208,57 @@ describe('bot text message', () => {
 
     expect(deps.repository.clearPendingClarification).not.toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('treats a failed context load as no context and still saves', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+    expect(deps.replyFlex).toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to load pending clarification',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
+  });
+
+  it('clears the pending conversation after saving when the context load failed', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('ขนม 30'));
+
+    expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
+    expect(deps.replyFlex).toHaveBeenCalled();
+  });
+
+  it('still replies system error when parsing fails after the context load failed', async () => {
+    const parseMessage = vi.fn().mockRejectedValue(new Error('claude down'));
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('still asks back and remembers the question when the context load failed', async () => {
+    const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'ซื้ออะไรกี่บาท' });
+    const { deps, bot } = setup({ parseMessage });
+    deps.repository.getPendingClarification.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('ซื้อของ'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ซื้ออะไรกี่บาท', undefined);
+    expect(deps.repository.savePendingClarification).toHaveBeenCalledWith('user-1', [
+      { role: 'user', text: 'ซื้อของ' },
+      { role: 'assistant', text: 'ซื้ออะไรกี่บาท' },
+    ]);
   });
 
   it('still replies saved and logs when forgetting the pending conversation fails', async () => {
@@ -1361,5 +1414,134 @@ describe('bot edit links stay safe', () => {
     expect(deps.replyFlex).toHaveBeenCalledTimes(1);
     const rows = deps.replyFlex.mock.calls[0][1].contents.body.contents.filter((node) => node.action);
     expect(rows).toEqual([]);
+  });
+});
+
+describe('bot reply deadline', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it('keeps the slow reply text and the 50 second deadline', () => {
+    expect(SLOW_PROCESSING_REPLY).toBe(
+      'ระบบตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง'
+    );
+    expect(REPLY_DEADLINE_MS).toBe(50000);
+  });
+
+  it('replies the slow message at the deadline and drops the late reply', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setup({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('กินข้าว 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith('Event passed the reply deadline', { lineUserId: 'U1', eventType: 'message' });
+
+    parse.resolve({ status: 'ok', items: [FOOD_ITEM] });
+    await vi.advanceTimersByTimeAsync(0);
+
+    // งานที่ค้างยังบันทึกต่อ จึงต้องบอกผู้ใช้ให้ตรวจก่อนส่งซ้ำ
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledTimes(1);
+    expect(deps.logger.info).toHaveBeenCalledWith('Dropped a reply that finished after the deadline', {
+      lineUserId: 'U1',
+      eventType: 'message',
+    });
+  });
+
+  it('does not keep a clarify question that finished after the deadline', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setup({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('ข้าวเที่ยง'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+    parse.resolve({ status: 'clarify', question: 'ข้าวเที่ยงกี่บาท' });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(deps.repository.savePendingClarification).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledTimes(1);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+  });
+
+  it('logs a failure that happens after the deadline without replying again', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setup({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('กินข้าว 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+    parse.reject(new Error('overloaded'));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(deps.replyText).toHaveBeenCalledTimes(1);
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event after the reply deadline',
+      { lineUserId: 'U1', eventType: 'message' },
+      expect.any(Error)
+    );
+  });
+
+  it('uses a 50 second deadline by default', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ parseMessage: vi.fn(() => new Promise(() => {})) });
+
+    const handled = bot.handleEvent(textEvent('กินข้าว 60'));
+    await vi.advanceTimersByTimeAsync(49999);
+    expect(deps.replyText).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+  });
+
+  it('still replies system error when processing fails before the deadline', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ parseMessage: vi.fn().mockRejectedValue(new Error('overloaded')), replyDeadlineMs: 1000 });
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('clears the deadline timer on the normal path', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ replyDeadlineMs: 1000 });
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.replyFlex).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('sends nothing for a follow event that passes the deadline', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ replyDeadlineMs: 1000 });
+    deps.users.ensureUser.mockImplementation(() => new Promise(() => {}));
+
+    const handled = bot.handleEvent(followEvent());
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
   });
 });
