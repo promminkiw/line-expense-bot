@@ -10,6 +10,7 @@ import {
   buildBillUrl,
 } from './bills-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../src/bills/validate.js';
 
 describe('split helpers', () => {
   it('match the server rounding', () => {
@@ -68,5 +69,15 @@ describe('labels and messages', () => {
 
   it('builds the link to a bill on the web page', () => {
     expect(buildBillUrl('liff-1', 'b-1')).toBe('https://liff.line.me/liff-1?bill=b-1');
+  });
+});
+
+describe('matches the server split math', () => {
+  it.each([333.33, 1.005, 0.1 + 0.2, 1000 / 3, 10000000, 0, -1, NaN, '10'])('toSatang(%s)', (amount) => {
+    expect(toSatang(amount)).toEqual(serverToSatang(amount));
+  });
+
+  it.each([[100000, 3], [90000, 3], [1, 2], [1000000000, 7]])('splitEvenly(%s, %s)', (total, count) => {
+    expect(splitEvenly(total, count)).toEqual(serverSplitEvenly(total, count));
   });
 });
