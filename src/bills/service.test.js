@@ -69,11 +69,12 @@ describe('billService.create', () => {
 
   it('keeps the bill and reports members the push could not reach, logging only ids', async () => {
     const { service, repository, pushFlex, logger } = setup();
-    pushFlex.mockRejectedValueOnce(new Error('not a friend of the bot'));
+    const pushError = new Error('not a friend of the bot');
+    pushFlex.mockRejectedValueOnce(pushError);
 
     expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [F1] });
     expect(repository.markBillMemberNotified.mock.calls).toEqual([[BILL, F2]]);
-    expect(logger.error).toHaveBeenCalledWith('Failed to push bill request', { billId: BILL, memberId: F1 });
+    expect(logger.error).toHaveBeenCalledWith('Failed to push bill request', { billId: BILL, memberId: F1 }, pushError);
   });
 
   it('rejects invalid input, a category that is not the owner expense category, and strangers', async () => {
@@ -86,6 +87,37 @@ describe('billService.create', () => {
     });
     repository.listFriends.mockResolvedValueOnce([{ id: F1, displayName: 'บี' }]);
     expect(await service.create(OWNER, body())).toEqual({ status: 'invalid', error: 'Not friends' });
+    expect(repository.createBill).not.toHaveBeenCalled();
+  });
+
+  it('keeps the bill and reports every member as not notified when the line id lookup fails', async () => {
+    const lookupError = new Error('db down');
+    const { service, pushFlex, logger } = setup({ getLineUserIds: vi.fn().mockRejectedValue(lookupError) });
+
+    expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [F1, F2] });
+    expect(pushFlex).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith('Failed to prepare bill request', { billId: BILL }, lookupError);
+  });
+
+  it('keeps the bill and reports every member as not notified when the owner name lookup fails', async () => {
+    const { service, pushFlex } = setup({ getDisplayName: vi.fn().mockRejectedValue(new Error('db down')) });
+
+    expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [F1, F2] });
+    expect(pushFlex).not.toHaveBeenCalled();
+  });
+
+  it('counts a member as notified when the push succeeds but marking notified fails', async () => {
+    const markError = new Error('db down');
+    const { service, logger } = setup({ markBillMemberNotified: vi.fn().mockRejectedValueOnce(markError).mockResolvedValue() });
+
+    expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [] });
+    expect(logger.error).toHaveBeenCalledWith('Failed to mark bill member notified', { billId: BILL, memberId: F1 }, markError);
+  });
+
+  it('rejects an income category the owner does own', async () => {
+    const { service, repository } = setup();
+
+    expect(await service.create(OWNER, body({ categoryId: 'salary' }))).toEqual({ status: 'invalid', error: 'Invalid category' });
     expect(repository.createBill).not.toHaveBeenCalled();
   });
 

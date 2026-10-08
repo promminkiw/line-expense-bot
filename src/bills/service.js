@@ -7,10 +7,18 @@ const { categoryKey } = require('../db/transaction-rows');
 function createBillService({ repository, users, pushFlex, liffUrl, logger = console }) {
   // บิลถูกบันทึกแล้วก่อน push ถ้า push ไม่ถึงเพื่อนยังเข้ามายืนยันในเว็บได้
   async function notifyMembers(billId, ownerId, bill) {
-    const [ownerName, lineIds] = await Promise.all([
-      repository.getDisplayName(ownerId),
-      repository.getLineUserIds(bill.members.map((member) => member.userId)),
-    ]);
+    let ownerName;
+    let lineIds;
+    try {
+      [ownerName, lineIds] = await Promise.all([
+        repository.getDisplayName(ownerId),
+        repository.getLineUserIds(bill.members.map((member) => member.userId)),
+      ]);
+    } catch (err) {
+      // ห้าม throw หลังบันทึกบิลแล้ว ไม่งั้นเจ้าของลองใหม่แล้วได้บิลซ้ำ
+      logger.error('Failed to prepare bill request', { billId }, err);
+      return bill.members.map((member) => member.userId);
+    }
     const notNotified = [];
     for (const member of bill.members) {
       try {
@@ -23,10 +31,16 @@ function createBillService({ repository, users, pushFlex, liffUrl, logger = cons
           liffUrl,
         });
         await pushFlex(lineIds.get(member.userId), flex);
-        await repository.markBillMemberNotified(billId, member.userId);
-      } catch {
-        logger.error('Failed to push bill request', { billId, memberId: member.userId });
+      } catch (err) {
+        logger.error('Failed to push bill request', { billId, memberId: member.userId }, err);
         notNotified.push(member.userId);
+        continue;
+      }
+      // เพื่อนได้การ์ดแล้ว การ mark ไม่สำเร็จจึงไม่นับเป็นแจ้งไม่ถึง
+      try {
+        await repository.markBillMemberNotified(billId, member.userId);
+      } catch (err) {
+        logger.error('Failed to mark bill member notified', { billId, memberId: member.userId }, err);
       }
     }
     return notNotified;
