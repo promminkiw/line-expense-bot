@@ -5,6 +5,7 @@ const { lastDayOf, monthStartOf } = require('../recurring/schedule');
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
 const EXPORT_PAGE_SIZE = 1000;
+const EXPORT_COLUMNS = `${TRANSACTION_COLUMNS}, created_at`;
 const RULE_COLUMNS = 'id, type, category_id, amount, note, day_of_month, active, last_run_on';
 // กันงานรอบเดียวหนักเกินไป ที่เหลือจะถูกหยิบในรอบถัดไป
 const DUE_RULE_BATCH = 500;
@@ -32,6 +33,15 @@ function toTransaction(row) {
     occurredOn: row.occurred_on,
     categoryId: row.category_id,
   };
+}
+
+// เทียบ created_at เป็นเวลาแทนข้อความ เพราะ Postgres ตัดเลขศูนย์ท้ายทศนิยมวินาทีทิ้ง
+function compareOldestFirst(a, b) {
+  if (a.occurred_on !== b.occurred_on) return a.occurred_on < b.occurred_on ? -1 : 1;
+  const created = Date.parse(a.created_at) - Date.parse(b.created_at);
+  if (created !== 0) return created;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
 }
 
 const SAFE_CAUSE_FIELDS = ['message', 'code', 'hint'];
@@ -275,30 +285,27 @@ function createRepository(supabase) {
 
   async function listAllTransactions(userId, from, to) {
     const rows = [];
-    let total = null;
+    let lastId = null;
     for (;;) {
-      const start = rows.length;
-      const table = supabase.from('transactions');
-      // ขอ count แค่หน้าแรก ถ้าขอทุกหน้าแล้วมีคนลบแถวระหว่างหน้า PostgREST จะตอบ 416 แทนหน้าว่าง
-      const query = start === 0 ? table.select(TRANSACTION_COLUMNS, { count: 'exact' }) : table.select(TRANSACTION_COLUMNS);
-      // เรียงด้วย id ด้วยเพื่อให้ลำดับคงที่ระหว่างหน้า
-      const { data, count, error } = await query
+      // keyset ด้วย id แทน offset: แถวที่ถูกลบหรือเพิ่มระหว่างหน้าจะไม่ทำให้แถวอื่นซ้ำหรือหาย
+      let query = supabase
+        .from('transactions')
+        .select(EXPORT_COLUMNS)
         .eq('user_id', userId)
         .gte('occurred_on', from)
-        .lte('occurred_on', to)
-        .order('occurred_on', { ascending: true })
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
-        .range(start, start + EXPORT_PAGE_SIZE - 1);
+        .lte('occurred_on', to);
+      if (lastId !== null) query = query.gt('id', lastId);
+      const { data, error } = await query.order('id', { ascending: true }).limit(EXPORT_PAGE_SIZE);
       throwIfError('listAllTransactions', error);
-      if (start === 0) total = count;
-      rows.push(...data.map(toTransaction));
-      // เทียบกับจำนวนทั้งหมดแทนขนาดหน้า เพราะ server อาจตั้ง max-rows ต่ำกว่า 1000 แล้วหน้าสั้นลงทั้งที่ยังไม่หมด
-      if (data.length === 0 || (typeof total === 'number' && rows.length >= total)) {
-        return rows;
-      }
+      // หยุดที่หน้าว่างเท่านั้น เพราะ server อาจตั้ง max-rows ต่ำกว่า 1000 แล้วหน้าสั้นลงทั้งที่ยังไม่หมด
+      if (data.length === 0) break;
+      rows.push(...data);
+      lastId = data[data.length - 1].id;
     }
+    rows.sort(compareOldestFirst);
+    return rows.map(toTransaction);
   }
+
 
   async function deleteExpiredExportLinks(userId, nowIso) {
     const { error } = await supabase
