@@ -1480,7 +1480,7 @@ describe('repository bills', () => {
             occurred_on: '2026-10-08',
             status: 'open',
             categories: { name: 'อาหาร' },
-            users: { display_name: null },
+            owner: { display_name: null },
           },
         },
       ],
@@ -1503,7 +1503,7 @@ describe('repository bills', () => {
     ]);
     expect(calls).toEqual([
       ['from', 'bill_members'],
-      ['select', 'share, status, paid, bills(id, title, total, occurred_on, status, categories(name), users(display_name))'],
+      ['select', 'share, status, paid, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))'],
       ['eq', 'user_id', 'user-2'],
       ['order', 'created_at', { ascending: false }],
       ['limit', 50],
@@ -1584,8 +1584,16 @@ describe('repository bills', () => {
   it('throws DatabaseError when a bill query fails', async () => {
     const failing = () => fakeSupabase({ data: null, count: null, error: { message: 'boom' } }).supabase;
 
-    await expect(createRepository(failing()).listOwnedBills('user-1')).rejects.toThrow('Database listOwnedBills failed: boom');
+    await expect(createRepository(failing()).createBill({ ownerId: 'u', title: 't', total: 1, occurredOn: '2026-10-08', categoryId: 'c', ownerShare: 0, members: [] })).rejects.toThrow('Database createBill failed: boom');
+    await expect(createRepository(failing()).markBillMemberNotified(BILL, 'u')).rejects.toThrow('Database markBillMemberNotified failed: boom');
+    await expect(createRepository(failing()).listOwnedBills('u')).rejects.toThrow('Database listOwnedBills failed: boom');
+    await expect(createRepository(failing()).listIncomingBills('u')).rejects.toThrow('Database listIncomingBills failed: boom');
+    await expect(createRepository(failing()).getBillShare(BILL, 'u')).rejects.toThrow('Database getBillShare failed: boom');
     await expect(createRepository(failing()).confirmBillShare(BILL, 'u', 'c')).rejects.toThrow('Database confirmBillShare failed: boom');
+    await expect(createRepository(failing()).declineBillShare(BILL, 'u')).rejects.toThrow('Database declineBillShare failed: boom');
     await expect(createRepository(failing()).cancelBill(BILL, 'u')).rejects.toThrow('Database cancelBill failed: boom');
+    await expect(createRepository(failing()).isBillOwner(BILL, 'u')).rejects.toThrow('Database isBillOwner failed: boom');
+    await expect(createRepository(failing()).setBillMemberPaid(BILL, 'u', true)).rejects.toThrow('Database setBillMemberPaid failed: boom');
+    await expect(createRepository(failing()).getLineUserIds(['u'])).rejects.toThrow('Database getLineUserIds failed: boom');
   });
 });

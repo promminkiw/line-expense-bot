@@ -69,7 +69,7 @@ function toIncomingBill(row) {
     occurredOn: bill.occurred_on,
     categoryName: bill.categories ? bill.categories.name : '',
     status: bill.status,
-    ownerName: bill.users ? bill.users.display_name : null,
+    ownerName: bill.owner ? bill.owner.display_name : null,
     myShare: Number(row.share),
     myStatus: row.status,
     paid: row.paid,
@@ -386,7 +386,7 @@ function createRepository(supabase) {
   async function listIncomingBills(userId) {
     const { data, error } = await supabase
       .from('bill_members')
-      .select('share, status, paid, bills(id, title, total, occurred_on, status, categories(name), users(display_name))')
+      .select('share, status, paid, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(BILL_LIST_LIMIT);
