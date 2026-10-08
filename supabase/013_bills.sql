@@ -71,7 +71,7 @@ begin
 end
 $$;
 
--- for update กันการกดยืนยันซ้อนกันสองครั้งจนบันทึกซ้ำ
+-- ล็อกบิลก่อนสมาชิก (for share) กัน cancel แทรก และ for update กันกดซ้ำจนบันทึกซ้ำ
 create or replace function public.confirm_bill_share(p_bill uuid, p_user uuid, p_category uuid)
 returns text
 language plpgsql
@@ -82,6 +82,10 @@ declare
   b public.bills%rowtype;
   tx uuid;
 begin
+  select * into b from public.bills where id = p_bill for share;
+  if not found then
+    return 'not_found';
+  end if;
   select * into m from public.bill_members where bill_id = p_bill and user_id = p_user for update;
   if not found then
     return 'not_found';
@@ -89,7 +93,6 @@ begin
   if m.status <> 'pending' then
     return m.status;
   end if;
-  select * into b from public.bills where id = p_bill;
   if b.status = 'cancelled' then
     return 'cancelled';
   end if;
@@ -113,6 +116,10 @@ declare
   m public.bill_members%rowtype;
   bill_status text;
 begin
+  select status into bill_status from public.bills where id = p_bill for share;
+  if not found then
+    return 'not_found';
+  end if;
   select * into m from public.bill_members where bill_id = p_bill and user_id = p_user for update;
   if not found then
     return 'not_found';
@@ -120,7 +127,6 @@ begin
   if m.status <> 'pending' then
     return m.status;
   end if;
-  select status into bill_status from public.bills where id = p_bill;
   if bill_status = 'cancelled' then
     return 'cancelled';
   end if;

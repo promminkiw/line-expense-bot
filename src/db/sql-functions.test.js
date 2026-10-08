@@ -441,16 +441,29 @@ describe('013_bills.sql', () => {
     const { friends, bill } = await setupBill();
 
     for (const sql of [
-      ['update bill_members set share = 0 where bill_id = $1', [bill]],
-      ["update bill_members set status = 'maybe' where bill_id = $1", [bill]],
-      ["update bills set status = 'paid' where id = $1", [bill]],
-      ['insert into bill_members (bill_id, user_id, share) values ($1, $2, 10)', [bill, friends[0]]],
+      ['update bill_members set share = 0 where bill_id = $1', [bill], 'check constraint'],
+      ["update bill_members set status = 'maybe' where bill_id = $1", [bill], 'check constraint'],
+      ["update bills set status = 'paid' where id = $1", [bill], 'check constraint'],
+      ['insert into bill_members (bill_id, user_id, share) values ($1, $2, 10)', [bill, friends[0]], 'duplicate key'],
     ]) {
       await db.exec('savepoint bad');
-      await expect(db.query(sql[0], sql[1])).rejects.toThrow();
+      await expect(db.query(sql[0], sql[1])).rejects.toThrow(sql[2]);
       await db.exec('rollback to savepoint bad');
     }
   });
+
+  it.each(['confirm_bill_share', 'decline_bill_share'])(
+    '%s locks the bill row before the member row so a cancel cannot slip in between',
+    async (name) => {
+      const { def } = await one('select pg_get_functiondef($1::regproc) as def', [`public.${name}`]);
+
+      const billLock = def.search(/from public\.bills\s+where id = p_bill\s+for share/i);
+      const memberLock = def.search(/from public\.bill_members\s+where[^;]*for update/i);
+      expect(billLock).toBeGreaterThan(-1);
+      expect(memberLock).toBeGreaterThan(-1);
+      expect(billLock).toBeLessThan(memberLock);
+    }
+  );
 
   it('removes the members with the bill and keeps a confirmed expense when the bill is deleted', async () => {
     const { friends, bill } = await setupBill();
