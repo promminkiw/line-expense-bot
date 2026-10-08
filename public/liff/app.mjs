@@ -32,7 +32,7 @@ import { createFriendsPanel } from './friends-panel.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseEditLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -1325,12 +1325,18 @@ async function boot() {
     els.exportButton.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
-    if (link) window.history.replaceState(null, '', window.location.pathname);
+    const friendCode = parseFriendLink(window.location.search);
+    if (link || friendCode) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
+    // ลิงก์ชวนเพื่อนและ QR พามาที่ส่วนเพื่อนแล้วถามยืนยันก่อนเพิ่ม
+    if (friendCode) {
+      tabController.select('profile');
+      await friendsPanel.openAdd(friendCode);
+    }
   } catch (err) {
     showLoadError(err);
   }

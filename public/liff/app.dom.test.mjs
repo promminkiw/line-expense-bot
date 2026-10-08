@@ -1229,6 +1229,30 @@ describe('LIFF friends section', () => {
     expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?friend=ABCD2345');
     expect(byId('friend-status').textContent).toBe('คัดลอกลิงก์แล้ว ส่งให้เพื่อนได้เลย');
   });
+  it('opens the profile tab and asks to add the friend from an invite link', async () => {
+    await boot({ search: '?friend=wxyz-2345' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+    expect(window.location.search).toBe('');
+  });
+
+  it('says it is my own code when I open my own invite link', async () => {
+    await boot({ search: '?friend=ABCD2345' });
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('friend-add-error').textContent).toBe('นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน');
+  });
+
+  it('stays on the list tab when the link has no friend code', async () => {
+    await boot({ search: '?friend=bad' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+  });
 });
 
 describe('LIFF friends section guards and failure paths', () => {
