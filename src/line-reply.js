@@ -41,4 +41,10 @@ function createReplyFlex(client) {
   };
 }
 
-module.exports = { capTextLength, createReplyText, createReplyFlex, createPushText };
+function createPushFlex(client) {
+  return async function pushFlex(to, flexMessage) {
+    await client.pushMessage({ to, messages: [flexMessage] });
+  };
+}
+
+module.exports = { capTextLength, createReplyText, createReplyFlex, createPushText, createPushFlex };
