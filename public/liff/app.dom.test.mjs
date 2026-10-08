@@ -257,6 +257,7 @@ describe('index.html static invariants', () => {
       'trend-error',
       'budgets-loading',
       'budgets-skeleton',
+      'bill-form-no-friends',
       'budgets-error',
       'recurring-loading',
       'recurring-skeleton',
@@ -1809,5 +1810,168 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  async function openForm(route) {
+    const calls = await openBills({ route });
+    byId('bill-new').click();
+    await settle();
+    return calls;
+  }
+
+  const shareInputs = () => [...document.querySelectorAll('#bill-form-members input[type="number"]')];
+
+  it('opens the form with today, the food category and the friends to pick', async () => {
+    await openForm();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-date').value).toBe('2026-10-15');
+    expect(byId('bill-form-category').selectedOptions[0].textContent).toBe('อาหาร');
+    expect([...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent)).toEqual(['บี']);
+  });
+
+  it('splits evenly with the leftover on the owner when friends are picked', async () => {
+    await openForm();
+
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    expect(byId('bill-form-owner-share').value).toBe('500');
+    expect(shareInputs().map((input) => input.value)).toEqual(['500']);
+  });
+
+  it('blocks submit and says how far off the shares are', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    shareInputs()[0].value = '600';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ยอดรวมของทุกคนเกินยอดบิล 100 บาท');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+    byId('bill-form-even').click();
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
+  it('asks to pick at least one friend', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกเพื่อนอย่างน้อย 1 คน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('creates the bill, closes the form and reloads the list', async () => {
+    let posted;
+    const calls = await openForm((method, path) => {
+      if (method === 'POST' && path === '/api/bills') return { id: 'b-new', notNotified: [] };
+      return undefined;
+    });
+    vi.stubGlobal('fetch', ((original) => async (url, options = {}) => {
+      if ((options.method ?? 'GET') === 'POST' && new URL(url, 'http://localhost').pathname === '/api/bills') posted = JSON.parse(options.body);
+      return original(url, options);
+    })(globalThis.fetch));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(posted).toEqual({
+      title: 'เนื้อย่าง',
+      total: 1000,
+      occurredOn: '2026-10-15',
+      categoryId: 'c-food',
+      ownerShare: 500,
+      members: [{ userId: 'f-1', share: 500 }],
+    });
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว');
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('tells the owner when some friends were not notified', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: ['f-1'] } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง 1 คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง');
+  });
+
+  it('keeps the form open and shows the server error', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { status: 429 } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('สร้างบิลบ่อยเกินไป รอสักครู่แล้วลองใหม่');
+  });
+
+  it('points to the profile tab when there are no friends yet', async () => {
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
+
+    expect(byId('bill-form-no-friends').hidden).toBe(false);
+    expect(byId('bill-form-no-friends').textContent).toBe('ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน');
+  });
+
+  it('blocks submit when a picked friend share is empty', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    shareInputs()[0].value = '';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ใส่ยอดของเพื่อนทุกคนที่เลือก');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('blocks submit when the owner share is empty', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form-owner-share').value = '';
+    byId('bill-form-owner-share').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ใส่ส่วนของฉัน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
   });
 });

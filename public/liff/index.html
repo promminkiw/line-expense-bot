@@ -264,6 +264,37 @@
       <button type="button" id="bill-dialog-ok" class="danger-solid"></button>
     </div>
   </dialog>
+  <dialog id="bill-form-dialog" class="bill-form-dialog" aria-labelledby="bill-form-heading">
+    <form id="bill-form" novalidate>
+      <h2 id="bill-form-heading">สร้างบิล</h2>
+      <label>ชื่อบิล
+        <input id="bill-form-title" type="text" maxlength="60" placeholder="เช่น เนื้อย่าง" required>
+      </label>
+      <label>ยอดรวม (บาท)
+        <input id="bill-form-total" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>วันที่
+        <input id="bill-form-date" type="date" required>
+      </label>
+      <label>หมวด
+        <select id="bill-form-category" required></select>
+      </label>
+      <fieldset class="bill-form-split">
+        <legend>หารกับ</legend>
+        <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน</p>
+        <ul id="bill-form-members" class="bill-form-members"></ul>
+        <label class="bill-form-owner">ส่วนของฉัน (บาท)
+          <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0">
+        </label>
+        <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
+      </fieldset>
+      <p id="bill-form-error" class="error" role="alert"></p>
+      <div class="actions">
+        <button type="button" id="bill-form-cancel">ยกเลิก</button>
+        <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
     <h2 id="confirm-title"></h2>
     <p id="confirm-category" class="confirm-category"></p>

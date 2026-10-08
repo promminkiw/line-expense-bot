@@ -5,10 +5,11 @@ export const REQUEST_TIMEOUT_MS = 15000;
 export const NGROK_SKIP_WARNING_HEADERS = { 'ngrok-skip-browser-warning': '1' };
 
 export class ApiError extends Error {
-  constructor(status) {
+  constructor(status, error) {
     super(`API request failed with status ${status}`);
     this.name = 'ApiError';
     this.status = status;
+    this.error = error;
   }
 }
 
@@ -24,7 +25,8 @@ export function createApi({ fetchImpl, getIdToken }) {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
-      throw new ApiError(response.status);
+      const body = await response.json().catch(() => undefined);
+      throw new ApiError(response.status, body?.error);
     }
     return response.status === 204 ? null : response.json();
   }

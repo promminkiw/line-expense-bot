@@ -260,3 +260,15 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .bills-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 #bill-dialog h2 { margin: 0; font-size: 18px; }
 #bill-dialog .error:empty { display: none; }
+
+.bill-form-dialog { max-height: 90vh; overflow-y: auto; }
+#bill-form-heading { margin: 0; font-size: 18px; }
+.bill-form-split { margin: 16px 0 0; padding: 0; border: none; }
+.bill-form-split legend { padding: 0; font-size: 14px; }
+.bill-form-members { list-style: none; margin: 8px 0 0; padding: 0; }
+.bill-form-member { display: grid; grid-template-columns: auto minmax(0, 1fr) 110px; align-items: center; gap: 8px; min-height: 44px; }
+.bill-form-member input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+.bill-form-name { overflow-wrap: anywhere; }
+.bill-form-member input[type="number"] { margin: 0; }
+.bill-form-even { font: inherit; min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--outline); border-radius: 9999px; background: var(--surface); color: var(--primary); }
+#bill-form-error:empty { display: none; }

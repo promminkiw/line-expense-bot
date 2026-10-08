@@ -61,6 +61,13 @@ describe('createApi', () => {
     await expect(promise).rejects.toMatchObject({ status: 401 });
   });
 
+  it('keeps the error code from the response body', async () => {
+    const promise = setup(fakeFetch(400, { error: 'Not friends' })).createBill({});
+
+    await expect(promise).rejects.toBeInstanceOf(ApiError);
+    await expect(promise).rejects.toMatchObject({ status: 400, error: 'Not friends' });
+  });
+
   it('asks for an export link of one month with POST', async () => {
     const fetchImpl = fakeFetch(201, { path: '/exports/abc' });
 

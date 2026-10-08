@@ -30,6 +30,7 @@ import {
 } from './format.mjs';
 import { createFriendsPanel } from './friends-panel.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
+import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
@@ -250,6 +251,37 @@ const billsPanel = createBillsPanel({
   liff,
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
+});
+const billForm = createBillForm({
+  doc: document,
+  els: {
+    dialog: document.getElementById('bill-form-dialog'),
+    form: document.getElementById('bill-form'),
+    title: document.getElementById('bill-form-title'),
+    total: document.getElementById('bill-form-total'),
+    date: document.getElementById('bill-form-date'),
+    category: document.getElementById('bill-form-category'),
+    members: document.getElementById('bill-form-members'),
+    noFriends: document.getElementById('bill-form-no-friends'),
+    ownerShare: document.getElementById('bill-form-owner-share'),
+    even: document.getElementById('bill-form-even'),
+    error: document.getElementById('bill-form-error'),
+    submit: document.getElementById('bill-form-submit'),
+    cancel: document.getElementById('bill-form-cancel'),
+  },
+  getApi: () => api,
+  getCategories: () => categories,
+  onCreated: async (result) => {
+    const status = document.getElementById('bills-status');
+    status.textContent =
+      result.notNotified.length > 0
+        ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
+        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
+    await billsPanel.reload();
+  },
+});
+document.getElementById('bill-new').addEventListener('click', () => {
+  if (api) billForm.open();
 });
 els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));

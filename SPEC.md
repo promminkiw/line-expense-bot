@@ -34,6 +34,8 @@ API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend
 
 API เพื่อน (ใช้ ID token เหมือน API อื่น): `GET /api/friends` (รหัสของตัวเองกับรายชื่อเพื่อน), `GET /api/friends/lookup?code=` (ดูชื่อเจ้าของรหัสก่อนยืนยัน), `POST /api/friends` (เพิ่มเพื่อนด้วย `code` ใน body เป็นเพื่อนกันทั้งสองฝั่ง), `POST /api/friends/code` (เปลี่ยนรหัสของตัวเอง), `DELETE /api/friends/:id` (ลบเพื่อนทั้งสองฝั่ง ตอบ 204); lookup กับ POST /api/friends ถูกจำกัด 10 ครั้ง/นาที/ผู้ใช้ ใช้ SQL `012_friends.sql`
 
+API หารบิล (หลัง ID token ทุกเส้น): `GET /api/bills` (บิลที่ฉันสร้างกับบิลที่รอฉันตอบ อย่างละไม่เกิน 50 ใบ), `POST /api/bills` (สร้างบิล จำกัด 10 ใบ/ชั่วโมง/ผู้ใช้), `POST /api/bills/:id/cancel` (เจ้าของยกเลิก), `POST /api/bills/:id/members/:userId/paid` (เจ้าของติ๊กคืนแล้ว), `POST /api/bills/:id/confirm` และ `POST /api/bills/:id/decline` (เพื่อนตอบบิล)
+
 4\. Rich Menu: ปุ่ม สรุป / เปิดเว็บ / ช่วยเหลือ
 
 5\. งบประมาณรายเดือนต่อหมวด: เตือนเมื่อใช้เกิน 80% และ 100%
@@ -42,7 +44,7 @@ API เพื่อน (ใช้ ID token เหมือน API อื่น):
 
 7\. รายการประจำ (เช่น ค่าเน็ตทุกเดือน): บันทึกอัตโนมัติตามรอบ จัดการผ่านหน้า LIFF เท่านั้น; วันที่ 29-31 ในเดือนที่สั้นกว่าใช้วันสุดท้ายของเดือน; บอทส่ง push แจ้งพร้อมปุ่มยกเลิกต่อทุกรายการที่บันทึก; การสร้างกฎ เปลี่ยนวัน หรือเปิดใช้กฎหลังวันครบกำหนดจะเริ่มเดือนถัดไป ส่วนการแก้เฉพาะเนื้อหาไม่ข้ามเดือน; เดือนที่ผู้ใช้ยกเลิกแล้วจะไม่ถูกลองบันทึกใหม่
 
-8\. หารบิลกับเพื่อน (เฟส 1 เพื่อน): ผู้ใช้จับคู่เป็นเพื่อนกันได้ด้วยลิงก์ชวน รหัสเพื่อน 8 ตัว หรือ QR code กดยอมรับแล้วเป็นเพื่อนกันทั้งสองฝั่งทันที ดู/ลบเพื่อนและเปลี่ยนรหัสได้ในแท็บโปรไฟล์ (เฟส 2: สร้างบิล เลือกเพื่อน หารเท่าหรือแก้ยอดรายคน บอทแจ้งเพื่อนให้กดยืนยันแล้วบันทึกส่วนแบ่ง; เฟส 3: อ่านยอดจากรูปบิลในเว็บ และปุ่ม Rich Menu)
+8\. หารบิลกับเพื่อน (เฟส 1 เพื่อน): ผู้ใช้จับคู่เป็นเพื่อนกันได้ด้วยลิงก์ชวน รหัสเพื่อน 8 ตัว หรือ QR code กดยอมรับแล้วเป็นเพื่อนกันทั้งสองฝั่งทันที ดู/ลบเพื่อนและเปลี่ยนรหัสได้ในแท็บโปรไฟล์ เฟส 2 (ทำแล้ว): สร้างบิลในแท็บหารบิล เลือกเพื่อน หารเท่า (เศษสตางค์ให้เจ้าของ) หรือแก้ยอดรายคน เจ้าของบันทึกส่วนของตัวเองทันที บอท push การ์ดให้เพื่อนกดยืนยัน/ปฏิเสธ (push ไม่ถึงยืนยันในเว็บได้) ยืนยันแล้วบันทึกเป็นรายจ่ายของเพื่อนในหมวดชื่อเดียวกัน (ไม่มีใช้ อื่นๆ) สร้างแล้วแก้ไม่ได้ ยกเลิกแล้วเพื่อนที่ยังไม่ตอบยืนยันไม่ได้ เจ้าของติ๊กคืนแล้วรายคน (เฟส 3: อ่านยอดจากรูปบิลในเว็บ และปุ่ม Rich Menu)
 
 
 
@@ -52,7 +54,7 @@ API เพื่อน (ใช้ ID token เหมือน API อื่น):
 
 \- categories: id, user\_id, name, type
 
-\- transactions: id, user\_id, type (income/expense), category\_id, amount (numeric), note, occurred\_on (date), source (text/slip/recurring), line\_event\_id, created\_at
+\- transactions: id, user\_id, type (income/expense), category\_id, amount (numeric), note, occurred\_on (date), source (text/slip/recurring/bill), line\_event\_id, created\_at
 
 \- budgets: id, user\_id, category\_id, month (วันที่ 1 ที่งบเริ่มมีผล), amount (null = ไม่ตั้งงบตั้งแต่เดือนนั้น)
 
@@ -61,6 +63,10 @@ API เพื่อน (ใช้ ID token เหมือน API อื่น):
 \- recurring\_rules: id, user\_id, type, category\_id, amount, note, day\_of\_month, active, last\_run\_on (ทำงานเดือนละครั้ง, last\_run\_on คือวันครบกำหนดของรอบล่าสุดที่ทำงานหรือถูกข้าม)
 
 \- friendships: user\_id, friend\_id, created\_at (primary key คู่ user\_id+friend\_id; เก็บสองแถวต่อคู่เพื่อน คือ A->B และ B->A; ลบ user แล้วลบแถวตามด้วย cascade; user\_id ต้องไม่เท่ากับ friend\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น)
+
+\- bills: id, owner\_id, title, total, category\_id, occurred\_on, owner\_share, status (open/cancelled), owner\_transaction\_id, created\_at
+
+\- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql`
 
 \- ทุกตารางมี user\_id, เปิด RLS ทุกตาราง
 
