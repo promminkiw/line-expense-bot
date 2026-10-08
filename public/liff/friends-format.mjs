@@ -6,6 +6,8 @@ const FRIEND_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
 export const INVALID_CODE_MESSAGE = 'รหัสเพื่อนต้องเป็นตัวอักษรหรือตัวเลข 8 ตัว';
 export const OWN_CODE_MESSAGE = 'นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน';
 
+export const INVITE_KEPT_LOAD_MESSAGE = 'โหลดรายชื่อเพื่อนไม่สำเร็จ กดลองใหม่แล้วจะเพิ่มเพื่อนต่อให้';
+
 export function normalizeFriendCodeInput(text) {
   if (typeof text !== 'string') return null;
   const code = text.replace(/[\s-]/g, '').toUpperCase();

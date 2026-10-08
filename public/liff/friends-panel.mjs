@@ -9,6 +9,7 @@ import {
   describeFriendError,
   INVALID_CODE_MESSAGE,
   OWN_CODE_MESSAGE,
+  INVITE_KEPT_LOAD_MESSAGE,
 } from './friends-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
@@ -20,9 +21,11 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   let loading = null;
   let dialogAction = null;
   let dialogBusy = false;
+  let dialogFailureMessage = null;
   let lookingUp = false;
   // เก็บรหัสจากลิงก์ชวนไว้เมื่อโหลดรายชื่อไม่สำเร็จ จะได้ทำต่อหลังกดลองใหม่
   let pendingInviteCode = null;
+  let loadErrorStatus = 0;
   const loadingIndicator = createLoadingIndicator({
     doc,
     textEl: els.loadingText,
@@ -71,10 +74,17 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.body.hidden = false;
   }
 
+  function showLoadErrorText() {
+    // 401 ต้องบอกให้เปิดจาก LINE ใหม่ ข้อความว่าเก็บลิงก์ไว้ให้จึงใช้เฉพาะกรณีอื่น
+    const keepsInvite = pendingInviteCode && loadErrorStatus !== 401;
+    els.errorText.textContent = keepsInvite ? INVITE_KEPT_LOAD_MESSAGE : describeFriendError(loadErrorStatus, 'load');
+  }
+
   function showLoadError(err) {
     loadingIndicator.set(false);
     els.body.hidden = true;
-    els.errorText.textContent = describeFriendError(statusOf(err), 'load');
+    loadErrorStatus = statusOf(err);
+    showLoadErrorText();
     els.error.hidden = false;
   }
 
@@ -113,10 +123,11 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     dialogBusy = busy;
     els.dialogOk.disabled = busy;
     els.dialogCancel.disabled = busy;
+    els.dialogBusy.hidden = !busy;
   }
 
   // run คืนข้อความ error ที่จะแสดงใน dialog หรือ null เมื่อสำเร็จ
-  function openDialog({ title, text, okLabel, danger = false, run }) {
+  function openDialog({ title, text, okLabel, danger = false, failureMessage, run }) {
     els.dialogTitle.textContent = title;
     els.dialogText.textContent = text;
     els.dialogOk.textContent = okLabel;
@@ -124,12 +135,14 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.dialogError.textContent = '';
     setDialogBusy(false);
     dialogAction = run;
+    dialogFailureMessage = failureMessage;
     els.dialog.showModal();
   }
 
   function setLookingUp(busy) {
     lookingUp = busy;
     els.addSubmit.disabled = busy;
+    els.addSubmit.textContent = busy ? 'กำลังค้นหา...' : 'ค้นหา';
     if (busy) els.form.setAttribute('aria-busy', 'true');
     else els.form.removeAttribute('aria-busy');
   }
@@ -152,6 +165,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       // ยังไม่รู้รหัสของตัวเอง จึงเทียบว่าเป็นรหัสตัวเองไม่ได้ ไม่ค้นหาต่อ
       if (!loaded) {
         pendingInviteCode = normalized;
+        showLoadErrorText();
         return;
       }
       if (normalized === code) {
@@ -169,6 +183,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       title: 'เพิ่มเพื่อน',
       text: `เพิ่ม ${friend.displayName} เป็นเพื่อน?`,
       okLabel: 'เพิ่มเพื่อน',
+      failureMessage: describeFriendError(0, 'add'),
       run: async () => {
         try {
           await getApi().addFriend(normalized);
@@ -189,6 +204,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       title: 'ลบเพื่อน',
       text: `ลบ ${friend.displayName} ออกจากเพื่อน? เพิ่มกลับได้ด้วยรหัสเพื่อน`,
       okLabel: 'ลบ',
+      failureMessage: describeFriendError(0, 'remove'),
       danger: true,
       run: async () => {
         try {
@@ -209,6 +225,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       title: 'เปลี่ยนรหัสเพื่อน',
       text: 'ลิงก์และ QR เดิมจะใช้ไม่ได้ เพื่อนที่เพิ่มไว้แล้วยังอยู่ครบ',
       okLabel: 'เปลี่ยนรหัส',
+      failureMessage: describeFriendError(0, 'renew'),
       run: async () => {
         try {
           showCode((await getApi().regenerateFriendCode()).code);
@@ -245,8 +262,15 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   els.dialogOk.addEventListener('click', async () => {
     if (!dialogAction || dialogBusy) return;
     setDialogBusy(true);
-    const message = await dialogAction();
-    setDialogBusy(false);
+    let message;
+    try {
+      message = await dialogAction();
+    } catch {
+      // action พังนอก try ของมันเอง (เช่น render) ต้องคืนปุ่มให้กดได้และบอกผู้ใช้
+      message = dialogFailureMessage;
+    } finally {
+      setDialogBusy(false);
+    }
     if (message) {
       els.dialogError.textContent = message;
       return;

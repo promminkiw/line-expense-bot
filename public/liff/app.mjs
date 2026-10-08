@@ -214,6 +214,7 @@ const friendsPanel = createFriendsPanel({
     dialogTitle: document.getElementById('friend-dialog-title'),
     dialogText: document.getElementById('friend-dialog-text'),
     dialogError: document.getElementById('friend-dialog-error'),
+    dialogBusy: document.getElementById('friend-dialog-busy'),
     dialogOk: document.getElementById('friend-dialog-ok'),
     dialogCancel: document.getElementById('friend-dialog-cancel'),
   },

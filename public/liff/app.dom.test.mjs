@@ -241,6 +241,7 @@ describe('index.html static invariants', () => {
       'friends',
       'friend-qr',
       'friends-skeleton',
+      'friend-dialog-busy',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -1289,6 +1290,7 @@ describe('LIFF friends section', () => {
     await settle();
 
     expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ กดลองใหม่แล้วจะเพิ่มเพื่อนต่อให้');
     expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
 
     routeFetch(() => undefined);
@@ -1371,6 +1373,64 @@ describe('LIFF friends section guards and failure paths', () => {
     await settle();
     expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
     expect(byId('friend-dialog-cancel').disabled).toBe(false);
+  });
+
+  it('re-enables the dialog when the action throws', async () => {
+    let removed = false;
+    await openProfileWith((method, path) => {
+      if (method === 'DELETE') {
+        removed = true;
+        return {};
+      }
+      // รายชื่อที่โหลดใหม่หลังลบไม่มี friends ทำให้ render พัง
+      return removed && path === '/api/friends' ? { code: 'ABCD2345' } : undefined;
+    });
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-error').textContent).toBe('ลบเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('friend-dialog-ok').disabled).toBe(false);
+    expect(byId('friend-dialog-cancel').disabled).toBe(false);
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+    const cancelEvent = new Event('cancel', { cancelable: true });
+    byId('friend-dialog').dispatchEvent(cancelEvent);
+    expect(cancelEvent.defaultPrevented).toBe(false);
+  });
+
+  it('shows a busy line in the dialog while the action runs', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('DELETE', '/api/friends/f-1');
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-dialog-busy').hidden).toBe(false);
+    expect(byId('friend-dialog-busy').textContent).toBe('กำลังดำเนินการ...');
+    hold.release({});
+    await settle();
+    expect(byId('friend-dialog-busy').hidden).toBe(true);
+  });
+
+  it('shows a searching label on the lookup button while it runs', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('GET', '/api/friends/lookup');
+
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe('กำลังค้นหา...');
+
+    hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe('ค้นหา');
   });
 
   it('loads friends when the profile tab was opened before boot finished', async () => {
