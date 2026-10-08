@@ -12,6 +12,7 @@ describe('categoryStyle', () => {
     ['บันเทิง', 'fun'],
     ['เงินเดือน', 'salary'],
     ['รายได้เสริม', 'side'],
+    ['ใบเสร็จ/สลิปโอนเงิน', 'receipt'],
     ['อื่นๆ', 'other'],
   ])('maps %s to %s', (name, key) => {
     expect(categoryStyle(name)).toEqual({ key, symbol: `cat-${key}`, className: `cat-${key}` });

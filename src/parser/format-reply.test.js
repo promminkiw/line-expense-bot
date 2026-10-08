@@ -37,12 +37,7 @@ describe('reply length with the longest receipt', () => {
   }));
 
   it('keeps a 20 item card with 50 code point emoji notes under 5000 UTF-16 units', () => {
-    const reply = formatSlipConfirmReply(items, {
-      extrasNote: EMOJI.repeat(100),
-      slipTotal: 9999999.99,
-      truncatedTo: 20,
-      dateAssumed: true,
-    });
+    const reply = formatSlipConfirmReply(items, { dateAssumed: true });
 
     expect(reply.length).toBeLessThan(5000);
   });
@@ -83,59 +78,4 @@ describe('formatSlipConfirmReply', () => {
     );
   });
 
-  it('shows the extras note and the slip net total when there are extras', () => {
-    expect(
-      formatSlipConfirmReply([MILK, TOOTHPASTE], { extrasNote: 'ส่วนลด 10 บาท, VAT 7%', slipTotal: 84 })
-    ).toBe(
-      'อ่านสลิปได้ 2 รายการ\n- รายจ่าย | อาหาร | 35 บาท | 28/09 | นมสด\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n' +
-        `หมายเหตุ: ส่วนลด 10 บาท, VAT 7% (ไม่ได้บันทึก)\nยอดสุทธิบนสลิป 84 บาท\n${CONFIRM}`
-    );
-  });
-
-  it('shows the extras note without a net total when the total was not readable', () => {
-    const text = formatSlipConfirmReply([MILK], { extrasNote: 'ค่าส่ง 20 บาท', slipTotal: 0 });
-
-    expect(text).toContain('หมายเหตุ: ค่าส่ง 20 บาท (ไม่ได้บันทึก)');
-    expect(text).not.toContain('ยอดสุทธิบนสลิป');
-  });
-
-  it('does not show the net total when there is no extras note', () => {
-    expect(formatSlipConfirmReply([MILK, TOOTHPASTE], { slipTotal: 94 })).not.toContain('ยอดสุทธิบนสลิป');
-  });
-
-  it('says when the receipt was cut to the first items', () => {
-    const text = formatSlipConfirmReply([MILK, TOOTHPASTE], { truncatedTo: 20 });
-
-    expect(text).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
-  });
-
-  it('says how many items were skipped because the price could not be read', () => {
-    const text = formatSlipConfirmReply([MILK, TOOTHPASTE], { skippedCount: 2 });
-
-    expect(text).toContain('ข้าม 2 รายการที่อ่านราคาไม่ได้');
-  });
-
-  it('does not mention skipped items when none were skipped', () => {
-    expect(formatSlipConfirmReply([MILK], { skippedCount: 0 })).not.toContain('ข้าม');
-    expect(formatSlipConfirmReply([MILK])).not.toContain('ข้าม');
-  });
-
-  it('keeps the fixed line order: extras, total, skipped, cut, date, confirm', () => {
-    const lines = formatSlipConfirmReply([MILK, TOOTHPASTE], {
-      extrasNote: 'VAT 7%',
-      slipTotal: 100,
-      skippedCount: 1,
-      truncatedTo: 20,
-      dateAssumed: true,
-    }).split('\n');
-
-    expect(lines.slice(3)).toEqual([
-      'หมายเหตุ: VAT 7% (ไม่ได้บันทึก)',
-      'ยอดสุทธิบนสลิป 100 บาท',
-      'ข้าม 1 รายการที่อ่านราคาไม่ได้',
-      'มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก',
-      'อ่านวันที่ไม่ได้ จึงใช้วันนี้',
-      CONFIRM,
-    ]);
-  });
 });

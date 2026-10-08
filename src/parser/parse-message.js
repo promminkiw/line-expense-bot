@@ -1,4 +1,4 @@
-const { DEFAULT_CATEGORIES, normalizeCategory } = require('./categories');
+const { TEXT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
@@ -12,7 +12,7 @@ const OVERALL_TIMEOUT_MS = 30000;
 // กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
 const MAX_AMOUNT = 10000000;
 
-const ALL_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
+const ALL_CATEGORIES = [...new Set([...TEXT_CATEGORIES.expense, ...TEXT_CATEGORIES.income])];
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เองทุก object
 const PARSE_SCHEMA = {
@@ -57,8 +57,8 @@ function buildSystemPrompt(today) {
     '- amount is the number of Thai baht as a positive number. Never add amounts together.',
     '- date is YYYY-MM-DD. Resolve relative words such as "เมื่อวาน" or "เมื่อวานซืน" from today. Use today when no date is given.',
     '- note is a short Thai description taken from the message, e.g. "กินข้าว".',
-    `- Expense categories: ${DEFAULT_CATEGORIES.expense.join(', ')}`,
-    `- Income categories: ${DEFAULT_CATEGORIES.income.join(', ')}`,
+    `- Expense categories: ${TEXT_CATEGORIES.expense.join(', ')}`,
+    `- Income categories: ${TEXT_CATEGORIES.income.join(', ')}`,
     '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
     '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
     '- Never ask about the date in question. A missing date always means today.',

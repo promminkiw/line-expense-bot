@@ -122,30 +122,18 @@ function smallText(text, color) {
 }
 
 // การ์ดสรุปสลิปก่อนกดบันทึก: ข้อความ altText ยังเป็นข้อความเดิมจาก formatSlipConfirmReply
-function buildSlipConfirmFlex(
-  items,
-  { dateAssumed = false, extrasNote = '', slipTotal = 0, truncatedTo = 0, skippedCount = 0, buttons } = {}
-) {
+function buildSlipConfirmFlex(items, { dateAssumed = false, buttons } = {}) {
   const title = items.length > 1 ? `อ่านสลิปได้ ${items.length} รายการ` : 'อ่านสลิปได้';
   const body = [{ type: 'text', text: title, size: 'xs', color: COLORS.muted }, ...items.map((item) => itemRow(item))];
-  if (extrasNote) {
-    const lines = [{ type: 'text', text: `หมายเหตุ: ${extrasNote} (ไม่ได้บันทึก)`, size: 'sm', wrap: true }];
-    if (slipTotal > 0) lines.push(smallText(`ยอดสุทธิบนสลิป ${formatAmount(slipTotal)} บาท`, COLORS.muted));
-    body.push(strip(STRIP_COLORS.notice, lines));
-  }
-  const warnings = [];
-  if (skippedCount > 0) warnings.push(`ข้าม ${skippedCount} รายการที่อ่านราคาไม่ได้`);
-  if (truncatedTo > 0) warnings.push(`มีสินค้ามากกว่า ${truncatedTo} รายการ บันทึกเฉพาะ ${truncatedTo} รายการแรก`);
-  if (dateAssumed) warnings.push('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
-  if (warnings.length > 0) {
-    body.push(strip(STRIP_COLORS.warn, warnings.map((text) => ({ type: 'text', text, size: 'sm', wrap: true }))));
+  if (dateAssumed) {
+    body.push(strip(STRIP_COLORS.warn, [{ type: 'text', text: 'อ่านวันที่ไม่ได้ จึงใช้วันนี้', size: 'sm', wrap: true }]));
   }
   body.push({ ...smallText('กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)', COLORS.muted), margin: 'md' });
 
   return withFooterButtons(
     {
       type: 'flex',
-      altText: capAltText(formatSlipConfirmReply(items, { dateAssumed, extrasNote, slipTotal, truncatedTo, skippedCount })),
+      altText: capAltText(formatSlipConfirmReply(items, { dateAssumed })),
       contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: body } },
     },
     buttons

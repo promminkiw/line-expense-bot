@@ -25,7 +25,7 @@ function contrast(a, b) {
   return (high + 0.05) / (low + 0.05);
 }
 
-const CATEGORY_KEYS = ['food', 'transport', 'shopping', 'bill', 'health', 'fun', 'salary', 'side', 'other'];
+const CATEGORY_KEYS = ['food', 'transport', 'shopping', 'bill', 'health', 'fun', 'salary', 'side', 'receipt', 'other'];
 
 // คู่ที่เป็นข้อความต้อง >= 4.5 (AA)
 const TEXT_PAIRS = [
