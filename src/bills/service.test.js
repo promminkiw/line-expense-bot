@@ -6,6 +6,7 @@ const F1 = '22222222-2222-2222-2222-222222222222';
 const F2 = '33333333-3333-3333-3333-333333333333';
 const FOOD = '44444444-4444-4444-4444-444444444444';
 const BILL = '55555555-5555-5555-5555-555555555555';
+const SALARY = '77777777-7777-7777-7777-777777777777';
 
 function body(overrides = {}) {
   return {
@@ -26,7 +27,7 @@ function setup(overrides = {}) {
   const repository = {
     listCategories: vi.fn().mockResolvedValue([
       { id: FOOD, name: 'อาหาร', type: 'expense' },
-      { id: 'salary', name: 'เงินเดือน', type: 'income' },
+      { id: SALARY, name: 'เงินเดือน', type: 'income' },
     ]),
     listFriends: vi.fn().mockResolvedValue([
       { id: F1, displayName: 'บี' },
@@ -117,7 +118,7 @@ describe('billService.create', () => {
   it('rejects an income category the owner does own', async () => {
     const { service, repository } = setup();
 
-    expect(await service.create(OWNER, body({ categoryId: 'salary' }))).toEqual({ status: 'invalid', error: 'Invalid category' });
+    expect(await service.create(OWNER, body({ categoryId: SALARY }))).toEqual({ status: 'invalid', error: 'Invalid category' });
     expect(repository.createBill).not.toHaveBeenCalled();
   });
 
