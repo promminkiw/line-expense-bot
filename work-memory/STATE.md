@@ -1,9 +1,9 @@
 # STATE
-Updated: 2026-10-07
+Updated: 2026-10-08
 Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว (main ตรงกับ origin/main ณ 2026-10-07); งานที่เหลือคือตรวจของที่ deploy แล้วกับของจริง และ ticket/backlog เล็ก (ดู Next)
 
 ## Next
-- [ ] reply resilience (2026-10-07, branch fix/reply-resilience, แผน docs/superpowers/plans/2026-10-07-reply-resilience.md): โค้ด Task 1-4 เสร็จ (npm test 846/846, lint ผ่าน) ยังไม่ merge ยังไม่ push; อ่านบริบทพังทำต่อแบบไม่มีบริบท, Task 1 เพิ่มการล้างบริบทเก่าหลังบันทึกเมื่ออ่านบริบทไม่ได้ (ผู้ใช้อนุมัติ), ดาวน์โหลดรูปลองใหม่ 1 ครั้ง (15 วิต่อครั้ง รอ 0.5 วิ เฉพาะ timeout/เชื่อมต่อไม่ได้/5xx), getProfile timeout 3 วิ, deadline 50 วิแล้วตอบ SLOW_PROCESSING_REPLY (งานค้างยังบันทึกต่อได้); ยังไม่ได้ลองในแอป LINE: ข้อความ deadline และ retry ทำงานกับ LINE จริง
+- [ ] reply resilience (2026-10-07, branch fix/reply-resilience, แผน docs/superpowers/plans/2026-10-07-reply-resilience.md): โค้ด Task 1-4 เสร็จ + fix เพิ่ม 474113b ไม่จำคำถาม clarify ที่เสร็จหลัง deadline (npm test 847/847, lint ผ่าน ณ 2026-10-08) merge เข้า main แล้ว (local) ยังไม่ push; อ่านบริบทพังทำต่อแบบไม่มีบริบท, Task 1 เพิ่มการล้างบริบทเก่าหลังบันทึกเมื่ออ่านบริบทไม่ได้ (ผู้ใช้อนุมัติ), ดาวน์โหลดรูปลองใหม่ 1 ครั้ง (15 วิต่อครั้ง รอ 0.5 วิ เฉพาะ timeout/เชื่อมต่อไม่ได้/5xx), getProfile timeout 3 วิ, deadline 50 วิแล้วตอบ SLOW_PROCESSING_REPLY (งานค้างยังบันทึกต่อได้); ยังไม่ได้ลองในแอป LINE: ข้อความ deadline และ retry ทำงานกับ LINE จริง
 - [ ] ตรวจของที่ deploy แล้วแต่ยังไม่เคยลองกับของจริง (2026-10-07): (1) ปรับรูปสลิปด้วย sharp ก่อนส่ง Claude (ab8f4b5, merge 6b4b61b, push แล้ว) ยังไม่ได้ดูว่า build บน Render ติดตั้ง sharp ได้ และยังไม่ได้ลองกับใบเสร็จจริงในแอป LINE (normalise อาจทำให้บางรูปแย่ลง); (2) ticket เล็กหน้า LIFF 8 ข้อ A-F, I, J (9a8fca5, merge ba0c26f, push แล้ว) ยังไม่ได้ลองในแอป LINE
 - [ ] ticket หน้า LIFF ที่ยังเหลือ (ต้องดูในเบราว์เซอร์/แอปจริง): (G) layout shift ระหว่าง skeleton กับของจริง, (H) แท่งแนวโน้ม percent-height/ลายเส้น
 - [ ] ticket ฝั่ง server: export CSV ใช้ offset paging อาจซ้ำ/ข้ามแถวถ้ามีการเขียนระหว่าง export (ควรเป็น keyset); ไม่มีเทสต์ SQL function (ต้องมี DB ทดสอบ)
