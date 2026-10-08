@@ -43,6 +43,38 @@ const RESPONSES = {
     ],
   },
   '/api/recurring': { rules: [] },
+  '/api/bills': {
+    owned: [
+      {
+        id: 'b-own',
+        title: 'เนื้อย่าง',
+        total: 900,
+        occurredOn: '2026-10-08',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerShare: 300,
+        createdAt: '2026-10-08T10:00:00+00:00',
+        members: [
+          { userId: 'f-1', displayName: 'บี', share: 300, status: 'confirmed', paid: false, notified: true },
+          { userId: 'f-2', displayName: 'ซี', share: 300, status: 'pending', paid: false, notified: false },
+        ],
+      },
+    ],
+    incoming: [
+      {
+        id: 'b-in',
+        title: 'ชาบู',
+        total: 600,
+        occurredOn: '2026-10-07',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerName: 'ดี',
+        myShare: 200,
+        myStatus: 'pending',
+        paid: false,
+      },
+    ],
+  },
   '/api/trend': {
     months: [
       { month: '2026-05', income: 0, expense: 0 },
@@ -73,7 +105,7 @@ function makeFetch(overrides) {
     const path = new URL(url, 'http://localhost').pathname;
     const body = path in overrides ? overrides[path] : RESPONSES[path];
     if (body instanceof Error) throw body;
-    if (body && typeof body === 'object' && 'status' in body && Object.keys(body).length === 1) {
+    if (body && typeof body === 'object' && typeof body.status === 'number' && Object.keys(body).length === 1) {
       return { ok: false, status: body.status, json: async () => ({}) };
     }
     return { ok: Boolean(body), status: body ? 200 : 404, json: async () => body };
@@ -242,6 +274,9 @@ describe('index.html static invariants', () => {
       'friend-qr',
       'friends-skeleton',
       'friend-dialog-busy',
+      'bills-error',
+      'bills-skeleton',
+      'bill-dialog-busy',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -1547,5 +1582,156 @@ describe('LIFF friends section guards and failure paths', () => {
     await settle();
 
     expect(byId('friend-qr').innerHTML).not.toBe(before);
+  });
+});
+
+describe('LIFF bills tab', () => {
+  async function openBills({ route } = {}) {
+    await boot();
+    const calls = route ? routeFetch(route) : routeFetch(() => undefined);
+    clickTab('bills');
+    await settle();
+    return calls;
+  }
+
+  const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
+  const ownedCard = () => document.querySelector('#bills-owned .bill-card');
+
+  it('loads the bills when the tab opens and shows both lists', async () => {
+    await openBills();
+
+    expect(incomingCard().querySelector('.bill-title').textContent).toBe('ชาบู');
+    expect(incomingCard().querySelector('.bill-meta').textContent).toBe('ดี · 07/10');
+    expect(incomingCard().querySelector('.bill-share').textContent).toBe('ส่วนของคุณ 200 บาท');
+    expect(ownedCard().querySelector('.bill-title').textContent).toBe('เนื้อย่าง');
+    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 600 บาท');
+    const members = [...ownedCard().querySelectorAll('.bill-member')];
+    expect(members.map((row) => row.querySelector('.bill-member-name').textContent)).toEqual(['บี', 'ซี']);
+    expect(members.map((row) => row.querySelector('.bill-member-status').textContent)).toEqual(['ยืนยันแล้ว', 'รอตอบ']);
+  });
+
+  it('shows the empty notes when there are no bills', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { owned: [], incoming: [] } : undefined) });
+
+    expect(byId('bills-incoming-empty').hidden).toBe(false);
+    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่รอคุณยืนยัน');
+    expect(byId('bills-owned-empty').hidden).toBe(false);
+    expect(byId('bills-owned-empty').textContent).toBe('ยังไม่มีบิลที่คุณสร้าง');
+  });
+
+  it('shows an error with retry when the bills fail to load', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { status: 500 } : undefined) });
+
+    expect(byId('bills-error').hidden).toBe(false);
+    expect(byId('bills-error-text').textContent).toBe('โหลดบิลไม่สำเร็จ');
+    routeFetch(() => undefined);
+    byId('bills-retry').click();
+    await settle();
+    expect(byId('bills-error').hidden).toBe(true);
+    expect(incomingCard()).not.toBeNull();
+  });
+
+  it('confirms an incoming bill and reloads', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/confirm');
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+    expect(byId('bills-status').textContent).toBe('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+  });
+
+  it('declines an incoming bill after confirming in the dialog', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? { status: 'declined' } : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    expect(byId('bill-dialog-text').textContent).toBe('ปฏิเสธบิล ชาบู ของ ดี?');
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/decline');
+    expect(byId('bill-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('shows why answering failed', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
+  });
+
+  it('marks a member as paid back and lowers the outstanding amount', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-own/members/f-1/paid' ? { paid: true } : undefined) });
+
+    const paidBox = ownedCard().querySelector('.bill-member input[type="checkbox"]');
+    paidBox.checked = true;
+    paidBox.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/members/f-1/paid');
+    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 300 บาท');
+  });
+
+  it('puts the checkbox back when marking paid fails', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-own/members/f-1/paid' ? { status: 500 } : undefined) });
+
+    const paidBox = ownedCard().querySelector('.bill-member input[type="checkbox"]');
+    paidBox.checked = true;
+    paidBox.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(ownedCard().querySelector('.bill-member input[type="checkbox"]').checked).toBe(false);
+    expect(byId('bills-status').textContent).toBe('บันทึกการคืนเงินไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+
+  it('cancels an owned bill after confirming in the dialog', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-own/cancel' ? { status: 'cancelled' } : undefined) });
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-text').textContent).toBe('ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ ส่วนที่บันทึกไปแล้วยังอยู่');
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/cancel');
+  });
+
+  it('flags members the push did not reach and shares the bill link with them', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await openBills();
+
+    const unreached = [...ownedCard().querySelectorAll('.bill-member')][1];
+    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง (ยังไม่ได้เพิ่มบอท)');
+    unreached.querySelector('.bill-share-link').click();
+    await settle();
+
+    expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?bill=b-own');
+    expect(byId('bills-status').textContent).toBe('คัดลอกลิงก์บิลแล้ว ส่งให้เพื่อนได้เลย');
+  });
+
+  it('shows a cancelled bill without actions', async () => {
+    await openBills({
+      route: (method, path) =>
+        path === '/api/bills'
+          ? {
+              owned: [],
+              incoming: [{ ...RESPONSES['/api/bills'].incoming[0], status: 'cancelled' }],
+            }
+          : undefined,
+    });
+
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยกเลิกแล้ว');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+  });
+
+  it('opens the bills tab at the linked bill', async () => {
+    await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
+    expect(window.location.search).toBe('');
   });
 });

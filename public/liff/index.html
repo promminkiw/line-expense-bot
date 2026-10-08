@@ -125,7 +125,30 @@
         <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
       </section>
     </div>
-    <div id="panel-bills" class="panel" hidden></div>
+    <div id="panel-bills" class="panel" hidden>
+      <div class="bills-toolbar">
+        <button type="button" id="bill-new" class="bill-new">สร้างบิล</button>
+      </div>
+      <p id="bills-status" class="export-status bills-status" role="status" aria-live="polite"></p>
+      <p id="bills-loading" class="sr-only" role="status" hidden>กำลังโหลดบิล...</p>
+      <ul id="bills-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="bills-error" class="budgets-error bills-error" role="alert" hidden>
+        <p id="bills-error-text"></p>
+        <button type="button" id="bills-retry">ลองใหม่</button>
+      </div>
+      <div id="bills-body" hidden>
+        <section class="bills-section" aria-labelledby="bills-incoming-title">
+          <h2 id="bills-incoming-title">รอฉันยืนยัน</h2>
+          <ul id="bills-incoming" class="bill-list"></ul>
+          <p id="bills-incoming-empty" class="bills-empty" hidden>ยังไม่มีบิลที่รอคุณยืนยัน</p>
+        </section>
+        <section class="bills-section" aria-labelledby="bills-owned-title">
+          <h2 id="bills-owned-title">บิลที่ฉันสร้าง</h2>
+          <ul id="bills-owned" class="bill-list"></ul>
+          <p id="bills-owned-empty" class="bills-empty" hidden>ยังไม่มีบิลที่คุณสร้าง</p>
+        </section>
+      </div>
+    </div>
     <div id="panel-profile" class="panel" hidden>
       <p id="profile-loading" class="sr-only" role="status" hidden>กำลังโหลดโปรไฟล์...</p>
       <ul id="profile-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
@@ -229,6 +252,16 @@
     <div class="actions">
       <button type="button" id="friend-dialog-cancel">ยกเลิก</button>
       <button type="button" id="friend-dialog-ok" class="primary"></button>
+    </div>
+  </dialog>
+  <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
+    <h2 id="bill-dialog-title"></h2>
+    <p id="bill-dialog-text" class="confirm-detail"></p>
+    <p id="bill-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
+    <p id="bill-dialog-error" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="bill-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="bill-dialog-ok" class="danger-solid"></button>
     </div>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">

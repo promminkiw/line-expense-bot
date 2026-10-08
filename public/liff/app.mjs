@@ -29,10 +29,11 @@ import {
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 import { createFriendsPanel } from './friends-panel.mjs';
+import { createBillsPanel } from './bills-panel.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseEditLink, parseFriendLink } from './deep-link.mjs';
+import { parseBillLink, parseEditLink, parseFriendLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -217,6 +218,33 @@ const friendsPanel = createFriendsPanel({
     dialogBusy: document.getElementById('friend-dialog-busy'),
     dialogOk: document.getElementById('friend-dialog-ok'),
     dialogCancel: document.getElementById('friend-dialog-cancel'),
+  },
+  getApi: () => api,
+  liff,
+  getLiffId: () => liffId,
+  clipboard: navigator.clipboard,
+});
+const billsPanel = createBillsPanel({
+  doc: document,
+  els: {
+    status: document.getElementById('bills-status'),
+    loadingText: document.getElementById('bills-loading'),
+    skeleton: document.getElementById('bills-skeleton'),
+    error: document.getElementById('bills-error'),
+    errorText: document.getElementById('bills-error-text'),
+    retry: document.getElementById('bills-retry'),
+    body: document.getElementById('bills-body'),
+    incoming: document.getElementById('bills-incoming'),
+    incomingEmpty: document.getElementById('bills-incoming-empty'),
+    owned: document.getElementById('bills-owned'),
+    ownedEmpty: document.getElementById('bills-owned-empty'),
+    dialog: document.getElementById('bill-dialog'),
+    dialogTitle: document.getElementById('bill-dialog-title'),
+    dialogText: document.getElementById('bill-dialog-text'),
+    dialogBusy: document.getElementById('bill-dialog-busy'),
+    dialogError: document.getElementById('bill-dialog-error'),
+    dialogOk: document.getElementById('bill-dialog-ok'),
+    dialogCancel: document.getElementById('bill-dialog-cancel'),
   },
   getApi: () => api,
   liff,
@@ -1275,6 +1303,7 @@ const tabController = createTabController({
       refreshProfileOnEntry();
       friendsPanel.ensureLoaded();
     }
+    if (id === 'bills') billsPanel.ensureLoaded();
   },
 });
 tabController.select(DEFAULT_TAB);
@@ -1327,16 +1356,23 @@ async function boot() {
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
-    if (link || friendCode) window.history.replaceState(null, '', window.location.pathname);
+    const billId = parseBillLink(window.location.search);
+    if (link || friendCode || billId) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
       friendsPanel.openAdd(friendCode);
     }
+    // ลิงก์บิลจากการ์ดหรือที่เจ้าของส่งให้ พาไปที่บิลนั้นในแท็บหารบิล
+    if (billId && !friendCode) {
+      tabController.select('bills');
+      billsPanel.focusBill(billId);
+    }
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
+    if (tabController.current === 'bills') billsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
