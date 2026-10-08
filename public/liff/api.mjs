@@ -51,5 +51,15 @@ export function createApi({ fetchImpl, getIdToken }) {
     addFriend: (code) => request('/friends', { method: 'POST', body: JSON.stringify({ code }) }),
     removeFriend: (id) => request(`/friends/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     regenerateFriendCode: () => request('/friends/code', { method: 'POST' }),
+    listBills: () => request('/bills'),
+    createBill: (body) => request('/bills', { method: 'POST', body: JSON.stringify(body) }),
+    cancelBill: (id) => request(`/bills/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+    setBillPaid: (id, memberId, paid) =>
+      request(`/bills/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}/paid`, {
+        method: 'POST',
+        body: JSON.stringify({ paid }),
+      }),
+    confirmBill: (id) => request(`/bills/${encodeURIComponent(id)}/confirm`, { method: 'POST' }),
+    declineBill: (id) => request(`/bills/${encodeURIComponent(id)}/decline`, { method: 'POST' }),
   };
 }

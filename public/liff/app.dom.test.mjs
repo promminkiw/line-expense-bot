@@ -256,17 +256,17 @@ describe('LIFF page after a normal boot', () => {
     liff = await boot();
   });
 
-  it('renders the five bottom tabs with the list tab selected', () => {
+  it('renders the six bottom tabs with the list tab selected', () => {
     const buttons = [...document.querySelectorAll('#bottom-nav button')];
 
-    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'หารบิล', 'โปรไฟล์']);
     expect(document.querySelectorAll('#bottom-nav [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('#bottom-nav [aria-current="page"]').textContent).toBe('รายการ');
     expect(byId('page-title').textContent).toBe('รายการของฉัน');
     expect(byId('month').hidden).toBe(false);
     expect(byId('month').value).toBe('2026-10');
     expect(byId('panel-list').hidden).toBe(false);
-    for (const id of ['summary', 'budgets', 'recurring', 'profile']) {
+    for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile']) {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
   });

@@ -149,4 +149,27 @@ describe('createApi', () => {
     ]);
     expect(JSON.parse(fetchImpl.mock.calls[2][1].body)).toEqual({ code: 'ABCD2345' });
   });
+
+  it('reads, creates, cancels, marks paid and answers bills', async () => {
+    const fetchImpl = fakeFetch(200, {});
+    const api = setup(fetchImpl);
+
+    await api.listBills();
+    await api.createBill({ title: 'x' });
+    await api.cancelBill('b/1');
+    await api.setBillPaid('b1', 'm1', true);
+    await api.confirmBill('b1');
+    await api.declineBill('b1');
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [options.method ?? 'GET', url])).toEqual([
+      ['GET', '/api/bills'],
+      ['POST', '/api/bills'],
+      ['POST', '/api/bills/b%2F1/cancel'],
+      ['POST', '/api/bills/b1/members/m1/paid'],
+      ['POST', '/api/bills/b1/confirm'],
+      ['POST', '/api/bills/b1/decline'],
+    ]);
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ title: 'x' });
+    expect(JSON.parse(fetchImpl.mock.calls[3][1].body)).toEqual({ paid: true });
+  });
 });

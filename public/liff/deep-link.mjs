@@ -33,3 +33,11 @@ export function parseEditLink(search) {
 export function parseFriendLink(search) {
   return normalizeFriendCodeInput(readLinkParams(search).get('friend'));
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ลิงก์บิลจากการ์ดหรือที่เจ้าของส่งให้คือ ?bill=<id>
+export function parseBillLink(search) {
+  const id = readLinkParams(search).get('bill');
+  return id && UUID_PATTERN.test(id) ? id : null;
+}
