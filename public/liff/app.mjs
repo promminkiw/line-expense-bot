@@ -263,6 +263,12 @@ const billForm = createBillForm({
     category: document.getElementById('bill-form-category'),
     members: document.getElementById('bill-form-members'),
     noFriends: document.getElementById('bill-form-no-friends'),
+    friendsLoading: document.getElementById('bill-form-friends-loading'),
+    friendsError: document.getElementById('bill-form-friends-error'),
+    friendsErrorText: document.getElementById('bill-form-friends-error-text'),
+    friendsRetry: document.getElementById('bill-form-friends-retry'),
+    goProfile: document.getElementById('bill-form-go-profile'),
+    splitControls: document.getElementById('bill-form-split-controls'),
     ownerShare: document.getElementById('bill-form-owner-share'),
     even: document.getElementById('bill-form-even'),
     error: document.getElementById('bill-form-error'),
@@ -271,13 +277,16 @@ const billForm = createBillForm({
   },
   getApi: () => api,
   getCategories: () => categories,
+  ensureCategories,
+  onUncertain: () => billsPanel.reload(),
+  onOpenProfile: () => tabController.select('profile'),
   onCreated: async (result) => {
     const status = document.getElementById('bills-status');
     status.textContent =
       result.notNotified.length > 0
         ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
         : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
-    await billsPanel.reload();
+    await billsPanel.reload({ afterAction: true });
   },
 });
 document.getElementById('bill-new').addEventListener('click', () => {

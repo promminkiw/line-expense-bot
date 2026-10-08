@@ -258,6 +258,9 @@ describe('index.html static invariants', () => {
       'budgets-loading',
       'budgets-skeleton',
       'bill-form-no-friends',
+      'bill-form-friends-loading',
+      'bill-form-friends-error',
+      'bill-form-go-profile',
       'budgets-error',
       'recurring-loading',
       'recurring-skeleton',
@@ -1973,5 +1976,171 @@ describe('LIFF bills tab', () => {
 
     expect(byId('bill-form-error').textContent).toBe('ใส่ส่วนของฉัน');
     expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  function holdRequest(pathname, method = 'GET') {
+    let release;
+    const hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if ((options.method ?? 'GET') === method && new URL(url, 'http://localhost').pathname === pathname) await hold;
+      return original(url, options);
+    });
+    return release;
+  }
+
+  function fillValidForm() {
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+  }
+
+  it('keeps cancel disabled while the bill is being created', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    const release = holdRequest('/api/bills', 'POST');
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('bill-form-cancel').disabled).toBe(true);
+
+    release();
+    await settle();
+    expect(byId('bill-form-cancel').disabled).toBe(false);
+  });
+
+  it('keeps the created message when reloading the list fails', async () => {
+    let created = false;
+    await openForm((method, path) => {
+      if (method === 'POST' && path === '/api/bills') {
+        created = true;
+        return { id: 'b-new', notNotified: [] };
+      }
+      return created && path === '/api/bills' ? { status: 500 } : undefined;
+    });
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว (โหลดบิลไม่สำเร็จ)');
+  });
+
+  it('shows a loading line while friends load', async () => {
+    await openBills();
+    const release = holdRequest('/api/friends');
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-friends-loading').hidden).toBe(false);
+    expect(byId('bill-form-friends-loading').textContent).toBe('กำลังโหลดรายชื่อเพื่อน...');
+    release();
+    await settle();
+    expect(byId('bill-form-friends-loading').hidden).toBe(true);
+  });
+
+  it('shows a friends error with retry that survives typing', async () => {
+    let friendCalls = 0;
+    await openForm((method, path) => {
+      if (path !== '/api/friends') return undefined;
+      friendCalls += 1;
+      return friendCalls === 1 ? { status: 500 } : undefined;
+    });
+
+    expect(byId('bill-form-friends-error').hidden).toBe(false);
+    expect(byId('bill-form-friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ');
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-title').dispatchEvent(new Event('input'));
+    expect(byId('bill-form-friends-error').hidden).toBe(false);
+    expect(byId('bill-form-submit').disabled).toBe(true);
+
+    byId('bill-form-friends-retry').click();
+    await settle();
+    expect(byId('bill-form-friends-error').hidden).toBe(true);
+    expect(document.querySelectorAll('#bill-form-members .bill-form-name').length).toBe(1);
+  });
+
+  it('no friends: hides the split controls and offers a go-to-profile button', async () => {
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-split-controls').hidden).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-go-profile').hidden).toBe(false);
+
+    byId('bill-form-go-profile').click();
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(false);
+  });
+
+  it('after a network failure it warns to check the list and reloads bills', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? new Error('network down') : undefined));
+    fillValidForm();
+    const before = calls.filter((call) => call === 'GET /api/bills').length;
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่');
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBe(before + 1);
+  });
+
+  it('Not friends error refreshes the friend list and keeps the typed fields', async () => {
+    await openForm();
+    fillValidForm();
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (options.method === 'POST' && path === '/api/bills') {
+        return { ok: false, status: 400, json: async () => ({ error: 'Not friends' }) };
+      }
+      if (path === '/api/friends') {
+        return { ok: true, status: 200, json: async () => ({ code: 'ABCD2345', friends: [{ id: 'f-2', displayName: 'ซี' }] }) };
+      }
+      return original(url, options);
+    });
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    const names = [...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent);
+    expect(names).toEqual(['ซี']);
+    expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(false);
+    expect(byId('bill-form-title').value).toBe('เนื้อย่าง');
+    expect(byId('bill-form-total').value).toBe('1000');
+    expect(byId('bill-form-error').textContent).toBe('มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง');
+  });
+
+  it('blocks submit when no expense category is available', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    routeFetch(() => undefined);
+    vi.stubGlobal('fetch', ((original) => async (url, options = {}) => {
+      if (new URL(url, 'http://localhost').pathname === '/api/categories') return { ok: true, status: 200, json: async () => ({ categories: [] }) };
+      return original(url, options);
+    })(globalThis.fetch));
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่มีหมวดรายจ่ายให้เลือก');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('clicking the friend name toggles the checkbox', async () => {
+    await openForm();
+
+    document.querySelector('#bill-form-members label.bill-form-name').click();
+
+    expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(true);
   });
 });

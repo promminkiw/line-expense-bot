@@ -281,17 +281,27 @@
       </label>
       <fieldset class="bill-form-split">
         <legend>หารกับ</legend>
+        <p id="bill-form-friends-loading" class="bills-empty" role="status" hidden>กำลังโหลดรายชื่อเพื่อน...</p>
+        <div id="bill-form-friends-error" class="budgets-error" hidden>
+          <p id="bill-form-friends-error-text" role="alert"></p>
+          <button type="button" id="bill-form-friends-retry">ลองใหม่</button>
+        </div>
         <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน</p>
+        <button type="button" id="bill-form-go-profile" class="bill-form-even" hidden>ไปแท็บโปรไฟล์</button>
         <ul id="bill-form-members" class="bill-form-members"></ul>
-        <label class="bill-form-owner">ส่วนของฉัน (บาท)
-          <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0">
-        </label>
-        <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
+        <div id="bill-form-split-controls">
+          <label class="bill-form-owner">ส่วนของฉัน (บาท)
+            <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0">
+          </label>
+          <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
+        </div>
       </fieldset>
-      <p id="bill-form-error" class="error" role="alert"></p>
-      <div class="actions">
-        <button type="button" id="bill-form-cancel">ยกเลิก</button>
-        <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>
+      <div class="bill-form-footer">
+        <p id="bill-form-error" class="error" role="alert"></p>
+        <div class="actions">
+          <button type="button" id="bill-form-cancel">ยกเลิก</button>
+          <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>
+        </div>
       </div>
     </form>
   </dialog>
