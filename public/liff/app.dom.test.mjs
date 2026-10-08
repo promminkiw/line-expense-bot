@@ -23,6 +23,9 @@ const TRANSACTIONS = [
 
 const RESPONSES = {
   '/api/config': { liffId: 'liff-1' },
+  '/api/friends': { code: 'ABCD2345', friends: [{ id: 'f-1', displayName: 'บี' }] },
+  '/api/friends/lookup': { friend: { id: 'f-2', displayName: 'ซี' } },
+  '/api/friends/code': { code: 'WXYZ6789' },
   '/api/categories': { categories: CATEGORIES },
   '/api/transactions': {
     transactions: TRANSACTIONS,
@@ -234,6 +237,8 @@ describe('index.html static invariants', () => {
       'profile-close',
       'trend-empty',
       'edit-busy',
+      'friends',
+      'friend-qr',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -1076,5 +1081,148 @@ describe('LIFF small tickets', () => {
     await settle();
 
     expect(document.activeElement).toBe(byId('month'));
+  });
+});
+
+describe('LIFF friends section', () => {
+  // boot() installs its own fetch stub, so the route must be applied after it and before the tab opens
+  async function openProfile({ route = () => undefined, ...liffOverrides } = {}) {
+    const liff = await boot();
+    Object.assign(liff, liffOverrides);
+    const calls = routeFetch(route);
+    clickTab('profile');
+    await settle();
+    return calls;
+  }
+
+  it('loads my code and friends when the profile tab opens', async () => {
+    await openProfile();
+
+    expect(byId('friends').hidden).toBe(false);
+    expect(byId('friend-code').textContent).toBe('ABCD-2345');
+    expect([...document.querySelectorAll('#friend-rows .friend-name')].map((el) => el.textContent)).toEqual(['บี']);
+    expect(byId('friends-empty').hidden).toBe(true);
+  });
+
+  it('shows the empty note when there are no friends yet', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined) });
+
+    expect(byId('friends-empty').hidden).toBe(false);
+  });
+
+  it('shows an error with retry when the friend list fails', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends' ? { status: 500 } : undefined) });
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ');
+    routeFetch(() => undefined);
+    byId('friends-retry').click();
+    await settle();
+    expect(byId('friend-code').textContent).toBe('ABCD-2345');
+  });
+
+  it('rejects a malformed code and my own code before asking the server', async () => {
+    const calls = await openProfile();
+
+    for (const [text, message] of [
+      ['1234', 'รหัสเพื่อนต้องเป็นตัวอักษรหรือตัวเลข 8 ตัว'],
+      ['abcd-2345', 'นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน'],
+    ]) {
+      byId('friend-code-input').value = text;
+      byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+      await settle();
+      expect(byId('friend-add-error').textContent).toBe(message);
+    }
+    expect(calls.filter((call) => call.includes('/lookup'))).toEqual([]);
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('looks up a code, confirms and adds the friend', async () => {
+    const calls = await openProfile({
+      route: (method, path) =>
+        method === 'POST' && path === '/api/friends' ? { friend: { id: 'f-2', displayName: 'ซี' } } : undefined,
+    });
+
+    byId('friend-code-input').value = 'wxyz-2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('friend-dialog-text').textContent).toBe('เพิ่ม ซี เป็นเพื่อน?');
+
+    byId('friend-dialog-ok').click();
+    await settle();
+    expect(calls).toContain('POST /api/friends');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('friend-status').textContent).toBe('เพิ่ม ซี เป็นเพื่อนแล้ว');
+    expect(byId('friend-code-input').value).toBe('');
+  });
+
+  it('shows why a lookup failed', async () => {
+    await openProfile({ route: (method, path) => (path === '/api/friends/lookup' ? { status: 404 } : undefined) });
+
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
+  });
+
+  it('removes a friend after confirming', async () => {
+    const calls = await openProfile({ route: (method) => (method === 'DELETE' ? {} : undefined) });
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-text').textContent).toBe('ลบ บี ออกจากเพื่อน? เพิ่มกลับได้ด้วยรหัสเพื่อน');
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('DELETE /api/friends/f-1');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('renews the code after confirming', async () => {
+    await openProfile();
+
+    byId('friend-code-renew').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(byId('friend-code').textContent).toBe('WXYZ-6789');
+    expect(byId('friend-status').textContent).toBe('เปลี่ยนรหัสแล้ว ลิงก์และ QR เดิมใช้ไม่ได้แล้ว');
+  });
+
+  it('toggles the QR code of the invite link', async () => {
+    await openProfile();
+
+    byId('friend-qr-toggle').click();
+    expect(byId('friend-qr').hidden).toBe(false);
+    expect(byId('friend-qr').querySelector('svg')).not.toBeNull();
+    expect(byId('friend-qr-toggle').getAttribute('aria-expanded')).toBe('true');
+    byId('friend-qr-toggle').click();
+    expect(byId('friend-qr').hidden).toBe(true);
+  });
+
+  it('shares the invite link with the LINE share picker when it is available', async () => {
+    const shareTargetPicker = vi.fn().mockResolvedValue({ status: 'success' });
+    await openProfile({ isApiAvailable: (name) => name === 'shareTargetPicker', shareTargetPicker });
+
+    byId('friend-share').click();
+    await settle();
+
+    const [[messages]] = shareTargetPicker.mock.calls;
+    expect(messages[0].type).toBe('text');
+    expect(messages[0].text).toContain('https://liff.line.me/liff-1?friend=ABCD2345');
+    expect(byId('friend-status').textContent).toBe('ส่งลิงก์แล้ว');
+  });
+
+  it('copies the link when the share picker is not available', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await openProfile({ isApiAvailable: () => false });
+
+    byId('friend-share').click();
+    await settle();
+
+    expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?friend=ABCD2345');
+    expect(byId('friend-status').textContent).toBe('คัดลอกลิงก์แล้ว ส่งให้เพื่อนได้เลย');
   });
 });
