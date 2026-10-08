@@ -9,7 +9,7 @@ function fakeSupabase(result, ...laterResults) {
   const nextResult = () => (queue.length > 1 ? queue.shift() : queue[0]);
   const calls = [];
   const builder = {};
-  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order', 'range', 'is', 'gt', 'or', 'limit']) {
+  for (const method of ['select', 'eq', 'upsert', 'insert', 'delete', 'update', 'gte', 'lte', 'order', 'range', 'is', 'gt', 'or', 'limit', 'in']) {
     builder[method] = vi.fn((...args) => {
       calls.push([method, ...args]);
       return builder;
@@ -1371,5 +1371,221 @@ describe('repository friendships', () => {
     await expect(createRepository(failing()).removeFriendship('user-1', 'user-2')).rejects.toThrow(
       'Database removeFriendship failed: boom'
     );
+  });
+});
+
+describe('repository bills', () => {
+  const BILL = 'b1';
+
+  it('creates a bill through the create_bill function', async () => {
+    const { supabase, calls } = fakeSupabase({ data: 'bill-1', error: null });
+
+    const id = await createRepository(supabase).createBill({
+      ownerId: 'user-1',
+      title: 'เนื้อย่าง',
+      total: 400,
+      occurredOn: '2026-10-08',
+      categoryId: 'c1',
+      ownerShare: 100,
+      members: [{ userId: 'user-2', share: 300 }],
+    });
+
+    expect(id).toBe('bill-1');
+    expect(calls).toEqual([
+      [
+        'rpc',
+        'create_bill',
+        {
+          p_owner: 'user-1',
+          p_title: 'เนื้อย่าง',
+          p_total: 400,
+          p_category: 'c1',
+          p_date: '2026-10-08',
+          p_owner_share: 100,
+          p_members: [{ user_id: 'user-2', share: 300 }],
+        },
+      ],
+    ]);
+  });
+
+  it('marks a member as notified', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).markBillMemberNotified(BILL, 'user-2');
+
+    expect(calls).toEqual([
+      ['from', 'bill_members'],
+      ['update', { notified: true }],
+      ['eq', 'bill_id', BILL],
+      ['eq', 'user_id', 'user-2'],
+    ]);
+  });
+
+  it('lists the owner bills newest first with members, names and numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [
+        {
+          id: BILL,
+          title: 'เนื้อย่าง',
+          total: '400.00',
+          occurred_on: '2026-10-08',
+          status: 'open',
+          owner_share: '100.00',
+          created_at: '2026-10-08T10:00:00+00:00',
+          categories: { name: 'อาหาร' },
+          bill_members: [
+            { user_id: 'user-2', share: '300.00', status: 'pending', paid: false, notified: true, users: { display_name: 'บี' } },
+          ],
+        },
+      ],
+      error: null,
+    });
+
+    expect(await createRepository(supabase).listOwnedBills('user-1')).toEqual([
+      {
+        id: BILL,
+        title: 'เนื้อย่าง',
+        total: 400,
+        occurredOn: '2026-10-08',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerShare: 100,
+        createdAt: '2026-10-08T10:00:00+00:00',
+        members: [{ userId: 'user-2', displayName: 'บี', share: 300, status: 'pending', paid: false, notified: true }],
+      },
+    ]);
+    expect(calls).toEqual([
+      ['from', 'bills'],
+      [
+        'select',
+        'id, title, total, occurred_on, status, owner_share, created_at, categories(name), bill_members(user_id, share, status, paid, notified, users(display_name))',
+      ],
+      ['eq', 'owner_id', 'user-1'],
+      ['order', 'created_at', { ascending: false }],
+      ['limit', 50],
+    ]);
+  });
+
+  it('lists the bills shared with a user newest first', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [
+        {
+          share: '150.00',
+          status: 'pending',
+          paid: false,
+          bills: {
+            id: BILL,
+            title: 'เนื้อย่าง',
+            total: '400.00',
+            occurred_on: '2026-10-08',
+            status: 'open',
+            categories: { name: 'อาหาร' },
+            users: { display_name: null },
+          },
+        },
+      ],
+      error: null,
+    });
+
+    expect(await createRepository(supabase).listIncomingBills('user-2')).toEqual([
+      {
+        id: BILL,
+        title: 'เนื้อย่าง',
+        total: 400,
+        occurredOn: '2026-10-08',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerName: null,
+        myShare: 150,
+        myStatus: 'pending',
+        paid: false,
+      },
+    ]);
+    expect(calls).toEqual([
+      ['from', 'bill_members'],
+      ['select', 'share, status, paid, bills(id, title, total, occurred_on, status, categories(name), users(display_name))'],
+      ['eq', 'user_id', 'user-2'],
+      ['order', 'created_at', { ascending: false }],
+      ['limit', 50],
+    ]);
+  });
+
+  it('reads one member share with the bill category, or null', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { share: '150.00', bills: { categories: { name: 'อาหาร' } } }, error: null });
+
+    expect(await createRepository(supabase).getBillShare(BILL, 'user-2')).toEqual({ share: 150, categoryName: 'อาหาร' });
+    expect(calls).toEqual([
+      ['from', 'bill_members'],
+      ['select', 'share, bills(categories(name))'],
+      ['eq', 'bill_id', BILL],
+      ['eq', 'user_id', 'user-2'],
+      ['maybeSingle'],
+    ]);
+    const missing = fakeSupabase({ data: null, error: null });
+    expect(await createRepository(missing.supabase).getBillShare(BILL, 'user-2')).toBeNull();
+  });
+
+  it('confirms and declines through the SQL functions', async () => {
+    const confirm = fakeSupabase({ data: 'confirmed', error: null });
+    const decline = fakeSupabase({ data: 'cancelled', error: null });
+
+    expect(await createRepository(confirm.supabase).confirmBillShare(BILL, 'user-2', 'c2')).toBe('confirmed');
+    expect(confirm.calls).toEqual([['rpc', 'confirm_bill_share', { p_bill: BILL, p_user: 'user-2', p_category: 'c2' }]]);
+    expect(await createRepository(decline.supabase).declineBillShare(BILL, 'user-2')).toBe('cancelled');
+    expect(decline.calls).toEqual([['rpc', 'decline_bill_share', { p_bill: BILL, p_user: 'user-2' }]]);
+  });
+
+  it('cancels only an open bill of the owner', async () => {
+    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
+
+    expect(await createRepository(supabase).cancelBill(BILL, 'user-1')).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'bills'],
+      ['update', { status: 'cancelled' }, { count: 'exact' }],
+      ['eq', 'id', BILL],
+      ['eq', 'owner_id', 'user-1'],
+      ['eq', 'status', 'open'],
+    ]);
+  });
+
+  it('checks the owner and sets the paid flag of one member', async () => {
+    const owner = fakeSupabase({ data: { id: BILL }, error: null });
+    const paid = fakeSupabase({ count: 1, error: null });
+
+    expect(await createRepository(owner.supabase).isBillOwner(BILL, 'user-1')).toBe(true);
+    expect(owner.calls).toEqual([['from', 'bills'], ['select', 'id'], ['eq', 'id', BILL], ['eq', 'owner_id', 'user-1'], ['maybeSingle']]);
+    expect(await createRepository(paid.supabase).setBillMemberPaid(BILL, 'user-2', true)).toBe(true);
+    expect(paid.calls).toEqual([
+      ['from', 'bill_members'],
+      ['update', { paid: true }, { count: 'exact' }],
+      ['eq', 'bill_id', BILL],
+      ['eq', 'user_id', 'user-2'],
+    ]);
+  });
+
+  it('maps user ids to LINE user ids', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [
+        { id: 'user-2', line_user_id: 'U2' },
+        { id: 'user-3', line_user_id: 'U3' },
+      ],
+      error: null,
+    });
+
+    const ids = await createRepository(supabase).getLineUserIds(['user-2', 'user-3']);
+
+    expect([...ids]).toEqual([
+      ['user-2', 'U2'],
+      ['user-3', 'U3'],
+    ]);
+    expect(calls).toEqual([['from', 'users'], ['select', 'id, line_user_id'], ['in', 'id', ['user-2', 'user-3']]]);
+  });
+
+  it('throws DatabaseError when a bill query fails', async () => {
+    const failing = () => fakeSupabase({ data: null, count: null, error: { message: 'boom' } }).supabase;
+
+    await expect(createRepository(failing()).listOwnedBills('user-1')).rejects.toThrow('Database listOwnedBills failed: boom');
+    await expect(createRepository(failing()).confirmBillShare(BILL, 'u', 'c')).rejects.toThrow('Database confirmBillShare failed: boom');
+    await expect(createRepository(failing()).cancelBill(BILL, 'u')).rejects.toThrow('Database cancelBill failed: boom');
   });
 });
