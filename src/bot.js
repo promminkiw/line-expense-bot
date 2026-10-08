@@ -7,6 +7,8 @@ const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
 const { getFixedReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
+const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
+const { formatAmount } = require('./parser/format-reply');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -17,6 +19,13 @@ const DEADLINE_PASSED = Symbol('deadline passed');
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const BILL_REPLIES = {
+  declined: 'ปฏิเสธบิลนี้แล้ว',
+  cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
+  already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
+  already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
+  not_found: 'ไม่พบบิลนี้',
+};
 const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
 const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
 const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
@@ -110,6 +119,7 @@ function createBot({
   parseSlip,
   repository,
   users,
+  bills,
   allowRequest,
   liffUrl,
   now = () => Date.now(),
@@ -371,6 +381,18 @@ function createBot({
     return { text: slip ? SLIP_CANCELLED_REPLY : SLIP_EXPIRED_REPLY };
   }
 
+  // การ์ดบิลอาจถูกกดซ้ำหรือกดอีกปุ่มทีหลัง จึงตอบตามสถานะที่ DB คืนมาเสมอ
+  async function handleBillAnswer(params, lineUserId, answer) {
+    const userId = await users.ensureUser(lineUserId);
+    const result = await bills.respond(userId, params.get('bill'), answer);
+    if (result.status === 'confirmed' && result.share !== undefined) {
+      return { text: `บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
+    }
+    if (result.status === 'confirmed') return { text: BILL_REPLIES.already_confirmed };
+    if (result.status === 'declined' && answer === 'confirm') return { text: BILL_REPLIES.already_declined };
+    return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
+  }
+
   async function handlePostback(event, lineUserId) {
     const params = new URLSearchParams(event.postback.data);
     const action = params.get('action');
@@ -385,6 +407,12 @@ function createBot({
       return action === SLIP_SAVE_ACTION
         ? handleSlipSave(event, params, lineUserId)
         : handleSlipCancel(event, params, lineUserId);
+    }
+    if (action === BILL_CONFIRM_ACTION || action === BILL_DECLINE_ACTION) {
+      if (!UUID_PATTERN.test(params.get('bill') || '')) {
+        return null;
+      }
+      return handleBillAnswer(params, lineUserId, action === BILL_CONFIRM_ACTION ? 'confirm' : 'decline');
     }
     return null;
   }
@@ -489,5 +517,6 @@ module.exports = {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   SLIP_TTL_MS,
+  BILL_REPLIES,
   buildUndoQuickReply,
 };

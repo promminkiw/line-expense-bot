@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 const { createBot, SLIP_TTL_MS } = require('./src/bot');
-const { createReplyText, createReplyFlex, createPushText } = require('./src/line-reply');
+const { createReplyText, createReplyFlex, createPushText, createPushFlex } = require('./src/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
 const { createRepository } = require('./src/db/repository');
 const { createUserService } = require('./src/users');
@@ -23,11 +23,15 @@ const { createRecurringRunner } = require('./src/recurring/run');
 const { createRecurringRouter } = require('./src/recurring/router');
 const { createFriendService } = require('./src/friends/service');
 const { createFriendsRouter } = require('./src/friends/router');
+const { createBillService } = require('./src/bills/service');
+const { createBillsRouter } = require('./src/bills/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 // กันการไล่เดารหัสเพื่อนของคนอื่น
 const FRIEND_LOOKUP_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
+// แต่ละบิล push หาเพื่อนทุกคน จำกัดไว้กันโควตาข้อความหมด
+const BILL_CREATE_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
 
 const config = loadConfig(process.env);
@@ -60,6 +64,13 @@ const users = createUserService({
 // ตัวนับอยู่ในหน่วยความจำ พอสำหรับ server instance เดียว
 const allowRequest = createRateLimiter(RATE_LIMIT);
 
+const bills = createBillService({
+  repository,
+  users,
+  pushFlex: createPushFlex(lineClient),
+  liffUrl: `https://liff.line.me/${config.liffId}`,
+});
+
 const bot = createBot({
   replyText: createReplyText(lineClient),
   replyFlex: createReplyFlex(lineClient),
@@ -69,6 +80,7 @@ const bot = createBot({
   parseSlip,
   repository,
   users,
+  bills,
   allowRequest,
   liffUrl: `https://liff.line.me/${config.liffId}`,
 });
@@ -84,6 +96,7 @@ const apiRouter = createApiRouter({
     friends: createFriendService({ repository }),
     allowFriendLookup: createRateLimiter(FRIEND_LOOKUP_RATE_LIMIT),
   }),
+  billsRouter: createBillsRouter({ bills, allowBillCreate: createRateLimiter(BILL_CREATE_RATE_LIMIT) }),
 });
 const recurringRouter = createRecurringRouter({
   cronSecret: config.cronSecret,

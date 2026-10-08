@@ -199,6 +199,7 @@ describe('/api', () => {
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
       allowExport: vi.fn().mockReturnValue(true),
       friendsRouter: express.Router(),
+      billsRouter: express.Router(),
       liffId: 'liff-123',
       logger: { error: vi.fn() },
     });

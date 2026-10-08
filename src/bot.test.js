@@ -15,6 +15,7 @@ import {
   SLIP_TTL_MS,
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
+  BILL_REPLIES,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 
@@ -116,6 +117,7 @@ function setup(overrides = {}) {
         ])
       ),
     },
+    bills: { respond: vi.fn().mockResolvedValue({ status: 'confirmed', share: 300, categoryName: 'อาหาร' }) },
     allowRequest: vi.fn().mockReturnValue(true),
     logger: { error: vi.fn(), info: vi.fn() },
     ...overrides,
@@ -1524,5 +1526,73 @@ describe('bot reply deadline', () => {
 
     expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot bill card buttons', () => {
+  const BILL = '55555555-5555-5555-5555-555555555555';
+
+  it('confirms the share from the card and says where it was saved', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+
+    expect(deps.bills.respond).toHaveBeenCalledWith('user-1', BILL, 'confirm');
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว', undefined);
+  });
+
+  it('answers every other outcome with its own message', async () => {
+    for (const [action, status, reply] of [
+      ['bill_decline', 'declined', BILL_REPLIES.declined],
+      ['bill_confirm', 'cancelled', BILL_REPLIES.cancelled],
+      ['bill_confirm', 'not_found', BILL_REPLIES.not_found],
+    ]) {
+      const { deps, bot } = setup();
+      deps.bills.respond.mockResolvedValue({ status });
+
+      await bot.handleEvent(postbackEvent(`action=${action}&bill=${BILL}`));
+
+      expect(deps.replyText).toHaveBeenCalledWith('r2', reply, undefined);
+    }
+  });
+
+  it('says the earlier answer when the user taps again', async () => {
+    const { deps, bot } = setup();
+    deps.bills.respond.mockResolvedValue({ status: 'confirmed' });
+
+    await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_confirmed, undefined);
+  });
+
+  it('only ever passes confirm or decline to the service', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}&answer=anything`));
+    await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
+    await bot.handleEvent(postbackEvent(`action=bill_other&bill=${BILL}`));
+
+    expect(deps.bills.respond.mock.calls.map((call) => call[2])).toEqual(['confirm', 'decline']);
+  });
+
+  it('ignores a bill id that is not a UUID', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=bill_confirm&bill=x'));
+
+    expect(deps.bills.respond).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+});
+
+describe('BILL_REPLIES', () => {
+  it('uses the agreed wording', () => {
+    expect(BILL_REPLIES).toEqual({
+      declined: 'ปฏิเสธบิลนี้แล้ว',
+      cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
+      already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
+      already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
+      not_found: 'ไม่พบบิลนี้',
+    });
   });
 });
