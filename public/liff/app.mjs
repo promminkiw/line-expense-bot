@@ -33,7 +33,7 @@ import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
 import { parseEditLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
-import { createSkeletonRows, createLoadingIndicator } from './skeleton.mjs';
+import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
 
@@ -89,6 +89,7 @@ const els = {
   budgetsLoading: document.getElementById('budgets-loading'),
   budgetsSkeleton: document.getElementById('budgets-skeleton'),
   summarySkeleton: document.getElementById('summary-skeleton'),
+  listHeadSkeleton: document.getElementById('list-head-skeleton'),
   budgetsError: document.getElementById('budgets-error'),
   budgetsErrorText: document.getElementById('budgets-error-text'),
   budgetsRetry: document.getElementById('budgets-retry'),
@@ -172,18 +173,19 @@ let recurringBusy = false;
 let pendingRecurringFocus = null;
 const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
-const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4 });
-const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3 });
+const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4, variant: 'budget' });
+const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3, variant: 'recurring' });
 const trendGuard = createLatestGuard();
-const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, count: 1, variant: 'card' });
+const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, variants: ['trend'] });
 const profileGuard = createLatestGuard();
-const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, count: 1, variant: 'card' });
+const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, variants: ['profile-head', 'balance', 'stats', 'tips'] });
 let profileRendered = false;
 let profileLoginRequired = false;
 // ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
 let profileStale = false;
 let profileInFlight = false;
-els.summarySkeleton.replaceChildren(createSkeletonRows(document, 1, 'card'));
+els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
+els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
 
@@ -233,6 +235,7 @@ function showLoadError(err) {
     els.list.replaceChildren();
     els.filters.hidden = true;
   }
+  els.listHeadSkeleton.hidden = true;
   els.summarySkeleton.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
@@ -468,6 +471,7 @@ function render({ transactions, summary, truncated }, { animate = false } = {}) 
     loadError = null;
     setBanner('');
   }
+  els.listHeadSkeleton.hidden = true;
   els.summarySkeleton.hidden = true;
   const sum = summaryTotals(summary);
   showAmount(els.statIncome, sum.income);
@@ -743,6 +747,7 @@ async function loadMonth({ reset = false } = {}) {
     loadError = null;
     setBanner('');
     els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
+    els.listHeadSkeleton.hidden = false;
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.filters.hidden = true;

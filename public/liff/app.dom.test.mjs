@@ -62,7 +62,7 @@ function flush() {
 // the fake fetch resolves in microtasks only, so one macrotask drains the whole boot chain
 const settle = flush;
 
-const LOADING_ELEMENT_IDS = ['summary-skeleton', 'trend-skeleton', 'budgets-skeleton', 'recurring-skeleton', 'profile-skeleton'];
+const LOADING_ELEMENT_IDS = ['list-head-skeleton', 'summary-skeleton', 'trend-skeleton', 'budgets-skeleton', 'recurring-skeleton', 'profile-skeleton'];
 
 // override: Error -> network failure, { status } -> HTTP error, anything else -> JSON body
 function makeFetch(overrides) {
@@ -214,6 +214,7 @@ describe('index.html static invariants', () => {
       'banner-retry',
       'filters',
       'filter-clear',
+      'list-head-skeleton',
       'summary-skeleton',
       'trend-loading',
       'trend-skeleton',
@@ -273,6 +274,7 @@ describe('LIFF page after a normal boot', () => {
 
     expect(rows).toHaveLength(3);
     expect(document.querySelector('#list .skeleton')).toBeNull();
+    expect(byId('list-head-skeleton').hidden).toBe(true);
     expect(byId('summary-skeleton').hidden).toBe(true);
     expect([...document.querySelectorAll('#list .day .day-date')].map((day) => day.textContent)).toEqual(['02/10', '01/10']);
     expect([...document.querySelectorAll('#list .day .day-net')].map((net) => net.textContent)).toEqual(['-60', '+24,960']);
@@ -464,6 +466,26 @@ describe('LIFF page after a normal boot', () => {
     expect(byId('banner-retry').hidden).toBe(true);
   });
 
+  // skeleton แต่ละชิ้นต้องเป็นรูปเดียวกับของจริงที่จะมาแทน ไม่งั้นเนื้อหาด้านล่างกระโดดตอนโหลดเสร็จ
+  it('shapes each skeleton like the content that replaces it', () => {
+    const variants = (id) => [...byId(id).children].map((item) => item.className.replace('skeleton skeleton-', ''));
+
+    expect(variants('list-head-skeleton')).toEqual(['totals', 'filters']);
+    expect(variants('summary-skeleton')).toEqual(['chart']);
+    expect(variants('trend-skeleton')).toEqual(['trend']);
+    expect(variants('budgets-skeleton')).toEqual(['budget', 'budget', 'budget', 'budget']);
+    expect(variants('recurring-skeleton')).toEqual(['recurring', 'recurring', 'recurring']);
+    expect(variants('profile-skeleton')).toEqual(['profile-head', 'balance', 'stats', 'tips']);
+  });
+
+  it('puts the list head skeleton where the totals card will appear', () => {
+    const panel = byId('panel-list');
+    const order = (id) => [...panel.children].indexOf(byId(id));
+
+    expect(order('list-head-skeleton')).toBe(0);
+    expect(order('list-head-skeleton')).toBeLessThan(order('totals'));
+  });
+
   it('keeps the summary skeleton and empty state above the trend card', () => {
     const panel = byId('panel-summary');
     const order = (id) => [...panel.children].indexOf(byId(id));
@@ -594,6 +616,7 @@ describe('LIFF page when loading fails', () => {
     expect(byId('banner').hidden).toBe(false);
     expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
     expect(document.querySelector('#list .skeleton')).toBeNull();
+    expect(byId('list-head-skeleton').hidden).toBe(true);
     expect(byId('summary-skeleton').hidden).toBe(true);
     expect(byId('filters').hidden).toBe(true);
     expect(byId('status').hidden).toBe(true);

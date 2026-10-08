@@ -1,6 +1,6 @@
-export function createSkeletonRows(doc, count, variant = 'row') {
+export function createSkeletonBlocks(doc, variants) {
   const fragment = doc.createDocumentFragment();
-  for (let index = 0; index < count; index += 1) {
+  for (const variant of variants) {
     const item = doc.createElement('li');
     item.className = `skeleton skeleton-${variant}`;
     item.setAttribute('aria-hidden', 'true');
@@ -9,9 +9,13 @@ export function createSkeletonRows(doc, count, variant = 'row') {
   return fragment;
 }
 
+export function createSkeletonRows(doc, count, variant = 'row') {
+  return createSkeletonBlocks(doc, Array.from({ length: count }, () => variant));
+}
+
 // ข้อความโหลดเดิมยังคงอยู่ให้ screen reader อ่าน ส่วน skeleton เป็นภาพประกอบอย่างเดียว
-export function createLoadingIndicator({ doc, textEl, skeletonEl, count, variant = 'bar' }) {
-  skeletonEl.replaceChildren(createSkeletonRows(doc, count, variant));
+export function createLoadingIndicator({ doc, textEl, skeletonEl, count, variant = 'bar', variants }) {
+  skeletonEl.replaceChildren(variants ? createSkeletonBlocks(doc, variants) : createSkeletonRows(doc, count, variant));
   return {
     set(visible) {
       textEl.hidden = !visible;
