@@ -129,4 +129,24 @@ describe('createApi', () => {
 
     expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual(['/api/trend?month=2026-09', '/api/profile']);
   });
+
+  it('reads, looks up, adds and removes friends and renews the code', async () => {
+    const fetchImpl = fakeFetch(200, {});
+    const api = setup(fetchImpl);
+
+    await api.getFriends();
+    await api.lookupFriend('AB CD');
+    await api.addFriend('ABCD2345');
+    await api.removeFriend('id/1');
+    await api.regenerateFriendCode();
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [options.method ?? 'GET', url])).toEqual([
+      ['GET', '/api/friends'],
+      ['GET', '/api/friends/lookup?code=AB%20CD'],
+      ['POST', '/api/friends'],
+      ['DELETE', '/api/friends/id%2F1'],
+      ['POST', '/api/friends/code'],
+    ]);
+    expect(JSON.parse(fetchImpl.mock.calls[2][1].body)).toEqual({ code: 'ABCD2345' });
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEditLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink } from './deep-link.mjs';
 
 const ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 
@@ -29,5 +29,18 @@ describe('parseEditLink', () => {
     expect(parseEditLink(`?tx=${ID}&d=2026-13-40`)).toEqual({ id: ID, date: null });
     expect(parseEditLink(`?tx=${ID}&d=hello`)).toEqual({ id: ID, date: null });
     expect(parseEditLink(`?tx=${ID}`)).toEqual({ id: ID, date: null });
+  });
+});
+
+describe('parseFriendLink', () => {
+  it('reads the friend code from the query or from liff.state after login', () => {
+    expect(parseFriendLink('?friend=abcd-2345')).toBe('ABCD2345');
+    expect(parseFriendLink(`?liff.state=${encodeURIComponent('?friend=ABCD2345')}`)).toBe('ABCD2345');
+  });
+
+  it('ignores a missing or malformed code', () => {
+    expect(parseFriendLink('')).toBeNull();
+    expect(parseFriendLink('?tx=abc')).toBeNull();
+    expect(parseFriendLink('?friend=<script>')).toBeNull();
   });
 });
