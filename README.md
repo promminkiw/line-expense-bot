@@ -105,8 +105,8 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 4. ตั้ง cron-job.org 2 งาน:
    - `GET <URL>/health` ทุก 10 นาที (กัน Free plan หลับ)
    - `POST <URL>/internal/recurring/run` วันละครั้ง พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) และเปิดแจ้งเตือนเมื่อล้มเหลว (timeout สูงสุดของ cron-job.org คือ 30 วินาที)
-5. ใน LINE Developers console ของ LIFF app เปิด "shareTargetPicker" (ให้ปุ่มส่งลิงก์ชวนเพื่อนเปิดหน้าเลือกแชตได้ ถ้าไม่เปิด หน้าเว็บจะคัดลอกลิงก์แทน)
-6. ใน LINE Developers console ของ LINE Login channel ที่ผูกกับ LIFF: ก่อนอื่นต้องผูก Official Account ของ Messaging API ที่ใช้กับบอท (ช่อง "Linked LINE Official Account" ใน Basic settings, ต้องอยู่ provider เดียวกัน) แล้วจึงตั้ง "Add friend option" (เลือกแบบ aggressive) ที่แท็บ LIFF ของ channel นั้น เพื่อให้ LINE ชวนเพิ่มบอทเป็นเพื่อนตอนเปิดหน้าเว็บ ผู้ใช้ที่เคยกดยอมรับสิทธิ์ของ LIFF app ไปแล้วจะไม่เห็นหน้าชวนนี้ ขั้นนี้ยังต้องยืนยันตอนทดสอบด้วยแอป LINE จริง (การตรวจว่าเพื่อนเพิ่มบอทแล้วจริงจะทำในเฟส 2 ตอนที่บอทต้องส่งข้อความหาเพื่อน)
+5. ที่ LINE Login channel แท็บ **LIFF** เปิด **shareTargetPicker** (ต้องติ๊กยอมรับ "Agreement Regarding Use of Information" ก่อนกด Enable) เพื่อให้ปุ่มส่งลิงก์ชวนเพื่อนเปิดหน้าเลือกแชตได้ ถ้าไม่เปิด หน้าเว็บจะคัดลอกลิงก์แทน
+6. ให้ LINE ชวนเพิ่มบอทเป็นเพื่อนตอนเปิดหน้าเว็บ: (1) ที่ LINE Login channel แท็บ **Basic settings** ช่อง **Linked LINE Official Account** กด Edit แล้วเลือกบอท (Messaging API channel กับ LINE Login channel ต้องอยู่ provider เดียวกัน) (2) แท็บ **LIFF** เปิด LIFF app ของบอท ตั้ง **Add friend option** เป็น **On (aggressive)** (แสดงหน้าถามเพิ่มเพื่อนหลังหน้ายินยอม) (3) ช่อง **Scopes** ของ LIFF app ต้องเปิด `openid` และ `profile` เพราะ server ใช้ชื่อใน ID token เติมชื่อของผู้ใช้ที่ยังไม่มีชื่อ หน้าชวนเพิ่มบอทแสดงตอนหน้ายินยอมของ LIFF เท่านั้น ผู้ใช้ที่เคยยินยอมไปแล้วจะไม่เห็นอีก การตรวจว่าเพื่อนเพิ่มบอทแล้วจริงจะทำในเฟส 2 ตอนที่บอทต้องส่งข้อความหาเพื่อน
 
 ## คำสั่งพัฒนา
 
