@@ -69,9 +69,29 @@ describe('validateBillInput', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts a title of exactly 60 characters, counting each emoji as one', () => {
+    for (const title of ['ก'.repeat(60), '\u{1F969}'.repeat(60)]) {
+      const result = validateBillInput(body({ title }), OWNER);
+
+      expect(result.ok, title).toBe(true);
+      expect(result.value.title).toBe(title);
+    }
+  });
+
+  it('accepts exactly the member limit', () => {
+    const members = Array.from({ length: MAX_BILL_MEMBERS }, (_, index) => ({
+      userId: `55555555-5555-5555-5555-${String(index).padStart(12, '0')}`,
+      share: 1,
+    }));
+
+    expect(MAX_BILL_MEMBERS).toBe(20);
+    expect(validateBillInput(body({ total: members.length, ownerShare: 0, members }), OWNER).ok).toBe(true);
+  });
+
   it.each([
     ['a missing or empty title', { title: '   ' }, 'Invalid title'],
     ['a title over 60 characters', { title: 'ก'.repeat(61) }, 'Invalid title'],
+    ['a title of 61 emoji', { title: '\u{1F969}'.repeat(61) }, 'Invalid title'],
     ['a zero total', { total: 0 }, 'Invalid total'],
     ['a total over the limit', { total: 10000000.01 }, 'Invalid total'],
     ['a total with three decimals', { total: 1000.001 }, 'Invalid total'],

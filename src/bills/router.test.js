@@ -123,6 +123,16 @@ describe('createBillsRouter', () => {
     expect((await call(`${base}/${BILL}/confirm`, { method: 'POST' })).status).toBe(404);
   });
 
+  it('answers an earlier answer with its already status and no share', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    deps.bills.respond.mockResolvedValueOnce({ status: 'already_confirmed' });
+    expect(await (await call(`${base}/${BILL}/confirm`, { method: 'POST' })).json()).toEqual({ status: 'already_confirmed' });
+    deps.bills.respond.mockResolvedValueOnce({ status: 'already_declined' });
+    expect(await (await call(`${base}/${BILL}/decline`, { method: 'POST' })).json()).toEqual({ status: 'already_declined' });
+  });
+
   it('answers 404 for ids that are not UUIDs without touching the service', async () => {
     const deps = setup();
     const base = await start(deps);

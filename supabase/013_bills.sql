@@ -90,8 +90,9 @@ begin
   if not found then
     return 'not_found';
   end if;
+  -- แยกคำตอบเดิมออกจากคำตอบใหม่ บอทกับหน้าเว็บจะได้ไม่บอกว่าบันทึกซ้ำ
   if m.status <> 'pending' then
-    return m.status;
+    return 'already_' || m.status;
   end if;
   if b.status = 'cancelled' then
     return 'cancelled';
@@ -124,14 +125,36 @@ begin
   if not found then
     return 'not_found';
   end if;
+  -- แยกคำตอบเดิมออกจากคำตอบใหม่ บอทกับหน้าเว็บจะได้ไม่บอกว่าบันทึกซ้ำ
   if m.status <> 'pending' then
-    return m.status;
+    return 'already_' || m.status;
   end if;
   if bill_status = 'cancelled' then
     return 'cancelled';
   end if;
   update public.bill_members set status = 'declined', responded_at = now() where bill_id = p_bill and user_id = p_user;
   return 'declined';
+end
+$$;
+
+-- ล็อกแถวบิลก่อนเหมือน confirm/decline แล้วลบรายการส่วนของเจ้าของในคราวเดียว ไม่ให้เหลือรายจ่ายของบิลที่ยกเลิกแล้ว
+create or replace function public.cancel_bill(p_bill uuid, p_owner uuid)
+returns boolean
+language plpgsql
+set search_path = public
+as $$
+declare
+  b public.bills%rowtype;
+begin
+  select * into b from public.bills where id = p_bill and owner_id = p_owner and status = 'open' for update;
+  if not found then
+    return false;
+  end if;
+  update public.bills set status = 'cancelled' where id = p_bill;
+  if b.owner_transaction_id is not null then
+    delete from public.transactions where id = b.owner_transaction_id and user_id = p_owner;
+  end if;
+  return true;
 end
 $$;
 
@@ -142,5 +165,7 @@ revoke execute on function public.confirm_bill_share(uuid, uuid, uuid) from publ
 grant execute on function public.confirm_bill_share(uuid, uuid, uuid) to service_role;
 revoke execute on function public.decline_bill_share(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.decline_bill_share(uuid, uuid) to service_role;
+revoke execute on function public.cancel_bill(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.cancel_bill(uuid, uuid) to service_role;
 
 notify pgrst, 'reload schema';

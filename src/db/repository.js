@@ -420,14 +420,9 @@ function createRepository(supabase) {
   }
 
   async function cancelBill(billId, ownerId) {
-    const { count, error } = await supabase
-      .from('bills')
-      .update({ status: 'cancelled' }, { count: 'exact' })
-      .eq('id', billId)
-      .eq('owner_id', ownerId)
-      .eq('status', 'open');
+    const { data, error } = await supabase.rpc('cancel_bill', { p_bill: billId, p_owner: ownerId });
     throwIfError('cancelBill', error);
-    return count > 0;
+    return data === true;
   }
 
   async function isBillOwner(billId, ownerId) {

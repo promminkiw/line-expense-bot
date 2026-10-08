@@ -385,11 +385,9 @@ function createBot({
   async function handleBillAnswer(params, lineUserId, answer) {
     const userId = await users.ensureUser(lineUserId);
     const result = await bills.respond(userId, params.get('bill'), answer);
-    if (result.status === 'confirmed' && result.share !== undefined) {
+    if (result.status === 'confirmed') {
       return { text: `บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
     }
-    if (result.status === 'confirmed') return { text: BILL_REPLIES.already_confirmed };
-    if (result.status === 'declined' && answer === 'confirm') return { text: BILL_REPLIES.already_declined };
     return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
   }
 

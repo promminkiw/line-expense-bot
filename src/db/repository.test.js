@@ -1535,17 +1535,21 @@ describe('repository bills', () => {
     expect(decline.calls).toEqual([['rpc', 'decline_bill_share', { p_bill: BILL, p_user: 'user-2' }]]);
   });
 
-  it('cancels only an open bill of the owner', async () => {
-    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
+  it('cancels through the SQL function that also removes the owner expense', async () => {
+    const cancelled = fakeSupabase({ data: true, error: null });
+    const refused = fakeSupabase({ data: false, error: null });
 
-    expect(await createRepository(supabase).cancelBill(BILL, 'user-1')).toBe(true);
-    expect(calls).toEqual([
-      ['from', 'bills'],
-      ['update', { status: 'cancelled' }, { count: 'exact' }],
-      ['eq', 'id', BILL],
-      ['eq', 'owner_id', 'user-1'],
-      ['eq', 'status', 'open'],
-    ]);
+    expect(await createRepository(cancelled.supabase).cancelBill(BILL, 'user-1')).toBe(true);
+    expect(cancelled.calls).toEqual([['rpc', 'cancel_bill', { p_bill: BILL, p_owner: 'user-1' }]]);
+    expect(await createRepository(refused.supabase).cancelBill(BILL, 'user-1')).toBe(false);
+  });
+
+  it('passes an earlier answer through as its own status', async () => {
+    const confirm = fakeSupabase({ data: 'already_confirmed', error: null });
+    const decline = fakeSupabase({ data: 'already_declined', error: null });
+
+    expect(await createRepository(confirm.supabase).confirmBillShare(BILL, 'user-2', 'c2')).toBe('already_confirmed');
+    expect(await createRepository(decline.supabase).declineBillShare(BILL, 'user-2')).toBe('already_declined');
   });
 
   it('checks the owner and sets the paid flag of one member', async () => {

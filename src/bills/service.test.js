@@ -186,6 +186,14 @@ describe('billService.respond', () => {
     expect(repository.confirmBillShare).not.toHaveBeenCalled();
   });
 
+  it('passes an earlier answer through without a share, so it is not reported as saved', async () => {
+    const confirmedBefore = setup({ confirmBillShare: vi.fn().mockResolvedValue('already_confirmed') });
+    const declinedBefore = setup({ declineBillShare: vi.fn().mockResolvedValue('already_declined') });
+
+    expect(await confirmedBefore.service.respond(F1, BILL, 'confirm')).toEqual({ status: 'already_confirmed' });
+    expect(await declinedBefore.service.respond(F1, BILL, 'decline')).toEqual({ status: 'already_declined' });
+  });
+
   it('declines through the repository and passes other statuses through', async () => {
     const { service, repository } = setup({ declineBillShare: vi.fn().mockResolvedValue('cancelled') });
 

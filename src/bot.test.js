@@ -1556,13 +1556,36 @@ describe('bot bill card buttons', () => {
     }
   });
 
-  it('says the earlier answer when the user taps again', async () => {
+  it('answers a second confirm tap with already confirmed', async () => {
     const { deps, bot } = setup();
-    deps.bills.respond.mockResolvedValue({ status: 'confirmed' });
+    deps.bills.respond.mockResolvedValue({ status: 'already_confirmed' });
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_confirmed, undefined);
+  });
+
+  it('answers a second decline tap with already declined', async () => {
+    const { deps, bot } = setup();
+    deps.bills.respond.mockResolvedValue({ status: 'already_declined' });
 
     await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_confirmed, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_declined, undefined);
+  });
+
+  it('says the earlier answer when the user taps the other button', async () => {
+    for (const [action, status, reply] of [
+      ['bill_decline', 'already_confirmed', BILL_REPLIES.already_confirmed],
+      ['bill_confirm', 'already_declined', BILL_REPLIES.already_declined],
+    ]) {
+      const { deps, bot } = setup();
+      deps.bills.respond.mockResolvedValue({ status });
+
+      await bot.handleEvent(postbackEvent(`action=${action}&bill=${BILL}`));
+
+      expect(deps.replyText).toHaveBeenCalledWith('r2', reply, undefined);
+    }
   });
 
   it('only ever passes confirm or decline to the service', async () => {

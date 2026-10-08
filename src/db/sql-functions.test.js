@@ -406,7 +406,7 @@ describe('013_bills.sql', () => {
     const first = await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood]);
     const again = await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood]);
 
-    expect([first.status, again.status]).toEqual(['confirmed', 'confirmed']);
+    expect([first.status, again.status]).toEqual(['confirmed', 'already_confirmed']);
     const member = await one('select status, transaction_id, responded_at from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]]);
     expect(member.status).toBe('confirmed');
     expect(member.responded_at).not.toBeNull();
@@ -421,8 +421,86 @@ describe('013_bills.sql', () => {
 
     expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[1]])).status).toBe('declined');
     expect((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status).toBe('confirmed');
-    expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status).toBe('confirmed');
+    expect((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status).toBe('already_confirmed');
     expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[1]])).status).toBe('declined');
+  });
+
+  it('reports an earlier confirm distinctly from a new one', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+
+    const answers = [];
+    answers.push((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status);
+    answers.push((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status);
+    answers.push((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status);
+
+    expect(answers).toEqual(['confirmed', 'already_confirmed', 'already_confirmed']);
+    expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]])).status).toBe('confirmed');
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(1);
+  });
+
+  it('reports an earlier decline distinctly from a new one', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+
+    const answers = [];
+    answers.push((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status);
+    answers.push((await one('select decline_bill_share($1, $2) as status', [bill, friends[0]])).status);
+    answers.push((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status);
+
+    expect(answers).toEqual(['declined', 'already_declined', 'already_declined']);
+    expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]])).status).toBe('declined');
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(0);
+  });
+
+  it('cancels an open bill of the owner and deletes the owner expense in the same call', async () => {
+    const { owner, bill } = await setupBill();
+    const ownerTx = (await one('select owner_transaction_id from bills where id = $1', [bill])).owner_transaction_id;
+
+    expect((await one('select cancel_bill($1, $2) as done', [bill, owner])).done).toBe(true);
+
+    expect((await one('select status, owner_transaction_id from bills where id = $1', [bill]))).toEqual({ status: 'cancelled', owner_transaction_id: null });
+    expect(Number((await one('select count(*) from transactions where id = $1', [ownerTx])).count)).toBe(0);
+  });
+
+  it('keeps friends confirmed expenses when the owner cancels', async () => {
+    const { owner, friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+    await one('select confirm_bill_share($1, $2, $3)', [bill, friends[0], friendFood]);
+
+    await one('select cancel_bill($1, $2)', [bill, owner]);
+
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(1);
+    expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]])).status).toBe('confirmed');
+    expect((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[1], friendFood])).status).toBe('cancelled');
+  });
+
+  it('cancels a bill without an owner expense', async () => {
+    const { owner, bill } = await setupBill({ ownerShare: 0, shares: [200] });
+
+    expect((await one('select cancel_bill($1, $2) as done', [bill, owner])).done).toBe(true);
+    expect((await one('select status from bills where id = $1', [bill])).status).toBe('cancelled');
+  });
+
+  it('refuses to cancel for another user, a cancelled bill or an unknown bill and changes nothing', async () => {
+    const { owner, friends, bill } = await setupBill();
+
+    expect((await one('select cancel_bill($1, $2) as done', [bill, friends[0]])).done).toBe(false);
+    expect((await one('select status from bills where id = $1', [bill])).status).toBe('open');
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [owner])).count)).toBe(1);
+    expect((await one('select cancel_bill(gen_random_uuid(), $1) as done', [owner])).done).toBe(false);
+    expect((await one('select cancel_bill($1, $2) as done', [bill, owner])).done).toBe(true);
+    expect((await one('select cancel_bill($1, $2) as done', [bill, owner])).done).toBe(false);
+  });
+
+  it('cancel_bill locks the bill row before deleting the owner expense', async () => {
+    const { def } = await one("select pg_get_functiondef('public.cancel_bill'::regproc) as def");
+
+    const billLock = def.search(/from public\.bills\s+where id = p_bill[^;]*for update/i);
+    const txDelete = def.search(/delete from public\.transactions/i);
+    expect(billLock).toBeGreaterThan(-1);
+    expect(txDelete).toBeGreaterThan(-1);
+    expect(billLock).toBeLessThan(txDelete);
   });
 
   it('refuses to confirm or decline once the bill is cancelled, and reports a stranger as not found', async () => {
@@ -487,6 +565,7 @@ describe('function permissions', () => {
     ['create_bill', "select create_bill(gen_random_uuid(), 'x', 1, gen_random_uuid(), '2026-10-08', 0, '[]'::jsonb)"],
     ['confirm_bill_share', 'select confirm_bill_share(gen_random_uuid(), gen_random_uuid(), gen_random_uuid())'],
     ['decline_bill_share', 'select decline_bill_share(gen_random_uuid(), gen_random_uuid())'],
+    ['cancel_bill', 'select cancel_bill(gen_random_uuid(), gen_random_uuid())'],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว
