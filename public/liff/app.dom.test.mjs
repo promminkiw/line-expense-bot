@@ -2119,6 +2119,24 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-error').textContent).toBe('มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง');
   });
 
+  it('keeps submit disabled while categories are still loading', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    routeFetch(() => undefined);
+    const release = holdRequest('/api/categories');
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-submit').disabled).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('');
+
+    release();
+    await settle();
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
   it('blocks submit when no expense category is available', async () => {
     await boot({ overrides: { '/api/categories': { categories: [] } } });
     routeFetch(() => undefined);

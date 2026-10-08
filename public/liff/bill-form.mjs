@@ -125,7 +125,8 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     let message = '';
     const total = amountOf(els.total);
     const chosen = picked();
-    const noCategory = categoriesLoaded && els.category.value === '';
+    const missingCategory = els.category.value === '';
+    const noCategory = categoriesLoaded && missingCategory;
     if (noCategory) {
       message = NO_EXPENSE_CATEGORY;
     } else if (!els.title.value.trim() || !toSatang(total)) {
@@ -145,7 +146,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     els.error.textContent = message;
     els.cancel.disabled = submitting;
     els.submit.disabled =
-      submitting || friendsState !== 'ready' || Boolean(message) || !els.title.value.trim() || !toSatang(total) || chosen.length === 0;
+      submitting || friendsState !== 'ready' || missingCategory || Boolean(message) || !els.title.value.trim() || !toSatang(total) || chosen.length === 0;
   }
 
   async function open() {
