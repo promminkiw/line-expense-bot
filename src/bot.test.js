@@ -485,6 +485,15 @@ describe('bot summary command', () => {
     expect(deps.repository.summarizeTransactions).not.toHaveBeenCalled();
   });
 
+  it('shows the period buttons even when the user is rate limited because it costs no Claude call', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SUMMARY_MENU_REPLY, SUMMARY_QUICK_REPLY);
+    expect(deps.allowRequest).not.toHaveBeenCalled();
+  });
+
   it('replies a summary card for today using SQL totals and the Claude comment', async () => {
     const { deps, bot } = setup();
 
