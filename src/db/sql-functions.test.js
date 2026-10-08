@@ -14,7 +14,10 @@ const MIGRATIONS = [
   '008_pending_slips_event_index.sql',
   '009_recurring.sql',
   '010_profile_and_trend.sql',
+  '011_slip_category.sql',
 ];
+
+const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
 
 let db;
 
@@ -23,7 +26,7 @@ beforeAll(async () => {
   // role ของ Supabase ที่ migration อ้างถึงใน grant/revoke; service_role ของจริงข้าม RLS และใช้ตารางได้
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls;');
   for (const file of MIGRATIONS) {
-    await db.exec(readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8'));
+    await db.exec(readMigration(file));
   }
   await db.exec('grant usage on schema public to service_role; grant all on all tables in schema public to service_role;');
 }, 60000);
@@ -278,6 +281,24 @@ describe('monthly_totals', () => {
       { month: '2026-09', type: 'income', total: 25000 },
       { month: '2026-10', type: 'expense', total: 100 },
     ]);
+  });
+});
+
+describe('011_slip_category.sql', () => {
+  it('gives every existing user the slip expense category once, even when run again', async () => {
+    const first = await createUser('U1');
+    const second = await createUser('U2');
+    await createCategory(first, 'อาหาร', 'expense');
+
+    await db.exec(readMigration('011_slip_category.sql'));
+    await db.exec(readMigration('011_slip_category.sql'));
+
+    const result = await rows(
+      "select user_id, type from categories where name = 'ใบเสร็จ/สลิปโอนเงิน' order by user_id",
+    );
+    expect(result).toEqual(
+      [first, second].sort().map((userId) => ({ user_id: userId, type: 'expense' })),
+    );
   });
 });
 

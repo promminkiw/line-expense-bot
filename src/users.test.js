@@ -1,12 +1,21 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createUserService } from './users.js';
+import { DEFAULT_CATEGORIES } from './parser/categories.js';
+
+// ผู้ใช้ที่มีหมวดเริ่มต้นครบ อาหาร = c1 ให้เทสต์อ้างได้
+const ALL_DEFAULT_IDS = new Map([
+  ['expense:อาหาร', 'c1'],
+  ...Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) =>
+    names.filter((name) => `${type}:${name}` !== 'expense:อาหาร').map((name) => [`${type}:${name}`, `${type}-${name}`]),
+  ),
+]);
 
 function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedValue('Aom')) {
   const repository = {
     findUserIdByLineId: vi.fn().mockResolvedValue(null),
     createUser: vi.fn().mockResolvedValue('user-1'),
     seedDefaultCategories: vi.fn().mockResolvedValue(),
-    getCategoryIds: vi.fn().mockResolvedValue(new Map([['expense:อาหาร', 'c1']])),
+    getCategoryIds: vi.fn().mockResolvedValue(ALL_DEFAULT_IDS),
     ...repositoryOverrides,
   };
   const logger = { error: vi.fn() };
@@ -137,6 +146,20 @@ describe('userService.loadCategoryIds', () => {
 
     expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
     expect(ids.get('expense:อาหาร')).toBe('c1');
+  });
+
+  // ผู้ใช้ที่สมัครก่อนมีหมวดใหม่ (เช่นหมวดสลิป) ต้องได้หมวดนั้นก่อนบันทึก ไม่งั้นรายการตกไปอยู่ อื่นๆ
+  it('seeds the missing defaults and reloads when a default category was added after the user joined', async () => {
+    const all = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) => names.map((name) => `${type}:${name}`));
+    const withoutSlip = new Map(all.filter((key) => key !== 'expense:ใบเสร็จ/สลิปโอนเงิน').map((key, index) => [key, `c${index}`]));
+    const full = new Map(all.map((key, index) => [key, `c${index}`]));
+    const getCategoryIds = vi.fn().mockResolvedValueOnce(withoutSlip).mockResolvedValueOnce(full);
+    const { repository, service } = setup({ getCategoryIds });
+
+    const ids = await service.loadCategoryIds('user-1');
+
+    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
+    expect(ids.has('expense:ใบเสร็จ/สลิปโอนเงิน')).toBe(true);
   });
 
   it('rejects when seeding fails', async () => {

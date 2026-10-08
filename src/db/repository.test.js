@@ -123,8 +123,9 @@ describe('repository.seedDefaultCategories', () => {
     expect(calls[0]).toEqual(['from', 'categories']);
     expect(method).toBe('upsert');
     expect(options).toEqual({ onConflict: 'user_id,type,name', ignoreDuplicates: true });
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(11);
     expect(rows).toContainEqual({ user_id: 'user-1', type: 'expense', name: 'อาหาร' });
+    expect(rows).toContainEqual({ user_id: 'user-1', type: 'expense', name: 'ใบเสร็จ/สลิปโอนเงิน' });
     expect(rows).toContainEqual({ user_id: 'user-1', type: 'income', name: 'อื่นๆ' });
   });
 

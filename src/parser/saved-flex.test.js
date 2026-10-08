@@ -188,23 +188,18 @@ describe('buildSlipConfirmFlex', () => {
     expect(found).toEqual(expect.arrayContaining(['อาหาร', '-120 บาท', 'สุขภาพ', '-59 บาท']));
   });
 
-  it('shows the discount note and the slip total only when there is a note', () => {
-    const withNote = texts(buildSlipConfirmFlex([MILK, TOOTHPASTE], { extrasNote: 'ส่วนลด 10 บาท', slipTotal: 169 }));
-
-    expect(withNote).toEqual(expect.arrayContaining(['หมายเหตุ: ส่วนลด 10 บาท (ไม่ได้บันทึก)', 'ยอดสุทธิบนสลิป 169 บาท']));
-    expect(texts(buildSlipConfirmFlex([MILK, TOOTHPASTE], { slipTotal: 169 })).join('|')).not.toContain('ยอดสุทธิบนสลิป');
-  });
-
-  it('shows each warning that applies in a highlighted strip', () => {
-    const flex = buildSlipConfirmFlex([MILK], { dateAssumed: true, skippedCount: 2, truncatedTo: 20 });
+  it('shows the assumed date warning in a highlighted strip', () => {
+    const flex = buildSlipConfirmFlex([MILK], { dateAssumed: true });
     const strips = flex.contents.body.contents.filter((node) => node.backgroundColor);
 
     expect(strips).toHaveLength(1);
-    expect(texts(flex)).toEqual(expect.arrayContaining([
-      'อ่านวันที่ไม่ได้ จึงใช้วันนี้',
-      'ข้าม 2 รายการที่อ่านราคาไม่ได้',
-      'มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก',
-    ]));
+    expect(texts(flex)).toContain('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
+  });
+
+  it('has no warning strip when the date was read', () => {
+    const flex = buildSlipConfirmFlex([MILK]);
+
+    expect(flex.contents.body.contents.filter((node) => node.backgroundColor)).toHaveLength(0);
   });
 
   it('gives the rows no link action, even for the second row onward (array index must not leak in as a uri)', () => {

@@ -172,7 +172,7 @@ describe('index.html static invariants', () => {
   const symbolIds = new Set([...doc.querySelectorAll('symbol[id]')].map((symbol) => symbol.id));
 
   it('defines a sprite symbol for every category icon', () => {
-    const names = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าบริการ', 'สุขภาพ', 'บันเทิง', 'เงินเดือน', 'รายได้เสริม', 'อื่นๆ', 'ไม่รู้จัก'];
+    const names = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าบริการ', 'สุขภาพ', 'บันเทิง', 'เงินเดือน', 'รายได้เสริม', 'ใบเสร็จ/สลิปโอนเงิน', 'อื่นๆ', 'ไม่รู้จัก'];
     const missing = names.map((name) => categoryStyle(name).symbol).filter((id) => !symbolIds.has(id));
 
     expect(missing).toEqual([]);

@@ -314,10 +314,6 @@ function createBot({
     return {
       flex: buildSlipConfirmFlex(slip.items, {
         dateAssumed: slip.dateAssumed,
-        extrasNote: slip.extrasNote,
-        slipTotal: slip.slipTotal,
-        truncatedTo: slip.truncatedTo,
-        skippedCount: slip.skippedCount,
         buttons: buildSlipQuickReply(slipId),
       }),
     };

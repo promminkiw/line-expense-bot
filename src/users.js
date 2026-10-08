@@ -1,5 +1,11 @@
+const { DEFAULT_CATEGORIES } = require('./parser/categories');
+const { categoryKey } = require('./db/transaction-rows');
+
 // getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
 const PROFILE_TIMEOUT_MS = 3000;
+const DEFAULT_CATEGORY_KEYS = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) =>
+  names.map((name) => categoryKey(type, name))
+);
 
 function createUserService({ repository, getDisplayName, logger = console, profileTimeoutMs = PROFILE_TIMEOUT_MS }) {
   async function fetchDisplayName(lineUserId) {
@@ -31,10 +37,10 @@ function createUserService({ repository, getDisplayName, logger = console, profi
 
   async function loadCategoryIds(userId) {
     const categoryIds = await repository.getCategoryIds(userId);
-    if (categoryIds.size > 0) {
+    if (DEFAULT_CATEGORY_KEYS.every((key) => categoryIds.has(key))) {
       return categoryIds;
     }
-    // ซ่อมกรณีสร้างผู้ใช้สำเร็จแต่สร้างหมวดไม่สำเร็จ
+    // ซ่อมกรณีสร้างผู้ใช้สำเร็จแต่สร้างหมวดไม่สำเร็จ และเติมหมวดเริ่มต้นที่เพิ่มมาหลังผู้ใช้สมัคร
     await repository.seedDefaultCategories(userId);
     return repository.getCategoryIds(userId);
   }

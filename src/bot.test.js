@@ -27,7 +27,7 @@ const SLIP_ITEM = { type: 'expense', category: 'อาหาร', amount: 120, d
 const SLIP_EXTRA_ITEM = { type: 'expense', category: 'สุขภาพ', amount: 59, date: '2026-09-28', note: 'ยาสีฟัน' };
 
 function slipResult(overrides = {}) {
-  return { status: 'ok', items: [SLIP_ITEM], dateAssumed: false, extrasNote: '', slipTotal: 0, truncatedTo: 0, ...overrides };
+  return { status: 'ok', items: [SLIP_ITEM], dateAssumed: false, ...overrides };
 }
 
 const SLIP_QUICK_REPLY = [
@@ -887,19 +887,6 @@ describe('bot slip image', () => {
     });
   });
 
-  it('shows how many items were skipped on the confirm card without changing the saved reply', async () => {
-    const parseSlip = vi.fn().mockResolvedValue(slipResult({ skippedCount: 1 }));
-    const { deps, bot } = setup({ parseSlip });
-
-    await bot.handleEvent(imageEvent());
-
-    expect(replyFlexOf(deps).text).toContain('ข้าม 1 รายการที่อ่านราคาไม่ได้');
-    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
-    expect(replyFlexOf(deps, 1).text).toBe(
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง'
-    );
-  });
-
   it('tells the user the image limit is 3.5 MB', () => {
     expect(SLIP_TOO_LARGE_REPLY).toBe('รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน');
   });
@@ -1221,36 +1208,29 @@ describe('bot slip confirmation', () => {
   });
 });
 
+// สลิปที่รอยืนยันก่อนเปลี่ยนเป็นอ่านยอดเดียวอาจมีหลายรายการ ยังต้องบันทึกได้ครบ
 describe('bot slip with several items', () => {
   const SAVE = `action=slip_save&slip=${SLIP_ID}`;
   const CATEGORY_IDS = new Map([
     ['expense:อาหาร', 'cat-food'],
     ['expense:สุขภาพ', 'cat-health'],
     ['expense:อื่นๆ', 'cat-other'],
+    ['expense:ใบเสร็จ/สลิปโอนเงิน', 'cat-slip'],
   ]);
 
-  it('keeps every item pending and shows them one by one with the extras note', async () => {
-    const parseSlip = vi.fn().mockResolvedValue(
-      slipResult({
-        items: [SLIP_ITEM, SLIP_EXTRA_ITEM],
-        extrasNote: 'ส่วนลด 10 บาท',
-        slipTotal: 169,
-      })
-    );
-    const { deps, bot } = setup({ parseSlip });
+  it('saves a slip total under the slip category', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadCategoryIds.mockResolvedValue(CATEGORY_IDS);
+    deps.repository.claimPendingSlip.mockResolvedValue({
+      webhookEventId: 'ev-img',
+      items: [{ ...SLIP_ITEM, category: 'ใบเสร็จ/สลิปโอนเงิน' }],
+    });
 
-    await bot.handleEvent(imageEvent());
+    await bot.handleEvent(postbackEvent(SAVE));
 
-    expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM, SLIP_EXTRA_ITEM]);
-    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
-    expect(replyFlexOf(deps).text).toBe(
-      'อ่านสลิปได้ 2 รายการ\n' +
-        '- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n' +
-        '- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n' +
-        'หมายเหตุ: ส่วนลด 10 บาท (ไม่ได้บันทึก)\n' +
-        'ยอดสุทธิบนสลิป 169 บาท\n' +
-        'กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)'
-    );
+    expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
+      expect.objectContaining({ category_id: 'cat-slip', amount: 120, source: 'slip' }),
+    ]);
   });
 
   it('saves all items as separate rows in one insert tied to the image event, then offers undo', async () => {
@@ -1329,14 +1309,6 @@ describe('bot slip with several items', () => {
     expect(text).toContain('เกินงบ สุขภาพ เดือน 09/2026: ใช้ไป 100 จาก 100 บาท (100%)');
   });
 
-  it('tells the user when the receipt was cut to the first items', async () => {
-    const parseSlip = vi.fn().mockResolvedValue(slipResult({ truncatedTo: 20 }));
-    const { deps, bot } = setup({ parseSlip });
-
-    await bot.handleEvent(imageEvent());
-
-    expect(replyFlexOf(deps).text).toContain('มีสินค้ามากกว่า 20 รายการ บันทึกเฉพาะ 20 รายการแรก');
-  });
 });
 
 describe('bot edit links on the saved card', () => {

@@ -54,6 +54,18 @@ describe('parseMessage request', () => {
     });
   });
 
+  // หมวดสลิปใช้เฉพาะตอนอ่านรูป ข้อความที่พิมพ์ต้องเลือกหมวดตามของที่ซื้อ
+  it('does not offer the slip category for typed messages', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'claude-haiku-4-5', now: NOW });
+
+    await parse('กินข้าว 60');
+
+    const params = client.messages.create.mock.calls[0][0];
+    expect(params.system).not.toContain('ใบเสร็จ/สลิปโอนเงิน');
+    expect(PARSE_SCHEMA.properties.items.items.properties.category.enum).not.toContain('ใบเสร็จ/สลิปโอนเงิน');
+  });
+
   it('sends earlier clarification turns before the new message', async () => {
     const client = fakeClient(okPayload([item()]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });
