@@ -50,6 +50,14 @@ export function describeBillError(status, action, error) {
   return 'โหลดบิลไม่สำเร็จ';
 }
 
+// null เมื่อผลจาก server ตรงกับที่กด ไม่ใช่ก็ใช้ข้อความเดียวกับที่บอทตอบใน postback
+export function describeBillAnswer(requested, resultStatus) {
+  if (resultStatus === 'cancelled') return 'บิลนี้ถูกยกเลิกแล้ว';
+  if (requested === 'decline' && resultStatus === 'confirmed') return 'คุณยืนยันบิลนี้ไปแล้ว';
+  if (requested === 'confirm' && resultStatus === 'declined') return 'คุณปฏิเสธบิลนี้ไปแล้ว';
+  return null;
+}
+
 export function buildBillUrl(liffId, billId) {
   return `https://liff.line.me/${liffId}?bill=${billId}`;
 }

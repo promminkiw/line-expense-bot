@@ -1727,11 +1727,87 @@ describe('LIFF bills tab', () => {
     expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
   });
 
-  it('opens the bills tab at the linked bill', async () => {
-    await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
+  it('opens the bills tab at the linked bill and focuses its card', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const linkedId = '66666666-6666-6666-6666-666666666666';
+    const bills = { owned: [], incoming: [{ ...RESPONSES['/api/bills'].incoming[0], id: linkedId }] };
+    await boot({ search: `?bill=${linkedId}`, overrides: { '/api/bills': bills } });
     await settle();
 
     expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
     expect(window.location.search).toBe('');
+    expect(document.activeElement).toBe(incomingCard());
+    expect(scrollIntoView).toHaveBeenCalled();
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('says so when the linked bill is not in the lists', async () => {
+    await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ อาจถูกยกเลิกแล้ว');
+  });
+
+  it('says the bill was cancelled when confirming a bill the owner already cancelled', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'cancelled' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/confirm');
+    expect(byId('bills-status').textContent).toBe('บิลนี้ถูกยกเลิกแล้ว');
+  });
+
+  it('ignores a second confirm tap while the first is in flight', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+    const confirmButton = incomingCard().querySelector('.bill-confirm');
+
+    confirmButton.click();
+    confirmButton.click();
+    await settle();
+
+    expect(calls.filter((call) => call === 'POST /api/bills/b-in/confirm')).toHaveLength(1);
+  });
+
+  it('reloads the list when confirming a bill that no longer exists', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
+  });
+
+  it('keeps the confirmed message when the reload after confirm fails', async () => {
+    let listCalls = 0;
+    await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills/b-in/confirm') return { status: 'confirmed' };
+        if (path === '/api/bills') {
+          listCalls += 1;
+          return listCalls > 1 ? { status: 500 } : undefined;
+        }
+        return undefined;
+      },
+    });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toContain('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+  });
+
+  it('scrolls the status line into view when a message is set', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+    const scrollIntoView = vi.fn();
+    byId('bills-status').scrollIntoView = scrollIntoView;
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
   });
 });
