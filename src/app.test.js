@@ -198,6 +198,7 @@ describe('/api', () => {
       users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
       allowExport: vi.fn().mockReturnValue(true),
+      friendsRouter: express.Router(),
       liffId: 'liff-123',
       logger: { error: vi.fn() },
     });

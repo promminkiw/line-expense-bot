@@ -22,10 +22,14 @@ function createApiRouter({
   logger = console,
   now = () => new Date(),
   allowExport,
+  friendsRouter,
 }) {
   // ไม่มี default เพราะถ้าลืมส่ง limit จะหายเงียบๆ
   if (typeof allowExport !== 'function') {
     throw new TypeError('createApiRouter requires allowExport');
+  }
+  if (!friendsRouter) {
+    throw new TypeError('createApiRouter requires friendsRouter');
   }
   const router = express.Router();
 
@@ -54,6 +58,8 @@ function createApiRouter({
       next(err);
     }
   });
+
+  router.use('/friends', friendsRouter);
 
   router.get('/categories', async (req, res) => {
     res.json({ categories: await repository.listCategories(req.userId) });

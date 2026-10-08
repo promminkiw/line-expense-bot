@@ -21,9 +21,13 @@ const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
 const { createRecurringRunner } = require('./src/recurring/run');
 const { createRecurringRouter } = require('./src/recurring/router');
+const { createFriendService } = require('./src/friends/service');
+const { createFriendsRouter } = require('./src/friends/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
+// กันการไล่เดารหัสเพื่อนของคนอื่น
+const FRIEND_LOOKUP_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
 
 const config = loadConfig(process.env);
@@ -76,6 +80,10 @@ const apiRouter = createApiRouter({
   repository,
   liffId: config.liffId,
   allowExport: createRateLimiter(EXPORT_RATE_LIMIT),
+  friendsRouter: createFriendsRouter({
+    friends: createFriendService({ repository }),
+    allowFriendLookup: createRateLimiter(FRIEND_LOOKUP_RATE_LIMIT),
+  }),
 });
 const recurringRouter = createRecurringRouter({
   cronSecret: config.cronSecret,
