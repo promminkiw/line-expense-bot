@@ -1,42 +1,68 @@
 /* ค่าสีทั้งหมดอยู่ที่นี่ที่เดียว เทสต์ tokens.test.mjs ตรวจ contrast จากไฟล์นี้ ต้องใช้รูปแบบ #rrggbb เท่านั้น */
 :root {
   color-scheme: light;
-  --bg: #f5f5f7;
+  --bg: #f3f6fc;
   --surface: #ffffff;
-  --text: #1d1d1f;
-  --muted: #707070;
-  --border: #d6d6d6;
-  --track: #e6e6e8;
-  --skeleton: #e6e6e8;
-  --outline: #86868b;
-  /* น้ำเงินใช้กับปุ่มและลิงก์เท่านั้น ส่วนเขียวใช้เฉพาะรายรับ */
-  --primary: #0071e3;
+  --text: #0f172a;
+  --muted: #556070;
+  --border: #d5deee;
+  --track: #dce6f7;
+  --skeleton: #e3eaf6;
+  --outline: #76829a;
+  /* น้ำเงินคือสีแบรนด์ เหลืองเฉพาะ CTA เขียว/แดงเฉพาะเงินเข้า/ออก */
+  --primary: #1157c5;
   --on-primary: #ffffff;
+  --brand-dark: #0b3c8f;
+  --brand-soft: #e6eefc;
+  --cta: #ffde59;
+  --cta-pressed: #f2c716;
+  --on-cta: #111111;
+  --on-brand-muted: #dbe6fa;
+  --disabled-bg: #e3e8f2;
   --income: #1d7a35;
+  --income-soft: #e6f4ea;
   --danger: #d70015;
   --on-danger: #ffffff;
   --warn: #b64400;
-  --notice-bg: #fff4d6;
-  --notice-text: #6b4e00;
-  /* ไอคอนหมวดโทนเดียว: หมวดรายรับเป็นเขียว ที่เหลือเป็นเทาเข้ม ไม่แยกสีรายหมวด */
-  --cat-food-fg: #515154;
-  --cat-food-bg: #ffffff;
-  --cat-transport-fg: #515154;
-  --cat-transport-bg: #ffffff;
-  --cat-shopping-fg: #515154;
-  --cat-shopping-bg: #ffffff;
-  --cat-bill-fg: #515154;
-  --cat-bill-bg: #ffffff;
-  --cat-health-fg: #515154;
-  --cat-health-bg: #ffffff;
-  --cat-fun-fg: #515154;
-  --cat-fun-bg: #ffffff;
+  --notice-bg: #fff1b8;
+  --notice-text: #5c4300;
+  /* สีหมวดในแถบสรุปเรียงตามยอด ทุกสีต้องเห็นบนการ์ดขาวอย่างน้อย 3:1 */
+  --chart-1: #1157c5;
+  --chart-2: #c26a00;
+  --chart-3: #e5484d;
+  --chart-4: #1d7a35;
+  --chart-5: #7b4fe0;
+  --chart-6: #007f96;
+  --trend-income: #b9d0f5;
+  /* ไอคอนหมวดโทนเดียว: หมวดรายรับเป็นเขียว ที่เหลือเป็นน้ำเงินแบรนด์ ไม่แยกสีรายหมวด */
+  --cat-food-fg: #1157c5;
+  --cat-food-bg: #e6eefc;
+  --cat-transport-fg: #1157c5;
+  --cat-transport-bg: #e6eefc;
+  --cat-shopping-fg: #1157c5;
+  --cat-shopping-bg: #e6eefc;
+  --cat-bill-fg: #1157c5;
+  --cat-bill-bg: #e6eefc;
+  --cat-health-fg: #1157c5;
+  --cat-health-bg: #e6eefc;
+  --cat-fun-fg: #1157c5;
+  --cat-fun-bg: #e6eefc;
   --cat-salary-fg: #1d7a35;
-  --cat-salary-bg: #ffffff;
+  --cat-salary-bg: #e6f4ea;
   --cat-side-fg: #1d7a35;
-  --cat-side-bg: #ffffff;
-  --cat-receipt-fg: #515154;
-  --cat-receipt-bg: #ffffff;
-  --cat-other-fg: #515154;
-  --cat-other-bg: #ffffff;
+  --cat-side-bg: #e6f4ea;
+  --cat-receipt-fg: #1157c5;
+  --cat-receipt-bg: #e6eefc;
+  --cat-other-fg: #1157c5;
+  --cat-other-bg: #e6eefc;
+
+  /* ค่าที่ไม่ใช่สี: รัศมี เงา และขนาดพื้นที่แตะ */
+  --radius-card: 24px;
+  --radius-sheet: 28px;
+  --radius-input: 16px;
+  --radius-pill: 9999px;
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow-nav: 0 -2px 12px rgba(15, 23, 42, 0.08);
+  --tap: 44px;
+  --tap-cta: 48px;
 }

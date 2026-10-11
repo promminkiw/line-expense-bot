@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { URL as NodeUrl } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TABS } from './tabs.mjs';
@@ -222,6 +222,36 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('tab-user')).toBe(true);
   });
 
+  // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
+  it.each([
+    ['edit-form', 'cancel-button', 'delete-button'],
+    ['budget-form', 'budget-cancel', 'budget-remove'],
+    ['recurring-form', 'recurring-cancel', 'recurring-delete'],
+  ])('moves the close button of %s to a labelled X outside the action row', (formId, closeId, removeId) => {
+    const close = doc.getElementById(closeId);
+    const actions = doc.getElementById(formId).querySelector('.actions');
+
+    expect(close.closest('.actions')).toBeNull();
+    expect(close.classList.contains('dialog-close')).toBe(true);
+    expect(close.getAttribute('aria-label')).toBe('ปิด');
+    expect(close.querySelector('use').getAttribute('href')).toBe('#icon-close');
+    expect([...actions.querySelectorAll('button')].map((button) => button.id || button.className)).toEqual([removeId, 'primary']);
+  });
+
+  it('defines the close icon symbol', () => {
+    expect(symbolIds.has('icon-close')).toBe(true);
+  });
+
+  // ผู้ใช้อยากให้ลิงก์อ่านใบเสร็จอยู่ในกรอบขาวเดียวกับช่องยอดรวม แต่ปุ่มต้องไม่อยู่ใน label
+  it('puts the receipt link in the same card as the total, outside its label', () => {
+    const card = doc.getElementById('bill-form-total').closest('.bill-form-card');
+
+    expect(card).not.toBeNull();
+    expect(card.parentElement.id).toBe('bill-form');
+    expect(card.contains(doc.getElementById('bill-form-receipt-button'))).toBe(true);
+    expect(doc.getElementById('bill-form-receipt-button').closest('label')).toBeNull();
+  });
+
   it('announces friend errors and offers search on the code keyboard', () => {
     expect(doc.getElementById('friends-error-text').getAttribute('role')).toBe('alert');
     expect(doc.getElementById('friend-code-input').getAttribute('enterkeyhint')).toBe('search');
@@ -241,6 +271,15 @@ describe('index.html static invariants', () => {
     expect(doc.querySelector('.top-sticky .bar')).not.toBeNull();
     expect(doc.querySelector('.top-sticky #banner')).not.toBeNull();
     expect(doc.querySelector('.top-sticky #banner-retry')).not.toBeNull();
+  });
+
+  it('sets the brand theme color and ships the mascot it references', () => {
+    expect(doc.querySelector('meta[name="theme-color"]').getAttribute('content')).toBe('#1157c5');
+    for (const img of doc.querySelectorAll('img[src^="assets/"]')) {
+      expect(img.getAttribute('alt')).toBe('');
+      expect(existsSync(new NodeUrl(img.getAttribute('src'), import.meta.url)), img.getAttribute('src')).toBe(true);
+    }
+    expect(doc.querySelector('.bar > .bar-mascot + #page-title')).not.toBeNull();
   });
 
   it('labels the editor dialog with its heading', () => {
@@ -403,6 +442,21 @@ describe('LIFF page after a normal boot', () => {
     byId('filter-clear').click();
     expect(type.value).toBe('');
     expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+  });
+
+  // สรุปตามหมวดแบบ S5: แถบเดียวแบ่งสีตามหมวด สีของแต่ละแถวตรงกับช่วงในแถบ
+  it('draws the segmented category bar with matching row colors', () => {
+    const segments = [...byId('chart-stack').children];
+    const rows = [...document.querySelectorAll('#chart-rows .chart-row')];
+
+    expect(byId('chart-stack').getAttribute('aria-hidden')).toBe('true');
+    expect(segments.map((segment) => segment.style.width)).toEqual(['60%', '40%']);
+    expect(segments.map((segment) => segment.style.background)).toEqual(['var(--chart-1)', 'var(--chart-2)']);
+    expect(rows.map((row) => row.style.getPropertyValue('--dot'))).toEqual(['var(--chart-1)', 'var(--chart-2)']);
+
+    document.querySelector('#chart .tabs [data-type="income"]').click();
+    expect([...byId('chart-stack').children].map((segment) => segment.style.width)).toEqual(['100%']);
+    document.querySelector('#chart .tabs [data-type="expense"]').click();
   });
 
   it('renders the six-month trend and the comparison text', () => {
@@ -971,6 +1025,41 @@ describe('LIFF list swipe to delete', () => {
 const ZERO_TREND = {
   months: ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map((month) => ({ month, income: 0, expense: 0 })),
 };
+
+// หน้ารอบเดือนแบบ R2 ที่ผู้ใช้เลือก: คำอธิบายบรรทัดเดียว เงื่อนไขพับไว้ แถวแยกวันที่ ชื่อ ยอดเป็นชิ้น
+describe('recurring tab style r2', () => {
+  const RULES = {
+    rules: [
+      { id: 'r-1', type: 'income', categoryId: 'c-salary', amount: 25000, dayOfMonth: 1, note: 'บริษัท', active: true },
+      { id: 'r-2', type: 'expense', categoryId: 'c-trip', amount: 1200, dayOfMonth: 31, note: '', active: false },
+    ],
+  };
+
+  it('keeps the hint to one line and folds the timing rules into a details element', async () => {
+    await boot({ overrides: { '/api/recurring': RULES } });
+
+    expect(document.querySelector('.recurring-hint').textContent).toBe('บอทจดให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE');
+    expect(document.querySelector('.recurring-more summary').textContent).toBe('เริ่มจดเมื่อไร');
+    expect(document.querySelector('.recurring-more').textContent).toContain('จะเริ่มเดือนหน้า');
+    expect(document.querySelector('.recurring-more').textContent).toContain('กดยกเลิกได้');
+  });
+
+  it('renders each rule as a calendar day, a name, a signed amount and a paused tag', async () => {
+    await boot({ overrides: { '/api/recurring': RULES } });
+    const rows = [...document.querySelectorAll('#recurring-rows .recurring-row')];
+
+    expect(rows.map((row) => row.querySelector('.recurring-cal b').textContent)).toEqual(['1', '31']);
+    expect(rows.map((row) => row.querySelector('.recurring-name').textContent)).toEqual(['บริษัท', 'เดินทาง']);
+    expect(rows.map((row) => row.querySelector('.recurring-amount').textContent)).toEqual(['+25,000 บาท', '-1,200 บาท']);
+    expect(rows[0].querySelector('.recurring-sub').textContent).toBe('เงินเดือน');
+    expect(rows[1].querySelector('.recurring-paused').textContent).toBe('หยุดไว้');
+    expect(rows[0].classList.contains('income')).toBe(true);
+    expect(rows[1].classList.contains('paused')).toBe(true);
+    expect(rows[0].querySelector('.recurring-cal').getAttribute('aria-hidden')).toBe('true');
+    // screen reader ยังได้ข้อความเต็ม รวมเงื่อนไขวันที่ 29-31 ที่ย้ายไปพับไว้
+    expect(rows[1].querySelector('button').getAttribute('aria-label')).toBe('เดินทาง รายจ่าย 1,200 บาท · ทุกวันที่ 31 (เดือนที่สั้นกว่านั้นใช้วันสุดท้าย) · หยุดไว้');
+  });
+});
 
 describe('LIFF small tickets', () => {
   it('(C) says so when the six month trend has no entries at all', async () => {

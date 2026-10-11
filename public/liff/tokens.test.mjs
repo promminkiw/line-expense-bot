@@ -5,7 +5,7 @@ const css = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
 
 function parseVars(text) {
   const vars = {};
-  for (const [, name, value] of text.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+  for (const [, name, value] of text.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {
     vars[name] = value;
   }
   return vars;
@@ -39,13 +39,24 @@ const TEXT_PAIRS = [
   ['on-primary', 'primary'],
   ['on-danger', 'danger'],
   ['notice-text', 'notice-bg'],
+  ['on-cta', 'cta'],
+  ['on-cta', 'cta-pressed'],
+  ['on-brand-muted', 'primary'],
+  ['brand-dark', 'brand-soft'],
+  ['muted', 'brand-soft'],
+  ['muted', 'disabled-bg'],
+  ['income', 'income-soft'],
+  ['on-primary', 'brand-dark'],
+  ['warn', 'surface'],
   ...CATEGORY_KEYS.map((key) => [`cat-${key}-fg`, `cat-${key}-bg`]),
 ];
 
 // คู่ที่ไม่ใช่ข้อความ (เส้นขอบปุ่ม แท่งสีเตือน) ต้อง >= 3
 const UI_PAIRS = [
   ['outline', 'surface'],
-  ['warn', 'surface'],
+  ['cta', 'primary'],
+  // สีหมวดในแถบสรุป S5 ต้องเห็นได้บนการ์ดขาว
+  ...[1, 2, 3, 4, 5, 6].map((n) => [`chart-${n}`, 'surface']),
 ];
 
 it('does not define a dark theme', () => {

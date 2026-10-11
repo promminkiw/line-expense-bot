@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1157c5">
   <title>รายการรายรับรายจ่าย</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
@@ -24,6 +25,7 @@
     <symbol id="tab-budget" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11v4"/><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M16 14.5h.01"/></symbol>
     <symbol id="tab-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M20 6H8a4 4 0 0 0-4 4v1"/><path d="M7 21l-3-3 3-3"/><path d="M4 18h12a4 4 0 0 0 4-4v-1"/></symbol>
     <symbol id="tab-bill" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M12 7v8M9.5 9.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6-1 1.4-2.5 1.4-2.5.5-2.5 1.5 1 1.5 2.5 1.5 2.5-.5 2.5-1.5"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
     <symbol id="tab-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
     <symbol id="empty-list" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="4"/><path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M22 26h20M22 34h20M22 42h12"/></symbol>
     <symbol id="empty-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></symbol>
@@ -33,6 +35,7 @@
   <main id="app">
     <div class="top-sticky">
     <header class="bar">
+      <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
       <h1 id="page-title">รายการของฉัน</h1>
       <input type="month" id="month" aria-label="เลือกเดือน">
     </header>
@@ -80,6 +83,7 @@
             <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
           </div>
         </div>
+        <div id="chart-stack" class="chart-stack" aria-hidden="true"></div>
         <ul id="chart-rows" class="chart-rows"></ul>
         <p id="chart-empty" class="chart-empty" hidden></p>
       </section>
@@ -113,7 +117,11 @@
     <div id="panel-recurring" class="panel" hidden>
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
         <h2 id="recurring-title">รายการประจำ</h2>
-        <p class="recurring-hint">บอทบันทึกให้อัตโนมัติเดือนละครั้งตามวันที่ตั้งไว้ และแจ้งใน LINE (กดยกเลิกได้) ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้กฎที่หยุดไว้) จะเริ่มเดือนหน้า</p>
+        <p class="recurring-hint"><span class="nowrap">บอทจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
+        <details class="recurring-more">
+          <summary>เริ่มจดเมื่อไร</summary>
+          <p>ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว จะเริ่มเดือนหน้า (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้รายการที่หยุดไว้) ทุกครั้งที่จดจะแจ้งใน LINE และกดยกเลิกได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
+        </details>
         <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
         <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="recurring-empty" hidden></div>
@@ -126,8 +134,15 @@
       </section>
     </div>
     <div id="panel-bills" class="panel" hidden>
-      <div class="bills-toolbar">
-        <button type="button" id="bill-new" class="bill-new" disabled>สร้างบิล</button>
+      <div class="bills-hero">
+        <div class="bills-hero-text">
+          <p class="bills-hero-title">หารบิล ง่ายนิดเดียว</p>
+          <p class="bills-hero-sub">กินด้วยกัน จ่ายด้วยกัน แชร์ค่าใช้จ่ายกับเพื่อน</p>
+        </div>
+        <img class="bills-hero-mascot" src="assets/mascot.webp" alt="" width="72" height="72">
+        <div class="bills-toolbar">
+          <button type="button" id="bill-new" class="bill-new" disabled>สร้างบิล</button>
+        </div>
       </div>
       <p id="bills-status" class="export-status bills-status" role="status" aria-live="polite"></p>
       <p id="bills-loading" class="sr-only" role="status" hidden>กำลังโหลดบิล...</p>
@@ -178,9 +193,9 @@
         <section class="profile-tips" aria-labelledby="tips-title">
           <h3 id="tips-title">วิธีใช้บอท</h3>
           <ul>
-            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" บอทบันทึกให้ทันที</li>
+            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
             <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-            <li>ส่งรูปสลิปหรือใบเสร็จ บอทอ่านยอดแล้วถามยืนยันก่อนบันทึก</li>
+            <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
             <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
           </ul>
         </section>
@@ -223,6 +238,7 @@
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
       <h2 id="editor-title">แก้ไขรายการ</h2>
+      <button type="button" id="cancel-button" class="dialog-close" aria-label="ปิด"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
       <label>จำนวนเงิน (บาท)
         <input id="edit-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
       </label>
@@ -239,7 +255,6 @@
       <p id="edit-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="delete-button" class="danger">ลบ</button>
-        <button type="button" id="cancel-button">ปิด</button>
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>
@@ -270,13 +285,15 @@
       <label>ชื่อบิล
         <input id="bill-form-title" type="text" placeholder="เช่น เนื้อย่าง" aria-describedby="bill-form-error" required>
       </label>
-      <label>ยอดรวม (บาท)
-        <input id="bill-form-total" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bill-form-error" required>
-      </label>
-      <div class="bill-form-receipt">
-        <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
-        <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
-        <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
+      <div class="bill-form-card">
+        <label>ยอดรวม (บาท)
+          <input id="bill-form-total" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bill-form-error" required>
+        </label>
+        <div class="bill-form-receipt">
+          <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
+          <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+          <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
+        </div>
       </div>
       <label>วันที่
         <input id="bill-form-date" type="date" aria-describedby="bill-form-error" required>
@@ -328,6 +345,7 @@
   <dialog id="budget-editor" aria-labelledby="budget-title">
     <form id="budget-form">
       <h2 id="budget-title"></h2>
+      <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
       <p id="budget-scope" class="confirm-detail"></p>
       <label>งบต่อเดือน (บาท)
         <input id="budget-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
@@ -336,7 +354,6 @@
       <p id="budget-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="budget-remove" class="danger">ไม่ตั้งงบ</button>
-        <button type="button" id="budget-cancel">ปิด</button>
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>
@@ -344,6 +361,7 @@
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
       <h2 id="recurring-editor-title" tabindex="-1" autofocus></h2>
+      <button type="button" id="recurring-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-close"></use></svg></button>
       <label>หมวด
         <select id="recurring-category" required></select>
       </label>
@@ -363,7 +381,6 @@
       <p id="recurring-editor-error" class="error" role="alert" hidden></p>
       <div class="actions">
         <button type="button" id="recurring-delete" class="danger">ลบ</button>
-        <button type="button" id="recurring-cancel">ปิด</button>
         <button type="submit" class="primary">บันทึก</button>
       </div>
     </form>
