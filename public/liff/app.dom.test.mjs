@@ -1770,6 +1770,14 @@ describe('LIFF bills tab', () => {
     delete Element.prototype.scrollIntoView;
   });
 
+  it('opens the tab named in the link, as the rich menu bill button does', async () => {
+    await boot({ search: '?tab=bills' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
+    expect(window.location.search).toBe('');
+  });
+
   it('says so when the linked bill is not in the lists', async () => {
     await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
     await settle();

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getFixedReply, buildWebReply, HELP_REPLY, WEB_COMING_SOON_REPLY } from './fixed-replies.js';
+import {
+  getFixedReply,
+  buildWebReply,
+  HELP_REPLY,
+  WEB_COMING_SOON_REPLY,
+  FEEDBACK_COMING_SOON_REPLY,
+} from './fixed-replies.js';
 
 describe('getFixedReply', () => {
   it('returns the help text for the help button', () => {
@@ -15,6 +21,11 @@ describe('getFixedReply', () => {
 
     expect(getFixedReply('เปิดเว็บ', { liffUrl })).toBe(buildWebReply(liffUrl));
     expect(buildWebReply(liffUrl)).toBe('เปิดหน้าเว็บดูและแก้ไขรายการ: https://liff.line.me/1234567890-AbCdEfGh');
+  });
+
+  it('returns the coming soon text for the feedback button', () => {
+    expect(getFixedReply('เสนอแนะ')).toBe(FEEDBACK_COMING_SOON_REPLY);
+    expect(FEEDBACK_COMING_SOON_REPLY).toBe('ช่องทางเสนอแนะกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้');
   });
 
   it('ignores spaces anywhere in the text', () => {

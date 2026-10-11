@@ -32,9 +32,9 @@ import { createFriendsPanel } from './friends-panel.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
 import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
-import { DEFAULT_TAB, createTabController } from './tabs.mjs';
+import { DEFAULT_TAB, TABS, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseBillLink, parseEditLink, parseFriendLink } from './deep-link.mjs';
+import { parseBillLink, parseEditLink, parseFriendLink, parseTabLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -1410,7 +1410,8 @@ async function boot() {
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
     const billId = parseBillLink(window.location.search);
-    if (link || friendCode || billId) window.history.replaceState(null, '', window.location.pathname);
+    const tabId = parseTabLink(window.location.search, TABS.map((tab) => tab.id));
+    if (link || friendCode || billId || tabId) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
@@ -1422,6 +1423,7 @@ async function boot() {
       tabController.select('bills');
       billsPanel.focusBill(billId);
     }
+    if (tabId && !link && !friendCode && !billId) tabController.select(tabId);
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
