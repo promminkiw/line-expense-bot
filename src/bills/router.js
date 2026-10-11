@@ -7,12 +7,48 @@ function notFound(res) {
 }
 
 // ต้อง mount หลัง middleware ตรวจ ID token ของ /api เพราะใช้ req.userId
-function createBillsRouter({ bills, allowBillCreate }) {
+// รูปจากมือถือใหญ่หลาย MB ส่วนการย่อทำที่ server ก่อนส่ง Claude
+const RECEIPT_BODY_LIMIT = '10mb';
+
+function createBillsRouter({ bills, allowBillCreate, readReceipt, allowReceiptRead }) {
   // ไม่มี default เพราะถ้าลืมส่ง limit การสร้างบิลจะเผาโควตา push ได้ไม่จำกัด
   if (typeof allowBillCreate !== 'function') {
     throw new TypeError('createBillsRouter requires allowBillCreate');
   }
+  // ไม่มี default เพราะการอ่านรูปทุกครั้งเสียค่า Claude
+  if (typeof allowReceiptRead !== 'function') {
+    throw new TypeError('createBillsRouter requires allowReceiptRead');
+  }
+  if (typeof readReceipt !== 'function') {
+    throw new TypeError('createBillsRouter requires readReceipt');
+  }
   const router = express.Router();
+
+  // ตรวจ limit ก่อนรับ body เพื่อไม่ต้องอ่านรูปขนาดใหญ่ของคำขอที่จะปฏิเสธอยู่แล้ว
+  router.post(
+    '/read-receipt',
+    (req, res, next) => {
+      if (!allowReceiptRead(req.userId)) {
+        res.status(429).json({ error: 'Too many requests' });
+        return;
+      }
+      next();
+    },
+    // browser อาจส่ง type ว่างหรือไม่ตรงไฟล์ จึงรับทุก type แล้วตรวจจากเนื้อไฟล์แทน
+    express.raw({ type: () => true, limit: RECEIPT_BODY_LIMIT }),
+    async (req, res) => {
+      const result = await readReceipt(req.body);
+      if (result.status === 'unsupported') {
+        res.status(415).json({ error: 'Unsupported image' });
+        return;
+      }
+      if (result.status !== 'ok') {
+        res.status(422).json({ error: 'Unreadable' });
+        return;
+      }
+      res.json({ amount: result.amount });
+    }
+  );
 
   router.get('/', async (req, res) => {
     res.json(await bills.list(req.userId));

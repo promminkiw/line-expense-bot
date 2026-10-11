@@ -1,5 +1,5 @@
 import { ApiError } from './api.mjs';
-import { buildEqualShares, sumShortfall, toSatang, describeBillError } from './bills-format.mjs';
+import { buildEqualShares, sumShortfall, toSatang, describeBillError, describeReceiptError } from './bills-format.mjs';
 import { formatBaht } from './format.mjs';
 
 const DEFAULT_CATEGORY = 'อาหาร';
@@ -7,6 +7,7 @@ const FRIENDS_LOAD_FAILED = 'โหลดรายชื่อเพื่อน
 const CREATE_RESULT_UNKNOWN = 'ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่';
 const NO_EXPENSE_CATEGORY = 'ไม่มีหมวดรายจ่ายให้เลือก';
 const CATEGORIES_LOAD_FAILED = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
+const RECEIPT_READING = 'กำลังอ่านยอดจากรูป...';
 
 function todayIso() {
   // วันตามเวลาไทยเหมือนวันที่ที่บอทใช้บันทึก
@@ -18,6 +19,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   let friendsState = 'loading';
   let categoriesState = 'loading';
   let submitting = false;
+  let readingReceipt = false;
   // เพิ่มทุกครั้งที่เปิดฟอร์ม ผลของคำขอรอบเก่าจะได้ไม่ไปทับฟอร์มรอบใหม่
   let openToken = 0;
 
@@ -169,13 +171,46 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     els.error.textContent = message;
     els.cancel.disabled = submitting;
     els.submit.disabled =
-      submitting || friendsState !== 'ready' || missingCategory || Boolean(message) || !els.title.value.trim() || !toSatang(total) || chosen.length === 0;
+      submitting || readingReceipt || friendsState !== 'ready' || missingCategory || Boolean(message) || !els.title.value.trim() || !toSatang(total) || chosen.length === 0;
+  }
+
+  function showReceiptState(text) {
+    els.receiptButton.disabled = readingReceipt;
+    els.receiptStatus.textContent = text;
+  }
+
+  // รูปใช้แค่อ่านยอดแล้วทิ้ง ไม่ได้เก็บไว้กับบิล
+  async function readReceipt() {
+    const [file] = els.receiptInput.files;
+    // ล้างค่าให้เลือกรูปเดิมซ้ำแล้วยังได้ change
+    els.receiptInput.value = '';
+    if (!file) return;
+    const token = openToken;
+    readingReceipt = true;
+    showReceiptState(RECEIPT_READING);
+    validate();
+    let message;
+    try {
+      const { amount } = await getApi().readReceipt(file);
+      if (token !== openToken) return;
+      els.total.value = String(amount);
+      splitEven();
+      message = `อ่านยอดได้ ${formatBaht(amount)} ตรวจให้ตรงกับใบเสร็จก่อนหารบิล`;
+    } catch (err) {
+      if (token !== openToken) return;
+      message = describeReceiptError(err instanceof ApiError ? err.status : 0);
+    }
+    readingReceipt = false;
+    showReceiptState(message);
+    validate();
   }
 
   async function open() {
     openToken += 1;
     els.form.reset();
     els.error.textContent = '';
+    readingReceipt = false;
+    showReceiptState('');
     els.date.value = todayIso();
     fillCategories();
     categoriesState = getCategories().length > 0 ? 'ready' : 'loading';
@@ -236,6 +271,8 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     validate();
   });
   els.title.addEventListener('input', validate);
+  els.receiptButton.addEventListener('click', () => els.receiptInput.click());
+  els.receiptInput.addEventListener('change', readReceipt);
   els.ownerShare.addEventListener('input', validate);
   els.even.addEventListener('click', () => {
     splitEven();

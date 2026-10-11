@@ -20,7 +20,12 @@ function setup(overrides = {}) {
     respondFromWeb: vi.fn().mockResolvedValue({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อาหาร' }),
     ...overrides,
   };
-  return { bills, allowBillCreate: vi.fn().mockReturnValue(true) };
+  return {
+    bills,
+    allowBillCreate: vi.fn().mockReturnValue(true),
+    allowReceiptRead: vi.fn().mockReturnValue(true),
+    readReceipt: vi.fn().mockResolvedValue({ status: 'ok', amount: 600 }),
+  };
 }
 
 async function start(deps) {
@@ -41,9 +46,79 @@ function call(url, { method = 'GET', body } = {}) {
   return fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
 }
 
+function postImage(url, body) {
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body });
+}
+
 describe('createBillsRouter', () => {
   it('refuses to build without a create limiter', () => {
     expect(() => createBillsRouter({ bills: setup().bills })).toThrow('allowBillCreate');
+  });
+
+  it('refuses to build without the receipt reader and its limiter', () => {
+    const { bills, allowBillCreate, readReceipt, allowReceiptRead } = setup();
+
+    expect(() => createBillsRouter({ bills, allowBillCreate, readReceipt })).toThrow('allowReceiptRead');
+    expect(() => createBillsRouter({ bills, allowBillCreate, allowReceiptRead })).toThrow('readReceipt');
+  });
+
+  it('reads the total from a receipt image sent as the raw body', async () => {
+    const deps = setup();
+    const base = await start(deps);
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+
+    const res = await postImage(`${base}/read-receipt`, image);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ amount: 600 });
+    expect(deps.allowReceiptRead).toHaveBeenCalledWith('user-1');
+    expect(Buffer.compare(deps.readReceipt.mock.calls[0][0], image)).toBe(0);
+  });
+
+  it('reads the body whatever content type the browser sent', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/read-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: Buffer.from([1, 2]) });
+
+    expect(res.status).toBe(200);
+    expect(Buffer.isBuffer(deps.readReceipt.mock.calls[0][0])).toBe(true);
+  });
+
+  it('answers 415 for an unsupported file and 422 for an unreadable picture', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    deps.readReceipt.mockResolvedValueOnce({ status: 'unsupported' });
+    const unsupported = await postImage(`${base}/read-receipt`, Buffer.from('x'));
+    expect(unsupported.status).toBe(415);
+    expect(await unsupported.json()).toEqual({ error: 'Unsupported image' });
+
+    deps.readReceipt.mockResolvedValueOnce({ status: 'unreadable' });
+    const unreadable = await postImage(`${base}/read-receipt`, Buffer.from('x'));
+    expect(unreadable.status).toBe(422);
+    expect(await unreadable.json()).toEqual({ error: 'Unreadable' });
+  });
+
+  it('checks the limit before reading the upload or calling Claude', async () => {
+    const deps = setup();
+    deps.allowReceiptRead.mockReturnValue(false);
+    const base = await start(deps);
+
+    const res = await postImage(`${base}/read-receipt`, Buffer.from('x'));
+
+    expect(res.status).toBe(429);
+    expect(deps.readReceipt).not.toHaveBeenCalled();
+  });
+
+  it('refuses an upload over 10 MB without reading it', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await postImage(`${base}/read-receipt`, Buffer.alloc(10 * 1024 * 1024 + 1));
+
+    expect(res.status).toBe(413);
+    expect(deps.readReceipt).not.toHaveBeenCalled();
   });
 
   it('lists the bills of this user', async () => {

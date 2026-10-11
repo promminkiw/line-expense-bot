@@ -1,5 +1,7 @@
 // กันหน้าเว็บค้างที่ "กำลังโหลด" ตลอดเมื่อเครือข่ายช้าหรือ server ไม่ตอบ
 export const REQUEST_TIMEOUT_MS = 15000;
+// อ่านใบเสร็จต้องอัปโหลดรูปและรอ Claude ซึ่งฝั่ง server รอได้ถึง 30 วินาที
+export const RECEIPT_TIMEOUT_MS = 60000;
 
 // ngrok free แสดงหน้าเตือนแทน server เรา header นี้ข้ามได้ (ไม่มีผลถ้าไม่ใช้ ngrok)
 export const NGROK_SKIP_WARNING_HEADERS = { 'ngrok-skip-browser-warning': '1' };
@@ -14,15 +16,15 @@ export class ApiError extends Error {
 }
 
 export function createApi({ fetchImpl, getIdToken }) {
-  async function request(path, options = {}) {
+  async function request(path, { contentType = 'application/json', timeoutMs = REQUEST_TIMEOUT_MS, ...options } = {}) {
     const response = await fetchImpl(`/api${path}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': contentType,
         Authorization: `Bearer ${getIdToken()}`,
         ...NGROK_SKIP_WARNING_HEADERS,
       },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) {
       const body = await response.json().catch(() => undefined);
@@ -55,6 +57,9 @@ export function createApi({ fetchImpl, getIdToken }) {
     regenerateFriendCode: () => request('/friends/code', { method: 'POST' }),
     listBills: () => request('/bills'),
     createBill: (body) => request('/bills', { method: 'POST', body: JSON.stringify(body) }),
+    // server ตรวจชนิดรูปจากเนื้อไฟล์ จึงไม่ต้องเชื่อ type ที่ browser ให้มา
+    readReceipt: (file) =>
+      request('/bills/read-receipt', { method: 'POST', body: file, contentType: 'application/octet-stream', timeoutMs: RECEIPT_TIMEOUT_MS }),
     cancelBill: (id) => request(`/bills/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
     setBillPaid: (id, memberId, paid) =>
       request(`/bills/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}/paid`, {

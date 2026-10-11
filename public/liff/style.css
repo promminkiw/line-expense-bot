@@ -275,4 +275,5 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .bill-form-member input[type="number"] { margin: 0; }
 .bill-form-even { font: inherit; min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--outline); border-radius: 9999px; background: var(--surface); color: var(--primary); }
 #bill-form-error:empty { display: none; }
+#bill-form-receipt-status:empty { display: none; }
 .bill-form-footer { position: sticky; bottom: 0; margin: 0 -20px -20px; padding: 0 20px 20px; background: var(--surface); }

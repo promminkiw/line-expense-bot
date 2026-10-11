@@ -2069,11 +2069,11 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-error').textContent).toBe('สร้างบิลบ่อยเกินไป รอสักครู่แล้วลองใหม่');
   });
 
-  it('points to the profile tab when there are no friends yet', async () => {
+  it('points to the friends section below when there are no friends yet', async () => {
     await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
 
     expect(byId('bill-form-no-friends').hidden).toBe(false);
-    expect(byId('bill-form-no-friends').textContent).toBe('ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน');
+    expect(byId('bill-form-no-friends').textContent).toBe('ยังไม่มีเพื่อน เพิ่มเพื่อนในส่วนเพื่อนด้านล่างก่อน');
   });
 
   it('blocks submit when a picked friend share is empty', async () => {
@@ -2129,6 +2129,76 @@ describe('LIFF bills tab', () => {
     pick.checked = true;
     pick.dispatchEvent(new Event('change'));
   }
+
+  // jsdom เลือกไฟล์จริงไม่ได้ จึงใส่ files เองแล้วยิง change เหมือนผู้ใช้เลือกรูป
+  function pickReceipt() {
+    const input = byId('bill-form-receipt');
+    Object.defineProperty(input, 'files', { configurable: true, value: [new File(['jpeg'], 'r.jpg', { type: 'image/jpeg' })] });
+    input.dispatchEvent(new Event('change'));
+  }
+
+  it('opens the picker from the read receipt button', async () => {
+    await openForm();
+    const click = vi.spyOn(byId('bill-form-receipt'), 'click').mockImplementation(() => {});
+
+    byId('bill-form-receipt-button').click();
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(byId('bill-form-receipt').accept).toBe('image/*');
+  });
+
+  it('fills the total from the receipt photo, splits it again and asks to check it', async () => {
+    const calls = await openForm((method, path) => (path === '/api/bills/read-receipt' ? { amount: 1234.5 } : undefined));
+    fillValidForm();
+    const release = holdRequest('/api/bills/read-receipt', 'POST');
+
+    pickReceipt();
+    await settle();
+    expect(byId('bill-form-receipt-status').textContent).toBe('กำลังอ่านยอดจากรูป...');
+    expect(byId('bill-form-receipt-button').disabled).toBe(true);
+    expect(byId('bill-form-submit').disabled).toBe(true);
+
+    release();
+    await settle();
+    expect(calls).toContain('POST /api/bills/read-receipt');
+    expect(byId('bill-form-total').value).toBe('1234.5');
+    expect(byId('bill-form-owner-share').value).toBe('617.25');
+    expect(shareInputs().map((input) => input.value)).toEqual(['617.25']);
+    expect(byId('bill-form-receipt-status').textContent).toBe('อ่านยอดได้ 1,234.5 บาท ตรวจให้ตรงกับใบเสร็จก่อนหารบิล');
+    expect(byId('bill-form-receipt-button').disabled).toBe(false);
+    expect(byId('bill-form-submit').disabled).toBe(false);
+    expect(byId('bill-form-receipt').value).toBe('');
+  });
+
+  it('keeps the typed total and says why when the photo cannot be read', async () => {
+    await openForm((method, path) => (path === '/api/bills/read-receipt' ? { status: 422 } : undefined));
+    byId('bill-form-total').value = '500';
+
+    pickReceipt();
+    await settle();
+
+    expect(byId('bill-form-total').value).toBe('500');
+    expect(byId('bill-form-receipt-status').textContent).toBe('อ่านยอดจากรูปนี้ไม่ได้ ลองรูปที่ชัดขึ้น หรือพิมพ์ยอดเอง');
+    expect(byId('bill-form-receipt-button').disabled).toBe(false);
+  });
+
+  it('drops a read that finishes after the form was closed and opened again', async () => {
+    await openForm((method, path) => (path === '/api/bills/read-receipt' ? { amount: 999 } : undefined));
+    const release = holdRequest('/api/bills/read-receipt', 'POST');
+    pickReceipt();
+    await settle();
+
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+    expect(byId('bill-form-receipt-status').textContent).toBe('');
+    expect(byId('bill-form-receipt-button').disabled).toBe(false);
+
+    release();
+    await settle();
+    expect(byId('bill-form-total').value).toBe('');
+    expect(byId('bill-form-receipt-status').textContent).toBe('');
+  });
 
   it('keeps cancel disabled while the bill is being created', async () => {
     await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));

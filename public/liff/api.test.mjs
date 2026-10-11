@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createApi, ApiError } from './api.mjs';
+import { createApi, ApiError, RECEIPT_TIMEOUT_MS } from './api.mjs';
 
 function fakeFetch(status, body) {
   return vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body });
@@ -178,5 +178,24 @@ describe('createApi', () => {
     ]);
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ title: 'x' });
     expect(JSON.parse(fetchImpl.mock.calls[3][1].body)).toEqual({ paid: true });
+  });
+});
+
+describe('readReceipt', () => {
+  it('sends the picked file as the raw body with a longer timeout, since Claude reads it', async () => {
+    const fetchImpl = fakeFetch(200, { amount: 600 });
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const file = new Blob(['jpeg-bytes'], { type: 'image/jpeg' });
+
+    expect(await setup(fetchImpl).readReceipt(file)).toEqual({ amount: 600 });
+    const [url, options] = fetchImpl.mock.calls[0];
+    expect(url).toBe('/api/bills/read-receipt');
+    expect(options.method).toBe('POST');
+    expect(options.body).toBe(file);
+    expect(options.headers['Content-Type']).toBe('application/octet-stream');
+    expect(options.headers.Authorization).toBe('Bearer token-1');
+    expect(timeout).toHaveBeenCalledWith(RECEIPT_TIMEOUT_MS);
+    expect(RECEIPT_TIMEOUT_MS).toBeGreaterThan(30000);
+    timeout.mockRestore();
   });
 });

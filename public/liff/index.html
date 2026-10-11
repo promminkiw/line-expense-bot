@@ -273,6 +273,11 @@
       <label>ยอดรวม (บาท)
         <input id="bill-form-total" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
       </label>
+      <div class="bill-form-receipt">
+        <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
+        <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+        <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
+      </div>
       <label>วันที่
         <input id="bill-form-date" type="date" required>
       </label>
@@ -290,7 +295,7 @@
           <p id="bill-form-friends-error-text" role="alert"></p>
           <button type="button" id="bill-form-friends-retry">ลองใหม่</button>
         </div>
-        <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน</p>
+        <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนในส่วนเพื่อนด้านล่างก่อน</p>
         <button type="button" id="bill-form-go-profile" class="bill-form-even" hidden>ไปเพิ่มเพื่อน</button>
         <ul id="bill-form-members" class="bill-form-members"></ul>
         <div id="bill-form-split-controls">

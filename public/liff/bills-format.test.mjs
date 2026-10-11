@@ -9,6 +9,7 @@ import {
   describeBillError,
   describeBillAnswer,
   buildBillUrl,
+  describeReceiptError,
 } from './bills-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../src/bills/validate.js';
@@ -88,5 +89,17 @@ describe('matches the server split math', () => {
 
   it.each([[100000, 3], [90000, 3], [1, 2], [1000000000, 7]])('splitEvenly(%s, %s)', (total, count) => {
     expect(splitEvenly(total, count)).toEqual(serverSplitEvenly(total, count));
+  });
+});
+
+describe('describeReceiptError', () => {
+  it('says what to do for each way reading a receipt can fail', () => {
+    expect(describeReceiptError(422)).toBe('อ่านยอดจากรูปนี้ไม่ได้ ลองรูปที่ชัดขึ้น หรือพิมพ์ยอดเอง');
+    expect(describeReceiptError(415)).toBe('ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)');
+    expect(describeReceiptError(413)).toBe('รูปใหญ่เกินไป (ไม่เกิน 10 MB)');
+    expect(describeReceiptError(429)).toBe('อ่านรูปบ่อยเกินไป รอสักครู่แล้วลองใหม่');
+    expect(describeReceiptError(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeReceiptError(500)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
+    expect(describeReceiptError(0)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
   });
 });
