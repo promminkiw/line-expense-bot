@@ -32,9 +32,9 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend?month=` (6 เดือนสิ้นสุดเดือนที่เลือก) และ `GET /api/profile` (ชื่อ ยอดสะสม ยอดคงเหลือ จำนวนรายการ วันที่รายการแรก) ใช้ SQL `010_profile_and_trend.sql`
 
-API เพื่อน (ใช้ ID token เหมือน API อื่น): `GET /api/friends` (รหัสของตัวเองกับรายชื่อเพื่อน), `GET /api/friends/lookup?code=` (ดูชื่อเจ้าของรหัสก่อนยืนยัน), `POST /api/friends` (เพิ่มเพื่อนด้วย `code` ใน body เป็นเพื่อนกันทั้งสองฝั่ง), `POST /api/friends/code` (เปลี่ยนรหัสของตัวเอง), `DELETE /api/friends/:id` (ลบเพื่อนทั้งสองฝั่ง ตอบ 204); lookup กับ POST /api/friends ถูกจำกัด 10 ครั้ง/นาที/ผู้ใช้ ใช้ SQL `012_friends.sql`
+API เพื่อน (ใช้ ID token เหมือน API อื่น): `GET /api/friends` (รหัสของตัวเองกับรายชื่อเพื่อน), `POST /api/friends/lookup` (ดูชื่อเจ้าของรหัสก่อนยืนยัน ส่ง `code` ใน body เพื่อไม่ให้รหัสไปอยู่ใน access log), `POST /api/friends` (เพิ่มเพื่อนด้วย `code` ใน body เป็นเพื่อนกันทั้งสองฝั่ง), `POST /api/friends/code` (เปลี่ยนรหัสของตัวเอง), `DELETE /api/friends/:id` (ลบเพื่อนทั้งสองฝั่ง ตอบ 204); lookup กับ POST /api/friends ถูกจำกัด 10 ครั้ง/นาที/ผู้ใช้ ใช้ SQL `012_friends.sql`
 
-API หารบิล (หลัง ID token ทุกเส้น): `GET /api/bills` (บิลที่ฉันสร้างกับบิลที่เพื่อนส่งมา ทุกสถานะรวมที่ยกเลิกแล้ว อย่างละไม่เกิน 50 ใบ), `POST /api/bills` (สร้างบิล จำกัด 10 ใบ/ชั่วโมง/ผู้ใช้), `POST /api/bills/:id/cancel` (เจ้าของยกเลิกบิลที่ยังเปิดอยู่ และลบรายจ่ายส่วนของเจ้าของในคราวเดียวกัน), `POST /api/bills/:id/members/:userId/paid` (เจ้าของติ๊กคืนแล้ว), `POST /api/bills/:id/confirm` และ `POST /api/bills/:id/decline` (เพื่อนตอบบิล ได้ 200 `{ status }` เป็น `confirmed` หรือ `declined` เมื่อตอบครั้งแรก, `already_confirmed` หรือ `already_declined` เมื่อเคยตอบไปแล้ว (ไม่บันทึกซ้ำ), `cancelled` เมื่อบิลถูกยกเลิกก่อนตอบ)
+API หารบิล (หลัง ID token ทุกเส้น): `GET /api/bills` (บิลที่ฉันสร้างกับบิลที่เพื่อนส่งมา ทุกสถานะรวมที่ยกเลิกแล้ว อย่างละไม่เกิน 50 ใบ), `POST /api/bills` (สร้างบิล จำกัด 10 ใบ/ชั่วโมง/ผู้ใช้), `POST /api/bills/:id/cancel` (เจ้าของยกเลิกบิลที่ยังเปิดอยู่ และลบรายจ่ายส่วนของเจ้าของในคราวเดียวกัน), `POST /api/bills/:id/members/:userId/paid` (เจ้าของติ๊กคืนแล้ว), `POST /api/bills/:id/confirm` และ `POST /api/bills/:id/decline` (เพื่อนตอบบิล ได้ 200 `{ status }` เป็น `confirmed` หรือ `declined` เมื่อตอบครั้งแรก, `already_confirmed` หรือ `already_declined` เมื่อเคยตอบไปแล้ว (ไม่บันทึกซ้ำ), `cancelled` เมื่อบิลถูกยกเลิกก่อนตอบ; ตอบครั้งแรกในเว็บแล้วบอท push ข้อความบอกในแชต เพราะการ์ดเดิมแก้ไม่ได้), `POST /api/bills/read-receipt` (body เป็นไฟล์รูปดิบไม่เกิน 10 MB ตรวจชนิดจากเนื้อไฟล์ ตอบ `{ amount }` ยอดรวมสุทธิ, 415 ไม่ใช่รูปที่รองรับ, 422 อ่านไม่ได้, จำกัด 20 ครั้ง/ชั่วโมง/ผู้ใช้ ไม่เก็บรูป)
 
 4\. Rich Menu: ปุ่ม สรุป / เปิดเว็บ / ช่วยเหลือ
 
@@ -66,7 +66,7 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 \- bills: id, owner\_id, title, total, category\_id, occurred\_on, owner\_share, status (open/cancelled), owner\_transaction\_id, created\_at
 
-\- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql`
+\- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql` (index ของ FK ไปยัง transactions และ categories อยู่ใน `014_bill_indexes.sql`)
 
 \- ทุกตารางมี user\_id (bills ใช้ owner\_id, bill\_members ใช้ bill\_id+user\_id), เปิด RLS ทุกตาราง
 

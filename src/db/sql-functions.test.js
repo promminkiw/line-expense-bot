@@ -20,6 +20,7 @@ const MIGRATIONS = [
   '011_slip_category.sql',
   '012_friends.sql',
   '013_bills.sql',
+  '014_bill_indexes.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -552,6 +553,24 @@ describe('013_bills.sql', () => {
 
     expect(Number((await one('select count(*) from bill_members')).count)).toBe(0);
     expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(1);
+  });
+});
+
+describe('014_bill_indexes.sql', () => {
+  // ลบรายการหรือหมวดต้องหาแถวบิลที่อ้างถึง ไม่มี index จะสแกนทั้งตารางทุกครั้ง
+  it('indexes every foreign key from the bill tables to transactions and categories', async () => {
+    const indexes = await rows(
+      "select indexname, indexdef from pg_indexes where schemaname = 'public' and tablename in ('bills', 'bill_members') order by indexname"
+    );
+    const defs = Object.fromEntries(indexes.map((row) => [row.indexname, row.indexdef]));
+
+    expect(defs.bills_owner_transaction_idx).toContain('(owner_transaction_id)');
+    expect(defs.bill_members_transaction_idx).toContain('(transaction_id)');
+    expect(defs.bills_category_owner_idx).toContain('(category_id, owner_id)');
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('014_bill_indexes.sql'))).resolves.toBeDefined();
   });
 });
 

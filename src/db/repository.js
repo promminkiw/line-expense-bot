@@ -11,6 +11,7 @@ const RULE_COLUMNS = 'id, type, category_id, amount, note, day_of_month, active,
 const DUE_RULE_BATCH = 500;
 // unique_violation ของ Postgres ใช้แยกกรณีรหัสเพื่อนชนกับของคนอื่น
 const UNIQUE_VIOLATION = '23505';
+const FOREIGN_KEY_VIOLATION = '23503';
 // รายการบิลในหน้าเว็บแสดงเฉพาะของล่าสุด กันหน้าโหลดช้าเมื่อใช้ไปนาน
 const BILL_LIST_LIMIT = 50;
 
@@ -297,14 +298,19 @@ function createRepository(supabase) {
     return data ? data.friend_code : null;
   }
 
-  // รหัสชนกับของคนอื่นคืน false ให้ผู้เรียกสุ่มใหม่ แทนการ throw
-  async function setFriendCode(userId, code) {
-    const { error } = await supabase.from('users').update({ friend_code: code }).eq('id', userId);
+  // รหัสชนกับของคนอื่นคืน taken ให้ผู้เรียกสุ่มใหม่ แทนการ throw
+  // onlyIfEmpty กันหน้าที่เปิดพร้อมกันเขียนทับรหัสแรกที่อีกหน้าแสดงไปแล้ว
+  async function setFriendCode(userId, code, { onlyIfEmpty = false } = {}) {
+    let query = supabase.from('users').update({ friend_code: code }, { count: 'exact' }).eq('id', userId);
+    if (onlyIfEmpty) {
+      query = query.is('friend_code', null);
+    }
+    const { count, error } = await query;
     if (error && error.code === UNIQUE_VIOLATION) {
-      return false;
+      return 'taken';
     }
     throwIfError('setFriendCode', error);
-    return true;
+    return count > 0 ? 'set' : 'unchanged';
   }
 
   async function findUserByFriendCode(code) {
@@ -338,7 +344,12 @@ function createRepository(supabase) {
       rows,
       { onConflict: 'user_id,friend_id', ignoreDuplicates: true }
     );
+    // อีกฝั่งถูกลบไประหว่างค้นหากับเพิ่ม ให้ผู้เรียกตอบว่าไม่พบแทน error ของระบบ
+    if (error && error.code === FOREIGN_KEY_VIOLATION) {
+      return false;
+    }
     throwIfError('addFriendship', error);
+    return true;
   }
 
   // ผู้เรียกต้องตรวจว่า friendId เป็น UUID ก่อน เพราะค่าถูกต่อเข้าไปในตัวกรอง or

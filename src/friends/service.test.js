@@ -4,10 +4,10 @@ import { createFriendService, FALLBACK_DISPLAY_NAME } from './service.js';
 function setup(overrides = {}) {
   const repository = {
     getFriendCode: vi.fn().mockResolvedValue('ABCD2345'),
-    setFriendCode: vi.fn().mockResolvedValue(true),
+    setFriendCode: vi.fn().mockResolvedValue('set'),
     findUserByFriendCode: vi.fn().mockResolvedValue({ id: 'user-2', displayName: 'บี' }),
     listFriends: vi.fn().mockResolvedValue([]),
-    addFriendship: vi.fn().mockResolvedValue(),
+    addFriendship: vi.fn().mockResolvedValue(true),
     removeFriendship: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
@@ -39,20 +39,30 @@ describe('friendService.getOverview', () => {
   it('assigns a code the first time, retrying when a code clashes', async () => {
     const { service, repository } = setup({
       getFriendCode: vi.fn().mockResolvedValue(null),
-      setFriendCode: vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true),
+      setFriendCode: vi.fn().mockResolvedValueOnce('taken').mockResolvedValueOnce('set'),
     });
 
     expect((await service.getOverview('user-1')).code).toBe('NEWD2345');
     expect(repository.setFriendCode.mock.calls).toEqual([
-      ['user-1', 'NEWC2345'],
-      ['user-1', 'NEWD2345'],
+      ['user-1', 'NEWC2345', { onlyIfEmpty: true }],
+      ['user-1', 'NEWD2345', { onlyIfEmpty: true }],
     ]);
+  });
+
+  it('shows the code another page assigned first instead of overwriting it', async () => {
+    const { service, repository } = setup({
+      getFriendCode: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce('WXYZ2345'),
+      setFriendCode: vi.fn().mockResolvedValue('unchanged'),
+    });
+
+    expect((await service.getOverview('user-1')).code).toBe('WXYZ2345');
+    expect(repository.setFriendCode).toHaveBeenCalledTimes(1);
   });
 
   it('gives up after five clashes', async () => {
     const { service, repository } = setup({
       getFriendCode: vi.fn().mockResolvedValue(null),
-      setFriendCode: vi.fn().mockResolvedValue(false),
+      setFriendCode: vi.fn().mockResolvedValue('taken'),
     });
 
     await expect(service.getOverview('user-1')).rejects.toThrow('Could not assign a unique friend code');
@@ -92,6 +102,12 @@ describe('friendService.lookup and addByCode', () => {
     expect(await self.service.addByCode('user-1', 'ABCD2345')).toEqual({ status: 'self' });
     expect(self.repository.addFriendship).not.toHaveBeenCalled();
   });
+
+  it('answers not found when the friend was deleted between the lookup and the add', async () => {
+    const { service } = setup({ addFriendship: vi.fn().mockResolvedValue(false) });
+
+    expect(await service.addByCode('user-1', 'ABCD2345')).toEqual({ status: 'not_found' });
+  });
 });
 
 describe('friendService.remove and regenerateCode', () => {
@@ -106,6 +122,12 @@ describe('friendService.remove and regenerateCode', () => {
     const { service, repository } = setup();
 
     expect(await service.regenerateCode('user-1')).toBe('NEWC2345');
-    expect(repository.setFriendCode).toHaveBeenCalledWith('user-1', 'NEWC2345');
+    expect(repository.setFriendCode).toHaveBeenCalledWith('user-1', 'NEWC2345', { onlyIfEmpty: false });
+  });
+
+  it('fails a renewal that changed no row instead of returning a code nobody has', async () => {
+    const { service } = setup({ setFriendCode: vi.fn().mockResolvedValue('unchanged') });
+
+    await expect(service.regenerateCode('user-1')).rejects.toThrow('User not found');
   });
 });

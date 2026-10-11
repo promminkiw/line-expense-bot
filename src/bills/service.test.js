@@ -56,6 +56,41 @@ function setup(overrides = {}) {
 }
 
 describe('billService.create', () => {
+  it('counts only a valid bill against the create limit, right before saving it', async () => {
+    const invalid = setup();
+    const notFriends = setup({ listFriends: vi.fn().mockResolvedValue([]) });
+    const valid = setup();
+    const allowCreate = vi.fn().mockReturnValue(true);
+
+    await invalid.service.create(OWNER, body({ title: '' }), { allowCreate });
+    await notFriends.service.create(OWNER, body(), { allowCreate });
+    expect(allowCreate).not.toHaveBeenCalled();
+
+    expect((await valid.service.create(OWNER, body(), { allowCreate })).status).toBe('ok');
+    expect(allowCreate).toHaveBeenCalledTimes(1);
+  });
+
+  // push ทีละคนทำให้บิลที่มีคนเยอะรอนานก่อนตอบเว็บ
+  it('pushes the cards to all members at once and keeps the not-notified order', async () => {
+    const { service, pushFlex } = setup();
+    const releases = [];
+    pushFlex.mockImplementation((to) => new Promise((resolve, reject) => releases.push(to === 'U-F1' ? () => reject(new Error('blocked')) : resolve)));
+
+    const created = service.create(OWNER, body());
+    await vi.waitFor(() => expect(pushFlex).toHaveBeenCalledTimes(2));
+    releases.forEach((release) => release());
+
+    expect(await created).toEqual({ status: 'ok', id: BILL, notNotified: [F1] });
+  });
+
+  it('saves and pushes nothing when the limit is reached', async () => {
+    const { service, repository, pushFlex } = setup();
+
+    expect(await service.create(OWNER, body(), { allowCreate: () => false })).toEqual({ status: 'limited' });
+    expect(repository.createBill).not.toHaveBeenCalled();
+    expect(pushFlex).not.toHaveBeenCalled();
+  });
+
   it('creates the bill, pushes a card to every member and marks them notified', async () => {
     const { service, repository, pushFlex } = setup();
 

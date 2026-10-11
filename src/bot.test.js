@@ -1610,13 +1610,14 @@ describe('bot bill card buttons', () => {
     expect(deps.bills.respond.mock.calls.map((call) => call[2])).toEqual(['confirm', 'decline']);
   });
 
-  it('ignores a bill id that is not a UUID', async () => {
+  // ไม่ส่งไปถึง DB แต่ยังตอบ ผู้ใช้จะได้ไม่เห็นปุ่มที่กดแล้วเงียบ
+  it('answers not found for a bill id that is not a UUID without asking the service', async () => {
     const { deps, bot } = setup();
 
     await bot.handleEvent(postbackEvent('action=bill_confirm&bill=x'));
 
     expect(deps.bills.respond).not.toHaveBeenCalled();
-    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.not_found, undefined);
   });
 });
 

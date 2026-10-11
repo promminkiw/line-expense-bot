@@ -9,19 +9,29 @@ function toFriend(user) {
 }
 
 function createFriendService({ repository, generateCode = generateFriendCode }) {
-  async function regenerateCode(userId) {
+  async function assignCode(userId, { onlyIfEmpty }) {
     for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt += 1) {
       const code = generateCode();
-      if (await repository.setFriendCode(userId, code)) {
+      const result = await repository.setFriendCode(userId, code, { onlyIfEmpty });
+      if (result === 'set') {
         return code;
+      }
+      if (result === 'unchanged') {
+        // อีกหน้าตั้งรหัสแรกไปก่อนแล้ว ใช้รหัสนั้นแทนการเขียนทับ
+        if (onlyIfEmpty) return repository.getFriendCode(userId);
+        throw new Error('User not found');
       }
     }
     throw new Error('Could not assign a unique friend code');
   }
 
+  function regenerateCode(userId) {
+    return assignCode(userId, { onlyIfEmpty: false });
+  }
+
   async function getOverview(userId) {
     const [existing, friends] = await Promise.all([repository.getFriendCode(userId), repository.listFriends(userId)]);
-    const code = existing || (await regenerateCode(userId));
+    const code = existing || (await assignCode(userId, { onlyIfEmpty: true }));
     const sorted = friends.map(toFriend).sort((a, b) => a.displayName.localeCompare(b.displayName, 'th'));
     return { code, friends: sorted };
   }
@@ -44,8 +54,8 @@ function createFriendService({ repository, generateCode = generateFriendCode }) 
 
   async function addByCode(userId, rawCode) {
     const result = await lookup(userId, rawCode);
-    if (result.status === 'ok') {
-      await repository.addFriendship(userId, result.friend.id);
+    if (result.status === 'ok' && !(await repository.addFriendship(userId, result.friend.id))) {
+      return { status: 'not_found' };
     }
     return result;
   }

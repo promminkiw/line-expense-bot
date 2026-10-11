@@ -36,9 +36,10 @@ function createFriendsRouter({ friends, allowFriendLookup }) {
     res.json(await friends.getOverview(req.userId));
   });
 
-  router.get('/lookup', async (req, res) => {
+  // รับรหัสใน body ไม่ใช่ query string เพราะ URL ไปอยู่ใน access log ของแพลตฟอร์ม
+  router.post('/lookup', async (req, res) => {
     if (rejectWhenLimited(req, res)) return;
-    sendLookupResult(res, await friends.lookup(req.userId, req.query.code));
+    sendLookupResult(res, await friends.lookup(req.userId, req.body && req.body.code));
   });
 
   router.post('/', async (req, res) => {

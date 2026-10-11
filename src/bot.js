@@ -414,8 +414,9 @@ function createBot({
         : handleSlipCancel(event, params, lineUserId);
     }
     if (action === BILL_CONFIRM_ACTION || action === BILL_DECLINE_ACTION) {
+      // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงตอบว่าไม่พบโดยไม่ส่งไปถึง DB
       if (!UUID_PATTERN.test(params.get('bill') || '')) {
-        return null;
+        return { text: BILL_REPLIES.not_found };
       }
       return handleBillAnswer(params, lineUserId, action === BILL_CONFIRM_ACTION ? 'confirm' : 'decline');
     }

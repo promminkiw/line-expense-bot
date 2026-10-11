@@ -139,7 +139,7 @@ describe('createBillsRouter', () => {
     const created = await call(base, { method: 'POST', body: { title: 'x' } });
     expect(created.status).toBe(201);
     expect(await created.json()).toEqual({ id: BILL, notNotified: [F1] });
-    expect(deps.bills.create).toHaveBeenCalledWith('user-1', { title: 'x' });
+    expect(deps.bills.create).toHaveBeenCalledWith('user-1', { title: 'x' }, { allowCreate: expect.any(Function) });
 
     deps.bills.create.mockResolvedValueOnce({ status: 'invalid', error: 'Not friends' });
     const rejected = await call(base, { method: 'POST', body: {} });
@@ -147,16 +147,41 @@ describe('createBillsRouter', () => {
     expect(await rejected.json()).toEqual({ error: 'Not friends' });
   });
 
-  it('answers 429 when the user creates too many bills', async () => {
+  // service เรียก allowCreate หลังตรวจข้อมูลผ่าน บิลที่กรอกผิดจึงไม่ถูกนับ
+  it('answers 429 when the service says the user created too many bills, counting this user', async () => {
     const deps = setup();
     deps.allowBillCreate.mockReturnValue(false);
+    deps.bills.create.mockImplementation(async (userId, body, { allowCreate }) => (allowCreate() ? { status: 'ok' } : { status: 'limited' }));
     const base = await start(deps);
 
     const res = await call(base, { method: 'POST', body: {} });
 
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({ error: 'Too many requests' });
-    expect(deps.bills.create).not.toHaveBeenCalled();
+    expect(deps.allowBillCreate).toHaveBeenCalledWith('user-1');
+  });
+
+  it('uses the create limit only for creating a bill', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base);
+    await call(`${base}/${BILL}/cancel`, { method: 'POST' });
+    await call(`${base}/${BILL}/members/${F1}/paid`, { method: 'POST', body: { paid: true } });
+    await call(`${base}/${BILL}/confirm`, { method: 'POST' });
+
+    expect(deps.allowBillCreate).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 when marking paid without a JSON body', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(`${base}/${BILL}/members/${F1}/paid`, { method: 'POST' });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid body' });
+    expect(deps.bills.setPaid).not.toHaveBeenCalled();
   });
 
   it('cancels an owned bill and answers 404 otherwise', async () => {

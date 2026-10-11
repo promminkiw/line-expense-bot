@@ -1266,13 +1266,28 @@ describe('repository friend codes', () => {
     expect(await createRepository(empty.supabase).getFriendCode('user-1')).toBeNull();
   });
 
-  it('stores a friend code and reports a clash with another user as false', async () => {
-    const ok = fakeSupabase({ data: null, error: null });
+  it('stores a friend code and reports a clash with another user as taken', async () => {
+    const ok = fakeSupabase({ count: 1, error: null });
     const clash = fakeSupabase({ data: null, error: { message: 'duplicate key', code: '23505' } });
 
-    expect(await createRepository(ok.supabase).setFriendCode('user-1', 'ABCD2345')).toBe(true);
-    expect(ok.calls).toEqual([['from', 'users'], ['update', { friend_code: 'ABCD2345' }], ['eq', 'id', 'user-1']]);
-    expect(await createRepository(clash.supabase).setFriendCode('user-1', 'ABCD2345')).toBe(false);
+    expect(await createRepository(ok.supabase).setFriendCode('user-1', 'ABCD2345')).toBe('set');
+    expect(ok.calls).toEqual([['from', 'users'], ['update', { friend_code: 'ABCD2345' }, { count: 'exact' }], ['eq', 'id', 'user-1']]);
+    expect(await createRepository(clash.supabase).setFriendCode('user-1', 'ABCD2345')).toBe('taken');
+  });
+
+  // สองหน้าเปิดส่วนเพื่อนครั้งแรกพร้อมกัน หน้าที่ช้ากว่าต้องไม่เขียนทับรหัสที่อีกหน้าแสดงไปแล้ว
+  it('writes a first code only while the user still has none, and says when nothing changed', async () => {
+    const first = fakeSupabase({ count: 1, error: null });
+    const late = fakeSupabase({ count: 0, error: null });
+
+    expect(await createRepository(first.supabase).setFriendCode('user-1', 'ABCD2345', { onlyIfEmpty: true })).toBe('set');
+    expect(first.calls).toEqual([
+      ['from', 'users'],
+      ['update', { friend_code: 'ABCD2345' }, { count: 'exact' }],
+      ['eq', 'id', 'user-1'],
+      ['is', 'friend_code', null],
+    ]);
+    expect(await createRepository(late.supabase).setFriendCode('user-1', 'ABCD2345', { onlyIfEmpty: true })).toBe('unchanged');
   });
 
   it('throws DatabaseError for any other error while storing the code', async () => {
@@ -1322,7 +1337,7 @@ describe('repository friendships', () => {
   it('adds both directions in one write and ignores an existing pair', async () => {
     const { supabase, calls } = fakeSupabase({ data: null, error: null });
 
-    await createRepository(supabase).addFriendship('user-1', 'user-2');
+    expect(await createRepository(supabase).addFriendship('user-1', 'user-2')).toBe(true);
 
     expect(calls).toEqual([
       ['from', 'friendships'],
@@ -1335,6 +1350,13 @@ describe('repository friendships', () => {
         { onConflict: 'user_id,friend_id', ignoreDuplicates: true },
       ],
     ]);
+  });
+
+  // ผู้ใช้อีกฝั่งถูกลบระหว่างค้นหากับเพิ่ม ถือว่าไม่พบ ไม่ใช่ error ของระบบ
+  it('reports a friend that no longer exists as not added', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { code: '23503', message: 'violates foreign key constraint' } });
+
+    expect(await createRepository(supabase).addFriendship('user-1', 'user-2')).toBe(false);
   });
 
   it('writes the pair rows ordered by user_id so concurrent mutual adds cannot deadlock', async () => {
