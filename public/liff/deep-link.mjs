@@ -41,3 +41,9 @@ export function parseBillLink(search) {
   const id = readLinkParams(search).get('bill');
   return id && UUID_PATTERN.test(id) ? id : null;
 }
+
+// ลิงก์จาก Rich Menu คือ ?tab=<id> รับเฉพาะแท็บที่มีอยู่จริง
+export function parseTabLink(search, tabIds) {
+  const id = readLinkParams(search).get('tab');
+  return id && tabIds.includes(id) ? id : null;
+}

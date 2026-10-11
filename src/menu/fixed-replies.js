@@ -37,9 +37,13 @@ const HELP_REPLY = [
 // ใช้เมื่อยังไม่ได้ตั้งค่า LIFF เท่านั้น
 const WEB_COMING_SOON_REPLY = 'หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้';
 
+// ปุ่มเสนอแนะใน Rich Menu ยังไม่มีฟีเจอร์ ตอบไว้ก่อนเพื่อไม่ให้ข้อความไปถึง parser
+const FEEDBACK_COMING_SOON_REPLY = 'ช่องทางเสนอแนะกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้';
+
 const FIXED_REPLIES = {
   'ช่วยเหลือ': HELP_REPLY,
   'เปิดเว็บ': WEB_COMING_SOON_REPLY,
+  'เสนอแนะ': FEEDBACK_COMING_SOON_REPLY,
 };
 
 function buildWebReply(liffUrl) {
@@ -54,4 +58,10 @@ function getFixedReply(text, { liffUrl } = {}) {
   return Object.hasOwn(FIXED_REPLIES, key) ? FIXED_REPLIES[key] : null;
 }
 
-module.exports = { getFixedReply, buildWebReply, HELP_REPLY, WEB_COMING_SOON_REPLY };
+module.exports = {
+  getFixedReply,
+  buildWebReply,
+  HELP_REPLY,
+  WEB_COMING_SOON_REPLY,
+  FEEDBACK_COMING_SOON_REPLY,
+};

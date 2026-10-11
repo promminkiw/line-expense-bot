@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEditLink, parseFriendLink, parseBillLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink, parseBillLink, parseTabLink } from './deep-link.mjs';
 
 const ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 
@@ -56,5 +56,20 @@ describe('parseBillLink', () => {
   it('ignores anything that is not a UUID', () => {
     expect(parseBillLink('?bill=abc')).toBeNull();
     expect(parseBillLink('')).toBeNull();
+  });
+});
+
+describe('parseTabLink', () => {
+  const TAB_IDS = ['list', 'bills'];
+
+  it('reads a known tab id from the query or from liff.state', () => {
+    expect(parseTabLink('?tab=bills', TAB_IDS)).toBe('bills');
+    expect(parseTabLink(`?liff.state=${encodeURIComponent('?tab=bills')}`, TAB_IDS)).toBe('bills');
+  });
+
+  it('ignores unknown or missing tabs', () => {
+    expect(parseTabLink('?tab=admin', TAB_IDS)).toBeNull();
+    expect(parseTabLink('?tab=', TAB_IDS)).toBeNull();
+    expect(parseTabLink('', TAB_IDS)).toBeNull();
   });
 });
