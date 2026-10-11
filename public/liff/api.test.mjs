@@ -149,11 +149,12 @@ describe('createApi', () => {
 
     expect(fetchImpl.mock.calls.map(([url, options]) => [options.method ?? 'GET', url])).toEqual([
       ['GET', '/api/friends'],
-      ['GET', '/api/friends/lookup?code=AB%20CD'],
+      ['POST', '/api/friends/lookup'],
       ['POST', '/api/friends'],
       ['DELETE', '/api/friends/id%2F1'],
       ['POST', '/api/friends/code'],
     ]);
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ code: 'AB CD' });
     expect(JSON.parse(fetchImpl.mock.calls[2][1].body)).toEqual({ code: 'ABCD2345' });
   });
 

@@ -1463,7 +1463,7 @@ describe('LIFF friends section guards and failure paths', () => {
     await boot();
     clickTab('profile');
     await settle();
-    const hold = holdRequest('GET', '/api/friends/lookup');
+    const hold = holdRequest('POST', '/api/friends/lookup');
 
     byId('friend-code-input').value = 'WXYZ2345';
     byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -1505,7 +1505,7 @@ describe('LIFF friends section guards and failure paths', () => {
     await boot();
     clickTab('profile');
     await settle();
-    const hold = holdRequest('GET', '/api/friends/lookup');
+    const hold = holdRequest('POST', '/api/friends/lookup');
     const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
 
     byId('friend-code-input').value = 'WXYZ2345';

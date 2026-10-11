@@ -7,7 +7,7 @@ function setup(overrides = {}) {
     setFriendCode: vi.fn().mockResolvedValue(true),
     findUserByFriendCode: vi.fn().mockResolvedValue({ id: 'user-2', displayName: 'บี' }),
     listFriends: vi.fn().mockResolvedValue([]),
-    addFriendship: vi.fn().mockResolvedValue(),
+    addFriendship: vi.fn().mockResolvedValue(true),
     removeFriendship: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
@@ -91,6 +91,12 @@ describe('friendService.lookup and addByCode', () => {
     expect(ok.repository.addFriendship).toHaveBeenCalledWith('user-1', 'user-2');
     expect(await self.service.addByCode('user-1', 'ABCD2345')).toEqual({ status: 'self' });
     expect(self.repository.addFriendship).not.toHaveBeenCalled();
+  });
+
+  it('answers not found when the friend was deleted between the lookup and the add', async () => {
+    const { service } = setup({ addFriendship: vi.fn().mockResolvedValue(false) });
+
+    expect(await service.addByCode('user-1', 'ABCD2345')).toEqual({ status: 'not_found' });
   });
 });
 

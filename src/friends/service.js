@@ -44,8 +44,8 @@ function createFriendService({ repository, generateCode = generateFriendCode }) 
 
   async function addByCode(userId, rawCode) {
     const result = await lookup(userId, rawCode);
-    if (result.status === 'ok') {
-      await repository.addFriendship(userId, result.friend.id);
+    if (result.status === 'ok' && !(await repository.addFriendship(userId, result.friend.id))) {
+      return { status: 'not_found' };
     }
     return result;
   }

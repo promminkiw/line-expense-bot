@@ -1322,7 +1322,7 @@ describe('repository friendships', () => {
   it('adds both directions in one write and ignores an existing pair', async () => {
     const { supabase, calls } = fakeSupabase({ data: null, error: null });
 
-    await createRepository(supabase).addFriendship('user-1', 'user-2');
+    expect(await createRepository(supabase).addFriendship('user-1', 'user-2')).toBe(true);
 
     expect(calls).toEqual([
       ['from', 'friendships'],
@@ -1335,6 +1335,13 @@ describe('repository friendships', () => {
         { onConflict: 'user_id,friend_id', ignoreDuplicates: true },
       ],
     ]);
+  });
+
+  // ผู้ใช้อีกฝั่งถูกลบระหว่างค้นหากับเพิ่ม ถือว่าไม่พบ ไม่ใช่ error ของระบบ
+  it('reports a friend that no longer exists as not added', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { code: '23503', message: 'violates foreign key constraint' } });
+
+    expect(await createRepository(supabase).addFriendship('user-1', 'user-2')).toBe(false);
   });
 
   it('writes the pair rows ordered by user_id so concurrent mutual adds cannot deadlock', async () => {

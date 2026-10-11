@@ -11,6 +11,7 @@ const RULE_COLUMNS = 'id, type, category_id, amount, note, day_of_month, active,
 const DUE_RULE_BATCH = 500;
 // unique_violation ของ Postgres ใช้แยกกรณีรหัสเพื่อนชนกับของคนอื่น
 const UNIQUE_VIOLATION = '23505';
+const FOREIGN_KEY_VIOLATION = '23503';
 // รายการบิลในหน้าเว็บแสดงเฉพาะของล่าสุด กันหน้าโหลดช้าเมื่อใช้ไปนาน
 const BILL_LIST_LIMIT = 50;
 
@@ -338,7 +339,12 @@ function createRepository(supabase) {
       rows,
       { onConflict: 'user_id,friend_id', ignoreDuplicates: true }
     );
+    // อีกฝั่งถูกลบไประหว่างค้นหากับเพิ่ม ให้ผู้เรียกตอบว่าไม่พบแทน error ของระบบ
+    if (error && error.code === FOREIGN_KEY_VIOLATION) {
+      return false;
+    }
     throwIfError('addFriendship', error);
+    return true;
   }
 
   // ผู้เรียกต้องตรวจว่า friendId เป็น UUID ก่อน เพราะค่าถูกต่อเข้าไปในตัวกรอง or

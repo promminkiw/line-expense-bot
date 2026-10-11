@@ -62,11 +62,12 @@ describe('createFriendsRouter', () => {
     expect(deps.friends.getOverview).toHaveBeenCalledWith('user-1');
   });
 
-  it('looks up a code and maps each failure to its status', async () => {
+  // รหัสอยู่ใน body ไม่ใช่ query string เพื่อไม่ให้ไปอยู่ใน access log ของแพลตฟอร์ม
+  it('looks up a code from the body and maps each failure to its status', async () => {
     const deps = setup();
     const base = await start(deps);
 
-    const ok = await call(`${base}/lookup?code=abcd-2345`);
+    const ok = await call(`${base}/lookup`, { method: 'POST', body: { code: 'abcd-2345' } });
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ friend: { id: FRIEND_ID, displayName: 'บี' } });
     expect(deps.friends.lookup).toHaveBeenCalledWith('user-1', 'abcd-2345');
@@ -77,7 +78,7 @@ describe('createFriendsRouter', () => {
       ['not_found', 404, 'Not found'],
     ]) {
       deps.friends.lookup.mockResolvedValueOnce({ status });
-      const res = await call(`${base}/lookup?code=x`);
+      const res = await call(`${base}/lookup`, { method: 'POST', body: { code: 'x' } });
       expect(res.status).toBe(httpStatus);
       expect(await res.json()).toEqual({ error });
     }
@@ -96,12 +97,31 @@ describe('createFriendsRouter', () => {
     expect((await call(base, { method: 'POST', body: { code: 'ZZZZ2345' } })).status).toBe(404);
   });
 
+  it('no longer looks up a code sent in the query string', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(`${base}/lookup?code=ABCD2345`);
+
+    expect(res.status).toBe(404);
+    expect(deps.friends.lookup).not.toHaveBeenCalled();
+  });
+
+  it('passes no code when the lookup body has none', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(`${base}/lookup`, { method: 'POST' });
+
+    expect(deps.friends.lookup).toHaveBeenCalledWith('user-1', undefined);
+  });
+
   it('answers 429 for lookups and adds over the limit without touching the service', async () => {
     const deps = setup();
     deps.allowFriendLookup.mockReturnValue(false);
     const base = await start(deps);
 
-    const lookup = await call(`${base}/lookup?code=ABCD2345`);
+    const lookup = await call(`${base}/lookup`, { method: 'POST', body: { code: 'ABCD2345' } });
     const add = await call(base, { method: 'POST', body: { code: 'ABCD2345' } });
 
     expect([lookup.status, add.status]).toEqual([429, 429]);
