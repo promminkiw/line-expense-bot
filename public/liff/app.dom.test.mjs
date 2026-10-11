@@ -296,10 +296,10 @@ describe('LIFF page after a normal boot', () => {
     liff = await boot();
   });
 
-  it('renders the six bottom tabs with the list tab selected', () => {
+  it('renders the five bottom tabs with the list tab selected', () => {
     const buttons = [...document.querySelectorAll('#bottom-nav button')];
 
-    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'หารบิล', 'โปรไฟล์']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
     expect(document.querySelectorAll('#bottom-nav [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('#bottom-nav [aria-current="page"]').textContent).toBe('รายการ');
     expect(byId('page-title').textContent).toBe('รายการของฉัน');
@@ -309,6 +309,8 @@ describe('LIFF page after a normal boot', () => {
     for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile']) {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(byId('panel-profile').contains(byId('friends'))).toBe(true);
   });
 
   it('initialised liff and left the shared banner hidden', () => {
@@ -717,7 +719,7 @@ describe('LIFF page when loading fails', () => {
   it('shows the boot load error on every tab after a boot failure', async () => {
     await boot({ overrides: { '/api/categories': new TypeError('network down') } });
 
-    for (const id of ['list', 'summary', 'budgets', 'recurring', 'bills', 'profile', 'list']) {
+    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile', 'list']) {
       clickTab(id);
       expect(byId('banner').hidden, id).toBe(false);
       expect(byId('banner').textContent, id).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1591,10 +1593,11 @@ describe('LIFF friends section guards and failure paths', () => {
 });
 
 describe('LIFF bills tab', () => {
+  // หยุด boot ไว้ที่ liff.init เพื่อให้ route ใช้กับการโหลดบิลครั้งแรกของหน้าหารบิลด้วย
   async function openBills({ route } = {}) {
-    await boot();
+    const liff = await boot({ search: '?tab=bills', holdInit: true });
     const calls = route ? routeFetch(route) : routeFetch(() => undefined);
-    clickTab('bills');
+    liff.releaseInit();
     await settle();
     return calls;
   }
@@ -1704,8 +1707,8 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(calls).toContain('POST /api/bills/b-own/cancel');
-    expect(calls).toContain('GET /api/transactions');
-    expect(calls).toContain('GET /api/profile');
+    expect(calls).not.toContain('GET /api/transactions');
+    expect(calls).not.toContain('GET /api/profile');
   });
 
   it('does not mention the owner share when cancelling a bill without one', async () => {
@@ -1763,19 +1766,41 @@ describe('LIFF bills tab', () => {
     await boot({ search: `?bill=${linkedId}`, overrides: { '/api/bills': bills } });
     await settle();
 
-    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
+    expect(byId('panel-bills').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(true);
     expect(window.location.search).toBe('');
     expect(document.activeElement).toBe(incomingCard());
     expect(scrollIntoView).toHaveBeenCalled();
     delete Element.prototype.scrollIntoView;
   });
 
-  it('opens the tab named in the link, as the rich menu bill button does', async () => {
-    await boot({ search: '?tab=bills' });
+  it('opens the bills page on its own, without the main tabs, from the rich menu link', async () => {
+    const liff = await boot({ search: '?tab=bills' });
     await settle();
 
-    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
     expect(window.location.search).toBe('');
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('หารบิล');
+    expect(byId('month').hidden).toBe(true);
+    expect(byId('panel-bills').hidden).toBe(false);
+    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile']) {
+      expect(byId(`panel-${id}`).hidden, id).toBe(true);
+    }
+    expect(byId('panel-bills').contains(byId('friends'))).toBe(true);
+    expect(byId('friends').hidden).toBe(false);
+    expect(document.querySelectorAll('#bills-owned .bill-card').length).toBe(1);
+    expect(liff.fetched).toContain('/api/friends');
+    for (const path of ['/api/transactions', '/api/profile', '/api/recurring', '/api/trend']) {
+      expect(liff.fetched, path).not.toContain(path);
+    }
+  });
+
+  it('still opens a main tab named in the link', async () => {
+    await boot({ search: '?tab=profile' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    expect(byId('bottom-nav').hidden).toBe(false);
   });
 
   it('says so when the linked bill is not in the lists', async () => {
@@ -1816,15 +1841,15 @@ describe('LIFF bills tab', () => {
     expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
   });
 
-  it('reloads transactions after confirming in the bills tab', async () => {
+  it('does not load the main web data after confirming on the bills page', async () => {
     const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
-    expect(calls).not.toContain('GET /api/transactions');
 
     incomingCard().querySelector('.bill-confirm').click();
     await settle();
 
-    expect(calls).toContain('GET /api/transactions');
-    expect(calls).toContain('GET /api/profile');
+    expect(calls).toContain('POST /api/bills/b-in/confirm');
+    expect(calls).not.toContain('GET /api/transactions');
+    expect(calls).not.toContain('GET /api/profile');
   });
 
   // reload ที่พังทำให้การ์ดยังเป็นสถานะที่แก้ในหน่วยความจำ จึงตรวจการ map สถานะได้
@@ -1986,15 +2011,16 @@ describe('LIFF bills tab', () => {
     expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('reloads transactions after creating a bill', async () => {
+  it('does not load the main web data after creating a bill', async () => {
     const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
     fillValidForm();
 
     byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
     await settle();
 
-    expect(calls).toContain('GET /api/transactions');
-    expect(calls).toContain('GET /api/profile');
+    expect(calls).toContain('POST /api/bills');
+    expect(calls).not.toContain('GET /api/transactions');
+    expect(calls).not.toContain('GET /api/profile');
   });
 
   it('does not reload transactions after creating a bill without an owner share', async () => {
@@ -2153,7 +2179,8 @@ describe('LIFF bills tab', () => {
     await openForm((method, path) => {
       if (path !== '/api/friends') return undefined;
       friendCalls += 1;
-      return friendCalls === 1 ? { status: 500 } : undefined;
+      // ครั้งแรกเป็นของส่วนเพื่อนในหน้าหารบิล ครั้งที่สองเป็นของฟอร์ม
+      return friendCalls === 2 ? { status: 500 } : undefined;
     });
 
     expect(byId('bill-form-friends-error').hidden).toBe(false);
@@ -2169,7 +2196,7 @@ describe('LIFF bills tab', () => {
     expect(document.querySelectorAll('#bill-form-members .bill-form-name').length).toBe(1);
   });
 
-  it('no friends: hides the split controls and offers a go-to-profile button', async () => {
+  it('no friends: hides the split controls and offers a button to the friends section', async () => {
     await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
     byId('bill-form-title').value = 'เนื้อย่าง';
     byId('bill-form-total').value = '1000';
@@ -2179,9 +2206,16 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-error').textContent).toBe('');
     expect(byId('bill-form-go-profile').hidden).toBe(false);
 
+    expect(byId('bill-form-go-profile').textContent).toBe('ไปเพิ่มเพื่อน');
+
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     byId('bill-form-go-profile').click();
     expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
-    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('panel-bills').hidden).toBe(false);
+    expect(scrollIntoView.mock.contexts[0]).toBe(byId('friends'));
+    delete Element.prototype.scrollIntoView;
   });
 
   it('after a network failure it warns to check the list and reloads bills', async () => {
@@ -2237,11 +2271,8 @@ describe('LIFF bills tab', () => {
   });
 
   it('keeps submit disabled while categories are still loading', async () => {
-    await boot({ overrides: { '/api/categories': { categories: [] } } });
-    routeFetch(() => undefined);
+    await openBills();
     const release = holdRequest('/api/categories');
-    clickTab('bills');
-    await settle();
     byId('bill-new').click();
     await settle();
     fillValidForm();
@@ -2255,15 +2286,14 @@ describe('LIFF bills tab', () => {
   });
 
   it('shows a category load failure, not no expense category, when categories fail to load', async () => {
-    await boot({ overrides: { '/api/categories': { categories: [] } } });
     let categoryCalls = 0;
-    routeFetch((method, path) => {
-      if (path !== '/api/categories') return undefined;
-      categoryCalls += 1;
-      return categoryCalls === 1 ? { status: 500 } : undefined;
+    await openBills({
+      route: (method, path) => {
+        if (path !== '/api/categories') return undefined;
+        categoryCalls += 1;
+        return categoryCalls === 1 ? { status: 500 } : undefined;
+      },
     });
-    clickTab('bills');
-    await settle();
     byId('bill-new').click();
     await settle();
     fillValidForm();
@@ -2281,11 +2311,8 @@ describe('LIFF bills tab', () => {
   });
 
   it('blocks submit when no expense category is available', async () => {
-    await boot({ overrides: { '/api/categories': { categories: [] } } });
     const incomeOnly = { categories: CATEGORIES.filter((category) => category.type === 'income') };
-    routeFetch((method, path) => (path === '/api/categories' ? incomeOnly : undefined));
-    clickTab('bills');
-    await settle();
+    await openBills({ route: (method, path) => (path === '/api/categories' ? incomeOnly : undefined) });
     byId('bill-new').click();
     await settle();
     fillValidForm();

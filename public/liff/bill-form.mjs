@@ -13,7 +13,7 @@ function todayIso() {
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-export function createBillForm({ doc, els, getApi, getCategories, ensureCategories, onCreated, onUncertain, onOpenProfile }) {
+export function createBillForm({ doc, els, getApi, getCategories, ensureCategories, onCreated, onUncertain, onOpenFriends }) {
   let friends = [];
   let friendsState = 'loading';
   let categoriesState = 'loading';
@@ -245,7 +245,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   els.categoriesRetry.addEventListener('click', loadCategories);
   els.goProfile.addEventListener('click', () => {
     els.dialog.close();
-    onOpenProfile();
+    onOpenFriends();
   });
   els.cancel.addEventListener('click', () => els.dialog.close());
   els.dialog.addEventListener('cancel', (event) => {
