@@ -19,22 +19,23 @@ export function formatFriendCode(code) {
 }
 
 export function buildInviteUrl(liffId, code) {
-  return `https://liff.line.me/${liffId}?friend=${code}`;
+  return `https://liff.line.me/${liffId}?friend=${encodeURIComponent(code)}`;
 }
 
 export function buildInviteMessage(url) {
   return `มาเป็นเพื่อนกันในบอทบันทึกรายรับรายจ่าย จะได้หารบิลกันง่ายๆ กดลิงก์นี้ได้เลย ${url}`;
 }
 
-export function describeFriendError(status, action) {
+export function describeFriendError(status, action, error) {
   if (status === 401) return LOGIN_REQUIRED_MESSAGE;
   if (action === 'add') {
+    if (status === 400 && error === 'Own code') return OWN_CODE_MESSAGE;
     if (status === 400) return INVALID_CODE_MESSAGE;
     if (status === 404) return 'ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว';
     if (status === 429) return 'ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่';
     return 'เพิ่มเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
   }
   if (action === 'remove') return 'ลบเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
-  if (action === 'renew') return 'เปลี่ยนรหัสไม่สำเร็จ ลองใหม่อีกครั้ง';
+  if (action === 'renew') return status === 429 ? 'เปลี่ยนรหัสบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เปลี่ยนรหัสไม่สำเร็จ ลองใหม่อีกครั้ง';
   return 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
 }

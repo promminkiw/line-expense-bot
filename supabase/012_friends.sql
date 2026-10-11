@@ -15,6 +15,7 @@ create table public.friendships (
   check (user_id <> friend_id)
 );
 
+-- primary key ขึ้นต้นด้วย user_id อยู่แล้ว index นี้ใช้ตอนลบผู้ใช้ (cascade ตาม friend_id) และลบเพื่อนสองฝั่ง
 create index friendships_friend_id_idx on public.friendships (friend_id);
 
 -- ไม่สร้าง policy เหมือนตารางอื่น: anon key เข้าถึงไม่ได้ ส่วน server ใช้ service role

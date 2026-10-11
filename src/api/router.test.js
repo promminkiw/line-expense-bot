@@ -86,6 +86,7 @@ describe('createApiRouter', () => {
     const { friendsRouter, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('friendsRouter');
+    expect(() => createApiRouter({ ...deps, friendsRouter: {} })).toThrow('friendsRouter');
   });
 
   it('refuses to build without the bills router', () => {

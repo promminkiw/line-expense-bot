@@ -174,7 +174,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       }
       ({ friend } = await getApi().lookupFriend(normalized));
     } catch (err) {
-      els.addError.textContent = describeFriendError(statusOf(err), 'add');
+      els.addError.textContent = describeFriendError(statusOf(err), 'add', err.error);
       return;
     } finally {
       setLookingUp(false);
@@ -188,7 +188,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         try {
           await getApi().addFriend(normalized);
         } catch (err) {
-          return describeFriendError(statusOf(err), 'add');
+          return describeFriendError(statusOf(err), 'add', err.error);
         }
         els.input.value = '';
         els.status.textContent = `เพิ่ม ${friend.displayName} เป็นเพื่อนแล้ว`;

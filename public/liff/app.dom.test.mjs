@@ -1241,9 +1241,10 @@ describe('LIFF friends section', () => {
     byId('friend-qr-toggle').click();
     expect(byId('friend-qr').hidden).toBe(false);
     expect(byId('friend-qr').querySelector('svg')).not.toBeNull();
+    // SVG ใช้ <desc> เป็นคำอธิบาย ไม่ใช่ <description>
+    expect(byId('friend-qr').querySelector('svg desc').textContent).toBe('QR code ลิงก์ชวนเพื่อน');
     expect(byId('friend-qr-toggle').getAttribute('aria-expanded')).toBe('true');
     expect(byId('friend-qr').querySelector('svg').getAttribute('role')).toBe('img');
-    expect(byId('friend-qr').querySelector('description').textContent).toBe('QR code ลิงก์ชวนเพื่อน');
     byId('friend-qr-toggle').click();
     expect(byId('friend-qr').hidden).toBe(true);
   });

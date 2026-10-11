@@ -20,7 +20,8 @@ function setup(overrides = {}) {
     ...overrides,
   };
   const allowFriendLookup = vi.fn().mockReturnValue(true);
-  return { friends, allowFriendLookup };
+  const allowCodeRenew = vi.fn().mockReturnValue(true);
+  return { friends, allowFriendLookup, allowCodeRenew };
 }
 
 // จำลอง middleware ตรวจ token ของ /api ที่ใส่ req.userId ให้
@@ -141,6 +142,24 @@ describe('createFriendsRouter', () => {
     expect(deps.friends.remove).toHaveBeenCalledTimes(1);
     deps.friends.remove.mockResolvedValueOnce(false);
     expect((await call(`${base}/${FRIEND_ID}`, { method: 'DELETE' })).status).toBe(404);
+  });
+
+  it('refuses to build without a code renew limiter', () => {
+    const { friends, allowFriendLookup } = setup();
+
+    expect(() => createFriendsRouter({ friends, allowFriendLookup })).toThrow('allowCodeRenew');
+  });
+
+  it('answers 429 for code renewals over the limit without touching the service', async () => {
+    const deps = setup();
+    deps.allowCodeRenew.mockReturnValue(false);
+    const base = await start(deps);
+
+    const res = await call(`${base}/code`, { method: 'POST' });
+
+    expect(res.status).toBe(429);
+    expect(deps.allowCodeRenew).toHaveBeenCalledWith('user-1');
+    expect(deps.friends.regenerateCode).not.toHaveBeenCalled();
   });
 
   it('issues a new code', async () => {

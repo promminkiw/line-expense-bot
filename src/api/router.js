@@ -29,10 +29,10 @@ function createApiRouter({
   if (typeof allowExport !== 'function') {
     throw new TypeError('createApiRouter requires allowExport');
   }
-  if (!friendsRouter) {
+  if (typeof friendsRouter !== 'function') {
     throw new TypeError('createApiRouter requires friendsRouter');
   }
-  if (!billsRouter) {
+  if (typeof billsRouter !== 'function') {
     throw new TypeError('createApiRouter requires billsRouter');
   }
   const router = express.Router();
