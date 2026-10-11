@@ -68,6 +68,7 @@ const bills = createBillService({
   repository,
   users,
   pushFlex: createPushFlex(lineClient),
+  pushText: createPushText(lineClient),
   liffUrl: `https://liff.line.me/${config.liffId}`,
 });
 

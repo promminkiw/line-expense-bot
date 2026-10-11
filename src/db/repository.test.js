@@ -1511,12 +1511,15 @@ describe('repository bills', () => {
   });
 
   it('reads one member share with the bill category, or null', async () => {
-    const { supabase, calls } = fakeSupabase({ data: { share: '150.00', bills: { categories: { name: 'อาหาร' } } }, error: null });
+    const { supabase, calls } = fakeSupabase({
+      data: { share: '150.00', bills: { title: 'ชาบู', categories: { name: 'อาหาร' } } },
+      error: null,
+    });
 
-    expect(await createRepository(supabase).getBillShare(BILL, 'user-2')).toEqual({ share: 150, categoryName: 'อาหาร' });
+    expect(await createRepository(supabase).getBillShare(BILL, 'user-2')).toEqual({ share: 150, title: 'ชาบู', categoryName: 'อาหาร' });
     expect(calls).toEqual([
       ['from', 'bill_members'],
-      ['select', 'share, bills(categories(name))'],
+      ['select', 'share, bills(title, categories(name))'],
       ['eq', 'bill_id', BILL],
       ['eq', 'user_id', 'user-2'],
       ['maybeSingle'],

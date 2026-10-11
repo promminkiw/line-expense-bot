@@ -31,3 +31,16 @@ describe('style.css trend bars', () => {
     expect(rule).not.toMatch(/flex:\s*1/);
   });
 });
+
+describe('style.css date inputs', () => {
+  // Safari บน iOS ให้ช่องวันที่กว้างขั้นต่ำของตัวเองและจัดกลาง ทำให้ล้นกรอบ dialog
+  it('lets dialog date inputs shrink to the dialog width and align left', () => {
+    const rule = declarations('dialog input[type="date"]');
+
+    expect(rule).not.toBeNull();
+    expect(rule).toMatch(/(?:^|;)\s*-webkit-appearance:\s*none/);
+    expect(rule).toMatch(/(?:^|;)\s*min-width:\s*0/);
+    expect(rule).toMatch(/(?:^|;)\s*min-height:\s*\d+px/);
+    expect(declarations('dialog input[type="date"]::-webkit-date-and-time-value')).toMatch(/text-align:\s*left/);
+  });
+});

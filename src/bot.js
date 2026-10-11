@@ -388,6 +388,13 @@ function createBot({
     if (result.status === 'confirmed') {
       return { text: `บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
     }
+    // การ์ดเก่าแก้ไม่ได้ เมื่อตอบไปแล้ว (เช่นในเว็บ) จึงบอกชื่อบิลให้รู้ว่าไม่ต้องกดอีก
+    if (result.status === 'already_confirmed' && result.title) {
+      return { text: `คุณยืนยันบิล ${result.title} ไปแล้ว (ส่วนของคุณ ${formatAmount(result.share)} บาท) ไม่ต้องกดอีก` };
+    }
+    if (result.status === 'already_declined' && result.title) {
+      return { text: `คุณปฏิเสธบิล ${result.title} ไปแล้ว ไม่ต้องกดอีก` };
+    }
     return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
   }
 

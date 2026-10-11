@@ -3,8 +3,20 @@ const { buildBillRequestFlex } = require('./flex');
 const { FALLBACK_DISPLAY_NAME } = require('../friends/service');
 const { FALLBACK_CATEGORY } = require('../parser/categories');
 const { categoryKey } = require('../db/transaction-rows');
+const { formatAmount } = require('../parser/format-reply');
 
-function createBillService({ repository, users, pushFlex, liffUrl, logger = console }) {
+// ข้อความที่ส่งเข้าแชตเมื่อตอบบิลในเว็บ เพราะการ์ดบิลเดิมในแชตแก้ไม่ได้
+function buildWebAnswerText(result) {
+  if (result.status === 'confirmed') {
+    return `ยืนยันบิล ${result.title} ในเว็บแล้ว บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
+  }
+  if (result.status === 'declined') {
+    return `ปฏิเสธบิล ${result.title} ในเว็บแล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
+  }
+  return null;
+}
+
+function createBillService({ repository, users, pushFlex, pushText, liffUrl, logger = console }) {
   // บิลถูกบันทึกแล้วก่อน push ถ้า push ไม่ถึงเพื่อนยังเข้ามายืนยันในเว็บได้
   async function notifyMembers(billId, ownerId, bill) {
     let ownerName;
@@ -87,12 +99,13 @@ function createBillService({ repository, users, pushFlex, liffUrl, logger = cons
   }
 
   async function respond(userId, billId, answer) {
-    if (answer === 'decline') {
-      return { status: await repository.declineBillShare(billId, userId) };
-    }
     const share = await repository.getBillShare(billId, userId);
     if (!share) {
       return { status: 'not_found' };
+    }
+    const answered = { title: share.title, share: share.share };
+    if (answer === 'decline') {
+      return { status: await repository.declineBillShare(billId, userId), ...answered };
     }
     // หมวดของเพื่อนเป็นคนละแถวกับของเจ้าของ จึงจับคู่ด้วยชื่อ ไม่มีชื่อนั้นใช้ อื่นๆ
     const categoryIds = await users.loadCategoryIds(userId);
@@ -100,10 +113,24 @@ function createBillService({ repository, users, pushFlex, liffUrl, logger = cons
     const categoryId = sameName || categoryIds.get(categoryKey('expense', FALLBACK_CATEGORY));
     const categoryName = sameName ? share.categoryName : FALLBACK_CATEGORY;
     const status = await repository.confirmBillShare(billId, userId, categoryId);
-    return status === 'confirmed' ? { status, share: share.share, categoryName } : { status };
+    return status === 'confirmed' ? { status, ...answered, categoryName } : { status, ...answered };
   }
 
-  return { create, list, cancel, setPaid, respond };
+  async function respondFromWeb(userId, billId, answer) {
+    const result = await respond(userId, billId, answer);
+    const text = buildWebAnswerText(result);
+    if (!text) return result;
+    // บันทึกคำตอบแล้ว ส่งข้อความไม่ถึงต้องไม่ทำให้เว็บขึ้นว่าไม่สำเร็จ
+    try {
+      const lineId = (await repository.getLineUserIds([userId])).get(userId);
+      if (lineId) await pushText(lineId, text);
+    } catch (err) {
+      logger.error('Failed to push bill answer', { billId, userId }, err);
+    }
+    return result;
+  }
+
+  return { create, list, cancel, setPaid, respond, respondFromWeb };
 }
 
 module.exports = { createBillService };
