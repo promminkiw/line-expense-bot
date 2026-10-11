@@ -44,3 +44,10 @@ describe('style.css date inputs', () => {
     expect(declarations('dialog input[type="date"]::-webkit-date-and-time-value')).toMatch(/text-align:\s*left/);
   });
 });
+
+describe('style.css friend status', () => {
+  // ข้อความสถานะอาจเป็นลิงก์ชวนยาวๆ ที่ไม่มีช่องว่าง ต้องตัดบรรทัดได้ไม่ล้นจอ
+  it('wraps a long invite link in the friend status', () => {
+    expect(declarations('#friend-status')).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+});

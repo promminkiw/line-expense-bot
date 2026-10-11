@@ -217,6 +217,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 @media (max-width: 359px) { .stat-cards, .profile-stats { grid-template-columns: 1fr; } }
 .friends { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: 28px; }
 .friends h2 { margin: 0; font-size: 19px; font-weight: 600; }
+#friend-status { overflow-wrap: anywhere; }
 .friends-hint { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
 .friend-code-card { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
 .friend-code { font-size: 28px; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }

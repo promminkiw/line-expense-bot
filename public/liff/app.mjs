@@ -194,6 +194,7 @@ const friendsPanel = createFriendsPanel({
   doc: document,
   els: {
     section: document.getElementById('friends'),
+    title: document.getElementById('friends-title'),
     loadingText: document.getElementById('friends-loading'),
     skeleton: document.getElementById('friends-skeleton'),
     addSubmit: document.getElementById('friend-add-submit'),
@@ -1348,7 +1349,8 @@ const tabController = createTabController({
     if (id === 'budgets') playBars(window, els.budgetRows);
     if (id === 'profile') {
       refreshProfileOnEntry();
-      friendsPanel.ensureLoaded();
+      // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
+      friendsPanel.refresh();
     }
   },
 });
@@ -1396,6 +1398,8 @@ async function boot() {
   // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
   const billsPage = isBillsPageLink(window.location.search);
   if (billsPage) enterBillsPage();
+  // เลือกแท็บก่อนมี api จะได้ไม่เห็นแท็บรายการแวบขึ้นมา และไม่โหลดโปรไฟล์ซ้ำกับ loadAll
+  else if (parseFriendLink(window.location.search)) tabController.select('profile');
   try {
     const config = await (
       await fetch('/api/config', {
@@ -1417,7 +1421,8 @@ async function boot() {
     const friendCode = parseFriendLink(window.location.search);
     const billId = parseBillLink(window.location.search);
     const tabId = parseTabLink(window.location.search, TABS.map((tab) => tab.id));
-    if (link || friendCode || billId || tabId || billsPage) window.history.replaceState(null, '', window.location.pathname);
+    // ล้างทุกพารามิเตอร์ รวมลิงก์ที่รหัสผิด ไม่ให้เปิดหน้าใหม่แล้วเจอลิงก์เดิมซ้ำ
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
     if (billsPage) {
       if (billId) billsPanel.focusBill(billId);
       billsPanel.ensureLoaded();

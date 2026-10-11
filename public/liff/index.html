@@ -187,12 +187,12 @@
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
-        <h2 id="friends-title">เพื่อน</h2>
+        <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
         <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
         <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="friends-error" class="budgets-error" hidden>
-          <p id="friends-error-text"></p>
+          <p id="friends-error-text" role="alert"></p>
           <button type="button" id="friends-retry">ลองใหม่</button>
         </div>
         <div id="friends-body" hidden>
@@ -209,7 +209,7 @@
           <p id="friend-status" class="export-status" role="status" aria-live="polite"></p>
           <form id="friend-add-form" class="friend-add" novalidate>
             <label for="friend-code-input">เพิ่มเพื่อนด้วยรหัส</label>
-            <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters" maxlength="12" placeholder="เช่น ABCD-2345">
+            <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters" enterkeyhint="search" maxlength="12" placeholder="เช่น ABCD-2345">
             <button type="submit" id="friend-add-submit">ค้นหา</button>
             <p id="friend-add-error" class="error" role="alert"></p>
           </form>

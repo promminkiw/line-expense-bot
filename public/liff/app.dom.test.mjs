@@ -222,6 +222,12 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('tab-user')).toBe(true);
   });
 
+  it('announces friend errors and offers search on the code keyboard', () => {
+    expect(doc.getElementById('friends-error-text').getAttribute('role')).toBe('alert');
+    expect(doc.getElementById('friend-code-input').getAttribute('enterkeyhint')).toBe('search');
+    expect(doc.getElementById('friends-title').getAttribute('tabindex')).toBe('-1');
+  });
+
   it('defines a sprite symbol for every empty state illustration', () => {
     const used = ['list', 'search', 'summary', 'recurring'].map((kind) =>
       createEmptyState(document, kind).querySelector('use').getAttribute('href').slice(1)
@@ -1310,6 +1316,35 @@ describe('LIFF friends section', () => {
     expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
   });
 
+  it('puts the invite code in the box when the invite fails, so the user can try again', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 404 } } });
+    await settle();
+
+    expect(byId('friend-code-input').value).toBe('WXYZ-2345');
+  });
+
+  it('cleans an invite link with a broken code from the address', async () => {
+    await boot({ search: '?friend=nope' });
+    await settle();
+
+    expect(window.location.search).toBe('');
+  });
+
+  it('shows the profile tab from the start for an invite link, without the list tab first', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345', holdInit: true });
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    liff.releaseInit();
+    await settle();
+  });
+
+  it('loads the profile once when opened from an invite link', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345' });
+    await settle();
+
+    expect(liff.fetched.filter((path) => path === '/api/profile')).toHaveLength(1);
+  });
+
   it('shows the rate-limit message for an invite lookup', async () => {
     await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 429 } } });
     await settle();
@@ -1604,6 +1639,66 @@ describe('LIFF friends section guards and failure paths', () => {
     hold.release(RESPONSES['/api/friends']);
     await settle();
     expect(byId('friends-body').hidden).toBe(false);
+  });
+
+  it('keeps the list and the success message when reloading after an add fails', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    let friendLoads = 0;
+    routeFetch((method, path) => {
+      if (path !== '/api/friends' || method !== 'GET') return undefined;
+      friendLoads += 1;
+      return { status: 500 };
+    });
+
+    await submitCode('WXYZ2345');
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(friendLoads).toBe(1);
+    expect(byId('friends-body').hidden).toBe(false);
+    expect(document.querySelectorAll('#friend-rows .friend-row')).toHaveLength(1);
+    expect(byId('friend-status').textContent).toBe('เพิ่ม ซี เป็นเพื่อนแล้ว');
+    expect(byId('friends-error').hidden).toBe(false);
+  });
+
+  it('hides the retry button when the friend list needs a new login', async () => {
+    await openProfileWith((method, path) => (path === '/api/friends' ? { status: 401 } : undefined));
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-retry').hidden).toBe(true);
+  });
+
+  it('moves focus to the friends heading after removing a friend', async () => {
+    await openProfileWith();
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(document.activeElement).toBe(byId('friends-title'));
+  });
+
+  it('reloads the friend list every time the profile tab opens again', async () => {
+    const calls = await openProfileWith();
+    clickTab('list');
+    clickTab('profile');
+    await settle();
+
+    expect(calls.filter((call) => call === 'GET /api/friends')).toHaveLength(2);
+  });
+
+  it('scrolls to the add error so a message from an invite link is seen', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    await openProfileWith();
+
+    await submitCode('ABCD2345');
+
+    expect(byId('friend-add-error').textContent).toBe('นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน');
+    expect(scrollIntoView.mock.contexts).toContain(byId('friend-add-error'));
+    delete Element.prototype.scrollIntoView;
   });
 
   it('ignores share taps while the share picker is open', async () => {
