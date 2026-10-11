@@ -1556,22 +1556,34 @@ describe('bot bill card buttons', () => {
     }
   });
 
-  it('answers a second confirm tap with already confirmed', async () => {
+  // การ์ดเก่าแก้ไม่ได้ คำตอบจึงต้องบอกชื่อบิลและว่าไม่ต้องกดอีก เช่นตอนยืนยันในเว็บไปแล้ว
+  it('answers a tap on a bill already confirmed, also on the web, with its title and share', async () => {
     const { deps, bot } = setup();
-    deps.bills.respond.mockResolvedValue({ status: 'already_confirmed' });
+    deps.bills.respond.mockResolvedValue({ status: 'already_confirmed', title: 'ชาบู', share: 200 });
 
     await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_confirmed, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'คุณยืนยันบิล ชาบู ไปแล้ว (ส่วนของคุณ 200 บาท) ไม่ต้องกดอีก', undefined);
   });
 
-  it('answers a second decline tap with already declined', async () => {
+  it('answers a tap on a bill already declined with its title', async () => {
     const { deps, bot } = setup();
-    deps.bills.respond.mockResolvedValue({ status: 'already_declined' });
+    deps.bills.respond.mockResolvedValue({ status: 'already_declined', title: 'ชาบู', share: 200 });
 
     await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.already_declined, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'คุณปฏิเสธบิล ชาบู ไปแล้ว ไม่ต้องกดอีก', undefined);
+  });
+
+  it('falls back to the plain already answers without a title', async () => {
+    for (const status of ['already_confirmed', 'already_declined']) {
+      const { deps, bot } = setup();
+      deps.bills.respond.mockResolvedValue({ status });
+
+      await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+
+      expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES[status], undefined);
+    }
   });
 
   it('says the earlier answer when the user taps the other button', async () => {

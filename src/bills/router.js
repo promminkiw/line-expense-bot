@@ -62,7 +62,7 @@ function createBillsRouter({ bills, allowBillCreate }) {
         notFound(res);
         return;
       }
-      const result = await bills.respond(req.userId, req.params.id, answer);
+      const result = await bills.respondFromWeb(req.userId, req.params.id, answer);
       if (result.status === 'not_found') {
         notFound(res);
         return;

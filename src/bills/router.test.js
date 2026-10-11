@@ -17,7 +17,7 @@ function setup(overrides = {}) {
     create: vi.fn().mockResolvedValue({ status: 'ok', id: BILL, notNotified: [F1] }),
     cancel: vi.fn().mockResolvedValue(true),
     setPaid: vi.fn().mockResolvedValue(true),
-    respond: vi.fn().mockResolvedValue({ status: 'confirmed', share: 300, categoryName: 'อาหาร' }),
+    respondFromWeb: vi.fn().mockResolvedValue({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อาหาร' }),
     ...overrides,
   };
   return { bills, allowBillCreate: vi.fn().mockReturnValue(true) };
@@ -115,11 +115,11 @@ describe('createBillsRouter', () => {
 
     const confirmed = await call(`${base}/${BILL}/confirm`, { method: 'POST' });
     expect(await confirmed.json()).toEqual({ status: 'confirmed' });
-    expect(deps.bills.respond).toHaveBeenCalledWith('user-1', BILL, 'confirm');
-    deps.bills.respond.mockResolvedValueOnce({ status: 'declined' });
+    expect(deps.bills.respondFromWeb).toHaveBeenCalledWith('user-1', BILL, 'confirm');
+    deps.bills.respondFromWeb.mockResolvedValueOnce({ status: 'declined' });
     expect(await (await call(`${base}/${BILL}/decline`, { method: 'POST' })).json()).toEqual({ status: 'declined' });
-    expect(deps.bills.respond).toHaveBeenLastCalledWith('user-1', BILL, 'decline');
-    deps.bills.respond.mockResolvedValueOnce({ status: 'not_found' });
+    expect(deps.bills.respondFromWeb).toHaveBeenLastCalledWith('user-1', BILL, 'decline');
+    deps.bills.respondFromWeb.mockResolvedValueOnce({ status: 'not_found' });
     expect((await call(`${base}/${BILL}/confirm`, { method: 'POST' })).status).toBe(404);
   });
 
@@ -127,9 +127,9 @@ describe('createBillsRouter', () => {
     const deps = setup();
     const base = await start(deps);
 
-    deps.bills.respond.mockResolvedValueOnce({ status: 'already_confirmed' });
+    deps.bills.respondFromWeb.mockResolvedValueOnce({ status: 'already_confirmed', title: 'เนื้อย่าง', share: 300 });
     expect(await (await call(`${base}/${BILL}/confirm`, { method: 'POST' })).json()).toEqual({ status: 'already_confirmed' });
-    deps.bills.respond.mockResolvedValueOnce({ status: 'already_declined' });
+    deps.bills.respondFromWeb.mockResolvedValueOnce({ status: 'already_declined' });
     expect(await (await call(`${base}/${BILL}/decline`, { method: 'POST' })).json()).toEqual({ status: 'already_declined' });
   });
 
@@ -142,6 +142,6 @@ describe('createBillsRouter', () => {
     }
     expect(deps.bills.cancel).not.toHaveBeenCalled();
     expect(deps.bills.setPaid).not.toHaveBeenCalled();
-    expect(deps.bills.respond).not.toHaveBeenCalled();
+    expect(deps.bills.respondFromWeb).not.toHaveBeenCalled();
   });
 });

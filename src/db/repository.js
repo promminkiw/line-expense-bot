@@ -397,14 +397,15 @@ function createRepository(supabase) {
   async function getBillShare(billId, userId) {
     const { data, error } = await supabase
       .from('bill_members')
-      .select('share, bills(categories(name))')
+      .select('share, bills(title, categories(name))')
       .eq('bill_id', billId)
       .eq('user_id', userId)
       .maybeSingle();
     throwIfError('getBillShare', error);
     if (!data) return null;
     const category = data.bills && data.bills.categories ? data.bills.categories.name : '';
-    return { share: Number(data.share), categoryName: category };
+    const title = data.bills ? data.bills.title : '';
+    return { share: Number(data.share), title, categoryName: category };
   }
 
   async function confirmBillShare(billId, userId, categoryId) {

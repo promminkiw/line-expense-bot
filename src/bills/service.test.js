@@ -42,16 +42,17 @@ function setup(overrides = {}) {
     cancelBill: vi.fn().mockResolvedValue(true),
     isBillOwner: vi.fn().mockResolvedValue(true),
     setBillMemberPaid: vi.fn().mockResolvedValue(true),
-    getBillShare: vi.fn().mockResolvedValue({ share: 300, categoryName: 'อาหาร' }),
+    getBillShare: vi.fn().mockResolvedValue({ share: 300, title: 'เนื้อย่าง', categoryName: 'อาหาร' }),
     confirmBillShare: vi.fn().mockResolvedValue('confirmed'),
     declineBillShare: vi.fn().mockResolvedValue('declined'),
     ...overrides,
   };
   const users = { loadCategoryIds: vi.fn().mockResolvedValue(new Map([['expense:อาหาร', 'f1-food'], ['expense:อื่นๆ', 'f1-other']])) };
   const pushFlex = vi.fn().mockResolvedValue();
+  const pushText = vi.fn().mockResolvedValue();
   const logger = { error: vi.fn() };
-  const service = createBillService({ repository, users, pushFlex, liffUrl: 'https://liff.line.me/liff-1', logger });
-  return { repository, users, pushFlex, logger, service };
+  const service = createBillService({ repository, users, pushFlex, pushText, liffUrl: 'https://liff.line.me/liff-1', logger });
+  return { repository, users, pushFlex, pushText, logger, service };
 }
 
 describe('billService.create', () => {
@@ -168,14 +169,14 @@ describe('billService.respond', () => {
   it('confirms into the friend category with the same name and returns the share', async () => {
     const { service, repository } = setup();
 
-    expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', share: 300, categoryName: 'อาหาร' });
+    expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อาหาร' });
     expect(repository.confirmBillShare).toHaveBeenCalledWith(BILL, F1, 'f1-food');
   });
 
   it('falls back to the other category when the friend has no category with that name', async () => {
-    const { service, repository } = setup({ getBillShare: vi.fn().mockResolvedValue({ share: 300, categoryName: 'ปาร์ตี้' }) });
+    const { service, repository } = setup({ getBillShare: vi.fn().mockResolvedValue({ share: 300, title: 'เนื้อย่าง', categoryName: 'ปาร์ตี้' }) });
 
-    expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', share: 300, categoryName: 'อื่นๆ' });
+    expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อื่นๆ' });
     expect(repository.confirmBillShare).toHaveBeenCalledWith(BILL, F1, 'f1-other');
   });
 
@@ -183,21 +184,72 @@ describe('billService.respond', () => {
     const { service, repository } = setup({ getBillShare: vi.fn().mockResolvedValue(null) });
 
     expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'not_found' });
+    expect(await service.respond(F1, BILL, 'decline')).toEqual({ status: 'not_found' });
     expect(repository.confirmBillShare).not.toHaveBeenCalled();
+    expect(repository.declineBillShare).not.toHaveBeenCalled();
   });
 
-  it('passes an earlier answer through without a share, so it is not reported as saved', async () => {
+  // การ์ดเก่าแก้ไม่ได้ จึงส่งชื่อบิลและยอดไปให้คำตอบบอกได้ว่าตอบบิลไหนไปแล้ว
+  it('passes an earlier answer through with the bill title and share but no category', async () => {
     const confirmedBefore = setup({ confirmBillShare: vi.fn().mockResolvedValue('already_confirmed') });
     const declinedBefore = setup({ declineBillShare: vi.fn().mockResolvedValue('already_declined') });
 
-    expect(await confirmedBefore.service.respond(F1, BILL, 'confirm')).toEqual({ status: 'already_confirmed' });
-    expect(await declinedBefore.service.respond(F1, BILL, 'decline')).toEqual({ status: 'already_declined' });
+    expect(await confirmedBefore.service.respond(F1, BILL, 'confirm')).toEqual({ status: 'already_confirmed', title: 'เนื้อย่าง', share: 300 });
+    expect(await declinedBefore.service.respond(F1, BILL, 'decline')).toEqual({ status: 'already_declined', title: 'เนื้อย่าง', share: 300 });
   });
 
   it('declines through the repository and passes other statuses through', async () => {
     const { service, repository } = setup({ declineBillShare: vi.fn().mockResolvedValue('cancelled') });
 
-    expect(await service.respond(F1, BILL, 'decline')).toEqual({ status: 'cancelled' });
+    expect(await service.respond(F1, BILL, 'decline')).toEqual({ status: 'cancelled', title: 'เนื้อย่าง', share: 300 });
     expect(repository.declineBillShare).toHaveBeenCalledWith(BILL, F1);
+  });
+});
+
+describe('billService.respondFromWeb', () => {
+  it('tells the chat that the bill was confirmed on the web, since the old card cannot change', async () => {
+    const { service, repository, pushText } = setup();
+
+    expect(await service.respondFromWeb(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อาหาร' });
+    expect(repository.getLineUserIds).toHaveBeenCalledWith([F1]);
+    expect(pushText).toHaveBeenCalledWith(
+      'U-F1',
+      'ยืนยันบิล เนื้อย่าง ในเว็บแล้ว บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก'
+    );
+  });
+
+  it('tells the chat that the bill was declined on the web', async () => {
+    const { service, pushText } = setup();
+
+    expect((await service.respondFromWeb(F1, BILL, 'decline')).status).toBe('declined');
+    expect(pushText).toHaveBeenCalledWith('U-F1', 'ปฏิเสธบิล เนื้อย่าง ในเว็บแล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก');
+  });
+
+  it('pushes nothing when nothing changed', async () => {
+    for (const overrides of [
+      { confirmBillShare: vi.fn().mockResolvedValue('already_confirmed') },
+      { confirmBillShare: vi.fn().mockResolvedValue('cancelled') },
+      { getBillShare: vi.fn().mockResolvedValue(null) },
+    ]) {
+      const { service, pushText } = setup(overrides);
+
+      await service.respondFromWeb(F1, BILL, 'confirm');
+
+      expect(pushText).not.toHaveBeenCalled();
+    }
+  });
+
+  it('still returns the answer when the chat message cannot be sent', async () => {
+    const failedPush = setup();
+    failedPush.pushText.mockRejectedValue(new Error('quota'));
+    const failedLookup = setup({ getLineUserIds: vi.fn().mockRejectedValue(new Error('db down')) });
+    const noLineId = setup({ getLineUserIds: vi.fn().mockResolvedValue(new Map()) });
+
+    for (const { service, logger } of [failedPush, failedLookup]) {
+      expect((await service.respondFromWeb(F1, BILL, 'confirm')).status).toBe('confirmed');
+      expect(logger.error).toHaveBeenCalledWith('Failed to push bill answer', { billId: BILL, userId: F1 }, expect.any(Error));
+    }
+    expect((await noLineId.service.respondFromWeb(F1, BILL, 'confirm')).status).toBe('confirmed');
+    expect(noLineId.pushText).not.toHaveBeenCalled();
   });
 });
