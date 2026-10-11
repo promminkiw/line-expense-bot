@@ -355,6 +355,15 @@ describe('012_friends.sql', () => {
     );
   });
 
+  // supabase-js อ้างชื่อ FK นี้ตอน embed ชื่อเพื่อน เปลี่ยนชื่อแล้วรายชื่อเพื่อนจะพัง
+  it('keeps the foreign key name the repository embeds through, and row level security on', async () => {
+    const fk = await one("select conname from pg_constraint where conrelid = 'public.friendships'::regclass and contype = 'f' and conname = 'friendships_friend_id_fkey'");
+    const rls = await one("select relrowsecurity from pg_class where oid = 'public.friendships'::regclass");
+
+    expect(fk.conname).toBe('friendships_friend_id_fkey');
+    expect(rls.relrowsecurity).toBe(true);
+  });
+
   it('removes the friendships of a deleted user in both directions', async () => {
     const user = await createUser('U1');
     const friend = await createUser('U2');

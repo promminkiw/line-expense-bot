@@ -857,6 +857,20 @@ describe('/api/friends', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: 'user-1' });
   });
+
+  it('answers a failure inside the friends router as a JSON 500', async () => {
+    const friendsRouter = express.Router();
+    friendsRouter.get('/', async () => {
+      throw new Error('db down');
+    });
+    const deps = setup({ friendsRouter });
+    const base = await start(deps);
+
+    const res = await call(base, '/friends');
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Internal error' });
+  });
 });
 
 describe('/api/bills', () => {

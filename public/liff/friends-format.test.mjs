@@ -9,6 +9,7 @@ import {
   OWN_CODE_MESSAGE,
 } from './friends-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { normalizeFriendCode as serverNormalize } from '../../src/friends/code.js';
 
 describe('normalizeFriendCodeInput', () => {
   it('accepts lower case, spaces and the dash used on screen', () => {
@@ -20,6 +21,14 @@ describe('normalizeFriendCodeInput', () => {
       expect(normalizeFriendCodeInput(input)).toBeNull();
     }
   });
+
+  // browser ตรวจก่อนส่ง ถ้าตรวจต่างจาก server ผู้ใช้จะเห็นข้อความผิดหรือส่ง request ที่ไม่มีทางผ่าน
+  it.each([' abcd-2345 ', 'ABCD\u20132345', 'ABCD\u20142345', 'ab cd 23 45', 'XABCD2345', 'ABCD2340', 'ABCDI234', '', null, 12345678])(
+    'agrees with the server for %s',
+    (input) => {
+      expect(normalizeFriendCodeInput(input)).toBe(serverNormalize(input));
+    }
+  );
 });
 
 describe('invite link', () => {

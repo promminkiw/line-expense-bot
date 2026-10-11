@@ -1319,6 +1319,7 @@ describe('repository friendships', () => {
       data: [
         { friend_id: 'user-2', friend: { display_name: 'บี' } },
         { friend_id: 'user-3', friend: { display_name: null } },
+        { friend_id: 'user-4', friend: null },
       ],
       error: null,
     });
@@ -1326,6 +1327,7 @@ describe('repository friendships', () => {
     expect(await createRepository(supabase).listFriends('user-1')).toEqual([
       { id: 'user-2', displayName: 'บี' },
       { id: 'user-3', displayName: null },
+      { id: 'user-4', displayName: null },
     ]);
     expect(calls).toEqual([
       ['from', 'friendships'],
@@ -1387,6 +1389,9 @@ describe('repository friendships', () => {
     const failing = () => fakeSupabase({ data: null, count: null, error: { message: 'boom' } }).supabase;
 
     await expect(createRepository(failing()).listFriends('user-1')).rejects.toThrow('Database listFriends failed: boom');
+    await expect(createRepository(failing()).listFriends('user-1')).rejects.toBeInstanceOf(DatabaseError);
+    await expect(createRepository(failing()).addFriendship('user-1', 'user-2')).rejects.toBeInstanceOf(DatabaseError);
+    await expect(createRepository(failing()).removeFriendship('user-1', 'user-2')).rejects.toBeInstanceOf(DatabaseError);
     await expect(createRepository(failing()).addFriendship('user-1', 'user-2')).rejects.toThrow(
       'Database addFriendship failed: boom'
     );

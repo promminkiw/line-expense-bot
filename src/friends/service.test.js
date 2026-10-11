@@ -78,6 +78,29 @@ describe('friendService.lookup and addByCode', () => {
     expect(repository.findUserByFriendCode).toHaveBeenCalledWith('ABCDWXYZ');
   });
 
+  it('uses the fallback name for an owner without a name', async () => {
+    const { service } = setup({ findUserByFriendCode: vi.fn().mockResolvedValue({ id: 'user-2', displayName: null }) });
+
+    expect(await service.lookup('user-1', 'ABCD2345')).toEqual({ status: 'ok', friend: { id: 'user-2', displayName: FALLBACK_DISPLAY_NAME } });
+  });
+
+  // ลำดับตัวอักษรของ Unicode ทำให้ชื่อที่ขึ้นต้นด้วยสระหน้าอยู่ท้ายสุด จึงต้องเรียงแบบไทย
+  it('sorts the friends with the Thai locale', async () => {
+    const compare = vi.spyOn(String.prototype, 'localeCompare');
+    const { service } = setup({
+      listFriends: vi.fn().mockResolvedValue([
+        { id: 'user-2', displayName: 'ข' },
+        { id: 'user-3', displayName: 'ก' },
+      ]),
+    });
+
+    await service.getOverview('user-1');
+
+    expect(compare.mock.calls.length).toBeGreaterThan(0);
+    expect(compare.mock.calls.every((call) => call[1] === 'th')).toBe(true);
+    compare.mockRestore();
+  });
+
   it('reports an invalid code without asking the database', async () => {
     const { service, repository } = setup();
 

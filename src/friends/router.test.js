@@ -98,6 +98,22 @@ describe('createFriendsRouter', () => {
     expect((await call(base, { method: 'POST', body: { code: 'ZZZZ2345' } })).status).toBe(404);
   });
 
+  it('maps every add failure to the same status as lookup', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const [status, httpStatus, error] of [
+      ['invalid', 400, 'Invalid code'],
+      ['self', 400, 'Own code'],
+      ['not_found', 404, 'Not found'],
+    ]) {
+      deps.friends.addByCode.mockResolvedValueOnce({ status });
+      const res = await call(base, { method: 'POST', body: { code: 'x' } });
+      expect(res.status).toBe(httpStatus);
+      expect(await res.json()).toEqual({ error });
+    }
+  });
+
   it('no longer looks up a code sent in the query string', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -127,7 +143,7 @@ describe('createFriendsRouter', () => {
 
     expect([lookup.status, add.status]).toEqual([429, 429]);
     expect(await lookup.json()).toEqual({ error: 'Too many requests' });
-    expect(deps.allowFriendLookup).toHaveBeenCalledWith('user-1');
+    expect(deps.allowFriendLookup.mock.calls).toEqual([['user-1'], ['user-1']]);
     expect(deps.friends.lookup).not.toHaveBeenCalled();
     expect(deps.friends.addByCode).not.toHaveBeenCalled();
   });
