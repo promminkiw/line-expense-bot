@@ -1776,6 +1776,128 @@ describe('LIFF bills tab', () => {
   const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
   const ownedCard = () => document.querySelector('#bills-owned .bill-card');
 
+  const withBills = (bills) => (method, path) => (path === '/api/bills' && method === 'GET' ? bills : undefined);
+  const BASE = RESPONSES['/api/bills'];
+
+  it('names the bill or the friend on every card button for screen readers', async () => {
+    await openBills();
+
+    expect(incomingCard().querySelector('.bill-confirm').getAttribute('aria-label')).toBe('ยืนยันบิล ชาบู');
+    expect(incomingCard().querySelector('.bill-decline').getAttribute('aria-label')).toBe('ปฏิเสธบิล ชาบู');
+    expect(ownedCard().querySelector('.bill-cancel').getAttribute('aria-label')).toBe('ยกเลิกบิล เนื้อย่าง');
+    const paidBoxes = [...ownedCard().querySelectorAll('.bill-member-paid input')];
+    expect(paidBoxes.map((box) => box.getAttribute('aria-label'))).toEqual(['บี คืนแล้ว', 'ซี คืนแล้ว']);
+    expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง ให้ ซี');
+  });
+
+  it('keeps focus on the bill after answering it, instead of losing it to the page', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').focus();
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(document.activeElement).toBe(incomingCard());
+  });
+
+  it('keeps focus on the paid box after ticking it', async () => {
+    await openBills({ route: (method, path) => (path.endsWith('/paid') ? { paid: true } : undefined) });
+    const box = ownedCard().querySelector('.bill-member-paid input');
+
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(document.activeElement).toBe(ownedCard().querySelector('.bill-member-paid input'));
+  });
+
+  it('labels the dialog close button so it is not confused with cancelling the bill', async () => {
+    await openBills();
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-cancel').textContent).toBe('กลับ');
+    byId('bill-dialog-cancel').click();
+    incomingCard().querySelector('.bill-decline').click();
+    expect(byId('bill-dialog-cancel').textContent).toBe('ยกเลิก');
+  });
+
+  it('offers no paid box for a member who never answered a cancelled bill', async () => {
+    const owned = [{ ...BASE.owned[0], status: 'cancelled' }];
+    await openBills({ route: withBills({ owned, incoming: [] }) });
+
+    const rows = [...ownedCard().querySelectorAll('.bill-member')];
+    expect(rows.map((row) => Boolean(row.querySelector('.bill-member-paid')))).toEqual([true, false]);
+  });
+
+  it('disables retry while the bills are loading again', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { status: 500 } : undefined) });
+    const release = holdRequest('/api/bills');
+
+    byId('bills-retry').click();
+    expect(byId('bills-retry').disabled).toBe(true);
+    release();
+    await settle();
+    expect(byId('bills-retry').disabled).toBe(false);
+  });
+
+  it('shows a failed decline only in the dialog, not twice', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? new Error('offline') : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bill-dialog-error').textContent).toBe('ตอบบิลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('bills-status').textContent).toBe('');
+  });
+
+  it('keeps the buttons of a bill that is still sending disabled when another card redraws the list', async () => {
+    const incoming = [BASE.incoming[0], { ...BASE.incoming[0], id: 'b-in2', title: 'หมูกระทะ' }];
+    await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills' && method === 'GET') return { owned: [], incoming };
+        if (path === '/api/bills/b-in2/confirm') return { status: 'confirmed' };
+        return undefined;
+      },
+    });
+    const release = holdRequest('/api/bills/b-in/confirm', 'POST');
+    const cards = () => [...document.querySelectorAll('#bills-incoming .bill-card')];
+
+    cards()[0].querySelector('.bill-confirm').click();
+    cards()[1].querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(cards()[0].querySelector('.bill-confirm').disabled).toBe(true);
+    release();
+    await settle();
+  });
+
+  it('disables creating a bill until the page is signed in', async () => {
+    const liff = await boot({ search: '?tab=bills', holdInit: true });
+
+    expect(byId('bill-new').disabled).toBe(true);
+    liff.releaseInit();
+    await settle();
+    expect(byId('bill-new').disabled).toBe(false);
+  });
+
+  it('uses the same decline wording as the bot', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? { status: 'declined' } : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ปฏิเสธบิลนี้แล้ว');
+  });
+
+  it('tells a friend who confirmed a cancelled bill that the expense is still recorded', async () => {
+    const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed' }];
+    await openBills({ route: withBills({ owned: [], incoming }) });
+
+    expect(incomingCard().querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
+  });
+
   it('loads the bills when the tab opens and shows both lists', async () => {
     await openBills();
 
@@ -1794,7 +1916,7 @@ describe('LIFF bills tab', () => {
     await openBills({ route: (method, path) => (path === '/api/bills' ? { owned: [], incoming: [] } : undefined) });
 
     expect(byId('bills-incoming-empty').hidden).toBe(false);
-    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่รอคุณยืนยัน');
+    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่เพื่อนส่งมา');
     expect(byId('bills-owned-empty').hidden).toBe(false);
     expect(byId('bills-owned-empty').textContent).toBe('ยังไม่มีบิลที่คุณสร้าง');
   });
@@ -1906,7 +2028,7 @@ describe('LIFF bills tab', () => {
     await openBills();
 
     const unreached = [...ownedCard().querySelectorAll('.bill-member')][1];
-    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง (ยังไม่ได้เพิ่มบอท)');
+    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง ส่งลิงก์บิลให้เพื่อนแทน');
     unreached.querySelector('.bill-share-link').click();
     await settle();
 
@@ -1978,7 +2100,7 @@ describe('LIFF bills tab', () => {
     await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
     await settle();
 
-    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ อาจถูกยกเลิกแล้ว');
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ในรายการ อาจเป็นบิลเก่าหรือไม่ได้ส่งถึงคุณ');
   });
 
   it('says the bill was cancelled when confirming a bill the owner already cancelled', async () => {

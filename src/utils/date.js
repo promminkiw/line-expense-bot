@@ -24,4 +24,10 @@ function shortDate(isoDate) {
   return `${day}/${month}`;
 }
 
-module.exports = { toBangkokDateString, isValidCalendarDate, shortDate };
+// การ์ดที่เพื่อนเปิดดูทีหลังได้ต้องมีปีด้วย ใช้ พ.ศ. ตามที่คนไทยอ่าน
+function thaiDateWithYear(isoDate) {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${Number(year) + 543}`;
+}
+
+module.exports = { toBangkokDateString, isValidCalendarDate, shortDate, thaiDateWithYear };

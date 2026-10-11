@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toBangkokDateString, isValidCalendarDate, shortDate } from './date.js';
+import { toBangkokDateString, isValidCalendarDate, shortDate, thaiDateWithYear } from './date.js';
 
 describe('toBangkokDateString', () => {
   it('formats as YYYY-MM-DD', () => {
@@ -43,5 +43,11 @@ describe('isValidCalendarDate', () => {
 describe('shortDate', () => {
   it('shows an ISO date as day/month', () => {
     expect(shortDate('2026-10-07')).toBe('07/10');
+  });
+});
+
+describe('thaiDateWithYear', () => {
+  it('shows an ISO date as day/month/Buddhist year', () => {
+    expect(thaiDateWithYear('2026-10-08')).toBe('08/10/2569');
   });
 });

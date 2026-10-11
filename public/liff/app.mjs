@@ -1416,6 +1416,7 @@ async function boot() {
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
+    document.getElementById('bill-new').disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);

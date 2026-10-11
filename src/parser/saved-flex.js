@@ -1,18 +1,14 @@
 const { formatAmount, formatSavedReply, formatSlipConfirmReply } = require('./format-reply');
 const { formatBudgetAlerts, describeBudgetAlert, BUDGET_CHECK_FAILED_NOTICE } = require('../budget/alerts');
 const { capAltText, ALT_TEXT_MAX } = require('../utils/alt-text');
+const { shortDate } = require('../utils/date');
 
 const COLORS = { income: '#1D7A35', expense: '#D70015', muted: '#707070', primary: '#0071E3' };
 const STRIP_COLORS = { warn: '#FFF4D6', over: '#FDECEA', notice: '#F2F2F2' };
 
-function formatDate(isoDate) {
-  const [, month, day] = isoDate.split('-');
-  return `${day}/${month}`;
-}
-
 // editUrl ต้องเป็นสตริงเท่านั้น กันค่าอื่น (เช่น index จาก Array.map) หลุดเข้ามาเป็น uri
 function itemRow(item, editUrl) {
-  const sub = item.note ? `${formatDate(item.date)} · ${item.note}` : formatDate(item.date);
+  const sub = item.note ? `${shortDate(item.date)} · ${item.note}` : shortDate(item.date);
   const sign = item.type === 'income' ? '+' : '-';
   return {
     type: 'box',

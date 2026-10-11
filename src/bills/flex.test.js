@@ -7,6 +7,7 @@ const ARGS = {
   ownerName: 'เอ',
   share: 1250.5,
   occurredOn: '2026-10-08',
+  categoryName: 'อาหาร',
   liffUrl: 'https://liff.line.me/liff-1',
 };
 
@@ -21,7 +22,7 @@ describe('buildBillRequestFlex', () => {
 
     expect(flex.type).toBe('flex');
     expect(flex.altText).toBe('เอ ขอให้ยืนยันส่วนแบ่งบิล เนื้อย่าง 1,250.5 บาท');
-    expect(texts(flex)).toEqual(expect.arrayContaining(['เอ ขอให้ยืนยันส่วนแบ่งบิล', 'เนื้อย่าง', 'ส่วนของคุณ 1,250.5 บาท', '08/10']));
+    expect(texts(flex)).toEqual(expect.arrayContaining(['เอ ขอให้ยืนยันส่วนแบ่งบิล', 'เนื้อย่าง', 'ส่วนของคุณ 1,250.5 บาท', '08/10/2569 · อาหาร']));
   });
 
   it('offers confirm and decline postbacks and a link to the bill on the web page', () => {

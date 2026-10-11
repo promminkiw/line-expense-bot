@@ -101,6 +101,7 @@ describe('billService.create', () => {
     expect(repository.getDisplayName).toHaveBeenCalledWith(OWNER);
     expect(pushFlex.mock.calls.map(([to]) => to)).toEqual(['U-F1', 'U-F2']);
     expect(pushFlex.mock.calls[0][1].altText).toBe('เอ ขอให้ยืนยันส่วนแบ่งบิล เนื้อย่าง 300 บาท');
+    expect(JSON.stringify(pushFlex.mock.calls[0][1])).toContain('08/10/2569 · อาหาร');
     expect(repository.markBillMemberNotified.mock.calls).toEqual([
       [BILL, F1],
       [BILL, F2],
