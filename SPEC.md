@@ -66,7 +66,7 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 \- bills: id, owner\_id, title, total, category\_id, occurred\_on, owner\_share, status (open/cancelled), owner\_transaction\_id, created\_at
 
-\- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql`
+\- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql` (index ของ FK ไปยัง transactions และ categories อยู่ใน `014_bill_indexes.sql`)
 
 \- ทุกตารางมี user\_id (bills ใช้ owner\_id, bill\_members ใช้ bill\_id+user\_id), เปิด RLS ทุกตาราง
 

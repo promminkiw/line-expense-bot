@@ -298,14 +298,19 @@ function createRepository(supabase) {
     return data ? data.friend_code : null;
   }
 
-  // รหัสชนกับของคนอื่นคืน false ให้ผู้เรียกสุ่มใหม่ แทนการ throw
-  async function setFriendCode(userId, code) {
-    const { error } = await supabase.from('users').update({ friend_code: code }).eq('id', userId);
+  // รหัสชนกับของคนอื่นคืน taken ให้ผู้เรียกสุ่มใหม่ แทนการ throw
+  // onlyIfEmpty กันหน้าที่เปิดพร้อมกันเขียนทับรหัสแรกที่อีกหน้าแสดงไปแล้ว
+  async function setFriendCode(userId, code, { onlyIfEmpty = false } = {}) {
+    let query = supabase.from('users').update({ friend_code: code }, { count: 'exact' }).eq('id', userId);
+    if (onlyIfEmpty) {
+      query = query.is('friend_code', null);
+    }
+    const { count, error } = await query;
     if (error && error.code === UNIQUE_VIOLATION) {
-      return false;
+      return 'taken';
     }
     throwIfError('setFriendCode', error);
-    return true;
+    return count > 0 ? 'set' : 'unchanged';
   }
 
   async function findUserByFriendCode(code) {

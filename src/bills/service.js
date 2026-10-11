@@ -31,34 +31,37 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
       logger.error('Failed to prepare bill request', { billId }, err);
       return bill.members.map((member) => member.userId);
     }
-    const notNotified = [];
-    for (const member of bill.members) {
-      try {
-        const flex = buildBillRequestFlex({
-          billId,
-          title: bill.title,
-          ownerName: ownerName || FALLBACK_DISPLAY_NAME,
-          share: member.share,
-          occurredOn: bill.occurredOn,
-          liffUrl,
-        });
-        await pushFlex(lineIds.get(member.userId), flex);
-      } catch (err) {
-        logger.error('Failed to push bill request', { billId, memberId: member.userId }, err);
-        notNotified.push(member.userId);
-        continue;
-      }
-      // เพื่อนได้การ์ดแล้ว การ mark ไม่สำเร็จจึงไม่นับเป็นแจ้งไม่ถึง
-      try {
-        await repository.markBillMemberNotified(billId, member.userId);
-      } catch (err) {
-        logger.error('Failed to mark bill member notified', { billId, memberId: member.userId }, err);
-      }
-    }
-    return notNotified;
+    // ส่งให้ทุกคนพร้อมกัน บิลที่มีเพื่อนเยอะจะได้ไม่ต้องรอทีละคนก่อนตอบเว็บ
+    const notified = await Promise.all(
+      bill.members.map(async (member) => {
+        try {
+          const flex = buildBillRequestFlex({
+            billId,
+            title: bill.title,
+            ownerName: ownerName || FALLBACK_DISPLAY_NAME,
+            share: member.share,
+            occurredOn: bill.occurredOn,
+            liffUrl,
+          });
+          await pushFlex(lineIds.get(member.userId), flex);
+        } catch (err) {
+          logger.error('Failed to push bill request', { billId, memberId: member.userId }, err);
+          return false;
+        }
+        // เพื่อนได้การ์ดแล้ว การ mark ไม่สำเร็จจึงไม่นับเป็นแจ้งไม่ถึง
+        try {
+          await repository.markBillMemberNotified(billId, member.userId);
+        } catch (err) {
+          logger.error('Failed to mark bill member notified', { billId, memberId: member.userId }, err);
+        }
+        return true;
+      })
+    );
+    return bill.members.filter((member, index) => !notified[index]).map((member) => member.userId);
   }
 
-  async function create(ownerId, body) {
+  // นับ limit หลังตรวจผ่านแล้วเท่านั้น บิลที่กรอกผิดจึงไม่ทำให้ผู้ใช้โดนล็อก
+  async function create(ownerId, body, { allowCreate = () => true } = {}) {
     const checked = validateBillInput(body, ownerId);
     if (!checked.ok) {
       return { status: 'invalid', error: checked.error };
@@ -71,6 +74,9 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     const friendIds = new Set(friends.map((friend) => friend.id));
     if (!bill.members.every((member) => friendIds.has(member.userId))) {
       return { status: 'invalid', error: 'Not friends' };
+    }
+    if (!allowCreate()) {
+      return { status: 'limited' };
     }
     const id = await repository.createBill({ ownerId, ...bill });
     return { status: 'ok', id, notNotified: await notifyMembers(id, ownerId, bill) };

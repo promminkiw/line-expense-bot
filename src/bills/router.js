@@ -55,11 +55,11 @@ function createBillsRouter({ bills, allowBillCreate, readReceipt, allowReceiptRe
   });
 
   router.post('/', async (req, res) => {
-    if (!allowBillCreate(req.userId)) {
+    const result = await bills.create(req.userId, req.body, { allowCreate: () => allowBillCreate(req.userId) });
+    if (result.status === 'limited') {
       res.status(429).json({ error: 'Too many requests' });
       return;
     }
-    const result = await bills.create(req.userId, req.body);
     if (result.status !== 'ok') {
       res.status(400).json({ error: result.error });
       return;
