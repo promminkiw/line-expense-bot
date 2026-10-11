@@ -29,10 +29,12 @@ import {
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 import { createFriendsPanel } from './friends-panel.mjs';
+import { createBillsPanel } from './bills-panel.mjs';
+import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseEditLink, parseFriendLink } from './deep-link.mjs';
+import { parseBillLink, parseEditLink, parseFriendLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -222,6 +224,78 @@ const friendsPanel = createFriendsPanel({
   liff,
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
+});
+const billsPanel = createBillsPanel({
+  doc: document,
+  els: {
+    status: document.getElementById('bills-status'),
+    loadingText: document.getElementById('bills-loading'),
+    skeleton: document.getElementById('bills-skeleton'),
+    error: document.getElementById('bills-error'),
+    errorText: document.getElementById('bills-error-text'),
+    retry: document.getElementById('bills-retry'),
+    body: document.getElementById('bills-body'),
+    incoming: document.getElementById('bills-incoming'),
+    incomingEmpty: document.getElementById('bills-incoming-empty'),
+    owned: document.getElementById('bills-owned'),
+    ownedEmpty: document.getElementById('bills-owned-empty'),
+    dialog: document.getElementById('bill-dialog'),
+    dialogTitle: document.getElementById('bill-dialog-title'),
+    dialogText: document.getElementById('bill-dialog-text'),
+    dialogBusy: document.getElementById('bill-dialog-busy'),
+    dialogError: document.getElementById('bill-dialog-error'),
+    dialogOk: document.getElementById('bill-dialog-ok'),
+    dialogCancel: document.getElementById('bill-dialog-cancel'),
+  },
+  getApi: () => api,
+  liff,
+  getLiffId: () => liffId,
+  clipboard: navigator.clipboard,
+  onTransactionsChanged: reloadTransactions,
+});
+const billForm = createBillForm({
+  doc: document,
+  els: {
+    dialog: document.getElementById('bill-form-dialog'),
+    form: document.getElementById('bill-form'),
+    title: document.getElementById('bill-form-title'),
+    total: document.getElementById('bill-form-total'),
+    date: document.getElementById('bill-form-date'),
+    category: document.getElementById('bill-form-category'),
+    members: document.getElementById('bill-form-members'),
+    noFriends: document.getElementById('bill-form-no-friends'),
+    friendsLoading: document.getElementById('bill-form-friends-loading'),
+    friendsError: document.getElementById('bill-form-friends-error'),
+    friendsErrorText: document.getElementById('bill-form-friends-error-text'),
+    friendsRetry: document.getElementById('bill-form-friends-retry'),
+    categoriesError: document.getElementById('bill-form-categories-error'),
+    categoriesErrorText: document.getElementById('bill-form-categories-error-text'),
+    categoriesRetry: document.getElementById('bill-form-categories-retry'),
+    goProfile: document.getElementById('bill-form-go-profile'),
+    splitControls: document.getElementById('bill-form-split-controls'),
+    ownerShare: document.getElementById('bill-form-owner-share'),
+    even: document.getElementById('bill-form-even'),
+    error: document.getElementById('bill-form-error'),
+    submit: document.getElementById('bill-form-submit'),
+    cancel: document.getElementById('bill-form-cancel'),
+  },
+  getApi: () => api,
+  getCategories: () => categories,
+  ensureCategories,
+  onUncertain: () => billsPanel.reload(),
+  onOpenProfile: () => tabController.select('profile'),
+  onCreated: async (result, bill) => {
+    const status = document.getElementById('bills-status');
+    status.textContent =
+      result.notNotified.length > 0
+        ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
+        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
+    // server บันทึกส่วนของเจ้าของเป็นรายจ่ายตอนสร้างบิล
+    await Promise.all([billsPanel.reload({ afterAction: true }), bill.ownerShare > 0 && reloadTransactions()]);
+  },
+});
+document.getElementById('bill-new').addEventListener('click', () => {
+  if (api) billForm.open();
 });
 els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
@@ -835,6 +909,13 @@ async function ensureCategories() {
   return categories.length > 0;
 }
 
+// รายการจากบิลถูกเพิ่มหรือลบจากแท็บหารบิล รายการของเดือนและยอดสะสมจึงต้องโหลดใหม่
+async function reloadTransactions() {
+  await loadMonth();
+  profileStale = true;
+  loadProfile();
+}
+
 async function openEditor(item) {
   editing = item;
   els.amount.value = String(item.amount);
@@ -1275,6 +1356,7 @@ const tabController = createTabController({
       refreshProfileOnEntry();
       friendsPanel.ensureLoaded();
     }
+    if (id === 'bills') billsPanel.ensureLoaded();
   },
 });
 tabController.select(DEFAULT_TAB);
@@ -1327,16 +1409,23 @@ async function boot() {
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
-    if (link || friendCode) window.history.replaceState(null, '', window.location.pathname);
+    const billId = parseBillLink(window.location.search);
+    if (link || friendCode || billId) window.history.replaceState(null, '', window.location.pathname);
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
       friendsPanel.openAdd(friendCode);
     }
+    // ลิงก์บิลจากการ์ดหรือที่เจ้าของส่งให้ พาไปที่บิลนั้นในแท็บหารบิล
+    if (billId && !friendCode) {
+      tabController.select('bills');
+      billsPanel.focusBill(billId);
+    }
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
+    if (tabController.current === 'bills') billsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);

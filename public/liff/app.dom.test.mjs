@@ -43,6 +43,38 @@ const RESPONSES = {
     ],
   },
   '/api/recurring': { rules: [] },
+  '/api/bills': {
+    owned: [
+      {
+        id: 'b-own',
+        title: 'เนื้อย่าง',
+        total: 900,
+        occurredOn: '2026-10-08',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerShare: 300,
+        createdAt: '2026-10-08T10:00:00+00:00',
+        members: [
+          { userId: 'f-1', displayName: 'บี', share: 300, status: 'confirmed', paid: false, notified: true },
+          { userId: 'f-2', displayName: 'ซี', share: 300, status: 'pending', paid: false, notified: false },
+        ],
+      },
+    ],
+    incoming: [
+      {
+        id: 'b-in',
+        title: 'ชาบู',
+        total: 600,
+        occurredOn: '2026-10-07',
+        categoryName: 'อาหาร',
+        status: 'open',
+        ownerName: 'ดี',
+        myShare: 200,
+        myStatus: 'pending',
+        paid: false,
+      },
+    ],
+  },
   '/api/trend': {
     months: [
       { month: '2026-05', income: 0, expense: 0 },
@@ -73,7 +105,7 @@ function makeFetch(overrides) {
     const path = new URL(url, 'http://localhost').pathname;
     const body = path in overrides ? overrides[path] : RESPONSES[path];
     if (body instanceof Error) throw body;
-    if (body && typeof body === 'object' && 'status' in body && Object.keys(body).length === 1) {
+    if (body && typeof body === 'object' && typeof body.status === 'number' && Object.keys(body).length === 1) {
       return { ok: false, status: body.status, json: async () => ({}) };
     }
     return { ok: Boolean(body), status: body ? 200 : 404, json: async () => body };
@@ -225,6 +257,11 @@ describe('index.html static invariants', () => {
       'trend-error',
       'budgets-loading',
       'budgets-skeleton',
+      'bill-form-no-friends',
+      'bill-form-friends-loading',
+      'bill-form-friends-error',
+      'bill-form-categories-error',
+      'bill-form-go-profile',
       'budgets-error',
       'recurring-loading',
       'recurring-skeleton',
@@ -242,6 +279,9 @@ describe('index.html static invariants', () => {
       'friend-qr',
       'friends-skeleton',
       'friend-dialog-busy',
+      'bills-error',
+      'bills-skeleton',
+      'bill-dialog-busy',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -256,17 +296,17 @@ describe('LIFF page after a normal boot', () => {
     liff = await boot();
   });
 
-  it('renders the five bottom tabs with the list tab selected', () => {
+  it('renders the six bottom tabs with the list tab selected', () => {
     const buttons = [...document.querySelectorAll('#bottom-nav button')];
 
-    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'หารบิล', 'โปรไฟล์']);
     expect(document.querySelectorAll('#bottom-nav [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('#bottom-nav [aria-current="page"]').textContent).toBe('รายการ');
     expect(byId('page-title').textContent).toBe('รายการของฉัน');
     expect(byId('month').hidden).toBe(false);
     expect(byId('month').value).toBe('2026-10');
     expect(byId('panel-list').hidden).toBe(false);
-    for (const id of ['summary', 'budgets', 'recurring', 'profile']) {
+    for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile']) {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
   });
@@ -677,7 +717,7 @@ describe('LIFF page when loading fails', () => {
   it('shows the boot load error on every tab after a boot failure', async () => {
     await boot({ overrides: { '/api/categories': new TypeError('network down') } });
 
-    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile', 'list']) {
+    for (const id of ['list', 'summary', 'budgets', 'recurring', 'bills', 'profile', 'list']) {
       clickTab(id);
       expect(byId('banner').hidden, id).toBe(false);
       expect(byId('banner').textContent, id).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -1547,5 +1587,710 @@ describe('LIFF friends section guards and failure paths', () => {
     await settle();
 
     expect(byId('friend-qr').innerHTML).not.toBe(before);
+  });
+});
+
+describe('LIFF bills tab', () => {
+  async function openBills({ route } = {}) {
+    await boot();
+    const calls = route ? routeFetch(route) : routeFetch(() => undefined);
+    clickTab('bills');
+    await settle();
+    return calls;
+  }
+
+  const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
+  const ownedCard = () => document.querySelector('#bills-owned .bill-card');
+
+  it('loads the bills when the tab opens and shows both lists', async () => {
+    await openBills();
+
+    expect(byId('bills-incoming-title').textContent).toBe('บิลที่เพื่อนส่งมา');
+    expect(incomingCard().querySelector('.bill-title').textContent).toBe('ชาบู');
+    expect(incomingCard().querySelector('.bill-meta').textContent).toBe('ดี · 07/10');
+    expect(incomingCard().querySelector('.bill-share').textContent).toBe('ส่วนของคุณ 200 บาท');
+    expect(ownedCard().querySelector('.bill-title').textContent).toBe('เนื้อย่าง');
+    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 600 บาท');
+    const members = [...ownedCard().querySelectorAll('.bill-member')];
+    expect(members.map((row) => row.querySelector('.bill-member-name').textContent)).toEqual(['บี', 'ซี']);
+    expect(members.map((row) => row.querySelector('.bill-member-status').textContent)).toEqual(['ยืนยันแล้ว', 'รอตอบ']);
+  });
+
+  it('shows the empty notes when there are no bills', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { owned: [], incoming: [] } : undefined) });
+
+    expect(byId('bills-incoming-empty').hidden).toBe(false);
+    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่รอคุณยืนยัน');
+    expect(byId('bills-owned-empty').hidden).toBe(false);
+    expect(byId('bills-owned-empty').textContent).toBe('ยังไม่มีบิลที่คุณสร้าง');
+  });
+
+  it('shows an error with retry when the bills fail to load', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { status: 500 } : undefined) });
+
+    expect(byId('bills-error').hidden).toBe(false);
+    expect(byId('bills-error-text').textContent).toBe('โหลดบิลไม่สำเร็จ');
+    routeFetch(() => undefined);
+    byId('bills-retry').click();
+    await settle();
+    expect(byId('bills-error').hidden).toBe(true);
+    expect(incomingCard()).not.toBeNull();
+  });
+
+  it('confirms an incoming bill and reloads', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/confirm');
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+    expect(byId('bills-status').textContent).toBe('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+  });
+
+  it('declines an incoming bill after confirming in the dialog', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? { status: 'declined' } : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    expect(byId('bill-dialog-text').textContent).toBe('ปฏิเสธบิล ชาบู ของ ดี?');
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/decline');
+    expect(byId('bill-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('shows why answering failed', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
+  });
+
+  it('marks a member as paid back and lowers the outstanding amount', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-own/members/f-1/paid' ? { paid: true } : undefined) });
+
+    const paidBox = ownedCard().querySelector('.bill-member input[type="checkbox"]');
+    paidBox.checked = true;
+    paidBox.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/members/f-1/paid');
+    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 300 บาท');
+  });
+
+  it('puts the checkbox back when marking paid fails', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-own/members/f-1/paid' ? { status: 500 } : undefined) });
+
+    const paidBox = ownedCard().querySelector('.bill-member input[type="checkbox"]');
+    paidBox.checked = true;
+    paidBox.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(ownedCard().querySelector('.bill-member input[type="checkbox"]').checked).toBe(false);
+    expect(byId('bills-status').textContent).toBe('บันทึกการคืนเงินไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+
+  it('cancels an owned bill after confirming in the dialog', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-own/cancel' ? { status: 'cancelled' } : undefined) });
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-text').textContent).toBe(
+      'ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ รายจ่ายส่วนของคุณจะถูกลบ ส่วนที่เพื่อนยืนยันแล้วยังอยู่'
+    );
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/cancel');
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  it('does not mention the owner share when cancelling a bill without one', async () => {
+    const bill = { ...RESPONSES['/api/bills'].owned[0], ownerShare: 0 };
+    const calls = await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills') return { owned: [bill], incoming: [] };
+        return path === '/api/bills/b-own/cancel' ? { status: 'cancelled' } : undefined;
+      },
+    });
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-text').textContent).toBe('ยกเลิกบิล เนื้อย่าง? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้ ส่วนที่เพื่อนยืนยันแล้วยังอยู่');
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-own/cancel');
+    expect(calls).not.toContain('GET /api/transactions');
+  });
+
+  it('flags members the push did not reach and shares the bill link with them', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    await openBills();
+
+    const unreached = [...ownedCard().querySelectorAll('.bill-member')][1];
+    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง (ยังไม่ได้เพิ่มบอท)');
+    unreached.querySelector('.bill-share-link').click();
+    await settle();
+
+    expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?bill=b-own');
+    expect(byId('bills-status').textContent).toBe('คัดลอกลิงก์บิลแล้ว ส่งให้เพื่อนได้เลย');
+  });
+
+  it('shows a cancelled bill without actions', async () => {
+    await openBills({
+      route: (method, path) =>
+        path === '/api/bills'
+          ? {
+              owned: [],
+              incoming: [{ ...RESPONSES['/api/bills'].incoming[0], status: 'cancelled' }],
+            }
+          : undefined,
+    });
+
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยกเลิกแล้ว');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+  });
+
+  it('opens the bills tab at the linked bill and focuses its card', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const linkedId = '66666666-6666-6666-6666-666666666666';
+    const bills = { owned: [], incoming: [{ ...RESPONSES['/api/bills'].incoming[0], id: linkedId }] };
+    await boot({ search: `?bill=${linkedId}`, overrides: { '/api/bills': bills } });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('bills');
+    expect(window.location.search).toBe('');
+    expect(document.activeElement).toBe(incomingCard());
+    expect(scrollIntoView).toHaveBeenCalled();
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('says so when the linked bill is not in the lists', async () => {
+    await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ อาจถูกยกเลิกแล้ว');
+  });
+
+  it('says the bill was cancelled when confirming a bill the owner already cancelled', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'cancelled' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('POST /api/bills/b-in/confirm');
+    expect(byId('bills-status').textContent).toBe('บิลนี้ถูกยกเลิกแล้ว');
+  });
+
+  it('ignores a second confirm tap while the first is in flight', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+    const confirmButton = incomingCard().querySelector('.bill-confirm');
+
+    confirmButton.click();
+    confirmButton.click();
+    await settle();
+
+    expect(calls.filter((call) => call === 'POST /api/bills/b-in/confirm')).toHaveLength(1);
+  });
+
+  it('reloads the list when confirming a bill that no longer exists', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้แล้ว');
+  });
+
+  it('reloads transactions after confirming in the bills tab', async () => {
+    const calls = await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+    expect(calls).not.toContain('GET /api/transactions');
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  // reload ที่พังทำให้การ์ดยังเป็นสถานะที่แก้ในหน่วยความจำ จึงตรวจการ map สถานะได้
+  function answerRoute(answerPath, answerBody) {
+    let listCalls = 0;
+    return (method, path) => {
+      if (path === answerPath) return answerBody;
+      if (path !== '/api/bills') return undefined;
+      listCalls += 1;
+      return listCalls > 1 ? { status: 500 } : undefined;
+    };
+  }
+
+  it('says already confirmed, not saved, when the bill was confirmed before', async () => {
+    const calls = await openBills({ route: answerRoute('/api/bills/b-in/confirm', { status: 'already_confirmed' }) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('คุณยืนยันบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยืนยันแล้ว');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+    expect(calls).not.toContain('GET /api/transactions');
+  });
+
+  it('says already declined when declining a bill declined before', async () => {
+    const calls = await openBills({ route: answerRoute('/api/bills/b-in/decline', { status: 'already_declined' }) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('คุณปฏิเสธบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
+    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ปฏิเสธ');
+    expect(calls).not.toContain('GET /api/transactions');
+  });
+
+  it('keeps the confirmed message when the reload after confirm fails', async () => {
+    let listCalls = 0;
+    await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills/b-in/confirm') return { status: 'confirmed' };
+        if (path === '/api/bills') {
+          listCalls += 1;
+          return listCalls > 1 ? { status: 500 } : undefined;
+        }
+        return undefined;
+      },
+    });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toContain('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+  });
+
+  it('scrolls the status line into view when a message is set', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 404 } : undefined) });
+    const scrollIntoView = vi.fn();
+    byId('bills-status').scrollIntoView = scrollIntoView;
+
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  async function openForm(route) {
+    const calls = await openBills({ route });
+    byId('bill-new').click();
+    await settle();
+    return calls;
+  }
+
+  const shareInputs = () => [...document.querySelectorAll('#bill-form-members input[type="number"]')];
+
+  it('opens the form with today, the food category and the friends to pick', async () => {
+    await openForm();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-date').value).toBe('2026-10-15');
+    expect(byId('bill-form-category').selectedOptions[0].textContent).toBe('อาหาร');
+    expect([...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent)).toEqual(['บี']);
+  });
+
+  it('splits evenly with the leftover on the owner when friends are picked', async () => {
+    await openForm();
+
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    expect(byId('bill-form-owner-share').value).toBe('500');
+    expect(shareInputs().map((input) => input.value)).toEqual(['500']);
+  });
+
+  it('blocks submit and says how far off the shares are', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    shareInputs()[0].value = '600';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ยอดรวมของทุกคนเกินยอดบิล 100 บาท');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+    byId('bill-form-even').click();
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
+  it('asks to pick at least one friend', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกเพื่อนอย่างน้อย 1 คน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('creates the bill, closes the form and reloads the list', async () => {
+    let posted;
+    const calls = await openForm((method, path) => {
+      if (method === 'POST' && path === '/api/bills') return { id: 'b-new', notNotified: [] };
+      return undefined;
+    });
+    vi.stubGlobal('fetch', ((original) => async (url, options = {}) => {
+      if ((options.method ?? 'GET') === 'POST' && new URL(url, 'http://localhost').pathname === '/api/bills') posted = JSON.parse(options.body);
+      return original(url, options);
+    })(globalThis.fetch));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(posted).toEqual({
+      title: 'เนื้อย่าง',
+      total: 1000,
+      occurredOn: '2026-10-15',
+      categoryId: 'c-food',
+      ownerShare: 500,
+      members: [{ userId: 'f-1', share: 500 }],
+    });
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว');
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('reloads transactions after creating a bill', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('GET /api/transactions');
+    expect(calls).toContain('GET /api/profile');
+  });
+
+  it('does not reload transactions after creating a bill without an owner share', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+    byId('bill-form-owner-share').value = '0';
+    byId('bill-form-owner-share').dispatchEvent(new Event('input'));
+    shareInputs()[0].value = '1000';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('POST /api/bills');
+    expect(calls).not.toContain('GET /api/transactions');
+  });
+
+  it('tells the owner when some friends were not notified', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: ['f-1'] } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง 1 คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง');
+  });
+
+  it('keeps the form open and shows the server error', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { status: 429 } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('สร้างบิลบ่อยเกินไป รอสักครู่แล้วลองใหม่');
+  });
+
+  it('points to the profile tab when there are no friends yet', async () => {
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
+
+    expect(byId('bill-form-no-friends').hidden).toBe(false);
+    expect(byId('bill-form-no-friends').textContent).toBe('ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน');
+  });
+
+  it('blocks submit when a picked friend share is empty', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    shareInputs()[0].value = '';
+    shareInputs()[0].dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ใส่ยอดของเพื่อนทุกคนที่เลือก');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('blocks submit when the owner share is empty', async () => {
+    await openForm();
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    byId('bill-form-owner-share').value = '';
+    byId('bill-form-owner-share').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-error').textContent).toBe('ใส่ส่วนของฉัน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  function holdRequest(pathname, method = 'GET') {
+    let release;
+    const hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if ((options.method ?? 'GET') === method && new URL(url, 'http://localhost').pathname === pathname) await hold;
+      return original(url, options);
+    });
+    return release;
+  }
+
+  function fillValidForm() {
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+  }
+
+  it('keeps cancel disabled while the bill is being created', async () => {
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    const release = holdRequest('/api/bills', 'POST');
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('bill-form-cancel').disabled).toBe(true);
+
+    release();
+    await settle();
+    expect(byId('bill-form-cancel').disabled).toBe(false);
+  });
+
+  it('keeps the created message when reloading the list fails', async () => {
+    let created = false;
+    await openForm((method, path) => {
+      if (method === 'POST' && path === '/api/bills') {
+        created = true;
+        return { id: 'b-new', notNotified: [] };
+      }
+      return created && path === '/api/bills' ? { status: 500 } : undefined;
+    });
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว (โหลดบิลไม่สำเร็จ)');
+  });
+
+  it('shows a loading line while friends load', async () => {
+    await openBills();
+    const release = holdRequest('/api/friends');
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-friends-loading').hidden).toBe(false);
+    expect(byId('bill-form-friends-loading').textContent).toBe('กำลังโหลดรายชื่อเพื่อน...');
+    release();
+    await settle();
+    expect(byId('bill-form-friends-loading').hidden).toBe(true);
+  });
+
+  it('shows a friends error with retry that survives typing', async () => {
+    let friendCalls = 0;
+    await openForm((method, path) => {
+      if (path !== '/api/friends') return undefined;
+      friendCalls += 1;
+      return friendCalls === 1 ? { status: 500 } : undefined;
+    });
+
+    expect(byId('bill-form-friends-error').hidden).toBe(false);
+    expect(byId('bill-form-friends-error-text').textContent).toBe('โหลดรายชื่อเพื่อนไม่สำเร็จ');
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-title').dispatchEvent(new Event('input'));
+    expect(byId('bill-form-friends-error').hidden).toBe(false);
+    expect(byId('bill-form-submit').disabled).toBe(true);
+
+    byId('bill-form-friends-retry').click();
+    await settle();
+    expect(byId('bill-form-friends-error').hidden).toBe(true);
+    expect(document.querySelectorAll('#bill-form-members .bill-form-name').length).toBe(1);
+  });
+
+  it('no friends: hides the split controls and offers a go-to-profile button', async () => {
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined));
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+
+    expect(byId('bill-form-split-controls').hidden).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-go-profile').hidden).toBe(false);
+
+    byId('bill-form-go-profile').click();
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(false);
+  });
+
+  it('after a network failure it warns to check the list and reloads bills', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? new Error('network down') : undefined));
+    fillValidForm();
+    const before = calls.filter((call) => call === 'GET /api/bills').length;
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่');
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBe(before + 1);
+  });
+
+  it('after a server error on create it warns to check the list and reloads bills', async () => {
+    const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { status: 500 } : undefined));
+    fillValidForm();
+    const before = calls.filter((call) => call === 'GET /api/bills').length;
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่');
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(calls.filter((call) => call === 'GET /api/bills').length).toBe(before + 1);
+  });
+
+  it('Not friends error refreshes the friend list and keeps the typed fields', async () => {
+    await openForm();
+    fillValidForm();
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (options.method === 'POST' && path === '/api/bills') {
+        return { ok: false, status: 400, json: async () => ({ error: 'Not friends' }) };
+      }
+      if (path === '/api/friends') {
+        return { ok: true, status: 200, json: async () => ({ code: 'ABCD2345', friends: [{ id: 'f-2', displayName: 'ซี' }] }) };
+      }
+      return original(url, options);
+    });
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    const names = [...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent);
+    expect(names).toEqual(['ซี']);
+    expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(false);
+    expect(byId('bill-form-title').value).toBe('เนื้อย่าง');
+    expect(byId('bill-form-total').value).toBe('1000');
+    expect(byId('bill-form-error').textContent).toBe('มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง');
+  });
+
+  it('keeps submit disabled while categories are still loading', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    routeFetch(() => undefined);
+    const release = holdRequest('/api/categories');
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-submit').disabled).toBe(true);
+    expect(byId('bill-form-error').textContent).toBe('');
+
+    release();
+    await settle();
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
+  it('shows a category load failure, not no expense category, when categories fail to load', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    let categoryCalls = 0;
+    routeFetch((method, path) => {
+      if (path !== '/api/categories') return undefined;
+      categoryCalls += 1;
+      return categoryCalls === 1 ? { status: 500 } : undefined;
+    });
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-categories-error').hidden).toBe(false);
+    expect(byId('bill-form-categories-error-text').textContent).toBe('โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('bill-form-error').textContent).toBe('');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+
+    byId('bill-form-categories-retry').click();
+    await settle();
+    expect(byId('bill-form-categories-error').hidden).toBe(true);
+    expect(byId('bill-form-category').selectedOptions[0].textContent).toBe('อาหาร');
+    expect(byId('bill-form-submit').disabled).toBe(false);
+  });
+
+  it('blocks submit when no expense category is available', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+    const incomeOnly = { categories: CATEGORIES.filter((category) => category.type === 'income') };
+    routeFetch((method, path) => (path === '/api/categories' ? incomeOnly : undefined));
+    clickTab('bills');
+    await settle();
+    byId('bill-new').click();
+    await settle();
+    fillValidForm();
+
+    expect(byId('bill-form-error').textContent).toBe('ไม่มีหมวดรายจ่ายให้เลือก');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('clicking the friend name toggles the checkbox', async () => {
+    await openForm();
+
+    document.querySelector('#bill-form-members label.bill-form-name').click();
+
+    expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEditLink, parseFriendLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink, parseBillLink } from './deep-link.mjs';
 
 const ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 
@@ -42,5 +42,19 @@ describe('parseFriendLink', () => {
     expect(parseFriendLink('')).toBeNull();
     expect(parseFriendLink('?tx=abc')).toBeNull();
     expect(parseFriendLink('?friend=<script>')).toBeNull();
+  });
+});
+
+describe('parseBillLink', () => {
+  const BILL = '55555555-5555-5555-5555-555555555555';
+
+  it('reads a bill id from the query or from liff.state', () => {
+    expect(parseBillLink(`?bill=${BILL}`)).toBe(BILL);
+    expect(parseBillLink(`?liff.state=${encodeURIComponent(`?bill=${BILL}`)}`)).toBe(BILL);
+  });
+
+  it('ignores anything that is not a UUID', () => {
+    expect(parseBillLink('?bill=abc')).toBeNull();
+    expect(parseBillLink('')).toBeNull();
   });
 });

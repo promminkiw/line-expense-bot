@@ -63,6 +63,7 @@ function setup(overrides = {}) {
     },
     allowExport: vi.fn().mockReturnValue(true),
     friendsRouter: express.Router(),
+    billsRouter: express.Router(),
     liffId: 'liff-123',
     logger: { error: vi.fn() },
     now: () => new Date('2026-09-30T03:00:00.000Z'),
@@ -85,6 +86,13 @@ describe('createApiRouter', () => {
     const { friendsRouter, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('friendsRouter');
+  });
+
+  it('refuses to build without the bills router', () => {
+    // eslint-disable-next-line no-unused-vars
+    const { billsRouter, ...deps } = setup();
+
+    expect(() => createApiRouter(deps)).toThrow('billsRouter');
   });
 });
 
@@ -847,5 +855,16 @@ describe('/api/friends', () => {
     const res = await call(base, '/friends');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ userId: 'user-1' });
+  });
+});
+
+describe('/api/bills', () => {
+  it('reaches the bills router only after the ID token check, with the user id set', async () => {
+    const billsRouter = express.Router();
+    billsRouter.get('/', (req, res) => res.json({ userId: req.userId }));
+    const base = await start(setup({ billsRouter }));
+
+    expect((await call(base, '/bills', { token: null })).status).toBe(401);
+    expect(await (await call(base, '/bills')).json()).toEqual({ userId: 'user-1' });
   });
 });

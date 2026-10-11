@@ -5,6 +5,7 @@ export const TABS = [
   { id: 'summary', label: 'สรุป', title: 'สรุปรายเดือน', icon: 'tab-chart', showMonth: true },
   { id: 'budgets', label: 'จัดการงบ', title: 'จัดการงบประมาณ', icon: 'tab-budget', showMonth: true },
   { id: 'recurring', label: 'รอบเดือน', title: 'รายการประจำ', icon: 'tab-repeat', showMonth: false },
+  { id: 'bills', label: 'หารบิล', title: 'หารบิล', icon: 'tab-bill', showMonth: false },
   { id: 'profile', label: 'โปรไฟล์', title: 'โปรไฟล์', icon: 'tab-user', showMonth: false },
 ];
 

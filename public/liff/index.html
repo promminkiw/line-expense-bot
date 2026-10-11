@@ -23,6 +23,7 @@
     <symbol id="tab-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
     <symbol id="tab-budget" viewBox="0 0 24 24"><path d="M4 7a2 2 0 0 1 2-2h11v4"/><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M16 14.5h.01"/></symbol>
     <symbol id="tab-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M20 6H8a4 4 0 0 0-4 4v1"/><path d="M7 21l-3-3 3-3"/><path d="M4 18h12a4 4 0 0 0 4-4v-1"/></symbol>
+    <symbol id="tab-bill" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M12 7v8M9.5 9.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6-1 1.4-2.5 1.4-2.5.5-2.5 1.5 1 1.5 2.5 1.5 2.5-.5 2.5-1.5"/></symbol>
     <symbol id="tab-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
     <symbol id="empty-list" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="4"/><path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M22 26h20M22 34h20M22 42h12"/></symbol>
     <symbol id="empty-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></symbol>
@@ -123,6 +124,30 @@
         </div>
         <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
       </section>
+    </div>
+    <div id="panel-bills" class="panel" hidden>
+      <div class="bills-toolbar">
+        <button type="button" id="bill-new" class="bill-new">สร้างบิล</button>
+      </div>
+      <p id="bills-status" class="export-status bills-status" role="status" aria-live="polite"></p>
+      <p id="bills-loading" class="sr-only" role="status" hidden>กำลังโหลดบิล...</p>
+      <ul id="bills-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="bills-error" class="budgets-error bills-error" role="alert" hidden>
+        <p id="bills-error-text"></p>
+        <button type="button" id="bills-retry">ลองใหม่</button>
+      </div>
+      <div id="bills-body" hidden>
+        <section class="bills-section" aria-labelledby="bills-incoming-title">
+          <h2 id="bills-incoming-title">บิลที่เพื่อนส่งมา</h2>
+          <ul id="bills-incoming" class="bill-list"></ul>
+          <p id="bills-incoming-empty" class="bills-empty" hidden>ยังไม่มีบิลที่รอคุณยืนยัน</p>
+        </section>
+        <section class="bills-section" aria-labelledby="bills-owned-title">
+          <h2 id="bills-owned-title">บิลที่ฉันสร้าง</h2>
+          <ul id="bills-owned" class="bill-list"></ul>
+          <p id="bills-owned-empty" class="bills-empty" hidden>ยังไม่มีบิลที่คุณสร้าง</p>
+        </section>
+      </div>
     </div>
     <div id="panel-profile" class="panel" hidden>
       <p id="profile-loading" class="sr-only" role="status" hidden>กำลังโหลดโปรไฟล์...</p>
@@ -228,6 +253,61 @@
       <button type="button" id="friend-dialog-cancel">ยกเลิก</button>
       <button type="button" id="friend-dialog-ok" class="primary"></button>
     </div>
+  </dialog>
+  <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
+    <h2 id="bill-dialog-title"></h2>
+    <p id="bill-dialog-text" class="confirm-detail"></p>
+    <p id="bill-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
+    <p id="bill-dialog-error" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" id="bill-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="bill-dialog-ok" class="danger-solid"></button>
+    </div>
+  </dialog>
+  <dialog id="bill-form-dialog" class="bill-form-dialog" aria-labelledby="bill-form-heading">
+    <form id="bill-form" novalidate>
+      <h2 id="bill-form-heading">สร้างบิล</h2>
+      <label>ชื่อบิล
+        <input id="bill-form-title" type="text" maxlength="60" placeholder="เช่น เนื้อย่าง" required>
+      </label>
+      <label>ยอดรวม (บาท)
+        <input id="bill-form-total" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>วันที่
+        <input id="bill-form-date" type="date" required>
+      </label>
+      <label>หมวด
+        <select id="bill-form-category" required></select>
+      </label>
+      <div id="bill-form-categories-error" class="budgets-error" hidden>
+        <p id="bill-form-categories-error-text" role="alert"></p>
+        <button type="button" id="bill-form-categories-retry">ลองใหม่</button>
+      </div>
+      <fieldset class="bill-form-split">
+        <legend>หารกับ</legend>
+        <p id="bill-form-friends-loading" class="bills-empty" role="status" hidden>กำลังโหลดรายชื่อเพื่อน...</p>
+        <div id="bill-form-friends-error" class="budgets-error" hidden>
+          <p id="bill-form-friends-error-text" role="alert"></p>
+          <button type="button" id="bill-form-friends-retry">ลองใหม่</button>
+        </div>
+        <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนที่แท็บโปรไฟล์ก่อน</p>
+        <button type="button" id="bill-form-go-profile" class="bill-form-even" hidden>ไปแท็บโปรไฟล์</button>
+        <ul id="bill-form-members" class="bill-form-members"></ul>
+        <div id="bill-form-split-controls">
+          <label class="bill-form-owner">ส่วนของฉัน (บาท)
+            <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0">
+          </label>
+          <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
+        </div>
+      </fieldset>
+      <div class="bill-form-footer">
+        <p id="bill-form-error" class="error" role="alert"></p>
+        <div class="actions">
+          <button type="button" id="bill-form-cancel">ยกเลิก</button>
+          <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>
+        </div>
+      </div>
+    </form>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
     <h2 id="confirm-title"></h2>

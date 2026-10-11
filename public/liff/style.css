@@ -138,6 +138,7 @@ main#app { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 .skeleton-friends-card { height: 150px; margin-top: 0; border-radius: 20px; }
 .skeleton-friends-row { height: 48px; }
 .skeleton-tips { height: 162px; margin-top: 12px; border-radius: 28px; }
+.skeleton-bill-card { height: 120px; margin-top: 12px; border-radius: 28px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
@@ -232,3 +233,43 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .friends-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 #friend-dialog h2 { margin: 0; font-size: 18px; }
 #friend-dialog .error:empty { display: none; }
+.bills-toolbar { display: flex; justify-content: flex-end; margin: 12px 16px 0; }
+.bill-new, #bills-retry { font: inherit; min-height: 44px; padding: 8px 20px; font-size: 15px; border: 1px solid var(--primary); border-radius: 9999px; background: var(--primary); color: var(--on-primary); }
+#bills-retry { background: var(--surface); color: var(--primary); border-color: var(--outline); }
+.bills-status { margin: 8px 16px 0; overflow-wrap: anywhere; }
+.bills-error { margin: 12px 16px 0; }
+.bills-section { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: 28px; }
+.bills-section h2 { margin: 0; font-size: 19px; font-weight: 600; }
+.bill-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.bill-card { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bill-title { font-weight: 600; overflow-wrap: anywhere; }
+.bill-badge { flex: none; font-size: 12px; color: var(--muted); }
+.bill-meta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.bill-share, .bill-outstanding { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bill-actions { display: flex; gap: 8px; margin-top: 8px; }
+.bill-actions button, .bill-share-link { font: inherit; min-height: 44px; padding: 8px 16px; font-size: 14px; border: 1px solid var(--outline); border-radius: 9999px; background: var(--surface); color: var(--text); }
+.bill-actions .bill-confirm { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.bill-actions .bill-cancel, .bill-actions .bill-decline { color: var(--danger); }
+.bill-members { list-style: none; margin: 8px 0 0; padding: 0; }
+.bill-member { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 8px; padding: 6px 0; font-size: 14px; }
+.bill-member-name { overflow-wrap: anywhere; }
+.bill-member-status { color: var(--muted); white-space: nowrap; }
+.bill-member-paid { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-height: 44px; }
+.bill-member-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--warn); }
+.bills-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+#bill-dialog h2 { margin: 0; font-size: 18px; }
+#bill-dialog .error:empty { display: none; }
+
+.bill-form-dialog { max-height: 90vh; overflow-y: auto; }
+#bill-form-heading { margin: 0; font-size: 18px; }
+.bill-form-split { margin: 16px 0 0; padding: 0; border: none; }
+.bill-form-split legend { padding: 0; font-size: 14px; }
+.bill-form-members { list-style: none; margin: 8px 0 0; padding: 0; }
+.bill-form-member { display: grid; grid-template-columns: auto minmax(0, 1fr) 110px; align-items: center; gap: 8px; min-height: 44px; }
+.bill-form-member input[type="checkbox"] { width: 20px; height: 20px; margin: 0; }
+.bill-form-name { display: flex; align-items: center; min-height: 44px; margin: 0; overflow-wrap: anywhere; }
+.bill-form-member input[type="number"] { margin: 0; }
+.bill-form-even { font: inherit; min-height: 44px; margin-top: 8px; padding: 8px 16px; border: 1px solid var(--outline); border-radius: 9999px; background: var(--surface); color: var(--primary); }
+#bill-form-error:empty { display: none; }
+.bill-form-footer { position: sticky; bottom: 0; margin: 0 -20px -20px; padding: 0 20px 20px; background: var(--surface); }

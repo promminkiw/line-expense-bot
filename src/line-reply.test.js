@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createReplyText, createReplyFlex, createPushText } from './line-reply.js';
+import { createReplyText, createReplyFlex, createPushText, createPushFlex } from './line-reply.js';
 
 describe('createReplyText', () => {
   it('sends one text message with the reply token', async () => {
@@ -128,5 +128,16 @@ describe('createPushText', () => {
     const message = client.pushMessage.mock.calls[0][0].messages[0];
     expect(message.quickReply).toBeUndefined();
     expect(message.text.length).toBeLessThanOrEqual(5000);
+  });
+});
+
+describe('createPushFlex', () => {
+  it('pushes the flex message to the user', async () => {
+    const client = { pushMessage: vi.fn().mockResolvedValue({}) };
+    const flex = { type: 'flex', altText: 'x', contents: {} };
+
+    await createPushFlex(client)('U1', flex);
+
+    expect(client.pushMessage).toHaveBeenCalledWith({ to: 'U1', messages: [flex] });
   });
 });
