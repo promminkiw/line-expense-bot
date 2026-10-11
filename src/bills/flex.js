@@ -1,16 +1,11 @@
 const { formatAmount } = require('../parser/format-reply');
+const { capAltText } = require('../utils/alt-text');
+const { shortDate } = require('../utils/date');
 
 const BILL_CONFIRM_ACTION = 'bill_confirm';
 const BILL_DECLINE_ACTION = 'bill_decline';
-// LINE จำกัด altText ที่ 400 ตัวอักษร
-const ALT_TEXT_MAX = 400;
 const MUTED = '#707070';
 const PRIMARY = '#0071E3';
-
-function shortDate(isoDate) {
-  const [, month, day] = isoDate.split('-');
-  return `${day}/${month}`;
-}
 
 function postback(label, action, billId) {
   return { type: 'postback', label, data: new URLSearchParams({ action, bill: billId }).toString(), displayText: label };
@@ -23,7 +18,7 @@ function buildBillRequestFlex({ billId, title, ownerName, share, occurredOn, lif
   url.searchParams.set('bill', billId);
   return {
     type: 'flex',
-    altText: altText.length <= ALT_TEXT_MAX ? altText : `${altText.slice(0, ALT_TEXT_MAX - 3)}...`,
+    altText: capAltText(altText),
     contents: {
       type: 'bubble',
       body: {

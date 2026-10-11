@@ -19,4 +19,9 @@ function isValidCalendarDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
-module.exports = { toBangkokDateString, isValidCalendarDate };
+function shortDate(isoDate) {
+  const [, month, day] = isoDate.split('-');
+  return `${day}/${month}`;
+}
+
+module.exports = { toBangkokDateString, isValidCalendarDate, shortDate };

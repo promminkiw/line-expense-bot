@@ -1,8 +1,7 @@
 const { formatAmount, formatSavedReply, formatSlipConfirmReply } = require('./format-reply');
 const { formatBudgetAlerts, describeBudgetAlert, BUDGET_CHECK_FAILED_NOTICE } = require('../budget/alerts');
+const { capAltText, ALT_TEXT_MAX } = require('../utils/alt-text');
 
-// LINE จำกัด altText ที่ 400 ตัวอักษร
-const ALT_TEXT_MAX = 400;
 const COLORS = { income: '#1D7A35', expense: '#D70015', muted: '#707070', primary: '#0071E3' };
 const STRIP_COLORS = { warn: '#FFF4D6', over: '#FDECEA', notice: '#F2F2F2' };
 
@@ -63,10 +62,6 @@ function alertStrip(alert) {
     { type: 'text', text: title, weight: 'bold', size: 'sm', wrap: true },
     { type: 'text', text: detail, size: 'xs', color: COLORS.muted, wrap: true },
   ]);
-}
-
-function capAltText(text) {
-  return text.length <= ALT_TEXT_MAX ? text : `${text.slice(0, ALT_TEXT_MAX - 3)}...`;
 }
 
 // ปุ่มอยู่ท้ายการ์ด (footer) ไม่ใช้ quick reply เพราะ quick reply หายเมื่อมีข้อความถัดไป

@@ -67,12 +67,14 @@ const users = createUserService({
 // ตัวนับอยู่ในหน่วยความจำ พอสำหรับ server instance เดียว
 const allowRequest = createRateLimiter(RATE_LIMIT);
 
+const liffUrl = `https://liff.line.me/${config.liffId}`;
+
 const bills = createBillService({
   repository,
   users,
   pushFlex: createPushFlex(lineClient),
   pushText: createPushText(lineClient),
-  liffUrl: `https://liff.line.me/${config.liffId}`,
+  liffUrl,
 });
 
 const bot = createBot({
@@ -86,7 +88,7 @@ const bot = createBot({
   users,
   bills,
   allowRequest,
-  liffUrl: `https://liff.line.me/${config.liffId}`,
+  liffUrl,
 });
 // สลิปของผู้ใช้ที่ไม่ส่งรูปอีกจะค้างในตารางตลอดไป จึงกวาดแถวที่หมดอายุทุกชั่วโมง
 startPendingSlipSweeper({ sweep: createPendingSlipSweeper({ repository, ttlMs: SLIP_TTL_MS }) });
