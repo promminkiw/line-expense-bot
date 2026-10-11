@@ -365,5 +365,5 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   });
   els.retry.addEventListener('click', () => load());
 
-  return { ensureLoaded, reload: load, focusBill };
+  return { ensureLoaded, reload: load, focusBill, showStatus: setStatus };
 }

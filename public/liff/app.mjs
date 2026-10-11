@@ -258,6 +258,7 @@ const billForm = createBillForm({
   els: {
     dialog: document.getElementById('bill-form-dialog'),
     form: document.getElementById('bill-form'),
+    heading: document.getElementById('bill-form-heading'),
     title: document.getElementById('bill-form-title'),
     total: document.getElementById('bill-form-total'),
     receiptButton: document.getElementById('bill-form-receipt-button'),
@@ -288,11 +289,11 @@ const billForm = createBillForm({
   onUncertain: () => billsPanel.reload(),
   onOpenFriends: () => document.getElementById('friends').scrollIntoView?.({ block: 'start' }),
   onCreated: async (result) => {
-    const status = document.getElementById('bills-status');
-    status.textContent =
+    billsPanel.showStatus(
       result.notNotified.length > 0
         ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
-        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
+        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว'
+    );
     await billsPanel.reload({ afterAction: true });
   },
 });

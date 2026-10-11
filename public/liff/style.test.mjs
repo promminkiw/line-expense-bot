@@ -68,3 +68,10 @@ describe('style.css bill cards', () => {
     }
   });
 });
+
+describe('style.css bill form', () => {
+  // ช่องที่ถูกโฟกัสต้องไม่ไปจมอยู่ใต้แถบปุ่มที่ติดล่าง
+  it('keeps focused fields above the sticky footer', () => {
+    expect(declarations('.bill-form-dialog')).toMatch(/scroll-padding-bottom:\s*\d+px/);
+  });
+});

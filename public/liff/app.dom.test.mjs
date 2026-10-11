@@ -2493,6 +2493,166 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-receipt-status').textContent).toBe('');
   });
 
+  const typeInto = (id, value) => {
+    byId(id).value = value;
+    byId(id).dispatchEvent(new Event('input'));
+  };
+
+  it('says which field is missing once the user starts filling the form, not before', async () => {
+    await openForm();
+    expect(byId('bill-form-error').textContent).toBe('');
+
+    typeInto('bill-form-total', '1000');
+    expect(byId('bill-form-error').textContent).toBe('ใส่ชื่อบิล');
+    typeInto('bill-form-title', 'เนื้อย่าง');
+    typeInto('bill-form-total', '');
+    expect(byId('bill-form-error').textContent).toBe('ใส่ยอดรวม');
+  });
+
+  it('accepts a total typed with thousands separators', async () => {
+    await openForm();
+    typeInto('bill-form-title', 'เนื้อย่าง');
+
+    typeInto('bill-form-total', '1,000');
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    expect(byId('bill-form-owner-share').value).toBe('500');
+    expect(byId('bill-form-error').textContent).toBe('');
+  });
+
+  it.each([
+    ['abc', 'ใส่ยอดเป็นตัวเลข เช่น 1000'],
+    ['1.005', 'ใส่ยอดไม่เกินทศนิยม 2 ตำแหน่ง'],
+    ['10000000.01', 'ยอดรวมต้องไม่เกิน 10,000,000 บาท'],
+  ])('explains a total of %s and marks the field invalid', async (total, message) => {
+    await openForm();
+    typeInto('bill-form-title', 'เนื้อย่าง');
+
+    typeInto('bill-form-total', total);
+
+    expect(byId('bill-form-error').textContent).toBe(message);
+    expect(byId('bill-form-total').getAttribute('aria-invalid')).toBe('true');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('points the fields at the form message and announces it politely', async () => {
+    await openForm();
+
+    expect(byId('bill-form-total').getAttribute('aria-describedby')).toBe('bill-form-error');
+    expect(byId('bill-form-title').getAttribute('aria-describedby')).toBe('bill-form-error');
+    expect(byId('bill-form-error').getAttribute('role')).toBe('status');
+    expect(byId('bill-form-total').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('asks for a date when the date is cleared', async () => {
+    await openForm();
+    fillValidForm();
+
+    typeInto('bill-form-date', '');
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกวันที่');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  // server นับความยาวชื่อตามอักขระ maxlength ของ browser นับตาม UTF-16 ทำให้ emoji กินสองช่อง
+  it('counts the title by characters, so 60 emoji fit and 61 letters do not', async () => {
+    await openForm();
+    fillValidForm();
+
+    typeInto('bill-form-title', '🍖'.repeat(60));
+    expect(byId('bill-form-error').textContent).toBe('');
+    typeInto('bill-form-title', 'ก'.repeat(61));
+    expect(byId('bill-form-error').textContent).toBe('ชื่อบิลยาวเกิน 60 ตัวอักษร');
+    expect(byId('bill-form-title').hasAttribute('maxlength')).toBe(false);
+  });
+
+  it('allows at most 20 friends on one bill, like the server', async () => {
+    const many = Array.from({ length: 21 }, (_, index) => ({ id: `f-${index}`, displayName: `เพื่อน ${index}` }));
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: many } : undefined));
+    typeInto('bill-form-title', 'เนื้อย่าง');
+    typeInto('bill-form-total', '2100');
+
+    for (const box of document.querySelectorAll('#bill-form-members input[type="checkbox"]')) {
+      box.checked = true;
+      box.dispatchEvent(new Event('change'));
+    }
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกเพื่อนได้ไม่เกิน 20 คน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('focuses the heading on open so the keyboard does not pop up at once', async () => {
+    await openForm();
+
+    expect(document.activeElement).toBe(byId('bill-form-heading'));
+  });
+
+  it('says what to pick in the split', async () => {
+    await openForm();
+
+    expect(document.querySelector('.bill-form-split legend').textContent).toBe('หารกับเพื่อน');
+  });
+
+  it('drops a friend list from an earlier opening of the form', async () => {
+    let releaseFirst;
+    let friendCalls = 0;
+    await openBills();
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (path === '/api/friends') {
+        friendCalls += 1;
+        if (friendCalls === 1) {
+          const body = await new Promise((resolve) => (releaseFirst = resolve));
+          return makeFetch({ [path]: body })(url, options);
+        }
+        return makeFetch({ [path]: { code: 'ABCD2345', friends: [{ id: 'f-9', displayName: 'ใหม่' }] } })(url, options);
+      }
+      return makeFetch({})(url, options);
+    });
+
+    byId('bill-new').click();
+    await settle();
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+    releaseFirst({ code: 'ABCD2345', friends: [{ id: 'f-1', displayName: 'เก่า' }] });
+    await settle();
+
+    expect([...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent)).toEqual(['ใหม่']);
+  });
+
+  it('shows the error the server gives for shares that do not add up', async () => {
+    await openForm();
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if ((options.method ?? 'GET') === 'POST' && new URL(url, 'http://localhost').pathname === '/api/bills') {
+        return { ok: false, status: 400, json: async () => ({ error: 'Shares do not add up' }) };
+      }
+      return makeFetch({})(url, options);
+    });
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล');
+  });
+
+  it('scrolls the created message into view', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว');
+    expect(scrollIntoView.mock.contexts).toContain(byId('bills-status'));
+    delete Element.prototype.scrollIntoView;
+  });
+
   it('keeps cancel disabled while the bill is being created', async () => {
     await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
     const release = holdRequest('/api/bills', 'POST');

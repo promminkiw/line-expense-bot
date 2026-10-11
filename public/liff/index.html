@@ -266,12 +266,12 @@
   </dialog>
   <dialog id="bill-form-dialog" class="bill-form-dialog" aria-labelledby="bill-form-heading">
     <form id="bill-form" novalidate>
-      <h2 id="bill-form-heading">สร้างบิล</h2>
+      <h2 id="bill-form-heading" tabindex="-1">สร้างบิล</h2>
       <label>ชื่อบิล
-        <input id="bill-form-title" type="text" maxlength="60" placeholder="เช่น เนื้อย่าง" required>
+        <input id="bill-form-title" type="text" placeholder="เช่น เนื้อย่าง" aria-describedby="bill-form-error" required>
       </label>
       <label>ยอดรวม (บาท)
-        <input id="bill-form-total" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="bill-form-total" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bill-form-error" required>
       </label>
       <div class="bill-form-receipt">
         <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
@@ -279,7 +279,7 @@
         <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
       </div>
       <label>วันที่
-        <input id="bill-form-date" type="date" required>
+        <input id="bill-form-date" type="date" aria-describedby="bill-form-error" required>
       </label>
       <label>หมวด
         <select id="bill-form-category" required></select>
@@ -289,7 +289,7 @@
         <button type="button" id="bill-form-categories-retry">ลองใหม่</button>
       </div>
       <fieldset class="bill-form-split">
-        <legend>หารกับ</legend>
+        <legend>หารกับเพื่อน</legend>
         <p id="bill-form-friends-loading" class="bills-empty" role="status" hidden>กำลังโหลดรายชื่อเพื่อน...</p>
         <div id="bill-form-friends-error" class="budgets-error" hidden>
           <p id="bill-form-friends-error-text" role="alert"></p>
@@ -300,13 +300,13 @@
         <ul id="bill-form-members" class="bill-form-members"></ul>
         <div id="bill-form-split-controls">
           <label class="bill-form-owner">ส่วนของฉัน (บาท)
-            <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0">
+            <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0" aria-describedby="bill-form-error">
           </label>
           <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
         </div>
       </fieldset>
       <div class="bill-form-footer">
-        <p id="bill-form-error" class="error" role="alert"></p>
+        <p id="bill-form-error" class="error" role="status" aria-live="polite"></p>
         <div class="actions">
           <button type="button" id="bill-form-cancel">ยกเลิก</button>
           <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>

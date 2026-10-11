@@ -268,7 +268,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 #bill-dialog h2 { margin: 0; font-size: 18px; }
 #bill-dialog .error:empty { display: none; }
 
-.bill-form-dialog { max-height: 90vh; overflow-y: auto; }
+.bill-form-dialog { max-height: 90vh; overflow-y: auto; scroll-padding-bottom: 140px; }
 #bill-form-heading { margin: 0; font-size: 18px; }
 .bill-form-split { margin: 16px 0 0; padding: 0; border: none; }
 .bill-form-split legend { padding: 0; font-size: 14px; }

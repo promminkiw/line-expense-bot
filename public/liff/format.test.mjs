@@ -3,6 +3,7 @@ import {
   formatBaht,
   formatThaiDate,
   currentMonth,
+  currentDate,
   groupByDate,
   formatDayNet,
   groupCategoryOptions,
@@ -615,5 +616,12 @@ describe('profileView initial', () => {
 
   it('upper-cases a Latin initial', () => {
     expect(view('john').initial).toBe('J');
+  });
+});
+
+describe('currentDate', () => {
+  it('uses the Bangkok date, like the bot when it saves', () => {
+    expect(currentDate(new Date('2026-09-30T18:00:00Z'))).toBe('2026-10-01');
+    expect(currentDate(new Date('2026-09-30T16:00:00Z'))).toBe('2026-09-30');
   });
 });
