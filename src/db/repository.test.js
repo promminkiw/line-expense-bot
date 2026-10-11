@@ -1319,6 +1319,7 @@ describe('repository friendships', () => {
       data: [
         { friend_id: 'user-2', friend: { display_name: 'บี' } },
         { friend_id: 'user-3', friend: { display_name: null } },
+        { friend_id: 'user-4', friend: null },
       ],
       error: null,
     });
@@ -1326,6 +1327,7 @@ describe('repository friendships', () => {
     expect(await createRepository(supabase).listFriends('user-1')).toEqual([
       { id: 'user-2', displayName: 'บี' },
       { id: 'user-3', displayName: null },
+      { id: 'user-4', displayName: null },
     ]);
     expect(calls).toEqual([
       ['from', 'friendships'],
@@ -1387,6 +1389,9 @@ describe('repository friendships', () => {
     const failing = () => fakeSupabase({ data: null, count: null, error: { message: 'boom' } }).supabase;
 
     await expect(createRepository(failing()).listFriends('user-1')).rejects.toThrow('Database listFriends failed: boom');
+    await expect(createRepository(failing()).listFriends('user-1')).rejects.toBeInstanceOf(DatabaseError);
+    await expect(createRepository(failing()).addFriendship('user-1', 'user-2')).rejects.toBeInstanceOf(DatabaseError);
+    await expect(createRepository(failing()).removeFriendship('user-1', 'user-2')).rejects.toBeInstanceOf(DatabaseError);
     await expect(createRepository(failing()).addFriendship('user-1', 'user-2')).rejects.toThrow(
       'Database addFriendship failed: boom'
     );
@@ -1430,17 +1435,18 @@ describe('repository bills', () => {
     ]);
   });
 
-  it('marks a member as notified', async () => {
-    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+  it('marks a member as notified and says whether the row was there', async () => {
+    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
 
-    await createRepository(supabase).markBillMemberNotified(BILL, 'user-2');
-
+    expect(await createRepository(supabase).markBillMemberNotified(BILL, 'user-2')).toBe(true);
     expect(calls).toEqual([
       ['from', 'bill_members'],
-      ['update', { notified: true }],
+      ['update', { notified: true }, { count: 'exact' }],
       ['eq', 'bill_id', BILL],
       ['eq', 'user_id', 'user-2'],
     ]);
+    const missing = fakeSupabase({ count: 0, error: null });
+    expect(await createRepository(missing.supabase).markBillMemberNotified(BILL, 'user-2')).toBe(false);
   });
 
   it('lists the owner bills newest first with members, names and numbers', async () => {
@@ -1590,6 +1596,18 @@ describe('repository bills', () => {
       ['eq', 'bill_id', BILL],
       ['eq', 'user_id', 'user-2'],
     ]);
+  });
+
+  it('reports a member that is not in the bill as not marked paid', async () => {
+    const { supabase } = fakeSupabase({ count: 0, error: null });
+
+    expect(await createRepository(supabase).setBillMemberPaid(BILL, 'user-9', true)).toBe(false);
+  });
+
+  it('passes a cancelled bill through when confirming', async () => {
+    const { supabase } = fakeSupabase({ data: 'cancelled', error: null });
+
+    expect(await createRepository(supabase).confirmBillShare(BILL, 'user-2', 'c2')).toBe('cancelled');
   });
 
   it('maps user ids to LINE user ids', async () => {

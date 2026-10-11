@@ -36,7 +36,7 @@ function setup(overrides = {}) {
     getDisplayName: vi.fn().mockResolvedValue('เอ'),
     createBill: vi.fn().mockResolvedValue(BILL),
     getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, 'U-F1'], [F2, 'U-F2']])),
-    markBillMemberNotified: vi.fn().mockResolvedValue(),
+    markBillMemberNotified: vi.fn().mockResolvedValue(true),
     listOwnedBills: vi.fn().mockResolvedValue([]),
     listIncomingBills: vi.fn().mockResolvedValue([]),
     cancelBill: vi.fn().mockResolvedValue(true),
@@ -96,8 +96,12 @@ describe('billService.create', () => {
 
     expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [] });
     expect(repository.createBill).toHaveBeenCalledWith({ ownerId: OWNER, ...body() });
+    expect(repository.listCategories).toHaveBeenCalledWith(OWNER);
+    expect(repository.listFriends).toHaveBeenCalledWith(OWNER);
+    expect(repository.getDisplayName).toHaveBeenCalledWith(OWNER);
     expect(pushFlex.mock.calls.map(([to]) => to)).toEqual(['U-F1', 'U-F2']);
     expect(pushFlex.mock.calls[0][1].altText).toBe('เอ ขอให้ยืนยันส่วนแบ่งบิล เนื้อย่าง 300 บาท');
+    expect(JSON.stringify(pushFlex.mock.calls[0][1])).toContain('08/10/2569 · อาหาร');
     expect(repository.markBillMemberNotified.mock.calls).toEqual([
       [BILL, F1],
       [BILL, F2],
@@ -145,10 +149,17 @@ describe('billService.create', () => {
 
   it('counts a member as notified when the push succeeds but marking notified fails', async () => {
     const markError = new Error('db down');
-    const { service, logger } = setup({ markBillMemberNotified: vi.fn().mockRejectedValueOnce(markError).mockResolvedValue() });
+    const { service, logger } = setup({ markBillMemberNotified: vi.fn().mockRejectedValueOnce(markError).mockResolvedValue(true) });
 
     expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [] });
     expect(logger.error).toHaveBeenCalledWith('Failed to mark bill member notified', { billId: BILL, memberId: F1 }, markError);
+  });
+
+  it('logs a member row that was gone when marking notified, but still counts the card as sent', async () => {
+    const { service, logger } = setup({ markBillMemberNotified: vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true) });
+
+    expect(await service.create(OWNER, body())).toEqual({ status: 'ok', id: BILL, notNotified: [] });
+    expect(logger.error).toHaveBeenCalledWith('Bill member to mark notified not found', { billId: BILL, memberId: F1 });
   });
 
   it('rejects an income category the owner does own', async () => {
@@ -168,6 +179,28 @@ describe('billService.create', () => {
 });
 
 describe('billService.list', () => {
+  // ฐานข้อมูลไม่รับประกันลำดับของสมาชิกที่ embed มา จึงเรียงตามชื่อแบบไทยให้การ์ดไม่สลับที่ทุกครั้งที่โหลด
+  it('lists the members of each owned bill by Thai name', async () => {
+    const { service, repository } = setup({
+      listOwnedBills: vi.fn().mockResolvedValue([
+        {
+          id: BILL,
+          members: [
+            { userId: F2, displayName: 'ค่อม' },
+            { userId: F1, displayName: null },
+            { userId: 'f3', displayName: 'กบ' },
+          ],
+        },
+      ]),
+    });
+
+    const { owned } = await service.list(OWNER);
+
+    expect(owned[0].members.map((member) => member.displayName)).toEqual(['กบ', 'ค่อม', 'ผู้ใช้ LINE']);
+    expect(repository.listOwnedBills).toHaveBeenCalledWith(OWNER);
+    expect(repository.listIncomingBills).toHaveBeenCalledWith(OWNER);
+  });
+
   it('fills missing names with the fallback', async () => {
     const { service } = setup({
       listOwnedBills: vi.fn().mockResolvedValue([{ id: BILL, members: [{ userId: F1, displayName: null }] }]),
@@ -194,6 +227,7 @@ describe('billService.cancel and setPaid', () => {
     const notOwned = setup({ isBillOwner: vi.fn().mockResolvedValue(false) });
 
     expect(await owned.service.setPaid(OWNER, BILL, F1, true)).toBe(true);
+    expect(owned.repository.isBillOwner).toHaveBeenCalledWith(BILL, OWNER);
     expect(owned.repository.setBillMemberPaid).toHaveBeenCalledWith(BILL, F1, true);
     expect(await notOwned.service.setPaid(F2, BILL, F1, true)).toBe(false);
     expect(notOwned.repository.setBillMemberPaid).not.toHaveBeenCalled();
@@ -205,7 +239,14 @@ describe('billService.respond', () => {
     const { service, repository } = setup();
 
     expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'confirmed', title: 'เนื้อย่าง', share: 300, categoryName: 'อาหาร' });
+    expect(repository.getBillShare).toHaveBeenCalledWith(BILL, F1);
     expect(repository.confirmBillShare).toHaveBeenCalledWith(BILL, F1, 'f1-food');
+  });
+
+  it('passes a bill cancelled before the confirm through without a category', async () => {
+    const { service } = setup({ confirmBillShare: vi.fn().mockResolvedValue('cancelled') });
+
+    expect(await service.respond(F1, BILL, 'confirm')).toEqual({ status: 'cancelled', title: 'เนื้อย่าง', share: 300 });
   });
 
   it('falls back to the other category when the friend has no category with that name', async () => {

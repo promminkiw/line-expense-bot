@@ -21,6 +21,7 @@ const MIGRATIONS = [
   '012_friends.sql',
   '013_bills.sql',
   '014_bill_indexes.sql',
+  '015_bill_invariants.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -354,6 +355,15 @@ describe('012_friends.sql', () => {
     );
   });
 
+  // supabase-js อ้างชื่อ FK นี้ตอน embed ชื่อเพื่อน เปลี่ยนชื่อแล้วรายชื่อเพื่อนจะพัง
+  it('keeps the foreign key name the repository embeds through, and row level security on', async () => {
+    const fk = await one("select conname from pg_constraint where conrelid = 'public.friendships'::regclass and contype = 'f' and conname = 'friendships_friend_id_fkey'");
+    const rls = await one("select relrowsecurity from pg_class where oid = 'public.friendships'::regclass");
+
+    expect(fk.conname).toBe('friendships_friend_id_fkey');
+    expect(rls.relrowsecurity).toBe(true);
+  });
+
   it('removes the friendships of a deleted user in both directions', async () => {
     const user = await createUser('U1');
     const friend = await createUser('U2');
@@ -365,20 +375,20 @@ describe('012_friends.sql', () => {
   });
 });
 
-describe('013_bills.sql', () => {
-  async function setupBill({ ownerShare = 100, shares = [150, 150] } = {}) {
-    const owner = await createUser('U1');
-    const friends = [];
-    for (const [index] of shares.entries()) friends.push(await createUser(`F${index}`));
-    const food = await createCategory(owner, 'อาหาร', 'expense');
-    const total = ownerShare + shares.reduce((sum, share) => sum + share, 0);
-    const members = JSON.stringify(friends.map((userId, index) => ({ user_id: userId, share: shares[index] })));
-    const bill = (
-      await one('select create_bill($1, $2, $3, $4, $5, $6, $7) as id', [owner, 'เนื้อย่าง', total, food, '2026-10-08', ownerShare, members])
-    ).id;
-    return { owner, friends, food, bill, total };
-  }
+async function setupBill({ ownerShare = 100, shares = [150, 150] } = {}) {
+  const owner = await createUser('U1');
+  const friends = [];
+  for (const [index] of shares.entries()) friends.push(await createUser(`F${index}`));
+  const food = await createCategory(owner, 'อาหาร', 'expense');
+  const total = ownerShare + shares.reduce((sum, share) => sum + share, 0);
+  const members = JSON.stringify(friends.map((userId, index) => ({ user_id: userId, share: shares[index] })));
+  const bill = (
+    await one('select create_bill($1, $2, $3, $4, $5, $6, $7) as id', [owner, 'เนื้อย่าง', total, food, '2026-10-08', ownerShare, members])
+  ).id;
+  return { owner, friends, food, bill, total };
+}
 
+describe('013_bills.sql', () => {
   it('creates the bill, the owner transaction and one pending row per member in one call', async () => {
     const { owner, friends, bill } = await setupBill();
 
@@ -556,6 +566,108 @@ describe('013_bills.sql', () => {
   });
 });
 
+describe('013_bills.sql edge cases', () => {
+  async function expectError(sql, params, message) {
+    await db.exec('savepoint expect_error');
+    await expect(db.query(sql, params)).rejects.toThrow(message);
+    await db.exec('rollback to savepoint expect_error');
+  }
+
+  it('stores each member share as given when the shares are not equal', async () => {
+    const { friends, bill } = await setupBill({ ownerShare: 50, shares: [120.5, 229.5] });
+
+    const shares = await rows('select user_id, share from bill_members where bill_id = $1', [bill]);
+    const byUser = Object.fromEntries(shares.map((row) => [row.user_id, Number(row.share)]));
+    expect(byUser).toEqual({ [friends[0]]: 120.5, [friends[1]]: 229.5 });
+  });
+
+  it('leaves no bill and no owner expense when a member row fails', async () => {
+    const owner = await createUser('U1');
+    const food = await createCategory(owner, 'อาหาร', 'expense');
+    const stranger = '99999999-9999-9999-9999-999999999999';
+    const members = JSON.stringify([{ user_id: stranger, share: 100 }]);
+
+    await expectError('select create_bill($1, $2, $3, $4, $5, $6, $7)', [owner, 'ชาบู', 200, food, '2026-10-08', 100, members], 'foreign key');
+
+    expect(Number((await one('select count(*) from bills')).count)).toBe(0);
+    expect(Number((await one('select count(*) from transactions')).count)).toBe(0);
+  });
+
+  it('refuses to confirm into a category of another user and keeps the share pending', async () => {
+    const { owner, friends, bill } = await setupBill();
+    const ownerOther = await createCategory(owner, 'อื่นๆ', 'expense');
+
+    await expectError('select confirm_bill_share($1, $2, $3)', [bill, friends[0], ownerOther], 'foreign key');
+
+    expect((await one('select status from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]])).status).toBe('pending');
+  });
+
+  it('removes the bills of a deleted owner and the member row of a deleted friend', async () => {
+    const first = await setupBill();
+    await db.query('delete from users where id = $1', [first.friends[0]]);
+    expect(Number((await one('select count(*) from bill_members where bill_id = $1', [first.bill])).count)).toBe(1);
+
+    await db.query('delete from users where id = $1', [first.owner]);
+    expect(Number((await one('select count(*) from bills where id = $1', [first.bill])).count)).toBe(0);
+    expect(Number((await one('select count(*) from bill_members where bill_id = $1', [first.bill])).count)).toBe(0);
+  });
+
+  // เพื่อนลบรายจ่ายของตัวเองได้ แต่คำตอบยังเป็นยืนยันแล้ว จึงยืนยันซ้ำเพื่อบันทึกใหม่ไม่ได้
+  it('keeps a confirmed answer when the friend deletes the expense, and does not record it again', async () => {
+    const { friends, bill } = await setupBill();
+    const friendFood = await createCategory(friends[0], 'อาหาร', 'expense');
+    await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood]);
+    const { transaction_id: tx } = await one('select transaction_id from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]]);
+
+    await db.query('delete from transactions where id = $1', [tx]);
+
+    const member = await one('select status, transaction_id from bill_members where bill_id = $1 and user_id = $2', [bill, friends[0]]);
+    expect(member).toEqual({ status: 'confirmed', transaction_id: null });
+    expect((await one('select confirm_bill_share($1, $2, $3) as status', [bill, friends[0], friendFood])).status).toBe('already_confirmed');
+    expect(Number((await one('select count(*) from transactions where user_id = $1', [friends[0]])).count)).toBe(0);
+  });
+});
+
+describe('015_bill_invariants.sql', () => {
+  async function createWith({ ownerShare = 100, shares = [150], total, categoryType = 'expense' } = {}) {
+    const owner = await createUser('U1');
+    const friends = [];
+    for (const [index] of shares.entries()) friends.push(await createUser(`F${index}`));
+    const category = await createCategory(owner, 'หมวด', categoryType);
+    const members = JSON.stringify(friends.map((userId, index) => ({ user_id: userId, share: shares[index] })));
+    const sum = ownerShare + shares.reduce((acc, share) => acc + share, 0);
+    return db.query('select create_bill($1, $2, $3, $4, $5, $6, $7) as id', [owner, 'ชาบู', total ?? sum, category, '2026-10-08', ownerShare, members]);
+  }
+
+  // JS ตรวจไว้แล้ว ส่วนนี้กันข้อมูลผิดถ้าเรียก function ตรงหรือ JS มีบั๊ก
+  it.each([
+    ['an income category', { categoryType: 'income' }, 'Bill category must be an expense category'],
+    ['no members', { shares: [] }, 'Bill needs at least one member'],
+    ['shares that do not add up', { total: 999 }, 'Bill shares must add up to the total'],
+    ['an owner share above the total', { ownerShare: 300, shares: [150], total: 250 }, 'Bill shares must add up to the total'],
+  ])('refuses %s and saves nothing', async (name, options, message) => {
+    await db.exec('savepoint invariant');
+    await expect(createWith(options)).rejects.toThrow(message);
+    await db.exec('rollback to savepoint invariant');
+
+    expect(Number((await one('select count(*) from bills')).count)).toBe(0);
+  });
+
+  it('refuses an owner share above the total at the table too', async () => {
+    const { bill } = await setupBill();
+
+    await db.exec('savepoint owner_share');
+    await expect(db.query('update bills set owner_share = 1000 where id = $1', [bill])).rejects.toThrow('bills_owner_share_within_total');
+    await db.exec('rollback to savepoint owner_share');
+  });
+
+  it('still creates a valid bill', async () => {
+    const result = await createWith();
+
+    expect(result.rows[0].id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
 describe('014_bill_indexes.sql', () => {
   // ลบรายการหรือหมวดต้องหาแถวบิลที่อ้างถึง ไม่มี index จะสแกนทั้งตารางทุกครั้ง
   it('indexes every foreign key from the bill tables to transactions and categories', async () => {
@@ -604,8 +716,8 @@ describe('function permissions', () => {
     if (name === 'apply_recurring_rule') {
       await expect(query).rejects.toThrow('invalid recurring event id');
     } else if (name === 'create_bill') {
-      // owner และหมวดสุ่มขึ้นมาจึงชน FK แต่ต้องผ่านการตรวจสิทธิ์มาก่อน
-      await expect(query).rejects.toThrow('foreign key');
+      // owner และหมวดสุ่มขึ้นมาจึงไม่ผ่านการตรวจหมวด แต่ต้องผ่านการตรวจสิทธิ์มาก่อน
+      await expect(query).rejects.toThrow('Bill category must be an expense category');
     } else {
       await expect(query).resolves.toBeDefined();
     }

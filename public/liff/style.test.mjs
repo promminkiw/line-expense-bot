@@ -44,3 +44,34 @@ describe('style.css date inputs', () => {
     expect(declarations('dialog input[type="date"]::-webkit-date-and-time-value')).toMatch(/text-align:\s*left/);
   });
 });
+
+describe('style.css friend status', () => {
+  // ข้อความสถานะอาจเป็นลิงก์ชวนยาวๆ ที่ไม่มีช่องว่าง ต้องตัดบรรทัดได้ไม่ล้นจอ
+  it('wraps a long invite link in the friend status', () => {
+    expect(declarations('#friend-status')).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+});
+
+describe('style.css bill cards', () => {
+  it('shows where focus is on a bill card that was jumped to', () => {
+    expect(declarations('.bill-card:focus-visible')).toMatch(/outline:/);
+  });
+
+  it('keeps the share link button as wide as its text', () => {
+    expect(declarations('.bill-share-link')).toMatch(/justify-self:\s*start/);
+  });
+
+  // ตัว 12px สีเทาอ่านยากบนมือถือ
+  it('uses at least 13px for bill badges and notes', () => {
+    for (const selector of ['.bill-badge', '.bill-member-note']) {
+      expect(declarations(selector), selector).toMatch(/font-size:\s*13px/);
+    }
+  });
+});
+
+describe('style.css bill form', () => {
+  // ช่องที่ถูกโฟกัสต้องไม่ไปจมอยู่ใต้แถบปุ่มที่ติดล่าง
+  it('keeps focused fields above the sticky footer', () => {
+    expect(declarations('.bill-form-dialog')).toMatch(/scroll-padding-bottom:\s*\d+px/);
+  });
+});

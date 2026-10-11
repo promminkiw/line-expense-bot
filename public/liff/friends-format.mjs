@@ -2,6 +2,8 @@ import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 
 // ตรงกับ FRIEND_CODE_PATTERN ฝั่ง server ตรวจซ้ำที่นี่เพื่อบอกผู้ใช้ได้ทันทีโดยไม่ต้องยิง request
 const FRIEND_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
+// ตรงกับฝั่ง server: ตัดขีดยาวที่ติดมาตอนคัดลอกรหัสด้วย
+const DASHES_AND_SPACES = /[\s\-\u2010-\u2015\u2212]/g;
 
 export const INVALID_CODE_MESSAGE = 'รหัสเพื่อนต้องเป็นตัวอักษรหรือตัวเลข 8 ตัว';
 export const OWN_CODE_MESSAGE = 'นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน';
@@ -10,7 +12,7 @@ export const INVITE_KEPT_LOAD_MESSAGE = 'โหลดรายชื่อเพ
 
 export function normalizeFriendCodeInput(text) {
   if (typeof text !== 'string') return null;
-  const code = text.replace(/[\s-]/g, '').toUpperCase();
+  const code = text.replace(DASHES_AND_SPACES, '').toUpperCase();
   return FRIEND_CODE_PATTERN.test(code) ? code : null;
 }
 
@@ -19,22 +21,23 @@ export function formatFriendCode(code) {
 }
 
 export function buildInviteUrl(liffId, code) {
-  return `https://liff.line.me/${liffId}?friend=${code}`;
+  return `https://liff.line.me/${liffId}?friend=${encodeURIComponent(code)}`;
 }
 
 export function buildInviteMessage(url) {
   return `มาเป็นเพื่อนกันในบอทบันทึกรายรับรายจ่าย จะได้หารบิลกันง่ายๆ กดลิงก์นี้ได้เลย ${url}`;
 }
 
-export function describeFriendError(status, action) {
+export function describeFriendError(status, action, error) {
   if (status === 401) return LOGIN_REQUIRED_MESSAGE;
   if (action === 'add') {
+    if (status === 400 && error === 'Own code') return OWN_CODE_MESSAGE;
     if (status === 400) return INVALID_CODE_MESSAGE;
     if (status === 404) return 'ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว';
     if (status === 429) return 'ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่';
     return 'เพิ่มเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
   }
   if (action === 'remove') return 'ลบเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
-  if (action === 'renew') return 'เปลี่ยนรหัสไม่สำเร็จ ลองใหม่อีกครั้ง';
+  if (action === 'renew') return status === 429 ? 'เปลี่ยนรหัสบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เปลี่ยนรหัสไม่สำเร็จ ลองใหม่อีกครั้ง';
   return 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
 }

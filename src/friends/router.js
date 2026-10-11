@@ -1,6 +1,6 @@
 const express = require('express');
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('../utils/uuid');
 const LOOKUP_ERRORS = {
   invalid: [400, 'Invalid code'],
   self: [400, 'Own code'],
@@ -8,10 +8,14 @@ const LOOKUP_ERRORS = {
 };
 
 // ต้อง mount หลัง middleware ตรวจ ID token ของ /api เพราะใช้ req.userId
-function createFriendsRouter({ friends, allowFriendLookup }) {
+function createFriendsRouter({ friends, allowFriendLookup, allowCodeRenew }) {
   // ไม่มี default เพราะถ้าลืมส่ง limit การเดารหัสจะทำได้ไม่จำกัด
   if (typeof allowFriendLookup !== 'function') {
     throw new TypeError('createFriendsRouter requires allowFriendLookup');
+  }
+  // เปลี่ยนรหัสทุกครั้งเขียน DB และทำให้ลิงก์ชวนเดิมใช้ไม่ได้
+  if (typeof allowCodeRenew !== 'function') {
+    throw new TypeError('createFriendsRouter requires allowCodeRenew');
   }
   const router = express.Router();
 
@@ -48,6 +52,10 @@ function createFriendsRouter({ friends, allowFriendLookup }) {
   });
 
   router.post('/code', async (req, res) => {
+    if (!allowCodeRenew(req.userId)) {
+      res.status(429).json({ error: 'Too many requests' });
+      return;
+    }
     res.json({ code: await friends.regenerateCode(req.userId) });
   });
 

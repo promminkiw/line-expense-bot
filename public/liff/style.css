@@ -217,6 +217,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 @media (max-width: 359px) { .stat-cards, .profile-stats { grid-template-columns: 1fr; } }
 .friends { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: 28px; }
 .friends h2 { margin: 0; font-size: 19px; font-weight: 600; }
+#friend-status { overflow-wrap: anywhere; }
 .friends-hint { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
 .friend-code-card { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
 .friend-code { font-size: 28px; font-weight: 700; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
@@ -245,9 +246,10 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .bills-section h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .bill-list { list-style: none; margin: 4px 0 0; padding: 0; }
 .bill-card { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bill-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 12px; }
 .bill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .bill-title { font-weight: 600; overflow-wrap: anywhere; }
-.bill-badge { flex: none; font-size: 12px; color: var(--muted); }
+.bill-badge { flex: none; font-size: 13px; color: var(--muted); }
 .bill-meta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 .bill-share, .bill-outstanding { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .bill-actions { display: flex; gap: 8px; margin-top: 8px; }
@@ -259,12 +261,14 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .bill-member-name { overflow-wrap: anywhere; }
 .bill-member-status { color: var(--muted); white-space: nowrap; }
 .bill-member-paid { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-height: 44px; }
-.bill-member-note { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--warn); }
+.bill-member-note { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--warn); }
+.bill-share-link { grid-column: 1 / -1; justify-self: start; }
+.bill-note { margin: 4px 0 0; font-size: 13px; color: var(--warn); }
 .bills-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 #bill-dialog h2 { margin: 0; font-size: 18px; }
 #bill-dialog .error:empty { display: none; }
 
-.bill-form-dialog { max-height: 90vh; overflow-y: auto; }
+.bill-form-dialog { max-height: 90vh; overflow-y: auto; scroll-padding-bottom: 140px; }
 #bill-form-heading { margin: 0; font-size: 18px; }
 .bill-form-split { margin: 16px 0 0; padding: 0; border: none; }
 .bill-form-split legend { padding: 0; font-size: 14px; }

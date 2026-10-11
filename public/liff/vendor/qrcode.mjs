@@ -531,8 +531,9 @@ export const qrcode = function(typeNumber, errorCorrectionLevel) {
     qrSvg += '>';
     qrSvg += (title.text) ? '<title id="' + escapeXml(title.id) + '">' +
         escapeXml(title.text) + '</title>' : '';
-    qrSvg += (alt.text) ? '<description id="' + escapeXml(alt.id) + '">' +
-        escapeXml(alt.text) + '</description>' : '';
+    // แก้จาก vendor เดิม: ป้ายคำอธิบายของ SVG คือ <desc> ไม่ใช่ <description>
+    qrSvg += (alt.text) ? '<desc id="' + escapeXml(alt.id) + '">' +
+        escapeXml(alt.text) + '</desc>' : '';
     qrSvg += '<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>';
     qrSvg += '<path d="';
 

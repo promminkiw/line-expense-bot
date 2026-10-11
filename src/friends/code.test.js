@@ -25,6 +25,18 @@ describe('normalizeFriendCode', () => {
     expect(normalizeFriendCode('ab cd 23 45')).toBe('ABCD2345');
   });
 
+  // คัดลอกรหัสจากแชตหรือโน้ตมักได้ขีดยาวมาแทนขีดสั้น
+  it('drops the en dash, em dash and minus sign too', () => {
+    for (const dash of ['\u2013', '\u2014', '\u2212', '\u2010']) {
+      expect(normalizeFriendCode(`ABCD${dash}2345`)).toBe('ABCD2345');
+    }
+  });
+
+  it('matches the whole code only, not a code inside longer text', () => {
+    expect(normalizeFriendCode('XABCD2345')).toBeNull();
+    expect(normalizeFriendCode('ABCD2345X')).toBeNull();
+  });
+
   it('rejects the wrong length, look-alike characters and non-strings', () => {
     for (const input of ['ABCD234', 'ABCD23456', 'ABCD234I', 'ABCD2340', '', null, undefined, 12345678, ['ABCD2345']]) {
       expect(normalizeFriendCode(input)).toBeNull();

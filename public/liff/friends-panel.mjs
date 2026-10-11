@@ -22,7 +22,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   let dialogAction = null;
   let dialogBusy = false;
   let dialogFailureMessage = null;
+  let dialogDone = null;
   let lookingUp = false;
+  let sharing = false;
   // เก็บรหัสจากลิงก์ชวนไว้เมื่อโหลดรายชื่อไม่สำเร็จ จะได้ทำต่อหลังกดลองใหม่
   let pendingInviteCode = null;
   let loadErrorStatus = 0;
@@ -82,9 +84,12 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
 
   function showLoadError(err) {
     loadingIndicator.set(false);
-    els.body.hidden = true;
+    // โหลดซ้ำหลังเพิ่ม/ลบแล้วพัง ยังแสดงรายชื่อเดิมและข้อความสำเร็จไว้
+    if (!loaded) els.body.hidden = true;
     loadErrorStatus = statusOf(err);
     showLoadErrorText();
+    // 401 ต้องเปิดจาก LINE ใหม่ กดลองใหม่ก็ได้ผลเดิม
+    els.retry.hidden = loadErrorStatus === 401;
     els.error.hidden = false;
   }
 
@@ -119,6 +124,17 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     return load();
   }
 
+  function refresh() {
+    return loading || load();
+  }
+
+  function showAddError(message, rawCode) {
+    els.addError.textContent = message;
+    // มาจากลิงก์ชวนแล้วพัง ใส่รหัสไว้ในช่องให้กดค้นหาซ้ำได้
+    if (rawCode && !els.input.value.trim()) els.input.value = formatFriendCode(rawCode);
+    if (typeof els.addError.scrollIntoView === 'function') els.addError.scrollIntoView({ block: 'nearest' });
+  }
+
   function setDialogBusy(busy) {
     dialogBusy = busy;
     els.dialogOk.disabled = busy;
@@ -127,7 +143,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   }
 
   // run คืนข้อความ error ที่จะแสดงใน dialog หรือ null เมื่อสำเร็จ
-  function openDialog({ title, text, okLabel, danger = false, failureMessage, run }) {
+  // คืน false เมื่อมี dialog เปิดอยู่แล้ว ไม่เปิดทับ dialog ที่กำลังทำงาน
+  function openDialog({ title, text, okLabel, danger = false, failureMessage, run, onDone = null }) {
+    if (els.dialog.open) return false;
     els.dialogTitle.textContent = title;
     els.dialogText.textContent = text;
     els.dialogOk.textContent = okLabel;
@@ -136,7 +154,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     setDialogBusy(false);
     dialogAction = run;
     dialogFailureMessage = failureMessage;
+    dialogDone = onDone;
     els.dialog.showModal();
+    return true;
   }
 
   function setLookingUp(busy) {
@@ -154,7 +174,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.status.textContent = '';
     const normalized = normalizeFriendCodeInput(rawCode);
     if (!normalized) {
-      els.addError.textContent = INVALID_CODE_MESSAGE;
+      showAddError(INVALID_CODE_MESSAGE);
       return;
     }
     if (!getApi()) return;
@@ -169,17 +189,17 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         return;
       }
       if (normalized === code) {
-        els.addError.textContent = OWN_CODE_MESSAGE;
+        showAddError(OWN_CODE_MESSAGE);
         return;
       }
       ({ friend } = await getApi().lookupFriend(normalized));
     } catch (err) {
-      els.addError.textContent = describeFriendError(statusOf(err), 'add');
+      showAddError(describeFriendError(statusOf(err), 'add', err.error), normalized);
       return;
     } finally {
       setLookingUp(false);
     }
-    openDialog({
+    const opened = openDialog({
       title: 'เพิ่มเพื่อน',
       text: `เพิ่ม ${friend.displayName} เป็นเพื่อน?`,
       okLabel: 'เพิ่มเพื่อน',
@@ -188,7 +208,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         try {
           await getApi().addFriend(normalized);
         } catch (err) {
-          return describeFriendError(statusOf(err), 'add');
+          return describeFriendError(statusOf(err), 'add', err.error);
         }
         els.input.value = '';
         els.status.textContent = `เพิ่ม ${friend.displayName} เป็นเพื่อนแล้ว`;
@@ -196,6 +216,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         return null;
       },
     });
+    if (!opened) showAddError('ปิดหน้าต่างที่เปิดอยู่ก่อน แล้วกดค้นหาอีกครั้ง', normalized);
   }
 
   function askRemove(friend) {
@@ -216,6 +237,8 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         await load();
         return null;
       },
+      // ปุ่มลบของแถวนั้นหายไปแล้ว ย้ายโฟกัสไปหัวข้อแทนการหลุดไปที่ body
+      onDone: () => els.title.focus(),
     });
   }
 
@@ -239,6 +262,19 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   }
 
   async function share() {
+    // กดรัวระหว่างหน้าเลือกแชตเปิดอยู่จะเปิดซ้อนหรือคัดลอกซ้ำ
+    if (sharing) return;
+    sharing = true;
+    els.share.disabled = true;
+    try {
+      await shareOnce();
+    } finally {
+      sharing = false;
+      els.share.disabled = false;
+    }
+  }
+
+  async function shareOnce() {
     els.status.textContent = '';
     const url = inviteUrl();
     if (typeof liff.isApiAvailable === 'function' && liff.isApiAvailable('shareTargetPicker')) {
@@ -275,7 +311,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       els.dialogError.textContent = message;
       return;
     }
+    const done = dialogDone;
     els.dialog.close();
+    if (done) done();
   });
   els.dialogCancel.addEventListener('click', () => els.dialog.close());
   // กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
@@ -283,9 +321,17 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     if (dialogBusy) event.preventDefault();
   });
   els.dialog.addEventListener('close', () => {
+    // Esc ครั้งที่สอง browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
+    if (dialogBusy) {
+      els.dialog.showModal();
+      return;
+    }
     dialogAction = null;
+    dialogDone = null;
   });
-  els.retry.addEventListener('click', () => load());
+  els.retry.addEventListener('click', () => {
+    if (!loading) load();
+  });
   els.share.addEventListener('click', () => share());
   els.renew.addEventListener('click', () => askRenew());
   els.qrToggle.addEventListener('click', () => {
@@ -300,5 +346,5 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     openAdd(els.input.value);
   });
 
-  return { ensureLoaded, openAdd };
+  return { ensureLoaded, refresh, openAdd };
 }

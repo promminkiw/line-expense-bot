@@ -83,7 +83,7 @@ describe('labels and messages', () => {
 });
 
 describe('matches the server split math', () => {
-  it.each([333.33, 1.005, 0.1 + 0.2, 1000 / 3, 10000000, 0, -1, NaN, '10'])('toSatang(%s)', (amount) => {
+  it.each([333.33, 1.005, 1.0000000001, 0.1 + 0.2, 1000 / 3, 10000000, 9999999.99, 0, -0, -1, NaN, '10'])('toSatang(%s)', (amount) => {
     expect(toSatang(amount)).toEqual(serverToSatang(amount));
   });
 

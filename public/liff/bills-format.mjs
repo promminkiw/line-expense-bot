@@ -3,8 +3,10 @@ import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 // ตรงกับ src/bills/validate.js ฝั่ง server เพื่อให้ยอดที่หน้าเว็บแบ่งผ่านการตรวจเสมอ
 export function toSatang(amount) {
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) return null;
-  const satang = Math.round(amount * 100);
-  return Math.abs(satang - amount * 100) < 1e-6 ? satang : null;
+  const satang = Math.round(amount * 100) + 0;
+  // ทศนิยมลอยตัวคลาดได้ไม่กี่ ulp ตามขนาดตัวเลข เกณฑ์คงที่จะยอมยอดอย่าง 1.0000000001 ได้
+  const tolerance = Math.max(1, Math.abs(amount * 100)) * Number.EPSILON * 4;
+  return Math.abs(satang - amount * 100) <= tolerance ? satang : null;
 }
 
 export function splitEvenly(totalSatang, count) {

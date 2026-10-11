@@ -222,6 +222,12 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('tab-user')).toBe(true);
   });
 
+  it('announces friend errors and offers search on the code keyboard', () => {
+    expect(doc.getElementById('friends-error-text').getAttribute('role')).toBe('alert');
+    expect(doc.getElementById('friend-code-input').getAttribute('enterkeyhint')).toBe('search');
+    expect(doc.getElementById('friends-title').getAttribute('tabindex')).toBe('-1');
+  });
+
   it('defines a sprite symbol for every empty state illustration', () => {
     const used = ['list', 'search', 'summary', 'recurring'].map((kind) =>
       createEmptyState(document, kind).querySelector('use').getAttribute('href').slice(1)
@@ -780,6 +786,14 @@ describe('LIFF page when loading fails', () => {
 
 
 describe('LIFF page opened from a card link', () => {
+  it('opens only the friend dialog when the link has both an entry and a friend code', async () => {
+    await boot({ search: '?tx=t2&d=2026-10-01&friend=WXYZ2345' });
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('editor').hasAttribute('open')).toBe(false);
+  });
+
   it('opens the editor of the linked transaction and cleans the address', async () => {
     await boot({ search: '?tx=t2&d=2026-10-01' });
 
@@ -1241,9 +1255,10 @@ describe('LIFF friends section', () => {
     byId('friend-qr-toggle').click();
     expect(byId('friend-qr').hidden).toBe(false);
     expect(byId('friend-qr').querySelector('svg')).not.toBeNull();
+    // SVG ใช้ <desc> เป็นคำอธิบาย ไม่ใช่ <description>
+    expect(byId('friend-qr').querySelector('svg desc').textContent).toBe('QR code ลิงก์ชวนเพื่อน');
     expect(byId('friend-qr-toggle').getAttribute('aria-expanded')).toBe('true');
     expect(byId('friend-qr').querySelector('svg').getAttribute('role')).toBe('img');
-    expect(byId('friend-qr').querySelector('description').textContent).toBe('QR code ลิงก์ชวนเพื่อน');
     byId('friend-qr-toggle').click();
     expect(byId('friend-qr').hidden).toBe(true);
   });
@@ -1299,6 +1314,35 @@ describe('LIFF friends section', () => {
     expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
     expect(byId('friends-body').hidden).toBe(false);
     expect(byId('friend-add-error').textContent).toBe('ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว');
+  });
+
+  it('puts the invite code in the box when the invite fails, so the user can try again', async () => {
+    await boot({ search: '?friend=WXYZ2345', overrides: { '/api/friends/lookup': { status: 404 } } });
+    await settle();
+
+    expect(byId('friend-code-input').value).toBe('WXYZ-2345');
+  });
+
+  it('cleans an invite link with a broken code from the address', async () => {
+    await boot({ search: '?friend=nope' });
+    await settle();
+
+    expect(window.location.search).toBe('');
+  });
+
+  it('shows the profile tab from the start for an invite link, without the list tab first', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345', holdInit: true });
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+    liff.releaseInit();
+    await settle();
+  });
+
+  it('loads the profile once when opened from an invite link', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345' });
+    await settle();
+
+    expect(liff.fetched.filter((path) => path === '/api/profile')).toHaveLength(1);
   });
 
   it('shows the rate-limit message for an invite lookup', async () => {
@@ -1548,6 +1592,133 @@ describe('LIFF friends section guards and failure paths', () => {
     expect(calls.filter((call) => call === 'GET /api/friends').length).toBe(before + 1);
   });
 
+  // lookup ช้าแล้วผู้ใช้ไปกดลบเพื่อนก่อน dialog เพิ่มเพื่อนต้องไม่เปิดทับ dialog ลบที่กำลังทำงาน
+  it('does not open the add dialog over a dialog that is already open', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('POST', '/api/friends/lookup');
+
+    await submitCode('WXYZ2345');
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-title').textContent).toBe('ลบเพื่อน');
+    hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+
+    expect(byId('friend-dialog-title').textContent).toBe('ลบเพื่อน');
+    expect(byId('friend-add-error').textContent).toBe('ปิดหน้าต่างที่เปิดอยู่ก่อน แล้วกดค้นหาอีกครั้ง');
+  });
+
+  it('reopens the dialog when the browser closes it with a second Esc while busy', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('DELETE', '/api/friends/f-1');
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    byId('friend-dialog').close();
+    byId('friend-dialog').dispatchEvent(new Event('close'));
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    hold.release({});
+    await settle();
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('ignores retry taps while the friend list is still loading', async () => {
+    await openProfileWith((method, path) => (path === '/api/friends' ? { status: 500 } : undefined));
+    const hold = holdRequest('GET', '/api/friends');
+
+    byId('friends-retry').click();
+    byId('friends-retry').click();
+    await settle();
+
+    expect(hold.calls.filter((call) => call === 'GET /api/friends')).toHaveLength(1);
+    hold.release(RESPONSES['/api/friends']);
+    await settle();
+    expect(byId('friends-body').hidden).toBe(false);
+  });
+
+  it('keeps the list and the success message when reloading after an add fails', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    let friendLoads = 0;
+    routeFetch((method, path) => {
+      if (path !== '/api/friends' || method !== 'GET') return undefined;
+      friendLoads += 1;
+      return { status: 500 };
+    });
+
+    await submitCode('WXYZ2345');
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(friendLoads).toBe(1);
+    expect(byId('friends-body').hidden).toBe(false);
+    expect(document.querySelectorAll('#friend-rows .friend-row')).toHaveLength(1);
+    expect(byId('friend-status').textContent).toBe('เพิ่ม ซี เป็นเพื่อนแล้ว');
+    expect(byId('friends-error').hidden).toBe(false);
+  });
+
+  it('hides the retry button when the friend list needs a new login', async () => {
+    await openProfileWith((method, path) => (path === '/api/friends' ? { status: 401 } : undefined));
+
+    expect(byId('friends-error').hidden).toBe(false);
+    expect(byId('friends-retry').hidden).toBe(true);
+  });
+
+  it('moves focus to the friends heading after removing a friend', async () => {
+    await openProfileWith();
+
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    expect(document.activeElement).toBe(byId('friends-title'));
+  });
+
+  it('reloads the friend list every time the profile tab opens again', async () => {
+    const calls = await openProfileWith();
+    clickTab('list');
+    clickTab('profile');
+    await settle();
+
+    expect(calls.filter((call) => call === 'GET /api/friends')).toHaveLength(2);
+  });
+
+  it('scrolls to the add error so a message from an invite link is seen', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    await openProfileWith();
+
+    await submitCode('ABCD2345');
+
+    expect(byId('friend-add-error').textContent).toBe('นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน');
+    expect(scrollIntoView.mock.contexts).toContain(byId('friend-add-error'));
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('ignores share taps while the share picker is open', async () => {
+    let finish;
+    const liff = await boot();
+    Object.assign(liff, { isApiAvailable: () => true, shareTargetPicker: vi.fn(() => new Promise((resolve) => (finish = resolve))) });
+    clickTab('profile');
+    await settle();
+
+    byId('friend-share').click();
+    byId('friend-share').click();
+    await settle();
+
+    expect(liff.shareTargetPicker).toHaveBeenCalledTimes(1);
+    expect(byId('friend-share').disabled).toBe(true);
+    finish({ status: 'success' });
+    await settle();
+    expect(byId('friend-share').disabled).toBe(false);
+  });
+
   it('shows the link in the status when the clipboard is missing', async () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
     const liff = await boot();
@@ -1605,6 +1776,128 @@ describe('LIFF bills tab', () => {
   const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
   const ownedCard = () => document.querySelector('#bills-owned .bill-card');
 
+  const withBills = (bills) => (method, path) => (path === '/api/bills' && method === 'GET' ? bills : undefined);
+  const BASE = RESPONSES['/api/bills'];
+
+  it('names the bill or the friend on every card button for screen readers', async () => {
+    await openBills();
+
+    expect(incomingCard().querySelector('.bill-confirm').getAttribute('aria-label')).toBe('ยืนยันบิล ชาบู');
+    expect(incomingCard().querySelector('.bill-decline').getAttribute('aria-label')).toBe('ปฏิเสธบิล ชาบู');
+    expect(ownedCard().querySelector('.bill-cancel').getAttribute('aria-label')).toBe('ยกเลิกบิล เนื้อย่าง');
+    const paidBoxes = [...ownedCard().querySelectorAll('.bill-member-paid input')];
+    expect(paidBoxes.map((box) => box.getAttribute('aria-label'))).toEqual(['บี คืนแล้ว', 'ซี คืนแล้ว']);
+    expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง ให้ ซี');
+  });
+
+  it('keeps focus on the bill after answering it, instead of losing it to the page', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').focus();
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(document.activeElement).toBe(incomingCard());
+  });
+
+  it('keeps focus on the paid box after ticking it', async () => {
+    await openBills({ route: (method, path) => (path.endsWith('/paid') ? { paid: true } : undefined) });
+    const box = ownedCard().querySelector('.bill-member-paid input');
+
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(document.activeElement).toBe(ownedCard().querySelector('.bill-member-paid input'));
+  });
+
+  it('labels the dialog close button so it is not confused with cancelling the bill', async () => {
+    await openBills();
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-cancel').textContent).toBe('กลับ');
+    byId('bill-dialog-cancel').click();
+    incomingCard().querySelector('.bill-decline').click();
+    expect(byId('bill-dialog-cancel').textContent).toBe('ยกเลิก');
+  });
+
+  it('offers no paid box for a member who never answered a cancelled bill', async () => {
+    const owned = [{ ...BASE.owned[0], status: 'cancelled' }];
+    await openBills({ route: withBills({ owned, incoming: [] }) });
+
+    const rows = [...ownedCard().querySelectorAll('.bill-member')];
+    expect(rows.map((row) => Boolean(row.querySelector('.bill-member-paid')))).toEqual([true, false]);
+  });
+
+  it('disables retry while the bills are loading again', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills' ? { status: 500 } : undefined) });
+    const release = holdRequest('/api/bills');
+
+    byId('bills-retry').click();
+    expect(byId('bills-retry').disabled).toBe(true);
+    release();
+    await settle();
+    expect(byId('bills-retry').disabled).toBe(false);
+  });
+
+  it('shows a failed decline only in the dialog, not twice', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? new Error('offline') : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bill-dialog-error').textContent).toBe('ตอบบิลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('bills-status').textContent).toBe('');
+  });
+
+  it('keeps the buttons of a bill that is still sending disabled when another card redraws the list', async () => {
+    const incoming = [BASE.incoming[0], { ...BASE.incoming[0], id: 'b-in2', title: 'หมูกระทะ' }];
+    await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills' && method === 'GET') return { owned: [], incoming };
+        if (path === '/api/bills/b-in2/confirm') return { status: 'confirmed' };
+        return undefined;
+      },
+    });
+    const release = holdRequest('/api/bills/b-in/confirm', 'POST');
+    const cards = () => [...document.querySelectorAll('#bills-incoming .bill-card')];
+
+    cards()[0].querySelector('.bill-confirm').click();
+    cards()[1].querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(cards()[0].querySelector('.bill-confirm').disabled).toBe(true);
+    release();
+    await settle();
+  });
+
+  it('disables creating a bill until the page is signed in', async () => {
+    const liff = await boot({ search: '?tab=bills', holdInit: true });
+
+    expect(byId('bill-new').disabled).toBe(true);
+    liff.releaseInit();
+    await settle();
+    expect(byId('bill-new').disabled).toBe(false);
+  });
+
+  it('uses the same decline wording as the bot', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/decline' ? { status: 'declined' } : undefined) });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('ปฏิเสธบิลนี้แล้ว');
+  });
+
+  it('tells a friend who confirmed a cancelled bill that the expense is still recorded', async () => {
+    const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed' }];
+    await openBills({ route: withBills({ owned: [], incoming }) });
+
+    expect(incomingCard().querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
+  });
+
   it('loads the bills when the tab opens and shows both lists', async () => {
     await openBills();
 
@@ -1623,7 +1916,7 @@ describe('LIFF bills tab', () => {
     await openBills({ route: (method, path) => (path === '/api/bills' ? { owned: [], incoming: [] } : undefined) });
 
     expect(byId('bills-incoming-empty').hidden).toBe(false);
-    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่รอคุณยืนยัน');
+    expect(byId('bills-incoming-empty').textContent).toBe('ยังไม่มีบิลที่เพื่อนส่งมา');
     expect(byId('bills-owned-empty').hidden).toBe(false);
     expect(byId('bills-owned-empty').textContent).toBe('ยังไม่มีบิลที่คุณสร้าง');
   });
@@ -1735,7 +2028,7 @@ describe('LIFF bills tab', () => {
     await openBills();
 
     const unreached = [...ownedCard().querySelectorAll('.bill-member')][1];
-    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง (ยังไม่ได้เพิ่มบอท)');
+    expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง ส่งลิงก์บิลให้เพื่อนแทน');
     unreached.querySelector('.bill-share-link').click();
     await settle();
 
@@ -1807,7 +2100,7 @@ describe('LIFF bills tab', () => {
     await boot({ search: '?bill=55555555-5555-5555-5555-555555555555' });
     await settle();
 
-    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ อาจถูกยกเลิกแล้ว');
+    expect(byId('bills-status').textContent).toBe('ไม่พบบิลนี้ในรายการ อาจเป็นบิลเก่าหรือไม่ได้ส่งถึงคุณ');
   });
 
   it('says the bill was cancelled when confirming a bill the owner already cancelled', async () => {
@@ -2198,6 +2491,166 @@ describe('LIFF bills tab', () => {
     await settle();
     expect(byId('bill-form-total').value).toBe('');
     expect(byId('bill-form-receipt-status').textContent).toBe('');
+  });
+
+  const typeInto = (id, value) => {
+    byId(id).value = value;
+    byId(id).dispatchEvent(new Event('input'));
+  };
+
+  it('says which field is missing once the user starts filling the form, not before', async () => {
+    await openForm();
+    expect(byId('bill-form-error').textContent).toBe('');
+
+    typeInto('bill-form-total', '1000');
+    expect(byId('bill-form-error').textContent).toBe('ใส่ชื่อบิล');
+    typeInto('bill-form-title', 'เนื้อย่าง');
+    typeInto('bill-form-total', '');
+    expect(byId('bill-form-error').textContent).toBe('ใส่ยอดรวม');
+  });
+
+  it('accepts a total typed with thousands separators', async () => {
+    await openForm();
+    typeInto('bill-form-title', 'เนื้อย่าง');
+
+    typeInto('bill-form-total', '1,000');
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+
+    expect(byId('bill-form-owner-share').value).toBe('500');
+    expect(byId('bill-form-error').textContent).toBe('');
+  });
+
+  it.each([
+    ['abc', 'ใส่ยอดเป็นตัวเลข เช่น 1000'],
+    ['1.005', 'ใส่ยอดไม่เกินทศนิยม 2 ตำแหน่ง'],
+    ['10000000.01', 'ยอดรวมต้องไม่เกิน 10,000,000 บาท'],
+  ])('explains a total of %s and marks the field invalid', async (total, message) => {
+    await openForm();
+    typeInto('bill-form-title', 'เนื้อย่าง');
+
+    typeInto('bill-form-total', total);
+
+    expect(byId('bill-form-error').textContent).toBe(message);
+    expect(byId('bill-form-total').getAttribute('aria-invalid')).toBe('true');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('points the fields at the form message and announces it politely', async () => {
+    await openForm();
+
+    expect(byId('bill-form-total').getAttribute('aria-describedby')).toBe('bill-form-error');
+    expect(byId('bill-form-title').getAttribute('aria-describedby')).toBe('bill-form-error');
+    expect(byId('bill-form-error').getAttribute('role')).toBe('status');
+    expect(byId('bill-form-total').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('asks for a date when the date is cleared', async () => {
+    await openForm();
+    fillValidForm();
+
+    typeInto('bill-form-date', '');
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกวันที่');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  // server นับความยาวชื่อตามอักขระ maxlength ของ browser นับตาม UTF-16 ทำให้ emoji กินสองช่อง
+  it('counts the title by characters, so 60 emoji fit and 61 letters do not', async () => {
+    await openForm();
+    fillValidForm();
+
+    typeInto('bill-form-title', '🍖'.repeat(60));
+    expect(byId('bill-form-error').textContent).toBe('');
+    typeInto('bill-form-title', 'ก'.repeat(61));
+    expect(byId('bill-form-error').textContent).toBe('ชื่อบิลยาวเกิน 60 ตัวอักษร');
+    expect(byId('bill-form-title').hasAttribute('maxlength')).toBe(false);
+  });
+
+  it('allows at most 20 friends on one bill, like the server', async () => {
+    const many = Array.from({ length: 21 }, (_, index) => ({ id: `f-${index}`, displayName: `เพื่อน ${index}` }));
+    await openForm((method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: many } : undefined));
+    typeInto('bill-form-title', 'เนื้อย่าง');
+    typeInto('bill-form-total', '2100');
+
+    for (const box of document.querySelectorAll('#bill-form-members input[type="checkbox"]')) {
+      box.checked = true;
+      box.dispatchEvent(new Event('change'));
+    }
+
+    expect(byId('bill-form-error').textContent).toBe('เลือกเพื่อนได้ไม่เกิน 20 คน');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
+  it('focuses the heading on open so the keyboard does not pop up at once', async () => {
+    await openForm();
+
+    expect(document.activeElement).toBe(byId('bill-form-heading'));
+  });
+
+  it('says what to pick in the split', async () => {
+    await openForm();
+
+    expect(document.querySelector('.bill-form-split legend').textContent).toBe('หารกับเพื่อน');
+  });
+
+  it('drops a friend list from an earlier opening of the form', async () => {
+    let releaseFirst;
+    let friendCalls = 0;
+    await openBills();
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (path === '/api/friends') {
+        friendCalls += 1;
+        if (friendCalls === 1) {
+          const body = await new Promise((resolve) => (releaseFirst = resolve));
+          return makeFetch({ [path]: body })(url, options);
+        }
+        return makeFetch({ [path]: { code: 'ABCD2345', friends: [{ id: 'f-9', displayName: 'ใหม่' }] } })(url, options);
+      }
+      return makeFetch({})(url, options);
+    });
+
+    byId('bill-new').click();
+    await settle();
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+    releaseFirst({ code: 'ABCD2345', friends: [{ id: 'f-1', displayName: 'เก่า' }] });
+    await settle();
+
+    expect([...document.querySelectorAll('#bill-form-members .bill-form-name')].map((el) => el.textContent)).toEqual(['ใหม่']);
+  });
+
+  it('shows the error the server gives for shares that do not add up', async () => {
+    await openForm();
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if ((options.method ?? 'GET') === 'POST' && new URL(url, 'http://localhost').pathname === '/api/bills') {
+        return { ok: false, status: 400, json: async () => ({ error: 'Shares do not add up' }) };
+      }
+      return makeFetch({})(url, options);
+    });
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bill-form-error').textContent).toBe('ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล');
+  });
+
+  it('scrolls the created message into view', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? { id: 'b-new', notNotified: [] } : undefined));
+    fillValidForm();
+
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว');
+    expect(scrollIntoView.mock.contexts).toContain(byId('bills-status'));
+    delete Element.prototype.scrollIntoView;
   });
 
   it('keeps cancel disabled while the bill is being created', async () => {

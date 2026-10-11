@@ -27,10 +27,12 @@ describe('toSatang', () => {
     expect(toSatang(333.33)).toBe(33333);
     expect(toSatang(0.1 + 0.2)).toBe(30);
     expect(toSatang(0)).toBe(0);
+    expect(Object.is(toSatang(-0), 0)).toBe(true);
+    expect(toSatang(9999999.99)).toBe(999999999);
   });
 
   it('rejects negatives, more than two decimals and non-numbers', () => {
-    for (const value of [-1, 1.005, '10', NaN, Infinity, null]) {
+    for (const value of [-1, 1.005, 1.0000000001, '10', NaN, Infinity, null]) {
       expect(toSatang(value)).toBeNull();
     }
   });

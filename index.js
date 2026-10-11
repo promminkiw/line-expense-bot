@@ -31,6 +31,8 @@ const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 // กันการไล่เดารหัสเพื่อนของคนอื่น
 const FRIEND_LOOKUP_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
+// เปลี่ยนรหัสทำให้ลิงก์ชวนเดิมตาย ไม่มีเหตุให้กดถี่
+const FRIEND_CODE_RENEW_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 // แต่ละบิล push หาเพื่อนทุกคน จำกัดไว้กันโควตาข้อความหมด
 const BILL_CREATE_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 // อ่านรูปใบเสร็จเสียค่า Claude ทุกครั้ง
@@ -67,12 +69,14 @@ const users = createUserService({
 // ตัวนับอยู่ในหน่วยความจำ พอสำหรับ server instance เดียว
 const allowRequest = createRateLimiter(RATE_LIMIT);
 
+const liffUrl = `https://liff.line.me/${config.liffId}`;
+
 const bills = createBillService({
   repository,
   users,
   pushFlex: createPushFlex(lineClient),
   pushText: createPushText(lineClient),
-  liffUrl: `https://liff.line.me/${config.liffId}`,
+  liffUrl,
 });
 
 const bot = createBot({
@@ -86,7 +90,7 @@ const bot = createBot({
   users,
   bills,
   allowRequest,
-  liffUrl: `https://liff.line.me/${config.liffId}`,
+  liffUrl,
 });
 // สลิปของผู้ใช้ที่ไม่ส่งรูปอีกจะค้างในตารางตลอดไป จึงกวาดแถวที่หมดอายุทุกชั่วโมง
 startPendingSlipSweeper({ sweep: createPendingSlipSweeper({ repository, ttlMs: SLIP_TTL_MS }) });
@@ -99,6 +103,7 @@ const apiRouter = createApiRouter({
   friendsRouter: createFriendsRouter({
     friends: createFriendService({ repository }),
     allowFriendLookup: createRateLimiter(FRIEND_LOOKUP_RATE_LIMIT),
+    allowCodeRenew: createRateLimiter(FRIEND_CODE_RENEW_RATE_LIMIT),
   }),
   billsRouter: createBillsRouter({
     bills,

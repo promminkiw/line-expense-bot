@@ -6,7 +6,7 @@ const { toBangkokDateString } = require('../utils/date');
 const { lastRunOnAfterSave } = require('../recurring/schedule');
 const { monthsEndingAt, buildTrend } = require('./trend');
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_RECURRING_RULES = 50;
 
 function readBearerToken(req) {
@@ -29,10 +29,10 @@ function createApiRouter({
   if (typeof allowExport !== 'function') {
     throw new TypeError('createApiRouter requires allowExport');
   }
-  if (!friendsRouter) {
+  if (typeof friendsRouter !== 'function') {
     throw new TypeError('createApiRouter requires friendsRouter');
   }
-  if (!billsRouter) {
+  if (typeof billsRouter !== 'function') {
     throw new TypeError('createApiRouter requires billsRouter');
   }
   const router = express.Router();

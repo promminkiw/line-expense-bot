@@ -377,8 +377,13 @@ function createRepository(supabase) {
   }
 
   async function markBillMemberNotified(billId, userId) {
-    const { error } = await supabase.from('bill_members').update({ notified: true }).eq('bill_id', billId).eq('user_id', userId);
+    const { count, error } = await supabase
+      .from('bill_members')
+      .update({ notified: true }, { count: 'exact' })
+      .eq('bill_id', billId)
+      .eq('user_id', userId);
     throwIfError('markBillMemberNotified', error);
+    return count > 0;
   }
 
   async function listOwnedBills(ownerId) {

@@ -194,6 +194,7 @@ const friendsPanel = createFriendsPanel({
   doc: document,
   els: {
     section: document.getElementById('friends'),
+    title: document.getElementById('friends-title'),
     loadingText: document.getElementById('friends-loading'),
     skeleton: document.getElementById('friends-skeleton'),
     addSubmit: document.getElementById('friend-add-submit'),
@@ -257,6 +258,7 @@ const billForm = createBillForm({
   els: {
     dialog: document.getElementById('bill-form-dialog'),
     form: document.getElementById('bill-form'),
+    heading: document.getElementById('bill-form-heading'),
     title: document.getElementById('bill-form-title'),
     total: document.getElementById('bill-form-total'),
     receiptButton: document.getElementById('bill-form-receipt-button'),
@@ -287,11 +289,11 @@ const billForm = createBillForm({
   onUncertain: () => billsPanel.reload(),
   onOpenFriends: () => document.getElementById('friends').scrollIntoView?.({ block: 'start' }),
   onCreated: async (result) => {
-    const status = document.getElementById('bills-status');
-    status.textContent =
+    billsPanel.showStatus(
       result.notNotified.length > 0
         ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
-        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
+        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว'
+    );
     await billsPanel.reload({ afterAction: true });
   },
 });
@@ -1348,7 +1350,8 @@ const tabController = createTabController({
     if (id === 'budgets') playBars(window, els.budgetRows);
     if (id === 'profile') {
       refreshProfileOnEntry();
-      friendsPanel.ensureLoaded();
+      // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
+      friendsPanel.refresh();
     }
   },
 });
@@ -1396,6 +1399,8 @@ async function boot() {
   // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
   const billsPage = isBillsPageLink(window.location.search);
   if (billsPage) enterBillsPage();
+  // เลือกแท็บก่อนมี api จะได้ไม่เห็นแท็บรายการแวบขึ้นมา และไม่โหลดโปรไฟล์ซ้ำกับ loadAll
+  else if (parseFriendLink(window.location.search)) tabController.select('profile');
   try {
     const config = await (
       await fetch('/api/config', {
@@ -1412,12 +1417,14 @@ async function boot() {
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
+    document.getElementById('bill-new').disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
     const billId = parseBillLink(window.location.search);
     const tabId = parseTabLink(window.location.search, TABS.map((tab) => tab.id));
-    if (link || friendCode || billId || tabId || billsPage) window.history.replaceState(null, '', window.location.pathname);
+    // ล้างทุกพารามิเตอร์ รวมลิงก์ที่รหัสผิด ไม่ให้เปิดหน้าใหม่แล้วเจอลิงก์เดิมซ้ำ
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
     if (billsPage) {
       if (billId) billsPanel.focusBill(billId);
       billsPanel.ensureLoaded();
@@ -1434,7 +1441,8 @@ async function boot() {
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
-    if (link) openLinkedTransaction(link);
+    // ลิงก์ชวนเปิด dialog ของตัวเองแล้ว ไม่เปิดตัวแก้ไขรายการซ้อน
+    if (link && !friendCode) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
   }

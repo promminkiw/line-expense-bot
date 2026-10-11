@@ -1,6 +1,6 @@
 const { isValidCalendarDate } = require('../utils/date');
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_BILL_MEMBERS = 20;
 const MAX_BILL_TITLE = 60;
 // เพดานเดียวกับ check constraint ของยอดเงินใน supabase
@@ -11,8 +11,10 @@ function toSatang(amount) {
   if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
     return null;
   }
-  const satang = Math.round(amount * 100);
-  return Math.abs(satang - amount * 100) < 1e-6 ? satang : null;
+  const satang = Math.round(amount * 100) + 0;
+  // ทศนิยมลอยตัวคลาดได้ไม่กี่ ulp ตามขนาดตัวเลข เกณฑ์คงที่จะยอมยอดอย่าง 1.0000000001 ได้
+  const tolerance = Math.max(1, Math.abs(amount * 100)) * Number.EPSILON * 4;
+  return Math.abs(satang - amount * 100) <= tolerance ? satang : null;
 }
 
 function splitEvenly(totalSatang, count) {
@@ -45,7 +47,7 @@ function validateBillInput(body, ownerId) {
   }
   const shareSatang = members.map((member) => toSatang(member.share));
   const ownerSatang = toSatang(input.ownerShare);
-  if (ownerSatang === null || shareSatang.some((satang) => !satang || satang > MAX_SATANG)) return fail('Invalid share');
+  if (ownerSatang === null || shareSatang.some((satang) => !satang)) return fail('Invalid share');
   if (ownerSatang + shareSatang.reduce((sum, satang) => sum + satang, 0) !== totalSatang) return fail('Shares do not add up');
   return {
     ok: true,

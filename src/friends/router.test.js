@@ -20,7 +20,8 @@ function setup(overrides = {}) {
     ...overrides,
   };
   const allowFriendLookup = vi.fn().mockReturnValue(true);
-  return { friends, allowFriendLookup };
+  const allowCodeRenew = vi.fn().mockReturnValue(true);
+  return { friends, allowFriendLookup, allowCodeRenew };
 }
 
 // จำลอง middleware ตรวจ token ของ /api ที่ใส่ req.userId ให้
@@ -97,6 +98,22 @@ describe('createFriendsRouter', () => {
     expect((await call(base, { method: 'POST', body: { code: 'ZZZZ2345' } })).status).toBe(404);
   });
 
+  it('maps every add failure to the same status as lookup', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    for (const [status, httpStatus, error] of [
+      ['invalid', 400, 'Invalid code'],
+      ['self', 400, 'Own code'],
+      ['not_found', 404, 'Not found'],
+    ]) {
+      deps.friends.addByCode.mockResolvedValueOnce({ status });
+      const res = await call(base, { method: 'POST', body: { code: 'x' } });
+      expect(res.status).toBe(httpStatus);
+      expect(await res.json()).toEqual({ error });
+    }
+  });
+
   it('no longer looks up a code sent in the query string', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -126,7 +143,7 @@ describe('createFriendsRouter', () => {
 
     expect([lookup.status, add.status]).toEqual([429, 429]);
     expect(await lookup.json()).toEqual({ error: 'Too many requests' });
-    expect(deps.allowFriendLookup).toHaveBeenCalledWith('user-1');
+    expect(deps.allowFriendLookup.mock.calls).toEqual([['user-1'], ['user-1']]);
     expect(deps.friends.lookup).not.toHaveBeenCalled();
     expect(deps.friends.addByCode).not.toHaveBeenCalled();
   });
@@ -141,6 +158,24 @@ describe('createFriendsRouter', () => {
     expect(deps.friends.remove).toHaveBeenCalledTimes(1);
     deps.friends.remove.mockResolvedValueOnce(false);
     expect((await call(`${base}/${FRIEND_ID}`, { method: 'DELETE' })).status).toBe(404);
+  });
+
+  it('refuses to build without a code renew limiter', () => {
+    const { friends, allowFriendLookup } = setup();
+
+    expect(() => createFriendsRouter({ friends, allowFriendLookup })).toThrow('allowCodeRenew');
+  });
+
+  it('answers 429 for code renewals over the limit without touching the service', async () => {
+    const deps = setup();
+    deps.allowCodeRenew.mockReturnValue(false);
+    const base = await start(deps);
+
+    const res = await call(`${base}/code`, { method: 'POST' });
+
+    expect(res.status).toBe(429);
+    expect(deps.allowCodeRenew).toHaveBeenCalledWith('user-1');
+    expect(deps.friends.regenerateCode).not.toHaveBeenCalled();
   });
 
   it('issues a new code', async () => {

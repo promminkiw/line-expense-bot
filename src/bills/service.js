@@ -18,7 +18,7 @@ function buildWebAnswerText(result) {
 
 function createBillService({ repository, users, pushFlex, pushText, liffUrl, logger = console }) {
   // บิลถูกบันทึกแล้วก่อน push ถ้า push ไม่ถึงเพื่อนยังเข้ามายืนยันในเว็บได้
-  async function notifyMembers(billId, ownerId, bill) {
+  async function notifyMembers(billId, ownerId, bill, categoryName) {
     let ownerName;
     let lineIds;
     try {
@@ -41,6 +41,7 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
             ownerName: ownerName || FALLBACK_DISPLAY_NAME,
             share: member.share,
             occurredOn: bill.occurredOn,
+            categoryName,
             liffUrl,
           });
           await pushFlex(lineIds.get(member.userId), flex);
@@ -50,7 +51,9 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
         }
         // เพื่อนได้การ์ดแล้ว การ mark ไม่สำเร็จจึงไม่นับเป็นแจ้งไม่ถึง
         try {
-          await repository.markBillMemberNotified(billId, member.userId);
+          if (!(await repository.markBillMemberNotified(billId, member.userId))) {
+            logger.error('Bill member to mark notified not found', { billId, memberId: member.userId });
+          }
         } catch (err) {
           logger.error('Failed to mark bill member notified', { billId, memberId: member.userId }, err);
         }
@@ -68,7 +71,8 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     }
     const bill = checked.value;
     const [categories, friends] = await Promise.all([repository.listCategories(ownerId), repository.listFriends(ownerId)]);
-    if (!categories.some((category) => category.id === bill.categoryId && category.type === 'expense')) {
+    const category = categories.find((item) => item.id === bill.categoryId && item.type === 'expense');
+    if (!category) {
       return { status: 'invalid', error: 'Invalid category' };
     }
     const friendIds = new Set(friends.map((friend) => friend.id));
@@ -79,7 +83,7 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
       return { status: 'limited' };
     }
     const id = await repository.createBill({ ownerId, ...bill });
-    return { status: 'ok', id, notNotified: await notifyMembers(id, ownerId, bill) };
+    return { status: 'ok', id, notNotified: await notifyMembers(id, ownerId, bill, category.name) };
   }
 
   async function list(userId) {
@@ -87,7 +91,10 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     return {
       owned: owned.map((bill) => ({
         ...bill,
-        members: bill.members.map((member) => ({ ...member, displayName: member.displayName || FALLBACK_DISPLAY_NAME })),
+        // ฐานข้อมูลไม่รับประกันลำดับของสมาชิกที่ embed มา จึงเรียงเองให้การ์ดไม่สลับที่ทุกครั้งที่โหลด
+        members: bill.members
+          .map((member) => ({ ...member, displayName: member.displayName || FALLBACK_DISPLAY_NAME }))
+          .sort((a, b) => a.displayName.localeCompare(b.displayName, 'th')),
       })),
       incoming: incoming.map((bill) => ({ ...bill, ownerName: bill.ownerName || FALLBACK_DISPLAY_NAME })),
     };
