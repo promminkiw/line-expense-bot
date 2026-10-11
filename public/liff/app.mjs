@@ -1434,7 +1434,8 @@ async function boot() {
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
-    if (link) openLinkedTransaction(link);
+    // ลิงก์ชวนเปิด dialog ของตัวเองแล้ว ไม่เปิดตัวแก้ไขรายการซ้อน
+    if (link && !friendCode) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);
   }

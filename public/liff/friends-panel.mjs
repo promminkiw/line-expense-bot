@@ -23,6 +23,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   let dialogBusy = false;
   let dialogFailureMessage = null;
   let lookingUp = false;
+  let sharing = false;
   // เก็บรหัสจากลิงก์ชวนไว้เมื่อโหลดรายชื่อไม่สำเร็จ จะได้ทำต่อหลังกดลองใหม่
   let pendingInviteCode = null;
   let loadErrorStatus = 0;
@@ -127,7 +128,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   }
 
   // run คืนข้อความ error ที่จะแสดงใน dialog หรือ null เมื่อสำเร็จ
+  // คืน false เมื่อมี dialog เปิดอยู่แล้ว ไม่เปิดทับ dialog ที่กำลังทำงาน
   function openDialog({ title, text, okLabel, danger = false, failureMessage, run }) {
+    if (els.dialog.open) return false;
     els.dialogTitle.textContent = title;
     els.dialogText.textContent = text;
     els.dialogOk.textContent = okLabel;
@@ -137,6 +140,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     dialogAction = run;
     dialogFailureMessage = failureMessage;
     els.dialog.showModal();
+    return true;
   }
 
   function setLookingUp(busy) {
@@ -179,7 +183,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     } finally {
       setLookingUp(false);
     }
-    openDialog({
+    const opened = openDialog({
       title: 'เพิ่มเพื่อน',
       text: `เพิ่ม ${friend.displayName} เป็นเพื่อน?`,
       okLabel: 'เพิ่มเพื่อน',
@@ -196,6 +200,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         return null;
       },
     });
+    if (!opened) els.addError.textContent = 'ปิดหน้าต่างที่เปิดอยู่ก่อน แล้วกดค้นหาอีกครั้ง';
   }
 
   function askRemove(friend) {
@@ -239,6 +244,19 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   }
 
   async function share() {
+    // กดรัวระหว่างหน้าเลือกแชตเปิดอยู่จะเปิดซ้อนหรือคัดลอกซ้ำ
+    if (sharing) return;
+    sharing = true;
+    els.share.disabled = true;
+    try {
+      await shareOnce();
+    } finally {
+      sharing = false;
+      els.share.disabled = false;
+    }
+  }
+
+  async function shareOnce() {
     els.status.textContent = '';
     const url = inviteUrl();
     if (typeof liff.isApiAvailable === 'function' && liff.isApiAvailable('shareTargetPicker')) {
@@ -283,9 +301,16 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     if (dialogBusy) event.preventDefault();
   });
   els.dialog.addEventListener('close', () => {
+    // Esc ครั้งที่สอง browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
+    if (dialogBusy) {
+      els.dialog.showModal();
+      return;
+    }
     dialogAction = null;
   });
-  els.retry.addEventListener('click', () => load());
+  els.retry.addEventListener('click', () => {
+    if (!loading) load();
+  });
   els.share.addEventListener('click', () => share());
   els.renew.addEventListener('click', () => askRenew());
   els.qrToggle.addEventListener('click', () => {

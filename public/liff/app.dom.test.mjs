@@ -780,6 +780,14 @@ describe('LIFF page when loading fails', () => {
 
 
 describe('LIFF page opened from a card link', () => {
+  it('opens only the friend dialog when the link has both an entry and a friend code', async () => {
+    await boot({ search: '?tx=t2&d=2026-10-01&friend=WXYZ2345' });
+    await settle();
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('editor').hasAttribute('open')).toBe(false);
+  });
+
   it('opens the editor of the linked transaction and cleans the address', async () => {
     await boot({ search: '?tx=t2&d=2026-10-01' });
 
@@ -1547,6 +1555,73 @@ describe('LIFF friends section guards and failure paths', () => {
 
     expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
     expect(calls.filter((call) => call === 'GET /api/friends').length).toBe(before + 1);
+  });
+
+  // lookup ช้าแล้วผู้ใช้ไปกดลบเพื่อนก่อน dialog เพิ่มเพื่อนต้องไม่เปิดทับ dialog ลบที่กำลังทำงาน
+  it('does not open the add dialog over a dialog that is already open', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('POST', '/api/friends/lookup');
+
+    await submitCode('WXYZ2345');
+    document.querySelector('#friend-rows .friend-remove').click();
+    expect(byId('friend-dialog-title').textContent).toBe('ลบเพื่อน');
+    hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+
+    expect(byId('friend-dialog-title').textContent).toBe('ลบเพื่อน');
+    expect(byId('friend-add-error').textContent).toBe('ปิดหน้าต่างที่เปิดอยู่ก่อน แล้วกดค้นหาอีกครั้ง');
+  });
+
+  it('reopens the dialog when the browser closes it with a second Esc while busy', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const hold = holdRequest('DELETE', '/api/friends/f-1');
+    document.querySelector('#friend-rows .friend-remove').click();
+    byId('friend-dialog-ok').click();
+    await settle();
+
+    byId('friend-dialog').close();
+    byId('friend-dialog').dispatchEvent(new Event('close'));
+
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+    hold.release({});
+    await settle();
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(false);
+  });
+
+  it('ignores retry taps while the friend list is still loading', async () => {
+    await openProfileWith((method, path) => (path === '/api/friends' ? { status: 500 } : undefined));
+    const hold = holdRequest('GET', '/api/friends');
+
+    byId('friends-retry').click();
+    byId('friends-retry').click();
+    await settle();
+
+    expect(hold.calls.filter((call) => call === 'GET /api/friends')).toHaveLength(1);
+    hold.release(RESPONSES['/api/friends']);
+    await settle();
+    expect(byId('friends-body').hidden).toBe(false);
+  });
+
+  it('ignores share taps while the share picker is open', async () => {
+    let finish;
+    const liff = await boot();
+    Object.assign(liff, { isApiAvailable: () => true, shareTargetPicker: vi.fn(() => new Promise((resolve) => (finish = resolve))) });
+    clickTab('profile');
+    await settle();
+
+    byId('friend-share').click();
+    byId('friend-share').click();
+    await settle();
+
+    expect(liff.shareTargetPicker).toHaveBeenCalledTimes(1);
+    expect(byId('friend-share').disabled).toBe(true);
+    finish({ status: 'success' });
+    await settle();
+    expect(byId('friend-share').disabled).toBe(false);
   });
 
   it('shows the link in the status when the clipboard is missing', async () => {
