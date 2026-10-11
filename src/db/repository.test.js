@@ -1430,17 +1430,18 @@ describe('repository bills', () => {
     ]);
   });
 
-  it('marks a member as notified', async () => {
-    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+  it('marks a member as notified and says whether the row was there', async () => {
+    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
 
-    await createRepository(supabase).markBillMemberNotified(BILL, 'user-2');
-
+    expect(await createRepository(supabase).markBillMemberNotified(BILL, 'user-2')).toBe(true);
     expect(calls).toEqual([
       ['from', 'bill_members'],
-      ['update', { notified: true }],
+      ['update', { notified: true }, { count: 'exact' }],
       ['eq', 'bill_id', BILL],
       ['eq', 'user_id', 'user-2'],
     ]);
+    const missing = fakeSupabase({ count: 0, error: null });
+    expect(await createRepository(missing.supabase).markBillMemberNotified(BILL, 'user-2')).toBe(false);
   });
 
   it('lists the owner bills newest first with members, names and numbers', async () => {
@@ -1590,6 +1591,18 @@ describe('repository bills', () => {
       ['eq', 'bill_id', BILL],
       ['eq', 'user_id', 'user-2'],
     ]);
+  });
+
+  it('reports a member that is not in the bill as not marked paid', async () => {
+    const { supabase } = fakeSupabase({ count: 0, error: null });
+
+    expect(await createRepository(supabase).setBillMemberPaid(BILL, 'user-9', true)).toBe(false);
+  });
+
+  it('passes a cancelled bill through when confirming', async () => {
+    const { supabase } = fakeSupabase({ data: 'cancelled', error: null });
+
+    expect(await createRepository(supabase).confirmBillShare(BILL, 'user-2', 'c2')).toBe('cancelled');
   });
 
   it('maps user ids to LINE user ids', async () => {
