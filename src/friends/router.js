@@ -1,6 +1,6 @@
 const express = require('express');
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('../utils/uuid');
 const LOOKUP_ERRORS = {
   invalid: [400, 'Invalid code'],
   self: [400, 'Own code'],

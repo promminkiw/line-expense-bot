@@ -39,7 +39,7 @@ const SLIP_CANCEL_ACTION = 'slip_cancel';
 const SLIP_TTL_MS = 10 * 60 * 1000;
 // รูปแต่ละใบกินความจำประมาณ 20-25 MB ตอนโหลดและอ่าน จำกัดจำนวนที่ทำพร้อมกันกันหน่วยความจำหมด
 const MAX_CONCURRENT_SLIPS = 3;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('./utils/uuid');
 const SUMMARY_PERIOD_BUTTONS = [
   { label: 'วันนี้', text: 'สรุปวันนี้' },
   { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },

@@ -6,7 +6,7 @@ const { toBangkokDateString } = require('../utils/date');
 const { lastRunOnAfterSave } = require('../recurring/schedule');
 const { monthsEndingAt, buildTrend } = require('./trend');
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_RECURRING_RULES = 50;
 
 function readBearerToken(req) {
