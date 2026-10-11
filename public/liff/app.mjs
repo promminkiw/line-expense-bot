@@ -34,7 +34,7 @@ import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { parseBillLink, parseEditLink, parseFriendLink, parseTabLink } from './deep-link.mjs';
+import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseTabLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -251,7 +251,6 @@ const billsPanel = createBillsPanel({
   liff,
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
-  onTransactionsChanged: reloadTransactions,
 });
 const billForm = createBillForm({
   doc: document,
@@ -283,15 +282,14 @@ const billForm = createBillForm({
   getCategories: () => categories,
   ensureCategories,
   onUncertain: () => billsPanel.reload(),
-  onOpenProfile: () => tabController.select('profile'),
-  onCreated: async (result, bill) => {
+  onOpenFriends: () => document.getElementById('friends').scrollIntoView?.({ block: 'start' }),
+  onCreated: async (result) => {
     const status = document.getElementById('bills-status');
     status.textContent =
       result.notNotified.length > 0
         ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
         : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว';
-    // server บันทึกส่วนของเจ้าของเป็นรายจ่ายตอนสร้างบิล
-    await Promise.all([billsPanel.reload({ afterAction: true }), bill.ownerShare > 0 && reloadTransactions()]);
+    await billsPanel.reload({ afterAction: true });
   },
 });
 document.getElementById('bill-new').addEventListener('click', () => {
@@ -909,13 +907,6 @@ async function ensureCategories() {
   return categories.length > 0;
 }
 
-// รายการจากบิลถูกเพิ่มหรือลบจากแท็บหารบิล รายการของเดือนและยอดสะสมจึงต้องโหลดใหม่
-async function reloadTransactions() {
-  await loadMonth();
-  profileStale = true;
-  loadProfile();
-}
-
 async function openEditor(item) {
   editing = item;
   els.amount.value = String(item.amount);
@@ -1356,7 +1347,6 @@ const tabController = createTabController({
       refreshProfileOnEntry();
       friendsPanel.ensureLoaded();
     }
-    if (id === 'bills') billsPanel.ensureLoaded();
   },
 });
 tabController.select(DEFAULT_TAB);
@@ -1374,6 +1364,16 @@ function openLinkedTransaction(link) {
 
 let initialLoadDone = false;
 
+// หารบิลเป็นฟังก์ชันเสริม เปิดเป็นหน้าแยกที่ไม่มีแท็บของเว็บหลัก และย้ายส่วนเพื่อนมาไว้ในหน้าเดียวกัน
+function enterBillsPage() {
+  document.getElementById('app').classList.add('bills-page');
+  document.getElementById('bottom-nav').hidden = true;
+  for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== 'panel-bills';
+  document.getElementById('page-title').textContent = 'หารบิล';
+  els.month.hidden = true;
+  document.getElementById('panel-bills').append(document.getElementById('friends'));
+}
+
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
   ({ categories } = await api.listCategories());
@@ -1390,6 +1390,9 @@ async function loadAll() {
 }
 
 async function boot() {
+  // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
+  const billsPage = isBillsPageLink(window.location.search);
+  if (billsPage) enterBillsPage();
   try {
     const config = await (
       await fetch('/api/config', {
@@ -1411,23 +1414,23 @@ async function boot() {
     const friendCode = parseFriendLink(window.location.search);
     const billId = parseBillLink(window.location.search);
     const tabId = parseTabLink(window.location.search, TABS.map((tab) => tab.id));
-    if (link || friendCode || billId || tabId) window.history.replaceState(null, '', window.location.pathname);
+    if (link || friendCode || billId || tabId || billsPage) window.history.replaceState(null, '', window.location.pathname);
+    if (billsPage) {
+      if (billId) billsPanel.focusBill(billId);
+      billsPanel.ensureLoaded();
+      friendsPanel.ensureLoaded();
+      return;
+    }
     els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
       friendsPanel.openAdd(friendCode);
     }
-    // ลิงก์บิลจากการ์ดหรือที่เจ้าของส่งให้ พาไปที่บิลนั้นในแท็บหารบิล
-    if (billId && !friendCode) {
-      tabController.select('bills');
-      billsPanel.focusBill(billId);
-    }
-    if (tabId && !link && !friendCode && !billId) tabController.select(tabId);
+    if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
-    if (tabController.current === 'bills') billsPanel.ensureLoaded();
     if (link) openLinkedTransaction(link);
   } catch (err) {
     showLoadError(err);

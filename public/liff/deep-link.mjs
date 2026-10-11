@@ -47,3 +47,9 @@ export function parseTabLink(search, tabIds) {
   const id = readLinkParams(search).get('tab');
   return id && tabIds.includes(id) ? id : null;
 }
+
+// หน้าหารบิลแยกเปิดจาก ?tab=bills ของ Rich Menu หรือลิงก์บิล ลิงก์ชวนเพื่อนยังไปเว็บหลัก
+export function isBillsPageLink(search) {
+  if (parseFriendLink(search)) return false;
+  return Boolean(parseBillLink(search) || parseTabLink(search, ['bills']));
+}

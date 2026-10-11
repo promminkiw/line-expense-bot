@@ -6,7 +6,7 @@ import { MEMBER_STATUS_LABELS, outstandingAmount, describeBillError, describeBil
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 
 // โหลดเมื่อเข้าแท็บครั้งแรก และหลังตอบหรือยกเลิกบิล เพราะสถานะของเพื่อนเปลี่ยนจากฝั่งอื่นได้ ส่วนติ๊กคืนแล้วแก้ในหน่วยความจำ
-export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard, onTransactionsChanged }) {
+export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard }) {
   let data = null;
   let loading = null;
   let dialogAction = null;
@@ -185,7 +185,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard,
     else setStatus(answer === 'confirm' ? 'ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ' : 'ปฏิเสธบิลแล้ว');
     applyAnswerLocally(bill, resultStatus);
     // มีแค่การยืนยันครั้งนี้ที่เพิ่มรายจ่ายใหม่ให้ผู้ใช้
-    await Promise.all([load({ afterAction: true }), resultStatus === 'confirmed' && onTransactionsChanged()]);
+    await load({ afterAction: true });
     return true;
   }
 
@@ -276,7 +276,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard,
         }
         setStatus('ยกเลิกบิลแล้ว');
         // server ลบรายจ่ายส่วนของเจ้าของไปพร้อมการยกเลิก
-        await Promise.all([load({ afterAction: true }), bill.ownerShare > 0 && onTransactionsChanged()]);
+        await load({ afterAction: true });
         return null;
       },
     });

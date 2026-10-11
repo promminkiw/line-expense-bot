@@ -20,9 +20,9 @@ function setup() {
 }
 
 describe('TABS', () => {
-  it('has the six tabs in order', () => {
-    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'bills', 'profile']);
-    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'หารบิล', 'โปรไฟล์']);
+  it('has the five tabs in order, without bills which has its own page', () => {
+    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'profile']);
+    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
     expect(DEFAULT_TAB).toBe('list');
   });
 

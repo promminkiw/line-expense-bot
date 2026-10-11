@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEditLink, parseFriendLink, parseBillLink, parseTabLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink, parseBillLink, parseTabLink, isBillsPageLink } from './deep-link.mjs';
 
 const ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 
@@ -71,5 +71,22 @@ describe('parseTabLink', () => {
     expect(parseTabLink('?tab=admin', TAB_IDS)).toBeNull();
     expect(parseTabLink('?tab=', TAB_IDS)).toBeNull();
     expect(parseTabLink('', TAB_IDS)).toBeNull();
+  });
+});
+
+describe('isBillsPageLink', () => {
+  const BILL = '55555555-5555-5555-5555-555555555555';
+
+  it('is true for the rich menu link and for a bill link, also inside liff.state', () => {
+    expect(isBillsPageLink('?tab=bills')).toBe(true);
+    expect(isBillsPageLink(`?bill=${BILL}`)).toBe(true);
+    expect(isBillsPageLink(`?liff.state=${encodeURIComponent('?tab=bills')}`)).toBe(true);
+  });
+
+  it('is false for the main web and for a friend invite even with a bill', () => {
+    expect(isBillsPageLink('')).toBe(false);
+    expect(isBillsPageLink('?tab=profile')).toBe(false);
+    expect(isBillsPageLink('?bill=abc')).toBe(false);
+    expect(isBillsPageLink(`?friend=ABCD2345&bill=${BILL}`)).toBe(false);
   });
 });
