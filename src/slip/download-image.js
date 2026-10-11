@@ -102,4 +102,4 @@ function createImageDownloader({ blobClient, timeoutMs = DOWNLOAD_TIMEOUT_MS, re
   };
 }
 
-module.exports = { createImageDownloader, MAX_IMAGE_BYTES };
+module.exports = { createImageDownloader, detectMediaType, MAX_IMAGE_BYTES };

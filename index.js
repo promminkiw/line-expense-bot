@@ -25,6 +25,7 @@ const { createFriendService } = require('./src/friends/service');
 const { createFriendsRouter } = require('./src/friends/router');
 const { createBillService } = require('./src/bills/service');
 const { createBillsRouter } = require('./src/bills/router');
+const { createReceiptReader } = require('./src/bills/receipt');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
@@ -32,6 +33,8 @@ const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
 const FRIEND_LOOKUP_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 // แต่ละบิล push หาเพื่อนทุกคน จำกัดไว้กันโควตาข้อความหมด
 const BILL_CREATE_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
+// อ่านรูปใบเสร็จเสียค่า Claude ทุกครั้ง
+const RECEIPT_READ_RATE_LIMIT = { limit: 20, windowMs: 60 * 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
 
 const config = loadConfig(process.env);
@@ -97,7 +100,12 @@ const apiRouter = createApiRouter({
     friends: createFriendService({ repository }),
     allowFriendLookup: createRateLimiter(FRIEND_LOOKUP_RATE_LIMIT),
   }),
-  billsRouter: createBillsRouter({ bills, allowBillCreate: createRateLimiter(BILL_CREATE_RATE_LIMIT) }),
+  billsRouter: createBillsRouter({
+    bills,
+    allowBillCreate: createRateLimiter(BILL_CREATE_RATE_LIMIT),
+    readReceipt: createReceiptReader({ parseSlip }),
+    allowReceiptRead: createRateLimiter(RECEIPT_READ_RATE_LIMIT),
+  }),
 });
 const recurringRouter = createRecurringRouter({
   cronSecret: config.cronSecret,

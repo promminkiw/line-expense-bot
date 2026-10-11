@@ -50,6 +50,18 @@ export function describeBillError(status, action, error) {
   return 'โหลดบิลไม่สำเร็จ';
 }
 
+const RECEIPT_ERRORS = {
+  413: 'รูปใหญ่เกินไป (ไม่เกิน 10 MB)',
+  415: 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)',
+  422: 'อ่านยอดจากรูปนี้ไม่ได้ ลองรูปที่ชัดขึ้น หรือพิมพ์ยอดเอง',
+  429: 'อ่านรูปบ่อยเกินไป รอสักครู่แล้วลองใหม่',
+};
+
+export function describeReceiptError(status) {
+  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  return RECEIPT_ERRORS[status] || 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง';
+}
+
 const EARLIER_ANSWER_TEXT = {
   cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
   already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
