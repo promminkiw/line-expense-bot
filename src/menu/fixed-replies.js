@@ -37,13 +37,14 @@ const HELP_REPLY = [
 // ใช้เมื่อยังไม่ได้ตั้งค่า LIFF เท่านั้น
 const WEB_COMING_SOON_REPLY = 'หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้';
 
-// ปุ่มเสนอแนะใน Rich Menu ยังไม่มีฟีเจอร์ ตอบไว้ก่อนเพื่อไม่ให้ข้อความไปถึง parser
-const FEEDBACK_COMING_SOON_REPLY = 'ช่องทางเสนอแนะกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้';
+// ผู้ใช้เลือกเก็บข้อเสนอแนะใน Google Form ใช้ลิงก์ส่งของฟอร์ม เพราะลิงก์ /edit เปิดได้แค่เจ้าของ
+const FEEDBACK_FORM_URL = 'https://forms.gle/byku7LUs8qsXWaP18';
+const FEEDBACK_REPLY = `ขอบคุณที่ช่วยให้เฮียสมัครดีขึ้น บอกเราได้ที่ฟอร์มนี้: ${FEEDBACK_FORM_URL}`;
 
 const FIXED_REPLIES = {
   'ช่วยเหลือ': HELP_REPLY,
   'เปิดเว็บ': WEB_COMING_SOON_REPLY,
-  'เสนอแนะ': FEEDBACK_COMING_SOON_REPLY,
+  'เสนอแนะ': FEEDBACK_REPLY,
 };
 
 function buildWebReply(liffUrl) {
@@ -63,5 +64,5 @@ module.exports = {
   buildWebReply,
   HELP_REPLY,
   WEB_COMING_SOON_REPLY,
-  FEEDBACK_COMING_SOON_REPLY,
+  FEEDBACK_REPLY,
 };

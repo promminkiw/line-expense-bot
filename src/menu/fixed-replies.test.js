@@ -4,7 +4,7 @@ import {
   buildWebReply,
   HELP_REPLY,
   WEB_COMING_SOON_REPLY,
-  FEEDBACK_COMING_SOON_REPLY,
+  FEEDBACK_REPLY,
 } from './fixed-replies.js';
 
 describe('getFixedReply', () => {
@@ -23,9 +23,13 @@ describe('getFixedReply', () => {
     expect(buildWebReply(liffUrl)).toBe('เปิดหน้าเว็บดูและแก้ไขรายการ: https://liff.line.me/1234567890-AbCdEfGh');
   });
 
-  it('returns the coming soon text for the feedback button', () => {
-    expect(getFixedReply('เสนอแนะ')).toBe(FEEDBACK_COMING_SOON_REPLY);
-    expect(FEEDBACK_COMING_SOON_REPLY).toBe('ช่องทางเสนอแนะกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้');
+  it('links the feedback button to the Google Form for respondents', () => {
+    expect(getFixedReply('เสนอแนะ')).toBe(FEEDBACK_REPLY);
+    expect(FEEDBACK_REPLY).toBe(
+      'ขอบคุณที่ช่วยให้เฮียสมัครดีขึ้น บอกเราได้ที่ฟอร์มนี้: https://forms.gle/byku7LUs8qsXWaP18'
+    );
+    // ลิงก์ /edit เปิดได้เฉพาะเจ้าของฟอร์ม
+    expect(FEEDBACK_REPLY).not.toContain('/edit');
   });
 
   it('ignores spaces anywhere in the text', () => {
