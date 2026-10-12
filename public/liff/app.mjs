@@ -619,7 +619,9 @@ function render({ transactions, summary, truncated }, { animate = false } = {}) 
   const sum = summaryTotals(summary);
   showAmount(els.statIncome, sum.income);
   showAmount(els.statExpense, sum.expense);
-  showAmount(els.statBalance, Math.round((sum.income - sum.expense) * 100) / 100);
+  const balance = Math.round((sum.income - sum.expense) * 100) / 100;
+  showAmount(els.statBalance, balance);
+  els.statBalance.classList.toggle('negative', balance < 0);
   els.totals.hidden = false;
   els.truncated.hidden = !truncated;
   lastSummary = summary;

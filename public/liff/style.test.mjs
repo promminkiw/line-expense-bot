@@ -52,6 +52,12 @@ describe('style.css friend status', () => {
   });
 });
 
+describe('style.css month balance card', () => {
+  it('shows a negative month balance in the danger red', () => {
+    expect(declarations('.stat-cards .stat.balance .stat-value.negative')).toMatch(/color:\s*var\(--danger\)/);
+  });
+});
+
 describe('style.css bill cards', () => {
   it('shows where focus is on a bill card that was jumped to', () => {
     expect(declarations('.bill-card:focus-visible')).toMatch(/outline:/);

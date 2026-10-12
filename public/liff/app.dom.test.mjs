@@ -397,6 +397,7 @@ describe('LIFF page after a normal boot', () => {
     expect(byId('stat-income').textContent).toBe('25,000 บาท');
     expect(byId('stat-expense').textContent).toBe('100 บาท');
     expect(byId('stat-balance').textContent).toBe('24,900 บาท');
+    expect(byId('stat-balance').classList.contains('negative')).toBe(false);
   });
 
   it('shows the filter bar with the category options and no active filter', () => {
@@ -679,6 +680,15 @@ describe('LIFF page for an empty month', () => {
     expect(byId('summary-empty').querySelector('.empty-title').textContent).toBe('ยังไม่มีข้อมูลสรุปในเดือนนี้');
     expect(byId('chart').hidden).toBe(true);
     expect(byId('stat-balance').textContent).toBe('0 บาท');
+  });
+
+  // ใช้เกินรายรับต้องเห็นเป็นสีแดงเหมือนยอดสะสมในหน้าโปรไฟล์
+  it('marks a negative month balance so it shows in red', async () => {
+    const overspent = { ...RESPONSES['/api/transactions'], summary: [{ type: 'expense', category: 'อาหาร', total: 500, entryCount: 1 }] };
+    await boot({ overrides: { '/api/transactions': overspent } });
+
+    expect(byId('stat-balance').textContent).toBe('-500 บาท');
+    expect(byId('stat-balance').classList.contains('negative')).toBe(true);
   });
 
   it('shows the filter bar again when the month changes to one with data', async () => {
