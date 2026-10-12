@@ -9,6 +9,7 @@ import {
   formatDayNet,
   summaryTotals,
   chartRows,
+  chartSegments,
   hasChartData,
   describeExportFailure,
   groupCategoryOptions,
@@ -16,6 +17,7 @@ import {
   budgetRows,
   createLatestGuard,
   profileView,
+  profilePictureUrl,
   formatMonthLabel,
   describeBudgetFailure,
   recurringRows,
@@ -41,6 +43,8 @@ import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
+// ต้องตรงกับจำนวน --chart-N ใน tokens.css
+const CHART_COLOR_COUNT = 6;
 
 const els = {
   month: document.getElementById('month'),
@@ -56,6 +60,7 @@ const els = {
   exportStatus: document.getElementById('export-status'),
   chart: document.getElementById('chart'),
   chartRows: document.getElementById('chart-rows'),
+  chartStack: document.getElementById('chart-stack'),
   chartEmpty: document.getElementById('chart-empty'),
   tabs: document.querySelectorAll('#chart .tabs button'),
   status: document.getElementById('status'),
@@ -240,6 +245,19 @@ const billsPanel = createBillsPanel({
     incomingEmpty: document.getElementById('bills-incoming-empty'),
     owned: document.getElementById('bills-owned'),
     ownedEmpty: document.getElementById('bills-owned-empty'),
+    showIncoming: document.getElementById('bills-show-incoming'),
+    showOwned: document.getElementById('bills-show-owned'),
+    awaiting: document.getElementById('bills-awaiting'),
+    incomingSection: document.getElementById('bills-incoming-section'),
+    ownedSection: document.getElementById('bills-owned-section'),
+    incomingDone: document.getElementById('bills-incoming-done'),
+    incomingDoneCount: document.getElementById('bills-incoming-done-count'),
+    incomingDoneList: document.getElementById('bills-incoming-done-list'),
+    incomingLimit: document.getElementById('bills-incoming-limit'),
+    ownedDone: document.getElementById('bills-owned-done'),
+    ownedDoneCount: document.getElementById('bills-owned-done-count'),
+    ownedDoneList: document.getElementById('bills-owned-done-list'),
+    ownedLimit: document.getElementById('bills-owned-limit'),
     dialog: document.getElementById('bill-dialog'),
     dialogTitle: document.getElementById('bill-dialog-title'),
     dialogText: document.getElementById('bill-dialog-text'),
@@ -544,6 +562,7 @@ function renderChart({ animate = false } = {}) {
     tab.setAttribute('aria-pressed', String(tab.dataset.type === chartType));
   }
   els.chartRows.replaceChildren();
+  els.chartStack.replaceChildren();
   if (!hasChartData(lastSummary)) {
     els.chart.hidden = true;
     els.summaryEmpty.hidden = false;
@@ -558,9 +577,17 @@ function renderChart({ animate = false } = {}) {
     return;
   }
   els.chartEmpty.hidden = true;
-  for (const row of rows) {
+  const segments = chartSegments(rows, CHART_COLOR_COUNT);
+  for (const segment of segments) {
+    const part = document.createElement('span');
+    part.style.width = `${segment.width}%`;
+    part.style.background = `var(--chart-${segment.color})`;
+    els.chartStack.append(part);
+  }
+  for (const [index, row] of rows.entries()) {
     const item = document.createElement('li');
     item.className = `chart-row ${chartType}`;
+    item.style.setProperty('--dot', `var(--chart-${segments[index].color})`);
     const label = document.createElement('span');
     label.className = 'chart-label chart-label-wrap';
     const labelText = document.createElement('span');
@@ -782,6 +809,26 @@ async function loadTrend({ animate = false } = {}) {
   }
 }
 
+// รูปมีใน ID token เมื่อ LIFF app ขอ scope profile ไม่มีหรือโหลดไม่ได้ก็ใช้อักษรแรกของชื่อ
+function renderAvatar(initial) {
+  els.profileAvatar.textContent = initial;
+  let decoded = null;
+  try {
+    decoded = typeof liff.getDecodedIDToken === 'function' ? liff.getDecodedIDToken() : null;
+  } catch {
+    decoded = null;
+  }
+  const url = profilePictureUrl(decoded);
+  if (!url) return;
+  const img = document.createElement('img');
+  img.className = 'profile-avatar-img';
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  img.addEventListener('error', () => img.remove());
+  img.src = url;
+  els.profileAvatar.append(img);
+}
+
 function renderProfile(profile) {
   const view = profileView(profile);
   profileRendered = true;
@@ -790,7 +837,7 @@ function renderProfile(profile) {
   els.profileStaleNotice.hidden = true;
   profileLoading.set(false);
   els.profileError.hidden = true;
-  els.profileAvatar.textContent = view.initial;
+  renderAvatar(view.initial);
   els.profileName.textContent = view.name;
   els.profileSince.textContent = view.sinceText;
   showAmount(els.profileBalance, view.balance);
@@ -1160,19 +1207,36 @@ function renderRecurring(rules, focusRuleId = null) {
   els.recurringEmpty.hidden = rules.length > 0;
   for (const row of recurringRows(rules, categories)) {
     const item = document.createElement('li');
-    item.className = `recurring-row${row.active ? '' : ' paused'}`;
+    item.className = `recurring-row ${row.type}${row.active ? '' : ' paused'}`;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'recurring-button';
-    const title = document.createElement('span');
-    title.className = 'recurring-title recurring-head';
-    const titleText = document.createElement('span');
-    titleText.textContent = row.title;
-    title.append(createCategoryBadge(document, row.title), titleText);
-    const text = document.createElement('span');
-    text.className = 'recurring-text';
-    text.textContent = row.text;
-    button.append(title, text);
+    // ตัวแถวแสดงแค่บางส่วน screen reader จึงได้ข้อความเต็มรวมเงื่อนไขวันที่ 29-31 จาก aria-label
+    button.setAttribute('aria-label', `${row.title} ${row.text}`);
+    const cal = document.createElement('span');
+    cal.className = 'recurring-cal';
+    cal.setAttribute('aria-hidden', 'true');
+    const calLabel = document.createElement('small');
+    calLabel.textContent = 'ทุกวันที่';
+    const calDay = document.createElement('b');
+    calDay.textContent = String(row.dayOfMonth);
+    cal.append(calLabel, calDay);
+    const name = document.createElement('span');
+    name.className = 'recurring-name';
+    name.textContent = row.name;
+    const amount = document.createElement('span');
+    amount.className = 'recurring-amount';
+    amount.textContent = row.amountText;
+    const sub = document.createElement('span');
+    sub.className = 'recurring-sub';
+    sub.textContent = row.subtitle;
+    if (!row.active) {
+      const paused = document.createElement('span');
+      paused.className = 'recurring-paused';
+      paused.textContent = 'หยุดไว้';
+      sub.append(paused);
+    }
+    button.append(cal, name, amount, sub);
     button.addEventListener('click', () => openRecurringEditor(row));
     item.append(button);
     els.recurringRows.append(item);

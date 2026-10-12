@@ -181,6 +181,15 @@ describe('GET /liff/', () => {
     expect(res.headers.get('content-type')).toContain('javascript');
   });
 
+  it('serves the mascot image as webp', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff/assets/mascot.webp`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('image/webp');
+  });
+
   it('redirects /liff to /liff/ so relative asset paths resolve', async () => {
     const baseUrl = await start(vi.fn());
 

@@ -11,6 +11,7 @@ import {
   describeDeleteTarget,
   summaryTotals,
   chartRows,
+  chartSegments,
   hasChartData,
   describeExportFailure,
   budgetRows,
@@ -30,6 +31,7 @@ import {
   trendBars,
   describeExpenseComparison,
   profileView,
+  profilePictureUrl,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -199,6 +201,33 @@ describe('chartRows', () => {
   });
 });
 
+// แถบเดียวแบ่งสีตามหมวด (หน้าสรุปแบบ S5) ความกว้างใช้สัดส่วนจริงไม่ปัด ให้ทุกช่วงรวมเต็มแถบพอดี
+describe('chartSegments', () => {
+  it('gives each row its exact share of the bar and a color by rank', () => {
+    const rows = chartRows([
+      { type: 'expense', category: 'อาหาร', total: 600, entryCount: 1 },
+      { type: 'expense', category: 'เดินทาง', total: 300, entryCount: 1 },
+      { type: 'expense', category: 'ช้อปปิ้ง', total: 100, entryCount: 1 },
+    ], 'expense');
+
+    expect(chartSegments(rows, 6)).toEqual([
+      { category: 'อาหาร', width: 60, color: 1 },
+      { category: 'เดินทาง', width: 30, color: 2 },
+      { category: 'ช้อปปิ้ง', width: 10, color: 3 },
+    ]);
+  });
+
+  it('cycles the colors when there are more rows than colors', () => {
+    const rows = [1, 2, 3].map((n) => ({ category: String(n), total: 1 }));
+
+    expect(chartSegments(rows, 2).map((segment) => segment.color)).toEqual([1, 2, 1]);
+  });
+
+  it('returns nothing for no rows', () => {
+    expect(chartSegments([], 6)).toEqual([]);
+  });
+});
+
 describe('hasChartData', () => {
   it('is false for a month without entries', () => {
     expect(hasChartData([])).toBe(false);
@@ -342,6 +371,10 @@ describe('recurringRows', () => {
         active: true,
         title: 'ค่าสาธารณูปโภค',
         text: 'รายจ่าย 590 บาท · ทุกวันที่ 5 · ค่าเน็ต',
+        type: 'expense',
+        name: 'ค่าเน็ต',
+        subtitle: 'ค่าสาธารณูปโภค',
+        amountText: '-590 บาท',
       },
     ]);
   });
@@ -351,6 +384,15 @@ describe('recurringRows', () => {
 
     expect(row.text).toBe('รายรับ 590 บาท · ทุกวันที่ 5 · หยุดไว้');
     expect(row.active).toBe(false);
+  });
+
+  // แถวแบบปฏิทินฉีก (R2) ใช้โน้ตเป็นชื่อหลัก ถ้าไม่มีโน้ตใช้ชื่อหมวดและไม่ซ้ำชื่อหมวดในบรรทัดรอง
+  it('uses the category as the name when there is no note', () => {
+    const [row] = recurringRows([{ ...rule, type: 'income', note: '' }], categories);
+
+    expect(row.name).toBe('ค่าสาธารณูปโภค');
+    expect(row.subtitle).toBe('');
+    expect(row.amountText).toBe('+590 บาท');
   });
 
   it('still shows a rule whose category no longer exists', () => {
@@ -527,6 +569,22 @@ describe('describeExpenseComparison', () => {
     expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
+  });
+});
+
+describe('profilePictureUrl', () => {
+  it('takes the LINE picture from the decoded ID token', () => {
+    expect(profilePictureUrl({ picture: 'https://profile.line-scdn.net/abc' })).toBe('https://profile.line-scdn.net/abc');
+  });
+
+  // token ไม่มีรูปเมื่อ LIFF app ไม่ได้ขอ scope profile หรือผู้ใช้ไม่มีรูป
+  it('gives null when there is no usable picture', () => {
+    expect(profilePictureUrl(null)).toBeNull();
+    expect(profilePictureUrl({})).toBeNull();
+    expect(profilePictureUrl({ picture: '' })).toBeNull();
+    expect(profilePictureUrl({ picture: 42 })).toBeNull();
+    expect(profilePictureUrl({ picture: 'http://profile.line-scdn.net/abc' })).toBeNull();
+    expect(profilePictureUrl({ picture: 'javascript:alert(1)' })).toBeNull();
   });
 });
 

@@ -1,7 +1,23 @@
 import { ApiError } from './api.mjs';
-import { formatBaht, formatThaiDate } from './format.mjs';
+import { formatBaht } from './format.mjs';
 import { createLoadingIndicator } from './skeleton.mjs';
-import { MEMBER_STATUS_LABELS, outstandingAmount, describeBillError, describeBillAnswer, buildBillUrl } from './bills-format.mjs';
+import { createSvgIcon } from './icons.mjs';
+import {
+  MEMBER_STATUS_LABELS,
+  BILL_LIST_LIMIT,
+  outstandingAmount,
+  describeBillError,
+  describeBillAnswer,
+  buildBillUrl,
+  isOwnedBillFinished,
+  isIncomingBillFinished,
+  ownedBillSummary,
+  incomingBillState,
+  countAwaitingAnswer,
+  pickInitialBillsView,
+  calendarParts,
+  needsShareLink,
+} from './bills-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 
@@ -13,11 +29,15 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   let dialogBusy = false;
   // บิลที่กำลังส่งคำตอบ render ใหม่ระหว่างนั้นต้องไม่เปิดปุ่มของบิลนี้กลับมา
   const sending = new Set();
+  // การ์ดที่กางไว้ต้องกางอยู่หลัง render ใหม่ เช่นหลังติ๊กคืนแล้ว
+  const expanded = new Set();
+  // เลือกหน้าครั้งเดียวตอนโหลดแรก โหลดใหม่หลังกระทำต้องไม่สลับหน้าเอง
+  let view = null;
   const loadingIndicator = createLoadingIndicator({
     doc,
     textEl: els.loadingText,
     skeletonEl: els.skeleton,
-    variants: ['bill-card', 'bill-card'],
+    variants: ['bill-switch', 'bill-card'],
   });
 
   function el(tag, className, text) {
@@ -46,29 +66,73 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   }
 
   // render แทนที่การ์ดทั้งหมด โฟกัสจะหลุดไปที่ body จึงย้ายกลับมาที่การ์ดเดิม
+  // ถ้าการ์ดย้ายไปอยู่ในส่วนบิลที่จบแล้วที่พับไว้ ให้โฟกัสหัวของส่วนนั้นแทน
+  function focusTarget(node) {
+    if (!node) return;
+    const folded = node.closest('details:not([open])');
+    if (folded) {
+      folded.querySelector('summary').focus();
+      return;
+    }
+    node.focus();
+  }
+
   function focusCard(card) {
     if (!card) return;
     card.tabIndex = -1;
-    card.focus();
+    focusTarget(card);
+  }
+
+  // แก้ DOM ตรงๆ แทน render ใหม่ เพื่อให้โฟกัสอยู่ที่ปุ่มที่แตะ
+  function setExpanded(id, open) {
+    if (open) expanded.add(id);
+    else expanded.delete(id);
+    const card = findCard(id);
+    if (!card) return;
+    card.querySelector('.bill-row').setAttribute('aria-expanded', String(open));
+    card.querySelector('.bill-detail').hidden = !open;
+  }
+
+  function renderCard(bill, { finished, awaiting, summary, amount }) {
+    const item = el('li', `bill-card${finished ? ' is-finished' : ''}${awaiting ? ' is-awaiting' : ''}`);
+    item.dataset.id = bill.id;
+    const detailId = `bill-detail-${bill.id}`;
+    const row = el('button', 'bill-row');
+    row.type = 'button';
+    row.setAttribute('aria-expanded', String(expanded.has(bill.id)));
+    row.setAttribute('aria-controls', detailId);
+    const { month, day } = calendarParts(bill.occurredOn);
+    const cal = el('span', 'bill-cal');
+    cal.append(el('small', null, month), el('b', null, day));
+    const text = el('span', 'bill-text');
+    text.append(el('span', 'bill-title', bill.title), el('span', 'bill-summary', summary));
+    row.append(cal, text, el('span', 'bill-amount', formatBaht(amount)), createSvgIcon(doc, 'icon-chevron', 'icon bill-chevron'));
+    row.addEventListener('click', () => setExpanded(bill.id, !expanded.has(bill.id)));
+    const detail = el('div', 'bill-detail');
+    detail.id = detailId;
+    detail.hidden = !expanded.has(bill.id);
+    item.append(row, detail);
+    return { item, detail };
   }
 
   function renderIncoming(bill) {
-    const item = el('li', 'bill-card');
-    item.dataset.id = bill.id;
-    const head = el('div', 'bill-head');
-    head.append(el('span', 'bill-title', bill.title));
-    if (bill.status === 'cancelled') head.append(el('span', 'bill-badge', 'ยกเลิกแล้ว'));
-    else if (bill.myStatus !== 'pending') head.append(el('span', 'bill-badge', MEMBER_STATUS_LABELS[bill.myStatus]));
-    item.append(head, el('p', 'bill-meta', `${bill.ownerName} · ${formatThaiDate(bill.occurredOn)}`));
-    item.append(el('p', 'bill-share', `ส่วนของคุณ ${formatBaht(bill.myShare)}`));
+    const awaiting = bill.status === 'open' && bill.myStatus === 'pending';
+    const { item, detail } = renderCard(bill, {
+      finished: isIncomingBillFinished(bill),
+      awaiting,
+      summary: `${bill.ownerName} · ${incomingBillState(bill)}`,
+      amount: bill.myShare,
+    });
+    detail.append(el('p', 'bill-meta', `${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
     if (bill.status === 'cancelled' && bill.myStatus === 'confirmed') {
-      item.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
+      detail.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
     }
-    if (bill.status === 'open' && bill.myStatus === 'pending') {
+    // ปุ่มตอบอยู่นอกส่วนที่พับ ตอบได้โดยไม่ต้องกาง ปุ่มปฏิเสธอยู่ซ้ายตามที่ผู้ใช้เลือก
+    if (awaiting) {
       const actions = el('div', 'bill-actions');
       actions.append(
-        button('bill-confirm', 'ยืนยัน', () => answerFromCard(bill, actions), `ยืนยันบิล ${bill.title}`),
-        button('bill-decline', 'ปฏิเสธ', () => askDecline(bill, actions), `ปฏิเสธบิล ${bill.title}`)
+        button('bill-decline', 'ปฏิเสธ', () => askDecline(bill, actions), `ปฏิเสธบิล ${bill.title}`),
+        button('bill-confirm', 'ยืนยัน', () => answerFromCard(bill, actions), `ยืนยันบิล ${bill.title}`)
       );
       setActionsDisabled(actions, sending.has(bill.id));
       item.append(actions);
@@ -95,38 +159,96 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       label.append(box, doc.createTextNode('คืนแล้ว'));
       row.append(label);
     }
+    // push พังได้หลายสาเหตุ ไม่ใช่แค่เพื่อนยังไม่เพิ่มบอท ปุ่มส่งลิงก์มีปุ่มเดียวต่อบิลในแถวปุ่ม
     if (!member.notified && member.status === 'pending' && bill.status === 'open') {
-      // push พังได้หลายสาเหตุ ไม่ใช่แค่เพื่อนยังไม่เพิ่มบอท
       row.append(el('p', 'bill-member-note', 'แจ้งเตือนไม่ถึง ส่งลิงก์บิลให้เพื่อนแทน'));
-      row.append(button('bill-share-link', 'ส่งลิงก์บิล', () => shareBill(bill), `ส่งลิงก์บิล ${bill.title} ให้ ${member.displayName}`));
     }
     return row;
   }
 
   function renderOwned(bill) {
-    const item = el('li', 'bill-card');
-    item.dataset.id = bill.id;
-    const head = el('div', 'bill-head');
-    head.append(el('span', 'bill-title', bill.title));
-    if (bill.status === 'cancelled') head.append(el('span', 'bill-badge', 'ยกเลิกแล้ว'));
-    item.append(head, el('p', 'bill-meta', `${formatThaiDate(bill.occurredOn)} · ${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
-    item.append(el('p', 'bill-outstanding', `ค้างรับ ${formatBaht(outstandingAmount(bill))}`));
+    const finished = isOwnedBillFinished(bill);
+    const { item, detail } = renderCard(bill, {
+      finished,
+      awaiting: false,
+      summary: ownedBillSummary(bill),
+      amount: finished ? bill.total : outstandingAmount(bill),
+    });
+    detail.append(el('p', 'bill-meta', `${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
     const members = el('ul', 'bill-members');
     members.append(...bill.members.map((member) => renderMember(bill, member)));
-    item.append(members);
+    detail.append(members);
     if (bill.status === 'open') {
       const actions = el('div', 'bill-actions');
       actions.append(button('bill-cancel', 'ยกเลิกบิล', () => askCancel(bill), `ยกเลิกบิล ${bill.title}`));
-      item.append(actions);
+      if (needsShareLink(bill)) actions.append(button('bill-share-link', 'ส่งลิงก์บิล', () => shareBill(bill), `ส่งลิงก์บิล ${bill.title}`));
+      detail.append(actions);
     }
     return item;
   }
 
+  function renderSection(bills, { list, empty, done, doneCount, doneList, limit, isFinished, renderOne, noneText, allDoneText }) {
+    const active = bills.filter((bill) => !isFinished(bill));
+    const finished = bills.filter(isFinished);
+    list.replaceChildren(...active.map(renderOne));
+    doneList.replaceChildren(...finished.map(renderOne));
+    doneCount.textContent = String(finished.length);
+    done.hidden = finished.length === 0;
+    empty.textContent = bills.length === 0 ? noneText : allDoneText;
+    empty.hidden = active.length > 0;
+    limit.textContent = `แสดง ${BILL_LIST_LIMIT} บิลล่าสุด`;
+    limit.hidden = bills.length < BILL_LIST_LIMIT;
+  }
+
+  function applyView() {
+    els.incomingSection.hidden = view !== 'incoming';
+    els.ownedSection.hidden = view !== 'owned';
+    els.showIncoming.setAttribute('aria-pressed', String(view === 'incoming'));
+    els.showOwned.setAttribute('aria-pressed', String(view === 'owned'));
+  }
+
+  function setView(next) {
+    view = next;
+    applyView();
+  }
+
+  function renderAwaiting() {
+    const count = countAwaitingAnswer(data.incoming);
+    els.awaiting.textContent = String(count);
+    els.awaiting.hidden = count === 0;
+    // ป้ายตัวเลขอย่างเดียวไม่บอกความหมายกับ screen reader
+    if (count > 0) els.showIncoming.setAttribute('aria-label', `เพื่อนส่งมา รอคุณตอบ ${count} บิล`);
+    else els.showIncoming.removeAttribute('aria-label');
+  }
+
   function render() {
-    els.incoming.replaceChildren(...data.incoming.map(renderIncoming));
-    els.owned.replaceChildren(...data.owned.map(renderOwned));
-    els.incomingEmpty.hidden = data.incoming.length > 0;
-    els.ownedEmpty.hidden = data.owned.length > 0;
+    renderSection(data.incoming, {
+      list: els.incoming,
+      empty: els.incomingEmpty,
+      done: els.incomingDone,
+      doneCount: els.incomingDoneCount,
+      doneList: els.incomingDoneList,
+      limit: els.incomingLimit,
+      isFinished: isIncomingBillFinished,
+      renderOne: renderIncoming,
+      noneText: 'ยังไม่มีบิลที่เพื่อนส่งมา',
+      allDoneText: 'ไม่มีบิลที่ต้องตอบหรือต้องคืน',
+    });
+    renderSection(data.owned, {
+      list: els.owned,
+      empty: els.ownedEmpty,
+      done: els.ownedDone,
+      doneCount: els.ownedDoneCount,
+      doneList: els.ownedDoneList,
+      limit: els.ownedLimit,
+      isFinished: isOwnedBillFinished,
+      renderOne: renderOwned,
+      noneText: 'ยังไม่มีบิลที่คุณสร้าง',
+      allDoneText: 'ไม่มีบิลที่เพื่อนยังค้าง',
+    });
+    renderAwaiting();
+    if (!view) view = pickInitialBillsView(data);
+    applyView();
     loadingIndicator.set(false);
     els.error.hidden = true;
     els.body.hidden = false;
@@ -244,7 +366,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       const card = findCard(bill.id);
       const row = card && [...card.querySelectorAll('.bill-member')].find((node) => node.dataset.userId === member.userId);
       const nextBox = row && row.querySelector('.bill-member-paid input');
-      if (nextBox) nextBox.focus();
+      // คืนครบแล้วบิลย้ายไปส่วนที่พับไว้ focusTarget จะไปที่หัวของส่วนนั้นแทน
+      focusTarget(nextBox);
     } catch (err) {
       box.checked = member.paid;
       box.disabled = false;
@@ -335,6 +458,11 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       setStatus('ไม่พบบิลนี้ในรายการ อาจเป็นบิลเก่าหรือไม่ได้ส่งถึงคุณ');
       return;
     }
+    // บิลจากลิงก์ต้องเห็นได้ทันที จึงสลับหน้า กางส่วนที่จบแล้ว และกางการ์ด
+    setView(els.ownedSection.contains(card) ? 'owned' : 'incoming');
+    const folded = card.closest('details');
+    if (folded) folded.open = true;
+    setExpanded(id, true);
     if (typeof card.scrollIntoView === 'function') card.scrollIntoView({ block: 'center' });
     focusCard(card);
   }
@@ -364,6 +492,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     dialogAction = null;
   });
   els.retry.addEventListener('click', () => load());
+  els.showIncoming.addEventListener('click', () => setView('incoming'));
+  els.showOwned.addEventListener('click', () => setView('owned'));
 
   return { ensureLoaded, reload: load, focusBill, showStatus: setStatus };
 }

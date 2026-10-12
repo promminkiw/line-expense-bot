@@ -124,6 +124,16 @@ export function chartRows(summary, type) {
   });
 }
 
+// ความกว้างใช้สัดส่วนจริงไม่ปัด ทุกช่วงจึงรวมเต็มแถบพอดี สีวนกลับเมื่อหมวดมากกว่าจำนวนสี
+export function chartSegments(rows, colorCount) {
+  const sum = rows.reduce((acc, row) => acc + row.total, 0);
+  return rows.map((row, index) => ({
+    category: row.category,
+    width: (row.total / sum) * 100,
+    color: (index % colorCount) + 1,
+  }));
+}
+
 export function hasChartData(summary) {
   return summary.some((row) => row.total > 0);
 }
@@ -199,6 +209,7 @@ export function recurringRows(rules, categories) {
     const parts = [`${RECURRING_TYPE_LABELS[rule.type]} ${formatBaht(rule.amount)}`, describeRecurringDay(rule.dayOfMonth)];
     if (rule.note) parts.push(rule.note);
     if (!rule.active) parts.push('หยุดไว้');
+    const title = names.get(rule.categoryId) || 'ไม่ทราบหมวด';
     return {
       id: rule.id,
       categoryId: rule.categoryId,
@@ -206,8 +217,13 @@ export function recurringRows(rules, categories) {
       note: rule.note,
       dayOfMonth: rule.dayOfMonth,
       active: rule.active,
-      title: names.get(rule.categoryId) || 'ไม่ทราบหมวด',
+      title,
       text: parts.join(' · '),
+      type: rule.type,
+      // แถวแบบปฏิทินใช้โน้ตเป็นชื่อหลัก ถ้าไม่มีโน้ตใช้ชื่อหมวดและเว้นบรรทัดรองไว้ไม่ให้ซ้ำ
+      name: rule.note || title,
+      subtitle: rule.note ? title : '',
+      amountText: formatSignedBaht(rule),
     };
   });
 }
@@ -299,6 +315,12 @@ function firstGrapheme(text) {
     for (const { segment } of graphemeSegmenter.segment(text)) return segment;
   }
   return Array.from(text)[0];
+}
+
+// รับเฉพาะ https เพราะค่ามาจาก token ฝั่ง client และจะใส่เป็น src ของรูป
+export function profilePictureUrl(decodedToken) {
+  const picture = decodedToken && decodedToken.picture;
+  return typeof picture === 'string' && picture.startsWith('https://') ? picture : null;
 }
 
 export function profileView(profile) {
