@@ -12,7 +12,7 @@ services:
     autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION
-        value: "22"
+        value: "24"
       - key: CLAUDE_MODEL
         value: claude-haiku-5-5
       - key: LINE_CHANNEL_SECRET
