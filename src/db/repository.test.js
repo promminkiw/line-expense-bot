@@ -1494,6 +1494,22 @@ describe('repository bills', () => {
     ]);
   });
 
+  // transaction_id เป็น null เมื่อยังไม่ยืนยัน หรือผู้ใช้ลบรายจ่ายไปแล้ว (on delete set null)
+  it('says whether the expense of a confirmed share is still recorded', async () => {
+    const row = (transactionId) => ({
+      share: '150.00',
+      status: 'confirmed',
+      paid: false,
+      transaction_id: transactionId,
+      bills: { id: BILL, title: 'ชาบู', total: '300.00', occurred_on: '2026-10-08', status: 'cancelled', categories: null, owner: null },
+    });
+    const { supabase } = fakeSupabase({ data: [row('tx-1'), row(null)], error: null });
+
+    const bills = await createRepository(supabase).listIncomingBills('user-2');
+
+    expect(bills.map((bill) => bill.expenseRecorded)).toEqual([true, false]);
+  });
+
   it('lists the bills shared with a user newest first', async () => {
     const { supabase, calls } = fakeSupabase({
       data: [
@@ -1501,6 +1517,7 @@ describe('repository bills', () => {
           share: '150.00',
           status: 'pending',
           paid: false,
+          transaction_id: null,
           bills: {
             id: BILL,
             title: 'เนื้อย่าง',
@@ -1527,11 +1544,12 @@ describe('repository bills', () => {
         myShare: 150,
         myStatus: 'pending',
         paid: false,
+        expenseRecorded: false,
       },
     ]);
     expect(calls).toEqual([
       ['from', 'bill_members'],
-      ['select', 'share, status, paid, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))'],
+      ['select', 'share, status, paid, transaction_id, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))'],
       ['eq', 'user_id', 'user-2'],
       ['order', 'created_at', { ascending: false }],
       ['limit', 50],

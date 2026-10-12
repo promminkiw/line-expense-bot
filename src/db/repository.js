@@ -74,6 +74,8 @@ function toIncomingBill(row) {
     myShare: Number(row.share),
     myStatus: row.status,
     paid: row.paid,
+    // null เมื่อยังไม่ยืนยัน หรือผู้ใช้ลบรายจ่ายนั้นไปแล้ว
+    expenseRecorded: row.transaction_id !== null && row.transaction_id !== undefined,
   };
 }
 
@@ -402,7 +404,7 @@ function createRepository(supabase) {
   async function listIncomingBills(userId) {
     const { data, error } = await supabase
       .from('bill_members')
-      .select('share, status, paid, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))')
+      .select('share, status, paid, transaction_id, bills(id, title, total, occurred_on, status, categories(name), owner:users!bills_owner_id_fkey(display_name))')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(BILL_LIST_LIMIT);

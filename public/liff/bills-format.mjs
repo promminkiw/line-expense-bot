@@ -52,7 +52,13 @@ export function isOwnedBillFinished(bill) {
   return bill.status === 'cancelled' || outstandingAmount(bill) === 0;
 }
 
+// บิลถูกยกเลิกหลังยืนยัน รายจ่ายไม่ถูกลบตาม ผู้ใช้ต้องลบเอง ไม่มีค่าก็ถือว่ายังอยู่เพื่อไม่ให้ข้อความเตือนหาย
+export function needsExpenseCleanup(bill) {
+  return bill.status === 'cancelled' && bill.myStatus === 'confirmed' && bill.expenseRecorded !== false;
+}
+
 export function isIncomingBillFinished(bill) {
+  if (needsExpenseCleanup(bill)) return false;
   return bill.status === 'cancelled' || bill.myStatus === 'declined' || (bill.myStatus === 'confirmed' && bill.paid);
 }
 
