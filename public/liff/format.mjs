@@ -317,6 +317,12 @@ function firstGrapheme(text) {
   return Array.from(text)[0];
 }
 
+// รับเฉพาะ https เพราะค่ามาจาก token ฝั่ง client และจะใส่เป็น src ของรูป
+export function profilePictureUrl(decodedToken) {
+  const picture = decodedToken && decodedToken.picture;
+  return typeof picture === 'string' && picture.startsWith('https://') ? picture : null;
+}
+
 export function profileView(profile) {
   const name = (profile.displayName || '').trim() || 'ผู้ใช้';
   return {

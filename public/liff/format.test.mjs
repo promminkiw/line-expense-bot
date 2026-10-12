@@ -31,6 +31,7 @@ import {
   trendBars,
   describeExpenseComparison,
   profileView,
+  profilePictureUrl,
 } from './format.mjs';
 
 describe('formatBaht', () => {
@@ -568,6 +569,22 @@ describe('describeExpenseComparison', () => {
     expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
+  });
+});
+
+describe('profilePictureUrl', () => {
+  it('takes the LINE picture from the decoded ID token', () => {
+    expect(profilePictureUrl({ picture: 'https://profile.line-scdn.net/abc' })).toBe('https://profile.line-scdn.net/abc');
+  });
+
+  // token ไม่มีรูปเมื่อ LIFF app ไม่ได้ขอ scope profile หรือผู้ใช้ไม่มีรูป
+  it('gives null when there is no usable picture', () => {
+    expect(profilePictureUrl(null)).toBeNull();
+    expect(profilePictureUrl({})).toBeNull();
+    expect(profilePictureUrl({ picture: '' })).toBeNull();
+    expect(profilePictureUrl({ picture: 42 })).toBeNull();
+    expect(profilePictureUrl({ picture: 'http://profile.line-scdn.net/abc' })).toBeNull();
+    expect(profilePictureUrl({ picture: 'javascript:alert(1)' })).toBeNull();
   });
 });
 

@@ -113,7 +113,7 @@ function makeFetch(overrides) {
 }
 
 // returns the fake liff; liff.fetched lists requested paths and liff.loadingSnapshot is the DOM state when transactions were requested
-async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '', holdInit = false } = {}) {
+async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '', holdInit = false, decodedToken } = {}) {
   vi.resetModules();
   window.history.replaceState(null, '', `/liff/${search}`);
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -129,6 +129,8 @@ async function boot({ inClient = true, loggedIn = true, overrides = {}, search =
     isLoggedIn: () => loggedIn,
     login: vi.fn(),
     getIDToken: () => 'token',
+    // ไม่ส่ง decodedToken = SDK ที่ไม่มี function นี้
+    ...(decodedToken === undefined ? {} : { getDecodedIDToken: () => decodedToken }),
     isInClient: () => inClient,
     closeWindow: vi.fn(),
     openWindow: vi.fn(),
@@ -1849,6 +1851,48 @@ describe('LIFF friends section guards and failure paths', () => {
     await settle();
 
     expect(byId('friend-qr').innerHTML).not.toBe(before);
+  });
+});
+
+describe('LIFF profile picture', () => {
+  const PICTURE = 'https://profile.line-scdn.net/abc';
+
+  async function openProfile(options) {
+    await boot(options);
+    await settle();
+    document.querySelector('#bottom-nav button[data-tab="profile"]').click();
+    await settle();
+  }
+
+  it('shows the LINE picture over the initial', async () => {
+    await openProfile({ decodedToken: { sub: 'U1', picture: PICTURE } });
+
+    const img = byId('profile-avatar').querySelector('img');
+    expect(img.getAttribute('src')).toBe(PICTURE);
+    // ชื่ออยู่ข้างรูปแล้ว รูปจึงเป็นแค่ภาพประกอบ
+    expect(img.getAttribute('alt')).toBe('');
+    expect(byId('profile-avatar').textContent).toBe('ส');
+  });
+
+  it('falls back to the initial when the picture fails to load', async () => {
+    await openProfile({ decodedToken: { picture: PICTURE } });
+
+    byId('profile-avatar').querySelector('img').dispatchEvent(new Event('error'));
+
+    expect(byId('profile-avatar').querySelector('img')).toBeNull();
+    expect(byId('profile-avatar').textContent).toBe('ส');
+  });
+
+  it('keeps the initial when the token has no picture or the SDK cannot decode it', async () => {
+    await openProfile({ decodedToken: { sub: 'U1' } });
+    expect(byId('profile-avatar').querySelector('img')).toBeNull();
+
+    await openProfile({ decodedToken: null });
+    expect(byId('profile-avatar').querySelector('img')).toBeNull();
+
+    await openProfile();
+    expect(byId('profile-avatar').querySelector('img')).toBeNull();
+    expect(byId('profile-avatar').textContent).toBe('ส');
   });
 });
 

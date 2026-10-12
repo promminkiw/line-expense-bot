@@ -17,6 +17,7 @@ import {
   budgetRows,
   createLatestGuard,
   profileView,
+  profilePictureUrl,
   formatMonthLabel,
   describeBudgetFailure,
   recurringRows,
@@ -808,6 +809,26 @@ async function loadTrend({ animate = false } = {}) {
   }
 }
 
+// รูปมีใน ID token เมื่อ LIFF app ขอ scope profile ไม่มีหรือโหลดไม่ได้ก็ใช้อักษรแรกของชื่อ
+function renderAvatar(initial) {
+  els.profileAvatar.textContent = initial;
+  let decoded = null;
+  try {
+    decoded = typeof liff.getDecodedIDToken === 'function' ? liff.getDecodedIDToken() : null;
+  } catch {
+    decoded = null;
+  }
+  const url = profilePictureUrl(decoded);
+  if (!url) return;
+  const img = document.createElement('img');
+  img.className = 'profile-avatar-img';
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  img.addEventListener('error', () => img.remove());
+  img.src = url;
+  els.profileAvatar.append(img);
+}
+
 function renderProfile(profile) {
   const view = profileView(profile);
   profileRendered = true;
@@ -816,7 +837,7 @@ function renderProfile(profile) {
   els.profileStaleNotice.hidden = true;
   profileLoading.set(false);
   els.profileError.hidden = true;
-  els.profileAvatar.textContent = view.initial;
+  renderAvatar(view.initial);
   els.profileName.textContent = view.name;
   els.profileSince.textContent = view.sinceText;
   showAmount(els.profileBalance, view.balance);
