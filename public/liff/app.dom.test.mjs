@@ -693,6 +693,45 @@ describe('LIFF page for an empty month', () => {
     expect(byId('filters').hidden).toBe(false);
     expect(document.querySelectorAll('#list .row')).toHaveLength(3);
   });
+
+  // กั้นการโหลดรายการของเดือนถัดไปไว้ เพื่อดู skeleton ระหว่างรอ
+  function holdTransactions() {
+    const fallback = makeFetch({});
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    vi.stubGlobal('fetch', async (url, ...rest) => {
+      if (new URL(url, 'http://localhost').pathname === '/api/transactions') await gate;
+      return fallback(url, ...rest);
+    });
+    return release;
+  }
+
+  // การ์ดสรุปสูงตามจำนวนหมวด skeleton ที่สูงเท่าการ์ดเดือนก่อนจึงใกล้ของจริงกว่าค่าคงที่
+  it('sizes the summary skeleton like the last drawn chart while the next month loads', async () => {
+    await boot();
+    byId('chart').getBoundingClientRect = () => ({ height: 397 });
+    const release = holdTransactions();
+
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+
+    expect(byId('summary-skeleton').hidden).toBe(false);
+    expect(byId('summary-skeleton').querySelector('.skeleton').style.height).toBe('397px');
+    release();
+    await settle();
+  });
+
+  it('keeps the default summary skeleton height when no chart was drawn yet', async () => {
+    await boot({ overrides: { '/api/transactions': EMPTY_MONTH } });
+    const release = holdTransactions();
+
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+
+    expect(byId('summary-skeleton').querySelector('.skeleton').style.height).toBe('');
+    release();
+    await settle();
+  });
 });
 
 describe('LIFF page when loading fails', () => {

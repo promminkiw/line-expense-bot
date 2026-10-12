@@ -916,6 +916,9 @@ async function loadMonth({ reset = false } = {}) {
     els.filters.hidden = true;
     lastTransactions = [];
     lastTruncated = false;
+    // การ์ดสูงตามจำนวนหมวด จึงให้ skeleton สูงเท่าการ์ดที่เห็นล่าสุด วัดได้ 0 (แท็บซ่อนอยู่) ก็คงค่าเดิมไว้
+    const chartHeight = els.chart.hidden ? 0 : els.chart.getBoundingClientRect().height;
+    if (chartHeight > 0) els.summarySkeleton.querySelector('.skeleton').style.height = `${Math.round(chartHeight)}px`;
     els.chart.hidden = true;
     els.summaryEmpty.hidden = true;
     els.summarySkeleton.hidden = false;
