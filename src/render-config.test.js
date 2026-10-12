@@ -32,10 +32,13 @@ describe('render.yaml', () => {
     expect(yaml).toMatch(/^\s*healthCheckPath: \/health$/m);
   });
 
-  it('pins Node 22 like CI does', () => {
+  // Node 22 หมดการดูแลราวเมษายน 2027 จึงย้ายไป 24 ทั้ง Render และ CI ให้ตรงกัน
+  it('pins Node 24 on Render, the same version CI tests with', () => {
     const node = envBlocks.find((block) => block.name === 'NODE_VERSION');
+    const ci = readFileSync(new URL('.github/workflows/ci.yml', root), 'utf8');
 
-    expect(node.body).toMatch(/value: "22"/);
+    expect(node.body).toMatch(/value: "24"/);
+    expect(ci).toMatch(/^\s*node-version: 24$/m);
   });
 
   it('declares every required variable and asks for its value at creation (sync: false)', () => {

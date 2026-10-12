@@ -9,7 +9,7 @@ const REQUIRED_KEYS = [
   'CRON_SECRET',
 ];
 const MIN_CRON_SECRET_LENGTH = 32;
-const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
+const DEFAULT_CLAUDE_MODEL = 'claude-haiku-5-5';
 
 function loadConfig(env) {
   const missing = REQUIRED_KEYS.filter((key) => !env[key]);

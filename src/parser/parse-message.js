@@ -1,5 +1,6 @@
 const { TEXT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
+const { withLowEffort } = require('../utils/claude-effort');
 
 const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
 const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)';
@@ -123,10 +124,11 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 1024,
+        // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
+        max_tokens: 2048,
         system: buildSystemPrompt(today),
         messages,
-        output_config: { format: { type: 'json_schema', schema: PARSE_SCHEMA } },
+        output_config: withLowEffort(model, { format: { type: 'json_schema', schema: PARSE_SCHEMA } }),
       },
       {
         timeout: REQUEST_TIMEOUT_MS,

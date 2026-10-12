@@ -51,7 +51,7 @@ flowchart LR
 
 ## Tech stack
 
-- Node.js 22, Express 5
+- Node.js 24, Express 5
 - LINE Messaging API, LIFF, `@line/bot-sdk`
 - Claude API (`@anthropic-ai/sdk`) สำหรับแยกข้อความและอ่านสลิป
 - `sharp` สำหรับปรับรูปสลิปก่อนส่ง Claude

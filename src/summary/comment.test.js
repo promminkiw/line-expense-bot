@@ -29,6 +29,17 @@ describe('createSummaryCommenter', () => {
     expect(params.messages[0].content).toContain('รายจ่าย: 1,250.5 บาท');
     expect(params.messages[0].content).toContain('- อาหาร: 1,250.5 บาท');
     expect(options).toEqual({ timeout: 15000, maxRetries: 1, signal: expect.any(AbortSignal) });
+    // คอมเมนต์สั้นแต่การคิดนับรวมใน max_tokens ตั้ง 200 แบบเดิมจะถูกตัดก่อนได้ข้อความ
+    expect(params.output_config).toEqual({ effort: 'low' });
+    expect(params.max_tokens).toBe(1024);
+  });
+
+  it('sends no output config to Haiku 4.5, which rejects effort', async () => {
+    const client = fakeClient([{ type: 'text', text: 'ok' }]);
+
+    await createSummaryCommenter({ client, model: 'claude-haiku-4-5' })(SUMMARY);
+
+    expect(client.messages.create.mock.calls[0][0]).not.toHaveProperty('output_config');
   });
 
   it('returns the trimmed comment text', async () => {
