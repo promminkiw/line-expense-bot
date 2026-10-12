@@ -26,6 +26,7 @@
     <symbol id="tab-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M20 6H8a4 4 0 0 0-4 4v1"/><path d="M7 21l-3-3 3-3"/><path d="M4 18h12a4 4 0 0 0 4-4v-1"/></symbol>
     <symbol id="tab-bill" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M12 7v8M9.5 9.5c0-1 1-1.5 2.5-1.5s2.5.6 2.5 1.6-1 1.4-2.5 1.4-2.5.5-2.5 1.5 1 1.5 2.5 1.5 2.5-.5 2.5-1.5"/></symbol>
     <symbol id="icon-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
     <symbol id="tab-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></symbol>
     <symbol id="empty-list" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="4"/><path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M22 26h20M22 34h20M22 42h12"/></symbol>
     <symbol id="empty-search" viewBox="0 0 64 64"><circle cx="28" cy="28" r="14"/><path d="M38 38l14 14"/></symbol>
@@ -152,15 +153,29 @@
         <button type="button" id="bills-retry">ลองใหม่</button>
       </div>
       <div id="bills-body" hidden>
-        <section class="bills-section" aria-labelledby="bills-incoming-title">
+        <div class="bills-switch" role="group" aria-label="เลือกบิลที่จะดู">
+          <button type="button" id="bills-show-incoming" aria-pressed="false" aria-controls="bills-incoming-section">เพื่อนส่งมา<span id="bills-awaiting" class="bills-awaiting" hidden></span></button>
+          <button type="button" id="bills-show-owned" aria-pressed="true" aria-controls="bills-owned-section">ฉันสร้าง</button>
+        </div>
+        <section id="bills-incoming-section" class="bills-section" aria-labelledby="bills-incoming-title" hidden>
           <h2 id="bills-incoming-title">บิลที่เพื่อนส่งมา</h2>
           <ul id="bills-incoming" class="bill-list"></ul>
-          <p id="bills-incoming-empty" class="bills-empty" hidden>ยังไม่มีบิลที่เพื่อนส่งมา</p>
+          <p id="bills-incoming-empty" class="bills-empty" hidden></p>
+          <details id="bills-incoming-done" class="bills-done" hidden>
+            <summary><span>บิลที่จบแล้ว</span><span id="bills-incoming-done-count" class="bills-done-count"></span><svg class="icon bill-chevron" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg></summary>
+            <ul id="bills-incoming-done-list" class="bill-list"></ul>
+          </details>
+          <p id="bills-incoming-limit" class="bills-limit" hidden></p>
         </section>
-        <section class="bills-section" aria-labelledby="bills-owned-title">
+        <section id="bills-owned-section" class="bills-section" aria-labelledby="bills-owned-title">
           <h2 id="bills-owned-title">บิลที่ฉันสร้าง</h2>
           <ul id="bills-owned" class="bill-list"></ul>
-          <p id="bills-owned-empty" class="bills-empty" hidden>ยังไม่มีบิลที่คุณสร้าง</p>
+          <p id="bills-owned-empty" class="bills-empty" hidden></p>
+          <details id="bills-owned-done" class="bills-done" hidden>
+            <summary><span>บิลที่จบแล้ว</span><span id="bills-owned-done-count" class="bills-done-count"></span><svg class="icon bill-chevron" aria-hidden="true" focusable="false"><use href="#icon-chevron"></use></svg></summary>
+            <ul id="bills-owned-done-list" class="bill-list"></ul>
+          </details>
+          <p id="bills-owned-limit" class="bills-limit" hidden></p>
         </section>
       </div>
     </div>

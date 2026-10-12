@@ -10,6 +10,16 @@ import {
   describeBillAnswer,
   buildBillUrl,
   describeReceiptError,
+  BILL_LIST_LIMIT,
+  isOwnedBillFinished,
+  isIncomingBillFinished,
+  paidProgress,
+  ownedBillSummary,
+  incomingBillState,
+  countAwaitingAnswer,
+  pickInitialBillsView,
+  calendarParts,
+  needsShareLink,
 } from './bills-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../src/bills/validate.js';
@@ -101,5 +111,75 @@ describe('describeReceiptError', () => {
     expect(describeReceiptError(401)).toBe(LOGIN_REQUIRED_MESSAGE);
     expect(describeReceiptError(500)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
     expect(describeReceiptError(0)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
+  });
+});
+
+describe('bill list helpers', () => {
+  const member = (over) => ({ userId: 'f', displayName: 'บี', share: 100, status: 'confirmed', paid: false, notified: true, ...over });
+  const owned = (over) => ({ status: 'open', members: [member()], ...over });
+  const incoming = (over) => ({ status: 'open', myStatus: 'pending', paid: false, ...over });
+
+  it('matches the list limit of the server', async () => {
+    const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../../src/db/repository.js', import.meta.url), 'utf8'));
+    expect(source).toContain(`const BILL_LIST_LIMIT = ${BILL_LIST_LIMIT};`);
+  });
+
+  it('treats an owned bill as finished once cancelled or nobody owes anything', () => {
+    expect(isOwnedBillFinished(owned())).toBe(false);
+    expect(isOwnedBillFinished(owned({ status: 'cancelled', members: [member({ status: 'pending' })] }))).toBe(true);
+    expect(isOwnedBillFinished(owned({ members: [member({ paid: true }), member({ status: 'declined' })] }))).toBe(true);
+    // ผู้ใช้กำหนดให้บิลที่ยกเลิกถือว่าจบ แม้เพื่อนที่ยืนยันแล้วยังไม่คืน
+    expect(isOwnedBillFinished(owned({ status: 'cancelled' }))).toBe(true);
+  });
+
+  it('treats an incoming bill as finished once cancelled, declined or paid back', () => {
+    expect(isIncomingBillFinished(incoming())).toBe(false);
+    expect(isIncomingBillFinished(incoming({ myStatus: 'confirmed' }))).toBe(false);
+    expect(isIncomingBillFinished(incoming({ myStatus: 'confirmed', paid: true }))).toBe(true);
+    expect(isIncomingBillFinished(incoming({ myStatus: 'declined' }))).toBe(true);
+    expect(isIncomingBillFinished(incoming({ status: 'cancelled' }))).toBe(true);
+  });
+
+  it('counts paid back friends among those who have to pay', () => {
+    const bill = owned({ members: [member({ paid: true }), member(), member({ status: 'declined' }), member({ status: 'pending' })] });
+    expect(paidProgress(bill)).toEqual({ paid: 1, count: 3 });
+    expect(paidProgress({ ...bill, status: 'cancelled' })).toEqual({ paid: 1, count: 2 });
+  });
+
+  it('sums up an owned bill in one line', () => {
+    expect(ownedBillSummary(owned({ members: [member({ paid: true }), member()] }))).toBe('ค้างรับ · คืนแล้ว 1/2 คน');
+    expect(ownedBillSummary(owned({ status: 'cancelled' }))).toBe('ยกเลิกแล้ว');
+    expect(ownedBillSummary(owned({ members: [member({ paid: true })] }))).toBe('คืนครบแล้ว');
+    expect(ownedBillSummary(owned({ members: [member({ status: 'declined' })] }))).toBe('เพื่อนปฏิเสธทั้งหมด');
+  });
+
+  it('names the state of an incoming bill', () => {
+    expect(incomingBillState(incoming())).toBe('รอคุณตอบ');
+    expect(incomingBillState(incoming({ myStatus: 'confirmed' }))).toBe('ยังไม่คืน');
+    expect(incomingBillState(incoming({ myStatus: 'confirmed', paid: true }))).toBe('คืนแล้ว');
+    expect(incomingBillState(incoming({ myStatus: 'declined' }))).toBe('ปฏิเสธแล้ว');
+    expect(incomingBillState(incoming({ status: 'cancelled', myStatus: 'confirmed' }))).toBe('ยกเลิกแล้ว');
+  });
+
+  it('counts only open bills still waiting for an answer', () => {
+    expect(countAwaitingAnswer([incoming(), incoming({ status: 'cancelled' }), incoming({ myStatus: 'confirmed' })])).toBe(1);
+  });
+
+  it('opens the friends page first only when a bill waits for an answer', () => {
+    expect(pickInitialBillsView({ incoming: [incoming()], owned: [owned()] })).toBe('incoming');
+    expect(pickInitialBillsView({ incoming: [incoming({ myStatus: 'confirmed' })], owned: [owned()] })).toBe('owned');
+    // ไม่เคยสร้างบิลเลย เปิดหน้าว่างไม่มีประโยชน์
+    expect(pickInitialBillsView({ incoming: [incoming({ myStatus: 'confirmed' })], owned: [] })).toBe('incoming');
+    expect(pickInitialBillsView({ incoming: [], owned: [] })).toBe('owned');
+  });
+
+  it('splits a date into the month and day of the calendar box', () => {
+    expect(calendarParts('2026-10-08')).toEqual({ month: 'ต.ค.', day: '8' });
+  });
+
+  it('offers the bill link only on an open bill with a friend the push missed', () => {
+    expect(needsShareLink(owned({ members: [member({ status: 'pending', notified: false })] }))).toBe(true);
+    expect(needsShareLink(owned({ members: [member({ status: 'confirmed', notified: false })] }))).toBe(false);
+    expect(needsShareLink(owned({ status: 'cancelled', members: [member({ status: 'pending', notified: false })] }))).toBe(false);
   });
 });

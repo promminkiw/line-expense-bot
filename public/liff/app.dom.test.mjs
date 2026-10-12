@@ -1864,6 +1864,8 @@ describe('LIFF bills tab', () => {
 
   const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
   const ownedCard = () => document.querySelector('#bills-owned .bill-card');
+  // บิลที่จบแล้วย้ายไปอยู่ในส่วนที่พับไว้ จึงหาด้วย id ทั้งหน้า
+  const cardOf = (id) => document.querySelector(`#panel-bills .bill-card[data-id="${id}"]`);
 
   const withBills = (bills) => (method, path) => (path === '/api/bills' && method === 'GET' ? bills : undefined);
   const BASE = RESPONSES['/api/bills'];
@@ -1876,7 +1878,151 @@ describe('LIFF bills tab', () => {
     expect(ownedCard().querySelector('.bill-cancel').getAttribute('aria-label')).toBe('ยกเลิกบิล เนื้อย่าง');
     const paidBoxes = [...ownedCard().querySelectorAll('.bill-member-paid input')];
     expect(paidBoxes.map((box) => box.getAttribute('aria-label'))).toEqual(['บี คืนแล้ว', 'ซี คืนแล้ว']);
-    expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง ให้ ซี');
+    expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง');
+  });
+
+  it('puts decline on the left of confirm', async () => {
+    await openBills();
+
+    const actions = [...incomingCard().querySelectorAll('.bill-actions button')];
+    expect(actions.map((node) => node.className)).toEqual(['bill-decline', 'bill-confirm']);
+  });
+
+  it('opens the friends page first when a bill waits for an answer', async () => {
+    await openBills();
+
+    expect(byId('bills-show-incoming').getAttribute('aria-pressed')).toBe('true');
+    expect(byId('bills-show-owned').getAttribute('aria-pressed')).toBe('false');
+    expect(byId('bills-incoming-section').hidden).toBe(false);
+    expect(byId('bills-owned-section').hidden).toBe(true);
+    expect(byId('bills-awaiting').textContent).toBe('1');
+    expect(byId('bills-show-incoming').getAttribute('aria-label')).toBe('เพื่อนส่งมา รอคุณตอบ 1 บิล');
+  });
+
+  it('opens my bills first when nothing waits for an answer, and switches between the two pages', async () => {
+    const incoming = [{ ...BASE.incoming[0], myStatus: 'confirmed' }];
+    await openBills({ route: withBills({ owned: BASE.owned, incoming }) });
+
+    expect(byId('bills-owned-section').hidden).toBe(false);
+    expect(byId('bills-incoming-section').hidden).toBe(true);
+    expect(byId('bills-awaiting').hidden).toBe(true);
+    expect(byId('bills-show-incoming').hasAttribute('aria-label')).toBe(false);
+    byId('bills-show-incoming').click();
+    expect(byId('bills-incoming-section').hidden).toBe(false);
+    expect(byId('bills-owned-section').hidden).toBe(true);
+    expect(byId('bills-show-incoming').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps the chosen page when the list reloads', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined) });
+
+    incomingCard().querySelector('.bill-confirm').click();
+    byId('bills-show-owned').click();
+    await settle();
+
+    expect(byId('bills-owned-section').hidden).toBe(false);
+  });
+
+  it('shows a short card that opens to the members when tapped', async () => {
+    await openBills();
+    const row = ownedCard().querySelector('.bill-row');
+    const detail = ownedCard().querySelector('.bill-detail');
+
+    expect(row.getAttribute('aria-expanded')).toBe('false');
+    expect(row.getAttribute('aria-controls')).toBe(detail.id);
+    expect(detail.hidden).toBe(true);
+    row.click();
+    expect(ownedCard().querySelector('.bill-row').getAttribute('aria-expanded')).toBe('true');
+    expect(ownedCard().querySelector('.bill-detail').hidden).toBe(false);
+    ownedCard().querySelector('.bill-row').click();
+    expect(ownedCard().querySelector('.bill-detail').hidden).toBe(true);
+  });
+
+  it('keeps an opened card open and focused after ticking paid', async () => {
+    await openBills({ route: (method, path) => (path === '/api/bills/b-own/members/f-1/paid' ? { paid: true } : undefined) });
+    ownedCard().querySelector('.bill-row').click();
+
+    const box = ownedCard().querySelector('.bill-member-paid input');
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(ownedCard().querySelector('.bill-detail').hidden).toBe(false);
+    expect(document.activeElement).toBe(ownedCard().querySelector('.bill-member-paid input'));
+  });
+
+  it('keeps answer buttons outside the folded part so they work without opening the card', async () => {
+    await openBills();
+
+    expect(incomingCard().querySelector('.bill-row .bill-confirm')).toBeNull();
+    expect(incomingCard().querySelector('.bill-detail .bill-confirm')).toBeNull();
+    expect(incomingCard().querySelector('.bill-confirm')).not.toBeNull();
+  });
+
+  it('moves finished bills into a folded section with a count', async () => {
+    const owned = [
+      BASE.owned[0],
+      { ...BASE.owned[0], id: 'b-done', title: 'ตั๋วหนัง', status: 'cancelled' },
+      { ...BASE.owned[0], id: 'b-paid', title: 'แท็กซี่', members: [{ ...BASE.owned[0].members[0], paid: true }] },
+    ];
+    await openBills({ route: withBills({ owned, incoming: [] }) });
+
+    expect([...document.querySelectorAll('#bills-owned .bill-card')].map((card) => card.dataset.id)).toEqual(['b-own']);
+    expect(byId('bills-owned-done').hidden).toBe(false);
+    expect(byId('bills-owned-done').open).toBe(false);
+    expect(byId('bills-owned-done-count').textContent).toBe('2');
+    const done = [...byId('bills-owned-done-list').querySelectorAll('.bill-card')];
+    expect(done.map((card) => card.querySelector('.bill-summary').textContent)).toEqual(['ยกเลิกแล้ว', 'คืนครบแล้ว']);
+    expect(cardOf('b-paid').querySelector('.bill-amount').textContent).toBe('900 บาท');
+    expect(byId('bills-incoming-done').hidden).toBe(true);
+  });
+
+  it('says there is nothing left to handle when every bill is finished', async () => {
+    const owned = [{ ...BASE.owned[0], status: 'cancelled' }];
+    await openBills({ route: withBills({ owned, incoming: [] }) });
+
+    expect(byId('bills-owned-empty').hidden).toBe(false);
+    expect(byId('bills-owned-empty').textContent).toBe('ไม่มีบิลที่เพื่อนยังค้าง');
+  });
+
+  it('notes when a list may be cut at the server limit', async () => {
+    const owned = Array.from({ length: 50 }, (_, i) => ({ ...BASE.owned[0], id: `b-${i}` }));
+    await openBills({ route: withBills({ owned, incoming: BASE.incoming }) });
+
+    expect(byId('bills-owned-limit').hidden).toBe(false);
+    expect(byId('bills-owned-limit').textContent).toBe('แสดง 50 บิลล่าสุด');
+    expect(byId('bills-incoming-limit').hidden).toBe(true);
+  });
+
+  it('opens a linked finished bill on its page, unfolds it and focuses the card', async () => {
+    const linkedId = '77777777-7777-7777-7777-777777777777';
+    const bills = { owned: [{ ...BASE.owned[0], id: linkedId, status: 'cancelled' }], incoming: BASE.incoming };
+    await boot({ search: `?bill=${linkedId}`, overrides: { '/api/bills': bills } });
+    await settle();
+
+    expect(byId('bills-owned-section').hidden).toBe(false);
+    expect(byId('bills-owned-done').open).toBe(true);
+    expect(cardOf(linkedId).querySelector('.bill-detail').hidden).toBe(false);
+    expect(document.activeElement).toBe(cardOf(linkedId));
+  });
+
+  it('focuses the folded section when an answered bill moves out of sight', async () => {
+    const declined = { ...BASE.incoming[0], myStatus: 'declined' };
+    let listCalls = 0;
+    await openBills({
+      route: (method, path) => {
+        if (path === '/api/bills/b-in/decline') return { status: 'declined' };
+        if (path !== '/api/bills') return undefined;
+        listCalls += 1;
+        return listCalls > 1 ? { owned: BASE.owned, incoming: [declined] } : undefined;
+      },
+    });
+
+    incomingCard().querySelector('.bill-decline').click();
+    byId('bill-dialog-ok').click();
+    await settle();
+
+    expect(document.activeElement).toBe(byId('bills-incoming-done').querySelector('summary'));
   });
 
   it('keeps focus on the bill after answering it, instead of losing it to the page', async () => {
@@ -1914,7 +2060,7 @@ describe('LIFF bills tab', () => {
     const owned = [{ ...BASE.owned[0], status: 'cancelled' }];
     await openBills({ route: withBills({ owned, incoming: [] }) });
 
-    const rows = [...ownedCard().querySelectorAll('.bill-member')];
+    const rows = [...cardOf('b-own').querySelectorAll('.bill-member')];
     expect(rows.map((row) => Boolean(row.querySelector('.bill-member-paid')))).toEqual([true, false]);
   });
 
@@ -1984,7 +2130,7 @@ describe('LIFF bills tab', () => {
     const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed' }];
     await openBills({ route: withBills({ owned: [], incoming }) });
 
-    expect(incomingCard().querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
+    expect(cardOf('b-in').querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
   });
 
   it('loads the bills when the tab opens and shows both lists', async () => {
@@ -1992,10 +2138,13 @@ describe('LIFF bills tab', () => {
 
     expect(byId('bills-incoming-title').textContent).toBe('บิลที่เพื่อนส่งมา');
     expect(incomingCard().querySelector('.bill-title').textContent).toBe('ชาบู');
-    expect(incomingCard().querySelector('.bill-meta').textContent).toBe('ดี · 07/10');
-    expect(incomingCard().querySelector('.bill-share').textContent).toBe('ส่วนของคุณ 200 บาท');
+    expect(incomingCard().querySelector('.bill-summary').textContent).toBe('ดี · รอคุณตอบ');
+    expect(incomingCard().querySelector('.bill-amount').textContent).toBe('200 บาท');
+    expect(incomingCard().querySelector('.bill-cal').textContent).toBe('ต.ค.7');
     expect(ownedCard().querySelector('.bill-title').textContent).toBe('เนื้อย่าง');
-    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 600 บาท');
+    expect(ownedCard().querySelector('.bill-summary').textContent).toBe('ค้างรับ · คืนแล้ว 0/2 คน');
+    expect(ownedCard().querySelector('.bill-amount').textContent).toBe('600 บาท');
+    expect(ownedCard().querySelector('.bill-meta').textContent).toBe('อาหาร · รวม 900 บาท');
     const members = [...ownedCard().querySelectorAll('.bill-member')];
     expect(members.map((row) => row.querySelector('.bill-member-name').textContent)).toEqual(['บี', 'ซี']);
     expect(members.map((row) => row.querySelector('.bill-member-status').textContent)).toEqual(['ยืนยันแล้ว', 'รอตอบ']);
@@ -2063,7 +2212,8 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(calls).toContain('POST /api/bills/b-own/members/f-1/paid');
-    expect(ownedCard().querySelector('.bill-outstanding').textContent).toBe('ค้างรับ 300 บาท');
+    expect(ownedCard().querySelector('.bill-amount').textContent).toBe('300 บาท');
+    expect(ownedCard().querySelector('.bill-summary').textContent).toBe('ค้างรับ · คืนแล้ว 1/2 คน');
   });
 
   it('puts the checkbox back when marking paid fails', async () => {
@@ -2118,7 +2268,10 @@ describe('LIFF bills tab', () => {
 
     const unreached = [...ownedCard().querySelectorAll('.bill-member')][1];
     expect(unreached.querySelector('.bill-member-note').textContent).toBe('แจ้งเตือนไม่ถึง ส่งลิงก์บิลให้เพื่อนแทน');
-    unreached.querySelector('.bill-share-link').click();
+    // ปุ่มเดียวต่อบิล อยู่แถวเดียวกับยกเลิกบิล ยกเลิกอยู่ซ้าย
+    const actions = [...ownedCard().querySelectorAll('.bill-actions button')];
+    expect(actions.map((node) => node.className)).toEqual(['bill-cancel', 'bill-share-link']);
+    actions[1].click();
     await settle();
 
     expect(writeText).toHaveBeenCalledWith('https://liff.line.me/liff-1?bill=b-own');
@@ -2136,8 +2289,8 @@ describe('LIFF bills tab', () => {
           : undefined,
     });
 
-    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยกเลิกแล้ว');
-    expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
+    expect(cardOf('b-in').querySelector('.bill-summary').textContent).toBe('ดี · ยกเลิกแล้ว');
+    expect(cardOf('b-in').querySelector('.bill-confirm')).toBeNull();
   });
 
   it('opens the bills tab at the linked bill and focuses its card', async () => {
@@ -2252,7 +2405,7 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(byId('bills-status').textContent).toBe('คุณยืนยันบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
-    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ยืนยันแล้ว');
+    expect(incomingCard().querySelector('.bill-summary').textContent).toBe('ดี · ยังไม่คืน');
     expect(incomingCard().querySelector('.bill-confirm')).toBeNull();
     expect(calls).not.toContain('GET /api/transactions');
   });
@@ -2265,7 +2418,8 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(byId('bills-status').textContent).toBe('คุณปฏิเสธบิลนี้ไปแล้ว (โหลดบิลไม่สำเร็จ)');
-    expect(incomingCard().querySelector('.bill-badge').textContent).toBe('ปฏิเสธ');
+    expect(cardOf('b-in').querySelector('.bill-summary').textContent).toBe('ดี · ปฏิเสธแล้ว');
+    expect(byId('bills-incoming-done').contains(cardOf('b-in'))).toBe(true);
     expect(calls).not.toContain('GET /api/transactions');
   });
 

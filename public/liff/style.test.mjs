@@ -11,7 +11,7 @@ function declarations(selector) {
 
 describe('style.css skeleton sizes', () => {
   // jsdom ไม่มี layout จึงตรวจได้แค่ว่าทุก variant มีความสูงตายตัว ส่วนตัวเลขตรงของจริงตรวจในเบราว์เซอร์
-  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'tips', 'bill-card'])(
+  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'tips', 'bill-switch', 'bill-card'])(
     'gives the %s skeleton a fixed pixel height',
     (variant) => {
       const rule = declarations(`.skeleton-${variant}`);
@@ -57,13 +57,25 @@ describe('style.css bill cards', () => {
     expect(declarations('.bill-card:focus-visible')).toMatch(/outline:/);
   });
 
-  it('keeps the share link button as wide as its text', () => {
-    expect(declarations('.bill-share-link')).toMatch(/justify-self:\s*start/);
+  // ผู้ใช้ขอให้ปุ่มในแถวเดียวกันกว้างเท่ากัน ไม่ว่าข้อความยาวแค่ไหน
+  it('gives the buttons in a bill action row the same width', () => {
+    expect(declarations('.bill-actions button')).toMatch(/flex:\s*1 1 0/);
+    expect(declarations('.bill-actions button')).toMatch(/min-width:\s*0/);
+  });
+
+  it('colours the calendar head by what the bill needs', () => {
+    expect(declarations('.bill-cal small')).toMatch(/background:\s*var\(--primary\)/);
+    expect(declarations('.bill-card.is-awaiting .bill-cal small')).toMatch(/background:\s*var\(--cta\)/);
+    expect(declarations('.bill-card.is-finished .bill-cal small')).toMatch(/background:\s*var\(--muted\)/);
+  });
+
+  it('gives the folded finished section a tap-sized header', () => {
+    expect(declarations('.bills-done > summary')).toMatch(/min-height:\s*var\(--tap\)/);
   });
 
   // ตัว 12px สีเทาอ่านยากบนมือถือ
-  it('uses at least 13px for bill badges and notes', () => {
-    for (const selector of ['.bill-badge', '.bill-member-note']) {
+  it('uses at least 13px for bill summaries and notes', () => {
+    for (const selector of ['.bill-summary', '.bill-member-note', '.bills-limit']) {
       expect(declarations(selector), selector).toMatch(/font-size:\s*13px/);
     }
   });

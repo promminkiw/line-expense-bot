@@ -178,7 +178,9 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 .skeleton-friends-card { height: 207px; margin-top: 0; border-radius: 20px; }
 .skeleton-friends-row { height: 48px; }
 .skeleton-tips { height: 203px; margin-top: 12px; border-radius: 24px; }
-.skeleton-bill-card { height: 150px; margin-top: 12px; border-radius: 24px; }
+/* ขนาดวัดจากหน้าจริงจอ 390px: ปุ่มสลับ 44px แล้วส่วนบิลที่มีบิลรอตอบ 1 ใบ 199px */
+.skeleton-bill-switch { height: 44px; margin-top: 0; border-radius: 9999px; }
+.skeleton-bill-card { height: 199px; margin-top: 12px; border-radius: 24px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
@@ -305,23 +307,50 @@ main#app.bills-page .bar h1 { flex: 0 1 auto; margin: 0 -16px 0 auto; padding: 6
 .bills-section { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .bills-section h2 { margin: 0; font-size: 20px; font-weight: 800; line-height: 1.3; }
 .bill-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.bill-card { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.bills-switch { display: flex; margin: 12px 16px 0; background: var(--brand-soft); border-radius: var(--radius-pill); }
+.bills-switch button { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tap); padding: 8px 12px; font: inherit; font-size: 15px; font-weight: 700; border: none; border-radius: var(--radius-pill); background: transparent; color: var(--brand-dark); cursor: pointer; }
+.bills-switch button[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); }
+.bills-awaiting { min-width: 20px; padding: 0 6px; border-radius: var(--radius-pill); background: var(--cta); color: var(--on-cta); font-size: 13px; line-height: 20px; text-align: center; }
+.bill-card { border-bottom: 1px solid var(--border); }
+.bill-card:last-child { border-bottom: none; }
 .bill-card:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 12px; }
-.bill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bill-row:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 12px; }
+/* แถวย่อทั้งแถวเป็นปุ่มกาง ปุ่มตอบบิลอยู่นอกแถวเพราะปุ่มซ้อนในปุ่มไม่ได้ */
+.bill-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; align-items: center; gap: 0 12px; width: 100%; min-height: 64px; padding: 10px 0; font: inherit; color: inherit; text-align: left; border: none; background: none; cursor: pointer; }
+.bill-cal { overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 1.5px var(--border); text-align: center; }
+.bill-cal small { display: block; padding: 2px 0; background: var(--primary); color: var(--on-primary); font-size: 13px; font-weight: 700; line-height: 1.3; }
+.bill-cal b { display: block; padding: 2px 0 4px; font-size: 20px; line-height: 1.1; }
+.bill-card.is-awaiting .bill-cal small { background: var(--cta); color: var(--on-cta); }
+.bill-card.is-finished .bill-cal small { background: var(--muted); }
+.bill-text { display: flex; flex-direction: column; min-width: 0; }
 .bill-title { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
-.bill-badge { flex: none; padding: 2px 10px; border-radius: 9999px; background: var(--brand-soft); color: var(--brand-dark); font-size: 13px; font-weight: 700; }
-.bill-meta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
-.bill-share, .bill-outstanding { margin: 4px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.bill-summary { font-size: 13px; color: var(--muted); }
+.bill-card.is-awaiting .bill-summary { color: var(--warn); }
+.bill-amount { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bill-card.is-finished .bill-title, .bill-card.is-finished .bill-amount { color: var(--muted); }
+.bill-chevron { width: 20px; height: 20px; color: var(--muted); }
+.bill-row[aria-expanded="true"] .bill-chevron, .bills-done[open] > summary .bill-chevron { transform: rotate(90deg); }
+.bill-detail, .bill-card > .bill-actions { margin-left: 60px; }
+.bill-detail { padding-bottom: 10px; }
+/* จอแคบกว่า 360px เยื้องตามกล่องปฏิทินแล้วชื่อเพื่อนกับยอดถูกบีบจนติดกัน */
+@media (max-width: 359px) { .bill-detail, .bill-card > .bill-actions { margin-left: 0; } }
+.bill-meta { margin: 0; font-size: 13px; color: var(--muted); }
 .bill-actions { display: flex; gap: 8px; margin-top: 8px; }
-.bill-actions button, .bill-share-link { padding: 8px 16px; font-size: 14px; }
-.bill-actions .bill-cancel { flex: 1; }
+.bill-card > .bill-actions { margin-top: 0; padding-bottom: 12px; }
+.bill-actions button { flex: 1 1 0; min-width: 0; padding: 8px 12px; font-size: 14px; }
 .bill-members { list-style: none; margin: 8px 0 0; padding: 0; }
 .bill-member { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 0 8px; padding: 2px 0; font-size: 14px; }
 .bill-member-name { overflow-wrap: anywhere; }
 .bill-member-status { color: var(--muted); white-space: nowrap; }
 .bill-member-paid { display: flex; align-items: center; gap: 6px; min-height: 44px; }
 .bill-member-note { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--warn); }
-.bill-share-link { grid-column: 1 / -1; justify-self: start; margin-bottom: 6px; }
+.bills-done { margin-top: 8px; border-top: 1px solid var(--border); }
+.bills-done > summary { display: flex; align-items: center; gap: 8px; min-height: var(--tap); list-style: none; font-size: 15px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.bills-done > summary::-webkit-details-marker { display: none; }
+.bills-done > summary > span:first-child { flex: 1; }
+.bills-done > summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 12px; }
+.bills-done-count { min-width: 24px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand-dark); font-size: 13px; line-height: 22px; text-align: center; }
+.bills-limit { margin: 12px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
 .bill-note { margin: 4px 0 0; font-size: 13px; color: var(--warn); }
 .bills-empty { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
 #bill-dialog .error:empty { display: none; }
