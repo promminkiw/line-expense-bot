@@ -1,4 +1,5 @@
 const { formatAmount } = require('../parser/format-reply');
+const { withLowEffort } = require('../utils/claude-effort');
 
 // คำอธิบายเป็นส่วนเสริม ให้เวลาสั้นกว่าตอนแยกรายการเพื่อให้การ์ดยังตอบทันเวลา
 const COMMENT_TIMEOUT_MS = 15000;
@@ -30,13 +31,16 @@ function describeSummary(summary) {
 }
 
 function createSummaryCommenter({ client, model }) {
+  const effortConfig = withLowEffort(model);
   return async function commentSummary(summary) {
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 200,
+        // การคิดนับรวมใน max_tokens เพดาน 200 แบบเดิมจะถูกตัดก่อนได้ข้อความ
+        max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: describeSummary(summary) }],
+        ...(effortConfig ? { output_config: effortConfig } : {}),
       },
       {
         timeout: COMMENT_TIMEOUT_MS,

@@ -40,16 +40,29 @@ function okPayload(items) {
 describe('parseMessage request', () => {
   it('sends model, user text, today in system prompt and JSON schema output format', async () => {
     const client = fakeClient(okPayload([item()]));
-    const parse = createMessageParser({ client, model: 'claude-haiku-4-5', now: NOW });
+    const parse = createMessageParser({ client, model: 'claude-haiku-5-5', now: NOW });
 
     await parse('กินข้าว 60');
 
     const params = client.messages.create.mock.calls[0][0];
-    expect(params.model).toBe('claude-haiku-4-5');
+    expect(params.model).toBe('claude-haiku-5-5');
     expect(params.messages).toEqual([{ role: 'user', content: 'กินข้าว 60' }]);
     expect(params.system).toContain('2026-09-29');
     expect(params.system).toContain('อาหาร');
+    // Haiku 5.5 คิดเป็นค่าเริ่มต้นและการคิดนับรวมใน max_tokens จึงตั้ง effort ต่ำและเผื่อเพดานไว้
     expect(params.output_config).toEqual({
+      format: { type: 'json_schema', schema: PARSE_SCHEMA },
+      effort: 'low',
+    });
+    expect(params.max_tokens).toBe(2048);
+    expect(params).not.toHaveProperty('thinking');
+  });
+
+  it('still works with Haiku 4.5 set in CLAUDE_MODEL by leaving effort out', async () => {
+    const client = fakeClient(okPayload([item()]));
+    await createMessageParser({ client, model: 'claude-haiku-4-5', now: NOW })('กินข้าว 60');
+
+    expect(client.messages.create.mock.calls[0][0].output_config).toEqual({
       format: { type: 'json_schema', schema: PARSE_SCHEMA },
     });
   });
@@ -57,7 +70,7 @@ describe('parseMessage request', () => {
   // หมวดสลิปใช้เฉพาะตอนอ่านรูป ข้อความที่พิมพ์ต้องเลือกหมวดตามของที่ซื้อ
   it('does not offer the slip category for typed messages', async () => {
     const client = fakeClient(okPayload([item()]));
-    const parse = createMessageParser({ client, model: 'claude-haiku-4-5', now: NOW });
+    const parse = createMessageParser({ client, model: 'claude-haiku-5-5', now: NOW });
 
     await parse('กินข้าว 60');
 

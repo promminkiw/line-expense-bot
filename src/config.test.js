@@ -30,11 +30,11 @@ describe('loadConfig', () => {
     });
   });
 
-  it('defaults port to 3000 and model to claude-haiku-4-5', () => {
+  it('defaults port to 3000 and model to claude-haiku-5-5', () => {
     const config = loadConfig(VALID_ENV);
 
     expect(config.port).toBe(3000);
-    expect(config.claudeModel).toBe('claude-haiku-4-5');
+    expect(config.claudeModel).toBe('claude-haiku-5-5');
   });
 
   it('throws listing every missing key', () => {

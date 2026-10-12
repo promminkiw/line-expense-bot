@@ -68,7 +68,8 @@ describe('createSlipParser', () => {
         ],
       },
     ]);
-    expect(request.output_config).toEqual({ format: { type: 'json_schema', schema: SLIP_SCHEMA } });
+    expect(request.output_config).toEqual({ format: { type: 'json_schema', schema: SLIP_SCHEMA }, effort: 'low' });
+    expect(request.max_tokens).toBe(2048);
     expect(options).toEqual(expect.objectContaining({ timeout: 20000, maxRetries: 1, signal: expect.anything() }));
   });
 

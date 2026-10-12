@@ -8,6 +8,7 @@ const {
   isPlainObject,
 } = require('../parser/parse-message');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
+const { withLowEffort } = require('../utils/claude-effort');
 
 // โน้ตมีชื่อร้านหรือชื่อผู้รับ จำกัดความยาวกันข้อความยาวผิดปกติจากรูป
 const MAX_NOTE_LENGTH = 100;
@@ -94,7 +95,8 @@ function createSlipParser({ client, model, now = () => new Date(), preprocessIma
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 1024,
+        // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
+        max_tokens: 2048,
         system: buildSystemPrompt(today),
         messages: [
           {
@@ -105,7 +107,7 @@ function createSlipParser({ client, model, now = () => new Date(), preprocessIma
             ],
           },
         ],
-        output_config: { format: { type: 'json_schema', schema: SLIP_SCHEMA } },
+        output_config: withLowEffort(model, { format: { type: 'json_schema', schema: SLIP_SCHEMA } }),
       },
       {
         timeout: REQUEST_TIMEOUT_MS,
