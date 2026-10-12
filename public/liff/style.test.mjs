@@ -141,6 +141,12 @@ describe('style.css redesign constraints', () => {
       expect(group[2]).toMatch(/color:\s*var\(--on-primary\)/);
     });
 
+    // ผู้ใช้ขอให้ปุ่มเพิ่มรายการประจำชิดขวา ปุ่มไม่ยืดเต็มแถวแม้เป็น display flex
+    it('puts the add recurring button on the right', () => {
+      expect(declarations('#recurring-add')).toMatch(/display:\s*flex/);
+      expect(declarations('#recurring-add')).toMatch(/margin:\s*16px 0 0 auto/);
+    });
+
     it('adds the arrow only to forward actions', () => {
       const arrow = css.match(/(?:^|\n)([^\n{]*::after)\s*\{[^}]*mask:/);
 
