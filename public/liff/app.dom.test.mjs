@@ -2210,10 +2210,23 @@ describe('LIFF bills tab', () => {
   });
 
   it('tells a friend who confirmed a cancelled bill that the expense is still recorded', async () => {
-    const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed' }];
+    const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed', expenseRecorded: true }];
     await openBills({ route: withBills({ owned: [], incoming }) });
 
+    // ยังต้องไปลบรายจ่าย จึงอยู่กับบิลที่ต้องจัดการ ไม่ใช่ในส่วนที่พับไว้
+    expect(incomingCard().dataset.id).toBe('b-in');
+
+    // ต้องเห็นได้โดยไม่ต้องกางการ์ด เพราะผู้ใช้ต้องไปลบรายจ่ายเอง
+    expect(cardOf('b-in').querySelector('.bill-detail .bill-note')).toBeNull();
     expect(cardOf('b-in').querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
+  });
+
+  it('moves a cancelled bill to the finished part once its expense was deleted', async () => {
+    const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed', expenseRecorded: false }];
+    await openBills({ route: withBills({ owned: [], incoming }) });
+
+    expect(byId('bills-incoming-done').contains(cardOf('b-in'))).toBe(true);
+    expect(cardOf('b-in').querySelector('.bill-note')).toBeNull();
   });
 
   it('loads the bills when the tab opens and shows both lists', async () => {

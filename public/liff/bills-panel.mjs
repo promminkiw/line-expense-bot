@@ -17,6 +17,7 @@ import {
   pickInitialBillsView,
   calendarParts,
   needsShareLink,
+  needsExpenseCleanup,
 } from './bills-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
@@ -124,8 +125,9 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       amount: bill.myShare,
     });
     detail.append(el('p', 'bill-meta', `${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
-    if (bill.status === 'cancelled' && bill.myStatus === 'confirmed') {
-      detail.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
+    // อยู่นอกส่วนที่พับ ผู้ใช้ต้องเห็นเองว่าต้องไปลบรายจ่าย
+    if (needsExpenseCleanup(bill)) {
+      item.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
     }
     // ปุ่มตอบอยู่นอกส่วนที่พับ ตอบได้โดยไม่ต้องกาง ปุ่มปฏิเสธอยู่ซ้ายตามที่ผู้ใช้เลือก
     if (awaiting) {

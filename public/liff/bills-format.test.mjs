@@ -20,6 +20,7 @@ import {
   pickInitialBillsView,
   calendarParts,
   needsShareLink,
+  needsExpenseCleanup,
 } from './bills-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../src/bills/validate.js';
@@ -138,6 +139,16 @@ describe('bill list helpers', () => {
     expect(isIncomingBillFinished(incoming({ myStatus: 'confirmed', paid: true }))).toBe(true);
     expect(isIncomingBillFinished(incoming({ myStatus: 'declined' }))).toBe(true);
     expect(isIncomingBillFinished(incoming({ status: 'cancelled' }))).toBe(true);
+  });
+
+  // ผู้ใช้ต้องไปลบรายจ่ายเอง บิลจึงยังไม่จบจนกว่ารายจ่ายนั้นจะถูกลบ
+  it('keeps a cancelled bill open while the confirmed expense is still recorded', () => {
+    const cancelled = incoming({ status: 'cancelled', myStatus: 'confirmed' });
+    expect(isIncomingBillFinished({ ...cancelled, expenseRecorded: true })).toBe(false);
+    expect(isIncomingBillFinished({ ...cancelled, expenseRecorded: false })).toBe(true);
+    expect(needsExpenseCleanup({ ...cancelled, expenseRecorded: true })).toBe(true);
+    expect(needsExpenseCleanup({ ...cancelled, expenseRecorded: false })).toBe(false);
+    expect(needsExpenseCleanup(incoming({ myStatus: 'confirmed', expenseRecorded: true }))).toBe(false);
   });
 
   it('counts paid back friends among those who have to pay', () => {
