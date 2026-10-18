@@ -105,8 +105,9 @@ function makeFetch(overrides) {
     const path = new URL(url, 'http://localhost').pathname;
     const body = path in overrides ? overrides[path] : RESPONSES[path];
     if (body instanceof Error) throw body;
-    if (body && typeof body === 'object' && typeof body.status === 'number' && Object.keys(body).length === 1) {
-      return { ok: false, status: body.status, json: async () => ({}) };
+    // { status } หรือ { status, error } คือ HTTP error พร้อม body แบบที่ server ตอบ
+    if (body && typeof body === 'object' && typeof body.status === 'number' && Object.keys(body).every((key) => key === 'status' || key === 'error')) {
+      return { ok: false, status: body.status, json: async () => (body.error === undefined ? {} : { error: body.error }) };
     }
     return { ok: Boolean(body), status: body ? 200 : 404, json: async () => body };
   };
@@ -323,6 +324,7 @@ describe('index.html static invariants', () => {
       'trend-empty',
       'edit-busy',
       'friends',
+      'categories-manager',
       'friend-qr',
       'friends-skeleton',
       'friend-dialog-busy',
@@ -3199,5 +3201,154 @@ describe('LIFF bills tab', () => {
     document.querySelector('#bill-form-members label.bill-form-name').click();
 
     expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(true);
+  });
+});
+
+describe('LIFF category manager', () => {
+  const MANAGED = [
+    { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false, system: false },
+    { id: 'c-trip', name: 'เดินทาง', type: 'expense', hidden: true, system: false },
+    { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false, system: true },
+    { id: 'c-salary', name: 'เงินเดือน', type: 'income', hidden: false, system: false },
+  ];
+
+  // หยุด boot ที่ liff.init เพื่อให้ route ใช้กับการโหลดหมวดครั้งแรกด้วย
+  async function openManager(route = () => undefined) {
+    const liff = await boot({ holdInit: true });
+    const calls = routeFetch((method, path) => {
+      const override = route(method, path);
+      if (override !== undefined) return override;
+      return method === 'GET' && path === '/api/categories' ? { categories: MANAGED } : undefined;
+    });
+    liff.releaseInit();
+    await settle();
+    clickTab('profile');
+    return calls;
+  }
+
+  const namesIn = (id) => [...byId(id).querySelectorAll('.category-row-name')].map((el) => el.textContent);
+  const optionsOf = (id) => [...byId(id).options].map((option) => option.textContent);
+  const rowOf = (id) => document.querySelector(`[data-category-id="${id}"]`);
+
+  it('lists the categories by type and marks hidden and system ones', async () => {
+    await openManager();
+
+    expect(byId('categories-manager').hidden).toBe(false);
+    expect(namesIn('category-rows-expense')).toEqual(['อาหาร', 'เดินทาง', 'อื่นๆ']);
+    expect(namesIn('category-rows-income')).toEqual(['เงินเดือน']);
+    expect(rowOf('c-trip').querySelector('.category-hidden-tag').textContent).toBe('ซ่อนอยู่');
+    expect(rowOf('c-trip').querySelector('[data-action="toggle-hidden"]').textContent).toBe('เลิกซ่อน');
+    expect(rowOf('c-other').querySelector('.category-system-note').textContent).toBe('หมวดของระบบ');
+    expect(rowOf('c-other').querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('keeps hidden categories out of the pickers but in the list filter', async () => {
+    await openManager();
+
+    expect(optionsOf('edit-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('recurring-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('filter-category')).toEqual(['ทุกหมวด', 'อาหาร', 'เดินทาง', 'อื่นๆ', 'เงินเดือน']);
+  });
+
+  it('keeps the hidden category selected when editing an old entry in it', async () => {
+    await openManager();
+    clickTab('list');
+
+    [...document.querySelectorAll('#list .row-button')].find((button) => button.textContent.includes('BTS')).click();
+    await settle();
+
+    expect(byId('edit-category').value).toBe('c-trip');
+  });
+
+  it('adds a category and offers it in the pickers', async () => {
+    const created = { id: 'c-cat', name: 'ค่าแมว', type: 'expense', hidden: false, system: false };
+    const calls = await openManager((method, path) => (method === 'POST' && path === '/api/categories' ? { category: created } : undefined));
+
+    byId('category-add-type').value = 'expense';
+    byId('category-add-name').value = '  ค่าแมว ';
+    byId('category-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('POST /api/categories');
+    expect(namesIn('category-rows-expense')).toContain('ค่าแมว');
+    expect(optionsOf('edit-category')).toContain('ค่าแมว');
+    expect(byId('category-add-name').value).toBe('');
+    expect(byId('category-status').textContent).toBe('เพิ่มหมวด ค่าแมว แล้ว');
+  });
+
+  it('shows the server reason when adding fails', async () => {
+    await openManager((method, path) =>
+      method === 'POST' && path === '/api/categories' ? { status: 409, error: 'Duplicate name' } : undefined
+    );
+
+    byId('category-add-name').value = 'อาหาร';
+    byId('category-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('category-add-error').textContent).toBe('มีหมวดชื่อนี้อยู่แล้ว');
+    expect(namesIn('category-rows-expense')).toEqual(['อาหาร', 'เดินทาง', 'อื่นๆ']);
+  });
+
+  it('hides a category and drops it from the edit picker', async () => {
+    const calls = await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], hidden: true } } : undefined
+    );
+
+    rowOf('c-food').querySelector('[data-action="toggle-hidden"]').click();
+    await settle();
+
+    expect(calls).toContain('PATCH /api/categories/c-food');
+    expect(rowOf('c-food').querySelector('[data-action="toggle-hidden"]').textContent).toBe('เลิกซ่อน');
+    expect(optionsOf('edit-category')).not.toContain('อาหาร');
+    expect(byId('category-status').textContent).toBe('ซ่อนหมวด อาหาร แล้ว');
+  });
+
+  it('renames a category through the dialog', async () => {
+    await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], name: 'ข้าว' } } : undefined
+    );
+
+    rowOf('c-food').querySelector('[data-action="rename"]').click();
+    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('category-dialog-name').value).toBe('อาหาร');
+    byId('category-dialog-name').value = 'ข้าว';
+    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('category-dialog').hasAttribute('open')).toBe(false);
+    expect(namesIn('category-rows-expense')).toContain('ข้าว');
+    expect(optionsOf('edit-category')).toContain('ข้าว');
+  });
+
+  it('keeps the rename dialog open with the reason when it fails', async () => {
+    await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { status: 400, error: 'Invalid name' } : undefined
+    );
+
+    rowOf('c-food').querySelector('[data-action="rename"]').click();
+    byId('category-dialog-name').value = 'a,b';
+    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('category-dialog-error').textContent).toBe('ชื่อหมวดต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)');
+  });
+});
+
+describe('LIFF bill form with a hidden category', () => {
+  it('does not offer a hidden expense category', async () => {
+    const liff = await boot({ search: '?tab=bills', holdInit: true });
+    routeFetch((method, path) =>
+      method === 'GET' && path === '/api/categories'
+        ? { categories: [...CATEGORIES, { id: 'c-old', name: 'เก่า', type: 'expense', hidden: true }] }
+        : undefined
+    );
+    liff.releaseInit();
+    await settle();
+
+    byId('bill-new').click();
+    await settle();
+
+    expect([...byId('bill-form-category').options].map((option) => option.textContent)).toEqual(['อาหาร', 'เดินทาง']);
   });
 });

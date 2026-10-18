@@ -315,6 +315,27 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
+      <section id="categories-manager" class="categories-manager" aria-labelledby="categories-manager-title" hidden>
+        <h2 id="categories-manager-title">หมวดของฉัน</h2>
+        <p class="friends-hint">หมวดที่ซ่อนจะไม่ให้เลือกใหม่ แต่รายการเก่ายังอยู่ครบ</p>
+        <form id="category-add-form" class="category-add" novalidate>
+          <label for="category-add-name">เพิ่มหมวด</label>
+          <div class="category-add-fields">
+            <select id="category-add-type" aria-label="ประเภทหมวด">
+              <option value="expense">รายจ่าย</option>
+              <option value="income">รายรับ</option>
+            </select>
+            <input id="category-add-name" type="text" maxlength="30" autocomplete="off" placeholder="เช่น ค่าแมว">
+            <button type="submit" id="category-add-submit">เพิ่ม</button>
+          </div>
+          <p id="category-add-error" class="error" role="alert"></p>
+        </form>
+        <p id="category-status" class="export-status" role="status" aria-live="polite"></p>
+        <h3 class="category-group">หมวดรายจ่าย</h3>
+        <ul id="category-rows-expense" class="category-rows"></ul>
+        <h3 class="category-group">หมวดรายรับ</h3>
+        <ul id="category-rows-income" class="category-rows"></ul>
+      </section>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
         <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
@@ -387,6 +408,18 @@
       <button type="button" id="friend-dialog-cancel">ยกเลิก</button>
       <button type="button" id="friend-dialog-ok" class="primary"></button>
     </div>
+  </dialog>
+  <dialog id="category-dialog" aria-labelledby="category-dialog-title">
+    <form id="category-dialog-form" novalidate>
+      <h2 id="category-dialog-title">เปลี่ยนชื่อหมวด</h2>
+      <label for="category-dialog-name">ชื่อใหม่</label>
+      <input id="category-dialog-name" type="text" maxlength="30" autocomplete="off">
+      <p id="category-dialog-error" class="error" role="alert"></p>
+      <div class="actions">
+        <button type="button" id="category-dialog-cancel">ยกเลิก</button>
+        <button type="submit" id="category-dialog-save" class="primary">บันทึก</button>
+      </div>
+    </form>
   </dialog>
   <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
     <h2 id="bill-dialog-title"></h2>
