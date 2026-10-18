@@ -1,6 +1,6 @@
 const { MAX_AMOUNT } = require('../parser/parse-message');
 const { isValidCalendarDate } = require('../utils/date');
-const { MAX_CATEGORY_NAME_LENGTH, isReservedCategoryName } = require('../parser/categories');
+const { MAX_CATEGORY_NAME_LENGTH, CATEGORY_ICONS, isReservedCategoryName } = require('../parser/categories');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
@@ -88,6 +88,11 @@ function validateCategoryName(value) {
   return { ok: true, value: name };
 }
 
+// null แปลว่ากลับไปใช้ไอคอนตั้งต้นตามชื่อหมวด
+function isValidIcon(value) {
+  return value === null || CATEGORY_ICONS.includes(value);
+}
+
 function validateCategoryCreate(body) {
   if (!body || typeof body !== 'object') {
     return { ok: false, error: 'Invalid body' };
@@ -96,7 +101,15 @@ function validateCategoryCreate(body) {
     return { ok: false, error: 'Invalid type' };
   }
   const name = validateCategoryName(body.name);
-  return name.ok ? { ok: true, value: { type: body.type, name: name.value } } : name;
+  if (!name.ok) return name;
+  const value = { type: body.type, name: name.value };
+  if (body.icon !== undefined) {
+    if (!isValidIcon(body.icon)) {
+      return { ok: false, error: 'Invalid icon' };
+    }
+    value.icon = body.icon;
+  }
+  return { ok: true, value };
 }
 
 function validateCategoryUpdate(body) {
@@ -114,6 +127,12 @@ function validateCategoryUpdate(body) {
       return { ok: false, error: 'Invalid hidden' };
     }
     value.hidden = body.hidden;
+  }
+  if (body.icon !== undefined) {
+    if (!isValidIcon(body.icon)) {
+      return { ok: false, error: 'Invalid icon' };
+    }
+    value.icon = body.icon;
   }
   if (Object.keys(value).length === 0) {
     return { ok: false, error: 'Invalid body' };

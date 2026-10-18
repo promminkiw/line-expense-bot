@@ -132,6 +132,18 @@ describe('validateCategoryCreate', () => {
     expect(validateCategoryCreate({ type: 'saving', name: 'x' })).toEqual({ ok: false, error: 'Invalid type' });
     expect(validateCategoryCreate(null)).toEqual({ ok: false, error: 'Invalid body' });
   });
+
+  it('accepts a known icon and leaves icon out when it is not sent', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'กาแฟ', icon: 'coffee' })).toEqual({
+      ok: true,
+      value: { type: 'expense', name: 'กาแฟ', icon: 'coffee' },
+    });
+    expect(validateCategoryCreate({ type: 'expense', name: 'กาแฟ' }).value).not.toHaveProperty('icon');
+  });
+
+  it.each([['unicorn'], [''], [42], ['Coffee']])('rejects the icon %j', (icon) => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'กาแฟ', icon })).toEqual({ ok: false, error: 'Invalid icon' });
+  });
 });
 
 describe('validateCategoryUpdate', () => {
@@ -150,5 +162,18 @@ describe('validateCategoryUpdate', () => {
     expect(validateCategoryUpdate({ name: '' })).toEqual({ ok: false, error: 'Invalid name' });
     expect(validateCategoryUpdate({ name: 'อื่นๆ' })).toEqual({ ok: false, error: 'Reserved name' });
     expect(validateCategoryUpdate({ hidden: 'true' })).toEqual({ ok: false, error: 'Invalid hidden' });
+  });
+
+  it('accepts a known icon, and null to go back to the default icon', () => {
+    expect(validateCategoryUpdate({ icon: 'pet' })).toEqual({ ok: true, value: { icon: 'pet' } });
+    expect(validateCategoryUpdate({ icon: null })).toEqual({ ok: true, value: { icon: null } });
+    expect(validateCategoryUpdate({ name: 'แมว', icon: 'pet', hidden: false })).toEqual({
+      ok: true,
+      value: { name: 'แมว', hidden: false, icon: 'pet' },
+    });
+  });
+
+  it('rejects an unknown icon', () => {
+    expect(validateCategoryUpdate({ icon: 'unicorn' })).toEqual({ ok: false, error: 'Invalid icon' });
   });
 });
