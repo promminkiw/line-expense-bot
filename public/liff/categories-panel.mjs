@@ -14,11 +14,17 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     busy = next;
     els.addSubmit.disabled = next;
     els.dialogSave.disabled = next;
+    els.dialogCancel.disabled = next;
     for (const button of els.section.querySelectorAll('.category-actions button')) button.disabled = next;
   }
 
   function setStatus(text) {
     els.status.textContent = text;
+  }
+
+  // render สร้างแถวใหม่ทั้งหมด โฟกัสเดิมหายไป จึงต้องคืนโฟกัสให้ปุ่มของแถวเดิม
+  function focusRowButton(categoryId, action) {
+    els.section.querySelector(`[data-category-id="${categoryId}"] [data-action="${action}"]`)?.focus();
   }
 
   function actionButton(label, ariaLabel, action, onClick) {
@@ -88,8 +94,12 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   async function toggleHidden(category) {
     if (busy) return;
     setStatus('');
-    const updated = await update(category, { hidden: !category.hidden }, setStatus);
+    els.toggleError.textContent = '';
+    const updated = await update(category, { hidden: !category.hidden }, (message) => {
+      els.toggleError.textContent = message;
+    });
     if (updated) setStatus(updated.hidden ? `ซ่อนหมวด ${updated.name} แล้ว` : `เลิกซ่อนหมวด ${updated.name} แล้ว`);
+    focusRowButton(category.id, 'toggle-hidden');
   }
 
   function openRename(category) {
@@ -108,14 +118,25 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
       els.dialogError.textContent = message;
     });
     if (!updated) return;
+    const renamedId = renaming.id;
     renaming = null;
     els.dialog.close();
     setStatus(`เปลี่ยนชื่อหมวดเป็น ${updated.name} แล้ว`);
+    focusRowButton(renamedId, 'rename');
   });
 
-  els.dialogCancel.addEventListener('click', () => {
+  els.dialogCancel.addEventListener('click', () => els.dialog.close());
+  // กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นข้อผิดพลาดที่ตามมาจะไม่มีที่แสดง
+  els.dialog.addEventListener('cancel', (event) => {
+    if (busy) event.preventDefault();
+  });
+  els.dialog.addEventListener('close', () => {
+    // browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
+    if (busy) {
+      els.dialog.showModal();
+      return;
+    }
     renaming = null;
-    els.dialog.close();
   });
 
   els.addForm.addEventListener('submit', async (event) => {

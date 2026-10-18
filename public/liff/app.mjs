@@ -242,6 +242,7 @@ const categoriesPanel = createCategoriesPanel({
     addSubmit: document.getElementById('category-add-submit'),
     addError: document.getElementById('category-add-error'),
     status: document.getElementById('category-status'),
+    toggleError: document.getElementById('category-toggle-error'),
     expenseRows: document.getElementById('category-rows-expense'),
     incomeRows: document.getElementById('category-rows-income'),
     dialog: document.getElementById('category-dialog'),
@@ -253,7 +254,10 @@ const categoriesPanel = createCategoriesPanel({
   },
   getApi: () => api,
   getCategories: () => categories,
-  onChanged: (next) => setCategories(next),
+  onChanged: (next) => {
+    setCategories(next);
+    refreshAfterCategoryChange();
+  },
 });
 const billsPanel = createBillsPanel({
   doc: document,
@@ -440,7 +444,7 @@ function setCategories(next) {
   categoriesPanel.render();
 }
 
-// รายการเก่าอาจอยู่ในหมวดที่ซ่อนแล้ว ต้องใส่หมวดนั้นกลับเข้าตัวเลือก ไม่งั้น select ว่างแล้วบันทึกผิดหมวด
+// รายการเก่าอาจอยู่ในหมวดที่ซ่อนแล้ว ต้องใส่หมวดนั้นกลับเข้าตัวเลือก ไม่งั้น select ว่างแล้วบันทึกไม่ได้
 function showCategoryOptions(select, keepId) {
   fillGroupedSelect(select, groupCategoryOptions(categories, { keepId }));
   select.value = keepId ?? '';
@@ -1481,6 +1485,12 @@ function enterBillsPage() {
   document.getElementById('page-title').textContent = 'หารบิล';
   els.month.hidden = true;
   document.getElementById('panel-bills').append(document.getElementById('friends'));
+}
+
+// ชื่อหมวดฝังอยู่ในรายการ งบ และรายการประจำ จึงโหลดใหม่ให้ตรงกับชื่อล่าสุด (loader ไม่ throw จึงไม่กระทบผลการแก้หมวด)
+function refreshAfterCategoryChange() {
+  loadMonth();
+  loadRecurring();
 }
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น

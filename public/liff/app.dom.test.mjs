@@ -3320,6 +3320,72 @@ describe('LIFF category manager', () => {
     expect(optionsOf('edit-category')).toContain('ข้าว');
   });
 
+  it('returns focus to the toggle button of the same row after hiding', async () => {
+    await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], hidden: true } } : undefined
+    );
+
+    rowOf('c-food').querySelector('[data-action="toggle-hidden"]').click();
+    await settle();
+
+    expect(document.activeElement).toBe(rowOf('c-food').querySelector('[data-action="toggle-hidden"]'));
+  });
+
+  it('shows a toggle failure as an alert, not as status', async () => {
+    await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-trip' ? { status: 409, error: 'Too many categories' } : undefined
+    );
+
+    rowOf('c-trip').querySelector('[data-action="toggle-hidden"]').click();
+    await settle();
+
+    const alert = byId('category-toggle-error');
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(alert.textContent).not.toBe('');
+    expect(byId('category-status').textContent).toBe('');
+  });
+
+  it('keeps the rename dialog open while the rename is in flight', async () => {
+    await openManager();
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PATCH') await gate;
+      return original(url, options);
+    });
+
+    rowOf('c-food').querySelector('[data-action="rename"]').click();
+    byId('category-dialog-name').value = 'ข้าว';
+    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('category-dialog-cancel').disabled).toBe(true);
+    byId('category-dialog-cancel').click();
+    const escape = new Event('cancel', { cancelable: true });
+    byId('category-dialog').dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
+    release();
+  });
+
+  it('renaming a category refreshes the list and recurring rows', async () => {
+    const calls = await openManager((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], name: 'ข้าว' } } : undefined
+    );
+    const before = (path) => calls.filter((call) => call === `GET ${path}`).length;
+    const listBefore = before('/api/transactions');
+    const recurringBefore = before('/api/recurring');
+
+    rowOf('c-food').querySelector('[data-action="rename"]').click();
+    byId('category-dialog-name').value = 'ข้าว';
+    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(before('/api/transactions')).toBe(listBefore + 1);
+    expect(before('/api/recurring')).toBe(recurringBefore + 1);
+  });
+
   it('keeps the rename dialog open with the reason when it fails', async () => {
     await openManager((method, path) =>
       method === 'PATCH' && path === '/api/categories/c-food' ? { status: 400, error: 'Invalid name' } : undefined
