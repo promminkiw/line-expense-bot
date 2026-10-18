@@ -3,7 +3,7 @@ const { categoryKey } = require('./transaction-rows');
 const { lastDayOf, monthStartOf } = require('../recurring/schedule');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id';
-const CATEGORY_COLUMNS = 'id, name, type, hidden';
+const CATEGORY_COLUMNS = 'id, name, type, hidden, icon';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
 const EXPORT_PAGE_SIZE = 1000;
 const EXPORT_COLUMNS = `${TRANSACTION_COLUMNS}, created_at`;
@@ -42,7 +42,7 @@ function toTransaction(row) {
 }
 
 function toCategory(row) {
-  return { id: row.id, name: row.name, type: row.type, hidden: row.hidden };
+  return { id: row.id, name: row.name, type: row.type, hidden: row.hidden, icon: row.icon ?? null };
 }
 
 function toOwnedBill(row) {
@@ -579,10 +579,13 @@ function createRepository(supabase) {
   }
 
   // ชื่อซ้ำในประเภทเดียวกันชน unique (user_id, type, name) จึงคืน duplicate ให้ API ตอบ 409
-  async function createCategory(userId, { type, name }) {
+  async function createCategory(userId, { type, name, icon }) {
+    const row = { user_id: userId, type, name };
+    // ใส่ icon เฉพาะเมื่อส่งมา เพื่อไม่ทับค่า default ของ DB
+    if (icon !== undefined) row.icon = icon;
     const { data, error } = await supabase
       .from('categories')
-      .insert({ user_id: userId, type, name })
+      .insert(row)
       .select(CATEGORY_COLUMNS)
       .single();
     if (error && error.code === UNIQUE_VIOLATION) {
@@ -596,6 +599,7 @@ function createRepository(supabase) {
     const changes = {};
     if (fields.name !== undefined) changes.name = fields.name;
     if (fields.hidden !== undefined) changes.hidden = fields.hidden;
+    if (fields.icon !== undefined) changes.icon = fields.icon;
     const { data, error } = await supabase
       .from('categories')
       .update(changes)

@@ -26,6 +26,15 @@ const MAX_VISIBLE_CATEGORIES = 30;
 // หมวดที่ซ่อนก็ยังถูกอ่านทุกครั้ง และแถวที่ไม่จำกัดจะชนเพดาน max rows ของ PostgREST
 const MAX_TOTAL_CATEGORIES = 100;
 
+// ไอคอนที่ผู้ใช้เลือกให้หมวดได้ ต้องตรงกับ public/liff/category-icons.mjs (มีเทสต์ผูกไว้)
+const CATEGORY_ICONS = [
+  'food', 'coffee', 'shopping', 'grocery', 'clothes', 'beauty', 'pet', 'gift',
+  'bill', 'home', 'electric', 'water', 'internet', 'phone', 'insurance', 'tax',
+  'transport', 'car', 'fuel', 'travel', 'health', 'medicine', 'fitness', 'family',
+  'fun', 'game', 'music', 'education', 'donation', 'receipt', 'other',
+  'salary', 'side', 'savings', 'bonus', 'sale',
+];
+
 function isSystemCategory(type, name) {
   return Object.hasOwn(SYSTEM_CATEGORIES, type) && SYSTEM_CATEGORIES[type].includes(name);
 }
@@ -58,6 +67,7 @@ module.exports = {
   MAX_CATEGORY_NAME_LENGTH,
   MAX_VISIBLE_CATEGORIES,
   MAX_TOTAL_CATEGORIES,
+  CATEGORY_ICONS,
   isSystemCategory,
   isReservedCategoryName,
   toTextCategories,

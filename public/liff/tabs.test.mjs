@@ -79,6 +79,19 @@ describe('createTabController', () => {
     expect(ctx.onChange).not.toHaveBeenCalled();
   });
 
+  it('shows the current tab again when forced, for coming back from a sub page', () => {
+    ctx.controller.select('budgets');
+    ctx.onChange.mockClear();
+    for (const [, panel] of ctx.panels) panel.hidden = true;
+    ctx.titleEl.textContent = 'หน้าอื่น';
+
+    ctx.controller.select('budgets', { force: true });
+
+    expect([...ctx.panels].filter(([, panel]) => !panel.hidden).map(([id]) => id)).toEqual(['budgets']);
+    expect(ctx.titleEl.textContent).toBe(findTab('budgets').title);
+    expect(ctx.onChange).toHaveBeenCalledWith('budgets');
+  });
+
   it('ignores a tab whose panel is missing', () => {
     const nav = document.createElement('nav');
     const controller = createTabController({

@@ -6,6 +6,7 @@ const MESSAGES = new Map([
   ['400:Invalid name', 'ชื่อหมวดต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)'],
   ['400:Reserved name', 'ชื่อนี้ใช้กับหมวดของระบบแล้ว ลองชื่ออื่น'],
   ['400:System category', 'หมวดของระบบแก้ไม่ได้'],
+  ['400:Invalid icon', 'เลือกไอคอนจากรายการที่มีให้'],
 ]);
 
 export function describeCategoryError(status, error) {

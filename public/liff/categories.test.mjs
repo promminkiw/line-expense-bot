@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { categoryStyle, createCategoryBadge } from './categories.mjs';
+import { categoryStyle, createCategoryBadge, iconKeyFor, effectiveIconKey } from './categories.mjs';
 
 describe('categoryStyle', () => {
   it.each([
@@ -27,10 +27,33 @@ describe('categoryStyle', () => {
 });
 
 describe('createCategoryBadge', () => {
-  it('wraps the category icon in a colored badge', () => {
+  it('wraps the default icon of the category name in a badge', () => {
     const badge = createCategoryBadge(document, 'อาหาร');
 
     expect(badge.className).toBe('cat-badge cat-food');
     expect(badge.querySelector('use').getAttribute('href')).toBe('#cat-food');
+  });
+
+  it('uses the icon the user picked and the tone of the category type', () => {
+    const badge = createCategoryBadge(document, 'ค่าแมว', { icon: 'pet', type: 'expense' });
+
+    expect(badge.className).toBe('cat-badge cat-pet cat-tone-expense');
+    expect(badge.querySelector('use').getAttribute('href')).toBe('#cat-pet');
+    expect(createCategoryBadge(document, 'โบนัส', { icon: 'bonus', type: 'income' }).className).toBe('cat-badge cat-bonus cat-tone-income');
+  });
+
+  it('ignores an unknown icon or type', () => {
+    expect(createCategoryBadge(document, 'อาหาร', { icon: 'unicorn', type: 'saving' }).className).toBe('cat-badge cat-food');
+  });
+});
+
+describe('iconKeyFor and effectiveIconKey', () => {
+  it('prefers a known picked icon, then the default of the name, then other', () => {
+    expect(iconKeyFor('อาหาร', 'coffee')).toBe('coffee');
+    expect(iconKeyFor('อาหาร', null)).toBe('food');
+    expect(iconKeyFor('ค่าแมว', undefined)).toBe('other');
+    expect(iconKeyFor('constructor', 'toString')).toBe('other');
+    expect(effectiveIconKey({ name: 'เงินเดือน', icon: null })).toBe('salary');
+    expect(effectiveIconKey({ name: 'เงินเดือน', icon: 'bonus' })).toBe('bonus');
   });
 });

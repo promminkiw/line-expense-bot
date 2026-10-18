@@ -23,6 +23,7 @@ const MIGRATIONS = [
   '014_bill_indexes.sql',
   '015_bill_invariants.sql',
   '017_category_hidden.sql',
+  '018_category_icon.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -709,6 +710,31 @@ describe('017_category_hidden.sql', () => {
 
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('017_category_hidden.sql'))).resolves.toBeDefined();
+  });
+});
+
+describe('018_category_icon.sql', () => {
+  it('adds icon to categories, empty by default', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+
+    expect((await one('select icon from categories where id = $1', [food])).icon).toBeNull();
+
+    await db.query('update categories set icon = $2 where id = $1', [food, 'coffee']);
+    expect((await one('select icon from categories where id = $1', [food])).icon).toBe('coffee');
+  });
+
+  it('refuses an icon that is not a lowercase key', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+
+    await db.exec('savepoint bad_icon');
+    await expect(db.query('update categories set icon = $2 where id = $1', [food, 'Bad Icon'])).rejects.toThrow('categories_icon_format');
+    await db.exec('rollback to savepoint bad_icon');
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('018_category_icon.sql'))).resolves.toBeDefined();
   });
 });
 

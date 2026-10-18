@@ -8,6 +8,7 @@ import {
   MAX_CATEGORY_NAME_LENGTH,
   MAX_VISIBLE_CATEGORIES,
   MAX_TOTAL_CATEGORIES,
+  CATEGORY_ICONS,
   normalizeCategory,
   isSystemCategory,
   isReservedCategoryName,
@@ -129,5 +130,19 @@ describe('toTextCategories', () => {
 
   it('treats a row without the hidden field as visible', () => {
     expect(toTextCategories([{ type: 'income', name: 'โบนัส' }]).income).toEqual(['โบนัส', 'อื่นๆ']);
+  });
+});
+
+describe('CATEGORY_ICONS', () => {
+  it('lists 36 unique lowercase keys that fit the database check', () => {
+    expect(CATEGORY_ICONS).toHaveLength(36);
+    expect(new Set(CATEGORY_ICONS).size).toBe(36);
+    for (const key of CATEGORY_ICONS) expect(key).toMatch(/^[a-z]{2,20}$/);
+  });
+
+  it('keeps the icons of the default categories', () => {
+    for (const key of ['food', 'transport', 'shopping', 'bill', 'health', 'fun', 'salary', 'side', 'receipt', 'other']) {
+      expect(CATEGORY_ICONS).toContain(key);
+    }
   });
 });
