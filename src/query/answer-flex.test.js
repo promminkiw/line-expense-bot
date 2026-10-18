@@ -68,10 +68,11 @@ describe('buildTotalsFlex', () => {
     expect(flex.altText).toBe('ช่วง 1-19 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)');
   });
 
-  it('cuts the alt text to the 400 characters LINE allows', () => {
-    const flex = buildTotalsFlex({ ...BASE, category: 'ก'.repeat(500) }, EXPENSE_ROWS, {});
+  it('caps a long alt text with capAltText', () => {
+    const flex = buildTotalsFlex({ ...BASE, keyword: 'ก'.repeat(500) }, EXPENSE_ROWS, {});
 
     expect(flex.altText).toHaveLength(400);
+    expect(flex.altText.endsWith('...')).toBe(true);
   });
 
   it('adds a footer button that opens the list url', () => {
