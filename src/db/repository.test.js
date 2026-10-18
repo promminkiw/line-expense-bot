@@ -152,6 +152,17 @@ describe('repository.seedDefaultCategories', () => {
     expect(rows).toContainEqual({ user_id: 'user-1', type: 'income', name: 'อื่นๆ' });
   });
 
+  it('inserts only the given categories when a set is passed', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).seedDefaultCategories('user-1', { expense: ['อื่นๆ'], income: ['อื่นๆ'] });
+
+    expect(calls[1][1]).toEqual([
+      { user_id: 'user-1', type: 'expense', name: 'อื่นๆ' },
+      { user_id: 'user-1', type: 'income', name: 'อื่นๆ' },
+    ]);
+  });
+
   it('throws DatabaseError when Supabase returns an error', async () => {
     const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
 
@@ -657,18 +668,18 @@ describe('repository.claimExportLink', () => {
 });
 
 describe('repository.listCategories', () => {
-  it('reads this user categories ordered by type and name', async () => {
+  it('reads this user categories with the hidden flag ordered by type and name', async () => {
     const { supabase, calls } = fakeSupabase({
-      data: [{ id: 'c1', name: 'อาหาร', type: 'expense' }],
+      data: [{ id: 'c1', name: 'อาหาร', type: 'expense', hidden: false }],
       error: null,
     });
 
     expect(await createRepository(supabase).listCategories('user-1')).toEqual([
-      { id: 'c1', name: 'อาหาร', type: 'expense' },
+      { id: 'c1', name: 'อาหาร', type: 'expense', hidden: false },
     ]);
     expect(calls).toEqual([
       ['from', 'categories'],
-      ['select', 'id, name, type'],
+      ['select', 'id, name, type, hidden'],
       ['eq', 'user_id', 'user-1'],
       ['order', 'type'],
       ['order', 'name'],
@@ -680,6 +691,90 @@ describe('repository.listCategories', () => {
 
     await expect(createRepository(supabase).listCategories('user-1')).rejects.toThrow(
       'Database listCategories failed: boom'
+    );
+  });
+});
+
+describe('repository.createCategory', () => {
+  it('inserts the category for this user and returns it', async () => {
+    const row = { id: 'c9', name: 'ค่าแมว', type: 'expense', hidden: false };
+    const { supabase, calls } = fakeSupabase({ data: row, error: null });
+
+    const result = await createRepository(supabase).createCategory('user-1', { type: 'expense', name: 'ค่าแมว' });
+
+    expect(result).toEqual({ status: 'ok', category: row });
+    expect(calls).toEqual([
+      ['from', 'categories'],
+      ['insert', { user_id: 'user-1', type: 'expense', name: 'ค่าแมว' }],
+      ['select', 'id, name, type, hidden'],
+      ['single'],
+    ]);
+  });
+
+  it('reports a duplicate name instead of throwing', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { code: '23505', message: 'duplicate key' } });
+
+    expect(await createRepository(supabase).createCategory('user-1', { type: 'expense', name: 'อาหาร' })).toEqual({
+      status: 'duplicate',
+    });
+  });
+
+  it('throws DatabaseError for other errors', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).createCategory('user-1', { type: 'expense', name: 'x' })).rejects.toThrow(
+      'Database createCategory failed: boom'
+    );
+  });
+});
+
+describe('repository.updateCategory', () => {
+  const row = { id: 'c9', name: 'แมว', type: 'expense', hidden: false };
+
+  it('updates only the given fields of this user row and returns it', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [row], error: null });
+
+    const result = await createRepository(supabase).updateCategory('user-1', 'c9', { name: 'แมว' });
+
+    expect(result).toEqual({ status: 'ok', category: row });
+    expect(calls).toEqual([
+      ['from', 'categories'],
+      ['update', { name: 'แมว' }],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'id', 'c9'],
+      ['select', 'id, name, type, hidden'],
+    ]);
+  });
+
+  it('sends only hidden when hiding', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ ...row, hidden: true }], error: null });
+
+    await createRepository(supabase).updateCategory('user-1', 'c9', { hidden: true });
+
+    expect(calls[1]).toEqual(['update', { hidden: true }]);
+  });
+
+  it('reports not_found when no row of this user matched', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).updateCategory('user-1', 'c9', { hidden: true })).toEqual({
+      status: 'not_found',
+    });
+  });
+
+  it('reports a duplicate name instead of throwing', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { code: '23505', message: 'duplicate key' } });
+
+    expect(await createRepository(supabase).updateCategory('user-1', 'c9', { name: 'อาหาร' })).toEqual({
+      status: 'duplicate',
+    });
+  });
+
+  it('throws DatabaseError for other errors', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).updateCategory('user-1', 'c9', { name: 'x' })).rejects.toThrow(
+      'Database updateCategory failed: boom'
     );
   });
 });
