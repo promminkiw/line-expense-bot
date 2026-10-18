@@ -33,7 +33,6 @@ const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่
 const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
 const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปใหม่ได้เลย';
 const SLIP_CANCELLED_REPLY = 'ยกเลิกสลิปแล้ว ไม่ได้บันทึกรายการ';
-const UNSEND_SLIP_CANCELLED_NOTICE = 'ยกเลิกสลิปที่ยังไม่ได้บันทึกแล้ว เพราะคุณยกเลิกการส่งรูป';
 const SLIP_SAVE_ACTION = 'slip_save';
 const SLIP_CANCEL_ACTION = 'slip_cancel';
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
@@ -65,15 +64,6 @@ function isTextMessage(event) {
 
 function isImageMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'image';
-}
-
-// follow ไม่ต้องตอบ ส่วน unsend ไม่มี reply token
-function expectsReply(event) {
-  return event.type !== 'follow' && event.type !== 'unsend';
-}
-
-function unsendDeletedNotice(count) {
-  return `ลบ ${count} รายการที่บันทึกจากข้อความที่คุณยกเลิกการส่งแล้ว`;
 }
 
 function buildUndoQuickReply(webhookEventId) {
@@ -123,7 +113,6 @@ function buildSummaryQuickReply() {
 function createBot({
   replyText,
   replyFlex,
-  pushText,
   parseMessage,
   commentSummary,
   downloadImage,
@@ -234,7 +223,7 @@ function createBot({
   async function handleText(event, lineUserId, deadline) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
-    const claimed = await repository.claimEvent(event.webhookEventId, userId, event.message.id);
+    const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
     }
@@ -298,7 +287,7 @@ function createBot({
   async function handleImage(event, lineUserId) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ จึงจอง event ก่อนเรียก Claude เพื่อไม่ให้ตอบและเสียค่าอ่านซ้ำ
-    const claimed = await repository.claimEvent(event.webhookEventId, userId, event.message.id);
+    const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
     }
@@ -348,31 +337,6 @@ function createBot({
     const userId = await users.ensureUser(lineUserId);
     const deleted = await repository.deleteTransactionsByEvent(userId, webhookEventId);
     return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
-  }
-
-  // LINE แนะนำให้ลบข้อมูลของข้อความที่ผู้ใช้ยกเลิกการส่ง แม้รายการนั้นจะถูกแก้ในหน้าเว็บไปแล้ว
-  async function handleUnsend(event, lineUserId) {
-    const messageId = event.unsend && event.unsend.messageId;
-    if (!messageId) {
-      return;
-    }
-    const userId = await users.ensureUser(lineUserId);
-    // LINE ส่ง event เดิมซ้ำได้ จองก่อนกันแจ้งผู้ใช้ซ้ำ
-    if (!(await repository.claimEvent(event.webhookEventId, userId))) {
-      return;
-    }
-    const messageEventId = await repository.findEventByMessageId(userId, messageId);
-    if (!messageEventId) {
-      return;
-    }
-    const deleted = await repository.deleteTransactionsByEvent(userId, messageEventId);
-    const slipsCancelled = await repository.deletePendingSlipsByEvent(userId, messageEventId);
-    // push นับโควตา จึงแจ้งเฉพาะตอนที่ลบอะไรไปจริง
-    if (deleted > 0) {
-      await pushText(lineUserId, unsendDeletedNotice(deleted));
-    } else if (slipsCancelled > 0) {
-      await pushText(lineUserId, UNSEND_SLIP_CANCELLED_NOTICE);
-    }
   }
 
   // ลบแถวพร้อมคืนค่าในคำสั่งเดียว ใครกดก่อนได้แถว คนกดซ้ำได้ null
@@ -473,9 +437,6 @@ function createBot({
     if (event.type === 'postback') {
       return handlePostback(event, lineUserId);
     }
-    if (event.type === 'unsend') {
-      await handleUnsend(event, lineUserId);
-    }
     return null;
   }
 
@@ -504,7 +465,7 @@ function createBot({
       () => logger.info('Dropped a reply that finished after the deadline', context),
       (err) => logger.error('Failed to process event after the reply deadline', context, err)
     );
-    return expectsReply(event) ? { text: SLOW_PROCESSING_REPLY } : null;
+    return event.type === 'follow' ? null : { text: SLOW_PROCESSING_REPLY };
   }
 
   async function handleEvent(event) {
@@ -518,7 +479,7 @@ function createBot({
       reply = await buildReplyBeforeDeadline(event, lineUserId);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
-      reply = expectsReply(event) ? { text: SYSTEM_ERROR_REPLY } : null;
+      reply = event.type === 'follow' ? null : { text: SYSTEM_ERROR_REPLY };
     }
     if (reply) {
       try {
@@ -562,8 +523,6 @@ module.exports = {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   SLIP_TTL_MS,
-  UNSEND_SLIP_CANCELLED_NOTICE,
-  unsendDeletedNotice,
   BILL_REPLIES,
   buildUndoQuickReply,
 };

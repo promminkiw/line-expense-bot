@@ -22,7 +22,6 @@ const MIGRATIONS = [
   '013_bills.sql',
   '014_bill_indexes.sql',
   '015_bill_invariants.sql',
-  '016_line_event_message_id.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -684,29 +683,6 @@ describe('014_bill_indexes.sql', () => {
 
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('014_bill_indexes.sql'))).resolves.toBeDefined();
-  });
-});
-
-describe('016_line_event_message_id.sql', () => {
-  it('stores the LINE message id with the event and finds it by user and message', async () => {
-    const user = await createUser('U1');
-    await db.query('insert into line_events (webhook_event_id, user_id, message_id) values ($1, $2, $3)', ['ev1', user, 'm1']);
-    await db.query('insert into line_events (webhook_event_id, user_id) values ($1, $2)', ['ev2', user]);
-
-    const found = await rows('select webhook_event_id from line_events where user_id = $1 and message_id = $2', [user, 'm1']);
-
-    expect(found).toEqual([{ webhook_event_id: 'ev1' }]);
-  });
-
-  // unsend event ต้องหา event จาก message id ทุกครั้ง ไม่มี index จะสแกนทั้งตาราง
-  it('indexes user and message id', async () => {
-    const { indexdef } = await one("select indexdef from pg_indexes where indexname = 'line_events_user_message_idx'");
-
-    expect(indexdef).toContain('(user_id, message_id)');
-  });
-
-  it('can run again without failing', async () => {
-    await expect(db.exec(readMigration('016_line_event_message_id.sql'))).resolves.toBeDefined();
   });
 });
 

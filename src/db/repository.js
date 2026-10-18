@@ -158,29 +158,17 @@ function createRepository(supabase) {
     return new Map(data.map((row) => [categoryKey(row.type, row.name), row.id]));
   }
 
-  async function claimEvent(webhookEventId, userId, messageId) {
-    const row = { webhook_event_id: webhookEventId, user_id: userId };
-    // unsend event ส่งมาแค่ message id จึงจำไว้คู่กับ event
-    if (messageId) row.message_id = messageId;
+  async function claimEvent(webhookEventId, userId) {
     // ignoreDuplicates คืนเฉพาะแถวที่เพิ่ง insert ได้ แถวว่างแปลว่าเคยประมวลผลแล้ว
     const { data, error } = await supabase
       .from('line_events')
-      .upsert(row, { onConflict: 'webhook_event_id', ignoreDuplicates: true })
+      .upsert(
+        { webhook_event_id: webhookEventId, user_id: userId },
+        { onConflict: 'webhook_event_id', ignoreDuplicates: true }
+      )
       .select('webhook_event_id');
     throwIfError('claimEvent', error);
     return data.length > 0;
-  }
-
-  async function findEventByMessageId(userId, messageId) {
-    const { data, error } = await supabase
-      .from('line_events')
-      .select('webhook_event_id')
-      .eq('user_id', userId)
-      .eq('message_id', messageId)
-      .limit(1)
-      .maybeSingle();
-    throwIfError('findEventByMessageId', error);
-    return data ? data.webhook_event_id : null;
   }
 
   // คืน id ตามลำดับแถวที่ใส่ ใช้ทำลิงก์จากการ์ดไปหน้าแก้ไข
@@ -248,16 +236,6 @@ function createRepository(supabase) {
       .maybeSingle();
     throwIfError('claimPendingSlip', error);
     return data ? { webhookEventId: data.line_event_id, items: data.items } : null;
-  }
-
-  async function deletePendingSlipsByEvent(userId, webhookEventId) {
-    const { count, error } = await supabase
-      .from('pending_slips')
-      .delete({ count: 'exact' })
-      .eq('user_id', userId)
-      .eq('line_event_id', webhookEventId);
-    throwIfError('deletePendingSlipsByEvent', error);
-    return count;
   }
 
   async function deleteExpiredPendingSlips(userId, beforeIso) {
@@ -756,7 +734,6 @@ function createRepository(supabase) {
     clearPendingClarification,
     savePendingSlip,
     claimPendingSlip,
-    deletePendingSlipsByEvent,
     deleteExpiredPendingSlips,
     deleteAllExpiredPendingSlips,
     findUserIdByLineId,
@@ -765,7 +742,6 @@ function createRepository(supabase) {
     seedDefaultCategories,
     getCategoryIds,
     claimEvent,
-    findEventByMessageId,
     insertTransactions,
     deleteTransactionsByEvent,
   };

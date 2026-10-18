@@ -213,19 +213,6 @@ describe('repository.claimEvent', () => {
     ]);
   });
 
-  // unsend event ส่งมาแค่ message id จึงจำไว้คู่กับ event
-  it('stores the LINE message id when given', async () => {
-    const { supabase, calls } = fakeSupabase({ data: [{ webhook_event_id: 'ev1' }], error: null });
-
-    await createRepository(supabase).claimEvent('ev1', 'user-1', 'm1');
-
-    expect(calls[1]).toEqual([
-      'upsert',
-      { webhook_event_id: 'ev1', user_id: 'user-1', message_id: 'm1' },
-      { onConflict: 'webhook_event_id', ignoreDuplicates: true },
-    ]);
-  });
-
   it('returns false when the event was already claimed', async () => {
     const { supabase } = fakeSupabase({ data: [], error: null });
 
@@ -294,58 +281,6 @@ describe('repository.deleteTransactionsByEvent', () => {
 
     await expect(promise).rejects.toBeInstanceOf(DatabaseError);
     await expect(promise).rejects.toThrow('Database deleteTransactionsByEvent failed: boom');
-  });
-});
-
-describe('repository.findEventByMessageId', () => {
-  it('returns the event of this user message', async () => {
-    const { supabase, calls } = fakeSupabase({ data: { webhook_event_id: 'ev1' }, error: null });
-
-    expect(await createRepository(supabase).findEventByMessageId('user-1', 'm1')).toBe('ev1');
-    expect(calls).toEqual([
-      ['from', 'line_events'],
-      ['select', 'webhook_event_id'],
-      ['eq', 'user_id', 'user-1'],
-      ['eq', 'message_id', 'm1'],
-      ['limit', 1],
-      ['maybeSingle'],
-    ]);
-  });
-
-  it('returns null when no event has this message', async () => {
-    const { supabase } = fakeSupabase({ data: null, error: null });
-
-    expect(await createRepository(supabase).findEventByMessageId('user-1', 'm1')).toBeNull();
-  });
-
-  it('throws DatabaseError when Supabase returns an error', async () => {
-    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
-
-    await expect(createRepository(supabase).findEventByMessageId('user-1', 'm1')).rejects.toThrow(
-      'Database findEventByMessageId failed: boom'
-    );
-  });
-});
-
-describe('repository.deletePendingSlipsByEvent', () => {
-  it('deletes only this user slips of the event and returns the count', async () => {
-    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
-
-    expect(await createRepository(supabase).deletePendingSlipsByEvent('user-1', 'ev-img')).toBe(1);
-    expect(calls).toEqual([
-      ['from', 'pending_slips'],
-      ['delete', { count: 'exact' }],
-      ['eq', 'user_id', 'user-1'],
-      ['eq', 'line_event_id', 'ev-img'],
-    ]);
-  });
-
-  it('throws DatabaseError when Supabase returns an error', async () => {
-    const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
-
-    await expect(createRepository(supabase).deletePendingSlipsByEvent('user-1', 'ev-img')).rejects.toThrow(
-      'Database deletePendingSlipsByEvent failed: boom'
-    );
   });
 });
 
