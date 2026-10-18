@@ -5,7 +5,7 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` ถามยอด (แผน docs/superpowers/plans/2026-10-19-ask-totals.md) Task 1-6 เสร็จบน branch feat/ask-totals ยังไม่ merge/push: ผู้ใช้ต้องรัน `supabase/020_query_totals.sql` ก่อน push และทำ LINE check ของ Task 5
+- [ ] `next` ถามยอด (แผน docs/superpowers/plans/2026-10-19-ask-totals.md) Task 1-6 เสร็จบน branch feat/ask-totals ยังไม่ merge/push: ผู้ใช้รัน 020 ใน Supabase แล้ว (2026-10-19) รอ Falcon review ก่อน merge แล้วผู้ใช้ทำ LINE check ของ Task 5
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, latency ของ schema หลัง deploy
