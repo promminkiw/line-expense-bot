@@ -272,6 +272,19 @@ function createRepository(supabase) {
     }));
   }
 
+  async function queryTotals(userId, { from, to, type, category, keyword }) {
+    const { data, error } = await supabase.rpc('query_totals', {
+      p_user_id: userId,
+      p_from: from,
+      p_to: to,
+      p_type: type,
+      p_category: category,
+      p_keyword: keyword,
+    });
+    throwIfError('queryTotals', error);
+    return data.map((row) => ({ type: row.type, total: Number(row.total), entryCount: Number(row.entry_count) }));
+  }
+
   async function getLifetimeTotals(userId) {
     const { data, error } = await supabase.rpc('lifetime_totals', { p_user_id: userId });
     throwIfError('getLifetimeTotals', error);
@@ -765,6 +778,7 @@ function createRepository(supabase) {
     listDueRecurringRules,
     applyRecurringRule,
     summarizeTransactions,
+    queryTotals,
     getLifetimeTotals,
     getMonthlyTotals,
     getDisplayName,

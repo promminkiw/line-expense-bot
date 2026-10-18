@@ -437,6 +437,40 @@ describe('repository.summarizeTransactions', () => {
   });
 });
 
+describe('repository.queryTotals', () => {
+  const criteria = { from: '2026-10-01', to: '2026-10-18', type: 'expense', category: '', keyword: 'กาแฟ' };
+
+  it('calls the SQL function with the question criteria and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ type: 'expense', total: '450.00', entry_count: '6' }], error: null });
+
+    const rows = await createRepository(supabase).queryTotals('user-1', { ...criteria, isQuestion: true });
+
+    expect(rows).toEqual([{ type: 'expense', total: 450, entryCount: 6 }]);
+    expect(calls).toEqual([
+      [
+        'rpc',
+        'query_totals',
+        { p_user_id: 'user-1', p_from: '2026-10-01', p_to: '2026-10-18', p_type: 'expense', p_category: '', p_keyword: 'กาแฟ' },
+      ],
+    ]);
+  });
+
+  it('returns an empty array when nothing matches', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).queryTotals('user-1', criteria)).toEqual([]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).queryTotals('user-1', criteria);
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database queryTotals failed: boom');
+  });
+});
+
 describe('repository.listTransactions', () => {
   it('reads this user rows in the date range, newest first, with the total count', async () => {
     const { supabase, calls } = fakeSupabase({
