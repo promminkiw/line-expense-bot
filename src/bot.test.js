@@ -854,9 +854,69 @@ describe('bot totals questions', () => {
     await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
 
     expect(deps.repository.queryTotals).toHaveBeenCalledWith('user-1', QUESTION);
-    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ช่วง 1-18 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)', undefined);
+    const [replyToken, flex] = deps.replyFlex.mock.calls[0];
+    expect(replyToken).toBe('r1');
+    expect(flex.altText).toBe('ช่วง 1-18 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)');
+    expect(flex.contents.header.contents[0].text).toBe('ยอด 1-18 ต.ค. 2569');
+    expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.parseMessage).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  describe('list link button', () => {
+    const LIFF_URL = 'https://liff.line.me/liff-1';
+    const buttonUri = (deps) => {
+      const { footer } = deps.replyFlex.mock.calls[0][1].contents;
+      return footer ? footer.contents[0].action.uri : undefined;
+    };
+
+    it('opens the list of the month of the end date filtered by keyword and type', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue(QUESTION);
+
+      await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+      const url = new URL(buttonUri(deps));
+      expect(url.origin + url.pathname).toBe(LIFF_URL);
+      expect(Object.fromEntries(url.searchParams)).toEqual({ tab: 'list', m: '2026-10', q: 'กาแฟ', type: 'expense' });
+    });
+
+    it('falls back to the category name and leaves the type out for both', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue({ ...QUESTION, keyword: '', category: 'อาหาร', type: 'both', to: '2026-09-30' });
+
+      await bot.handleEvent(textEvent('เดือนที่แล้วอาหารเท่าไหร่'));
+
+      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({ tab: 'list', m: '2026-09', q: 'อาหาร' });
+    });
+
+    it('has no button without a LIFF url', async () => {
+      const { deps, bot } = setup();
+      deps.parseQuestion.mockResolvedValue(QUESTION);
+
+      await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+      expect(buttonUri(deps)).toBeUndefined();
+    });
+
+    it('has no button when the link would exceed the URI limit', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue({ ...QUESTION, keyword: 'ก'.repeat(200) });
+
+      await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+      expect(deps.replyFlex).toHaveBeenCalled();
+      expect(buttonUri(deps)).toBeUndefined();
+    });
+
+    it('has no button for a LIFF url that is not https', async () => {
+      const { deps, bot } = setup({ liffUrl: 'http://liff.line.me/liff-1' });
+      deps.parseQuestion.mockResolvedValue(QUESTION);
+
+      await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+      expect(buttonUri(deps)).toBeUndefined();
+    });
   });
 
   // ผู้ใช้ถามถึงรายการเก่าได้ จึงส่งทุกชื่อหมวดรวมที่ซ่อน ไม่ใช่เฉพาะหมวดที่ให้เลือกตอนบันทึก
@@ -880,7 +940,7 @@ describe('bot totals questions', () => {
     expect(names).toContain('อาหาร');
     expect(names).toContain('เงินเดือน');
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to load question categories', { userId: 'user-1' }, expect.any(Error));
-    expect(deps.replyText).toHaveBeenCalledWith('r1', expect.stringContaining('รายจ่าย 450 บาท'), undefined);
+    expect(deps.replyFlex.mock.calls[0][1].altText).toContain('รายจ่าย 450 บาท');
   });
 
   it('records the message as before when Claude says it is not a question', async () => {
