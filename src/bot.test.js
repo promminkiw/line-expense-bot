@@ -16,6 +16,7 @@ import {
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   BILL_REPLIES,
+  QUESTION_FAILED_REPLY,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 import { TEXT_CATEGORIES } from './parser/categories.js';
@@ -926,13 +927,22 @@ describe('bot totals questions', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r1', RATE_LIMITED_REPLY, undefined);
   });
 
-  it('replies with the system error when the question parser fails', async () => {
+  // ไม่ส่งต่อไปบันทึกรายการ เพราะคำถามอย่าง "1-15 ต.ค. ใช้ไปเท่าไหร่" อาจกลายเป็นรายการ 15 บาท
+  it.each([
+    ['the question parser', (deps) => deps.parseQuestion.mockRejectedValue(new Error('timeout'))],
+    ['the totals query', (deps) => {
+      deps.parseQuestion.mockResolvedValue(QUESTION);
+      deps.repository.queryTotals.mockRejectedValue(new Error('function query_totals does not exist'));
+    }],
+  ])('tells the user it cannot answer when %s fails', async (_, fail) => {
     const { deps, bot } = setup();
-    deps.parseQuestion.mockRejectedValue(new Error('timeout'));
+    fail(deps);
 
     await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', QUESTION_FAILED_REPLY, undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to answer totals question', { userId: 'user-1' }, expect.any(Error));
+    expect(deps.parseMessage).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
   });
 });

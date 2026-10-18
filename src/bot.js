@@ -20,6 +20,7 @@ const SLOW_PROCESSING_REPLY =
 const REPLY_DEADLINE_MS = 50000;
 const DEADLINE_PASSED = Symbol('deadline passed');
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
+const QUESTION_FAILED_REPLY = 'ตอบคำถามยอดไม่ได้ตอนนี้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const BILL_REPLIES = {
@@ -187,13 +188,19 @@ function createBot({
     }
   }
 
+  // ไม่ส่งต่อไปบันทึกรายการเมื่อพัง เพราะคำถามที่มีวันที่ เช่น "1-15 ต.ค. ใช้ไปเท่าไหร่" อาจกลายเป็นรายการ 15 บาท
   async function answerQuestion(text, userId) {
-    const question = await parseQuestion(text, await loadQuestionCategories(userId));
-    if (!question.isQuestion) {
-      return null;
+    try {
+      const question = await parseQuestion(text, await loadQuestionCategories(userId));
+      if (!question.isQuestion) {
+        return null;
+      }
+      const rows = await repository.queryTotals(userId, question);
+      return { text: formatTotalsAnswer(question, rows) };
+    } catch (err) {
+      logger.error('Failed to answer totals question', { userId }, err);
+      return { text: QUESTION_FAILED_REPLY };
     }
-    const rows = await repository.queryTotals(userId, question);
-    return { text: formatTotalsAnswer(question, rows) };
   }
 
   // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
@@ -558,6 +565,7 @@ module.exports = {
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   RATE_LIMITED_REPLY,
+  QUESTION_FAILED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
