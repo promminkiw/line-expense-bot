@@ -3427,3 +3427,25 @@ describe('LIFF bill form with a hidden category', () => {
     expect([...byId('bill-form-category').options].map((option) => option.textContent)).toEqual(['อาหาร', 'เดินทาง']);
   });
 });
+
+describe('LIFF category icons on rows', () => {
+  const WITH_ICON = { categories: [{ ...CATEGORIES[0], icon: 'coffee' }, ...CATEGORIES.slice(1)] };
+
+  it('shows the icon the user picked on list rows, the chart and the budgets', async () => {
+    await boot({ overrides: { '/api/categories': WITH_ICON } });
+
+    const row = [...document.querySelectorAll('#list .row')].find((item) => item.textContent.includes('ข้าวมันไก่'));
+    expect(row.querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
+    expect(row.querySelector('.cat-badge').classList.contains('cat-tone-expense')).toBe(true);
+    expect(byId('chart-rows').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
+    expect(byId('budget-rows').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
+  });
+
+  it('keeps the default icon and uses the income tone for income rows', async () => {
+    await boot();
+
+    const salary = [...document.querySelectorAll('#list .row')].find((item) => item.textContent.includes('เงินเดือน'));
+    expect(salary.querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-salary');
+    expect(salary.querySelector('.cat-badge').classList.contains('cat-tone-income')).toBe(true);
+  });
+});

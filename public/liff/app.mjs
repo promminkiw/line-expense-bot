@@ -555,6 +555,12 @@ function applyPendingListFocus() {
   (row ? row.querySelector('.row-button') : els.month).focus();
 }
 
+// ไอคอนที่ผู้ใช้เลือกอยู่ที่หมวด ส่วนแถวรายการ กราฟ และงบรู้แค่ชื่อกับประเภท จึงหาจากหมวดที่โหลดไว้
+function badgeFor(name, type) {
+  const category = categories.find((item) => item.type === type && item.name === name);
+  return createCategoryBadge(document, name, { icon: category ? category.icon : null, type });
+}
+
 // ใช้ textContent ทุกจุดเพราะโน้ตมาจากข้อความที่ผู้ใช้พิมพ์
 function renderRow(item) {
   const row = document.createElement('li');
@@ -578,7 +584,7 @@ function renderRow(item) {
   const amount = document.createElement('span');
   amount.className = 'amount';
   amount.textContent = formatSignedBaht(item);
-  button.append(createCategoryBadge(document, item.categoryName), text, amount);
+  button.append(badgeFor(item.categoryName, item.type), text, amount);
   button.addEventListener('click', () => {
     if (Date.now() - lastDragEndAt < CLICK_AFTER_DRAG_MS) return;
     // แถวที่เผยปุ่มลบอยู่ แตะเนื้อหาให้ปิดก่อน ไม่เปิดตัวแก้ไข
@@ -635,7 +641,7 @@ function renderChart({ animate = false } = {}) {
     label.className = 'chart-label chart-label-wrap';
     const labelText = document.createElement('span');
     labelText.textContent = row.category;
-    label.append(createCategoryBadge(document, row.category), labelText);
+    label.append(badgeFor(row.category, chartType), labelText);
     const value = document.createElement('span');
     value.className = 'chart-value';
     value.textContent = `${formatBaht(row.total)} · ${row.shareText}`;
@@ -749,7 +755,8 @@ function renderBudgets(budgets, focusCategoryId = null, { animate = false } = {}
     label.className = 'budget-label budget-label-wrap';
     const labelText = document.createElement('span');
     labelText.textContent = row.category;
-    label.append(createCategoryBadge(document, row.category), labelText);
+    // งบมีเฉพาะหมวดรายจ่าย
+    label.append(badgeFor(row.category, 'expense'), labelText);
     const action = document.createElement('span');
     action.className = 'budget-edit';
     action.textContent = row.budget === null ? 'ตั้งงบ' : 'แก้งบ';
