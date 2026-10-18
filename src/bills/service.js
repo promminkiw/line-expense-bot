@@ -1,7 +1,7 @@
 const { validateBillInput } = require('./validate');
 const { buildBillRequestFlex } = require('./flex');
 const { FALLBACK_DISPLAY_NAME } = require('../friends/service');
-const { FALLBACK_CATEGORY } = require('../parser/categories');
+const { FALLBACK_CATEGORY, shareableCategoryName } = require('../parser/categories');
 const { categoryKey } = require('../db/transaction-rows');
 const { formatAmount } = require('../parser/format-reply');
 
@@ -83,7 +83,7 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
       return { status: 'limited' };
     }
     const id = await repository.createBill({ ownerId, ...bill });
-    return { status: 'ok', id, notNotified: await notifyMembers(id, ownerId, bill, category.name) };
+    return { status: 'ok', id, notNotified: await notifyMembers(id, ownerId, bill, shareableCategoryName(category.name)) };
   }
 
   async function list(userId) {
@@ -96,7 +96,11 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
           .map((member) => ({ ...member, displayName: member.displayName || FALLBACK_DISPLAY_NAME }))
           .sort((a, b) => a.displayName.localeCompare(b.displayName, 'th')),
       })),
-      incoming: incoming.map((bill) => ({ ...bill, ownerName: bill.ownerName || FALLBACK_DISPLAY_NAME })),
+      incoming: incoming.map((bill) => ({
+        ...bill,
+        ownerName: bill.ownerName || FALLBACK_DISPLAY_NAME,
+        categoryName: shareableCategoryName(bill.categoryName),
+      })),
     };
   }
 

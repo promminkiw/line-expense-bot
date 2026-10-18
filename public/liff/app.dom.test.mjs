@@ -2244,6 +2244,14 @@ describe('LIFF bills tab', () => {
     expect(cardOf('b-in').querySelector('.bill-note').textContent).toBe('บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก');
   });
 
+  it('shows the category of an incoming bill and only the total when the server leaves it out', async () => {
+    const incoming = [BASE.incoming[0], { ...BASE.incoming[0], id: 'b-private', categoryName: '' }];
+    await openBills({ route: withBills({ owned: [], incoming }) });
+
+    expect(cardOf('b-in').querySelector('.bill-meta').textContent).toBe('อาหาร · รวม 600 บาท');
+    expect(cardOf('b-private').querySelector('.bill-meta').textContent).toBe('รวม 600 บาท');
+  });
+
   it('moves a cancelled bill to the finished part once its expense was deleted', async () => {
     const incoming = [{ ...BASE.incoming[0], status: 'cancelled', myStatus: 'confirmed', expenseRecorded: false }];
     await openBills({ route: withBills({ owned: [], incoming }) });

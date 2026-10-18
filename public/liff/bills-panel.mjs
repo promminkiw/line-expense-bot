@@ -124,7 +124,9 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       summary: `${bill.ownerName} · ${incomingBillState(bill)}`,
       amount: bill.myShare,
     });
-    detail.append(el('p', 'bill-meta', `${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
+    // server ไม่ส่งชื่อหมวดที่เจ้าของบิลตั้งเองมาให้เพื่อน
+    const total = `รวม ${formatBaht(bill.total)}`;
+    detail.append(el('p', 'bill-meta', bill.categoryName ? `${bill.categoryName} · ${total}` : total));
     // อยู่นอกส่วนที่พับ ผู้ใช้ต้องเห็นเองว่าต้องไปลบรายจ่าย
     if (needsExpenseCleanup(bill)) {
       item.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
