@@ -38,7 +38,7 @@ import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
-import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseTabLink } from './deep-link.mjs';
+import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseListLink, parseTabLink } from './deep-link.mjs';
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
@@ -1596,6 +1596,7 @@ async function boot() {
     const friendCode = parseFriendLink(window.location.search);
     const billId = parseBillLink(window.location.search);
     const tabId = parseTabLink(window.location.search, TABS.map((tab) => tab.id));
+    const listLink = parseListLink(window.location.search);
     // ล้างทุกพารามิเตอร์ รวมลิงก์ที่รหัสผิด ไม่ให้เปิดหน้าใหม่แล้วเจอลิงก์เดิมซ้ำ
     if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
     if (billsPage) {
@@ -1604,13 +1605,20 @@ async function boot() {
       friendsPanel.ensureLoaded();
       return;
     }
-    els.month.value = link && link.date ? link.date.slice(0, 7) : currentMonth(new Date());
+    // ลิงก์แก้ไขรายการและลิงก์ชวนเพื่อนมาก่อน ลิงก์จากการ์ดตอบยอดใช้เฉพาะตอนไม่มีสองอย่างนั้น
+    const listFilter = !link && !friendCode ? listLink : null;
+    els.month.value = link && link.date ? link.date.slice(0, 7) : (listFilter && listFilter.month) || currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
       friendsPanel.openAdd(friendCode);
     }
-    if (tabId && !link && !friendCode) tabController.select(tabId);
+    if (listFilter) {
+      // ตั้งตัวกรองก่อน loadAll เพื่อให้ render ครั้งแรกกรองให้เลย
+      els.search.value = listFilter.query;
+      els.filterType.value = listFilter.type;
+      tabController.select('list');
+    } else if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();

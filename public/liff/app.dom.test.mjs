@@ -924,6 +924,48 @@ describe('LIFF page when loading fails', () => {
 });
 
 
+describe('LIFF page opened from a totals answer card', () => {
+  const noteOf = () => [...document.querySelectorAll('#list .row .row-note')].map((el) => el.textContent);
+
+  it('opens the list on the linked month with the search box and type filter filled', async () => {
+    await boot({ search: `?tab=list&m=2026-09&q=${encodeURIComponent('bts')}&type=expense` });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(byId('search').value).toBe('bts');
+    expect(byId('filter-type').value).toBe('expense');
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+    expect(noteOf()).toEqual(['BTS']);
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(window.location.search).toBe('');
+  });
+
+  it('opens the list tab even when the link carries no tab', async () => {
+    await boot({ search: '?m=2026-10&type=income' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(1);
+  });
+
+  it('ignores invalid parts and shows the normal list', async () => {
+    await boot({ search: '?tab=list&m=2026-13&type=all' });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('search').value).toBe('');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+  });
+
+  it('keeps the edit link in charge when both are present', async () => {
+    await boot({ search: '?tx=t2&d=2026-10-01&m=2026-09&q=zzz' });
+
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('search').value).toBe('');
+    expect(byId('editor').open).toBe(true);
+  });
+});
+
 describe('LIFF page opened from a card link', () => {
   it('opens only the friend dialog when the link has both an entry and a friend code', async () => {
     await boot({ search: '?tx=t2&d=2026-10-01&friend=WXYZ2345' });

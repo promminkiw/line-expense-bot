@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEditLink, parseFriendLink, parseBillLink, parseTabLink, isBillsPageLink } from './deep-link.mjs';
+import { parseEditLink, parseFriendLink, parseBillLink, parseTabLink, parseListLink, isBillsPageLink } from './deep-link.mjs';
 
 const ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 
@@ -88,5 +88,36 @@ describe('isBillsPageLink', () => {
     expect(isBillsPageLink('?tab=profile')).toBe(false);
     expect(isBillsPageLink('?bill=abc')).toBe(false);
     expect(isBillsPageLink(`?friend=ABCD2345&bill=${BILL}`)).toBe(false);
+  });
+});
+
+describe('parseListLink', () => {
+  it('reads month, query and type from the query string', () => {
+    const search = `?tab=list&m=2026-10&q=${encodeURIComponent('กาแฟ')}&type=expense`;
+
+    expect(parseListLink(search)).toEqual({ month: '2026-10', query: 'กาแฟ', type: 'expense' });
+  });
+
+  it('reads them from the liff.state wrapper LINE adds after login', () => {
+    const state = encodeURIComponent(`?tab=list&m=2026-10&q=${encodeURIComponent('กาแฟ')}&type=income`);
+
+    expect(parseListLink(`?liff.state=${state}`)).toEqual({ month: '2026-10', query: 'กาแฟ', type: 'income' });
+  });
+
+  it('fills the parts that are missing or invalid with empty values', () => {
+    expect(parseListLink('?m=2026-10')).toEqual({ month: '2026-10', query: '', type: '' });
+    expect(parseListLink('?m=2026-13&q=a&type=all')).toEqual({ month: '', query: 'a', type: '' });
+    expect(parseListLink('?m=abc&type=income')).toEqual({ month: '', query: '', type: 'income' });
+  });
+
+  it('trims the query and cuts it to the 50 characters the search box accepts', () => {
+    expect(parseListLink('?q=%20%20abc%20%20').query).toBe('abc');
+    expect(parseListLink(`?q=${'x'.repeat(80)}`).query).toBe('x'.repeat(50));
+  });
+
+  it('returns null when the link carries no list filter', () => {
+    expect(parseListLink('')).toBeNull();
+    expect(parseListLink('?tab=list')).toBeNull();
+    expect(parseListLink('?m=2026-13&type=all&q=%20')).toBeNull();
   });
 });
