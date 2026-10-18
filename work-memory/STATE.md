@@ -7,16 +7,16 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 ## Next
 - [ ] `next` ไอคอนหมวดและหน้าหมวดแบบ A (branch feat/category-icons, แผน docs/superpowers/plans/2026-10-18-category-icons.md): Task 1-8 เสร็จ npm test 1510/1510 lint ผ่าน ยังไม่ merge/push; ผู้ใช้ต้อง (1) รัน supabase/018_category_icon.sql ก่อน push (2) Browser check Task 8 ในแอป LINE
 - [ ] หมวดของผู้ใช้เอง (merge main 35c6c6a push แล้ว c532972, รัน 017 แล้ว): ผู้ใช้ยังต้อง Browser check Task 9 ในแอป LINE; ถัดไป roadmap ลำดับ 2 ถามยอดด้วยภาษาธรรมชาติ
-- [ ] custom categories follow-ups (minor จาก final review 2026-10-18): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, หมวดสำรองอาจลงหมวดที่ซ่อน, latency ของ schema หลัง deploy, ชื่อหมวดเจ้าของบิลโผล่ให้เพื่อนเห็น, test ที่ขาด (401/500/Reserved name/POST Invalid body/DOM keepId รายการประจำ/focus หลังปิด dialog/release ไม่ settle/NOT NULL ของ hidden), ข้อความ 30 ใน LIFF ไม่มี parity test, uppercase UUID 404
+- [ ] custom categories follow-ups ที่เหลือ (branch fix/custom-categories-followups แยกจาก feat/category-icons, ยังไม่ merge/push): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, หมวดสำรองอาจลงหมวดที่ซ่อน, latency ของ schema หลัง deploy, ชื่อหมวดเจ้าของบิลโผล่ให้เพื่อนเห็น, PUT /budgets/:categoryId ยังเทียบ id แบบแยกตัวพิมพ์
 - [ ] ตกค้างจาก 2026-10-12 (ยังไม่แก้): ยอดหลักล้านในกล่องรายจ่ายตัดคำ บาท ขึ้นบรรทัดใหม่ตั้งแต่จอ 390; การ์ดยอดคงเหลือ K ยังไม่ตรวจจอต่ำกว่า 360px; ผู้ใช้ตัดสินไม่ทำ: รูปเพื่อนในรายชื่อ, สำเนา UUID_PATTERN ใน LIFF, ลำดับล็อก cancel_bill, push tag design-v1 (ข้อความเต็มดู archive)
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
+- [x] follow-ups ส่วน test + uppercase UUID (2026-10-19, 75475f4 + 7379c93): npm test 1518/1519 (try-parse timeout ตอนรันพร้อมกัน รันเดี่ยวผ่าน) lint ผ่าน; ทุก test ใหม่ทำ mutation check แล้วแดงจริง
 - [x] ลองฟีเจอร์ลบรายการเมื่อ unsend แล้ว revert (2026-10-18): แชทกับบอทไม่มีเมนูยกเลิกข้อความ จึงไม่มี unsend event; drop คอลัมน์ line_events.message_id ใน Supabase แล้ว ถ้าจะทำใหม่ดู d4886b6
 - [x] ปุ่มเสนอแนะลิงก์ Google Form https://forms.gle/byku7LUs8qsXWaP18 (2026-10-12, merge ee4dd27)
 - [x] อัปเดตส่วนที่ล้าหลัง (2026-10-12, merge 2e36869 push แล้ว CI ผ่าน, ผู้ใช้ลองบน Render ผ่าน)
 - [x] README ให้เป็นปัจจุบัน (2026-10-12, branch docs/readme-refresh merge+push แล้ว)
-- [x] Design v2 + หน้าหารบิลเมื่อบิลเยอะ + รูปโปรไฟล์ LINE (2026-10-12, merge main c0b4c14 push แล้ว, ผู้ใช้ลองบนมือถือผ่าน)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
