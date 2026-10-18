@@ -670,16 +670,16 @@ describe('repository.claimExportLink', () => {
 describe('repository.listCategories', () => {
   it('reads this user categories with the hidden flag ordered by type and name', async () => {
     const { supabase, calls } = fakeSupabase({
-      data: [{ id: 'c1', name: 'อาหาร', type: 'expense', hidden: false }],
+      data: [{ id: 'c1', name: 'อาหาร', type: 'expense', hidden: false, icon: null }],
       error: null,
     });
 
     expect(await createRepository(supabase).listCategories('user-1')).toEqual([
-      { id: 'c1', name: 'อาหาร', type: 'expense', hidden: false },
+      { id: 'c1', name: 'อาหาร', type: 'expense', hidden: false, icon: null },
     ]);
     expect(calls).toEqual([
       ['from', 'categories'],
-      ['select', 'id, name, type, hidden'],
+      ['select', 'id, name, type, hidden, icon'],
       ['eq', 'user_id', 'user-1'],
       ['order', 'type'],
       ['order', 'name'],
@@ -697,7 +697,7 @@ describe('repository.listCategories', () => {
 
 describe('repository.createCategory', () => {
   it('inserts the category for this user and returns it', async () => {
-    const row = { id: 'c9', name: 'ค่าแมว', type: 'expense', hidden: false };
+    const row = { id: 'c9', name: 'ค่าแมว', type: 'expense', hidden: false, icon: null };
     const { supabase, calls } = fakeSupabase({ data: row, error: null });
 
     const result = await createRepository(supabase).createCategory('user-1', { type: 'expense', name: 'ค่าแมว' });
@@ -706,7 +706,7 @@ describe('repository.createCategory', () => {
     expect(calls).toEqual([
       ['from', 'categories'],
       ['insert', { user_id: 'user-1', type: 'expense', name: 'ค่าแมว' }],
-      ['select', 'id, name, type, hidden'],
+      ['select', 'id, name, type, hidden, icon'],
       ['single'],
     ]);
   });
@@ -729,7 +729,7 @@ describe('repository.createCategory', () => {
 });
 
 describe('repository.updateCategory', () => {
-  const row = { id: 'c9', name: 'แมว', type: 'expense', hidden: false };
+  const row = { id: 'c9', name: 'แมว', type: 'expense', hidden: false, icon: null };
 
   it('updates only the given fields of this user row and returns it', async () => {
     const { supabase, calls } = fakeSupabase({ data: [row], error: null });
@@ -742,7 +742,7 @@ describe('repository.updateCategory', () => {
       ['update', { name: 'แมว' }],
       ['eq', 'user_id', 'user-1'],
       ['eq', 'id', 'c9'],
-      ['select', 'id, name, type, hidden'],
+      ['select', 'id, name, type, hidden, icon'],
     ]);
   });
 
@@ -1755,5 +1755,34 @@ describe('repository bills', () => {
     await expect(createRepository(failing()).isBillOwner(BILL, 'u')).rejects.toThrow('Database isBillOwner failed: boom');
     await expect(createRepository(failing()).setBillMemberPaid(BILL, 'u', true)).rejects.toThrow('Database setBillMemberPaid failed: boom');
     await expect(createRepository(failing()).getLineUserIds(['u'])).rejects.toThrow('Database getLineUserIds failed: boom');
+  });
+});
+
+describe('repository category icons', () => {
+  it('reads a missing icon as null', async () => {
+    const { supabase } = fakeSupabase({ data: [{ id: 'c1', name: 'อาหาร', type: 'expense', hidden: false }], error: null });
+
+    expect((await createRepository(supabase).listCategories('user-1'))[0].icon).toBeNull();
+  });
+
+  it('inserts the icon when one is given', async () => {
+    const row = { id: 'c9', name: 'กาแฟ', type: 'expense', hidden: false, icon: 'coffee' };
+    const { supabase, calls } = fakeSupabase({ data: row, error: null });
+
+    const result = await createRepository(supabase).createCategory('user-1', { type: 'expense', name: 'กาแฟ', icon: 'coffee' });
+
+    expect(result).toEqual({ status: 'ok', category: row });
+    expect(calls[1]).toEqual(['insert', { user_id: 'user-1', type: 'expense', name: 'กาแฟ', icon: 'coffee' }]);
+  });
+
+  it('sends the icon, including null to reset it', async () => {
+    const row = { id: 'c9', name: 'แมว', type: 'expense', hidden: false, icon: null };
+    const first = fakeSupabase({ data: [{ ...row, icon: 'pet' }], error: null });
+    await createRepository(first.supabase).updateCategory('user-1', 'c9', { icon: 'pet' });
+    expect(first.calls[1]).toEqual(['update', { icon: 'pet' }]);
+
+    const second = fakeSupabase({ data: [row], error: null });
+    await createRepository(second.supabase).updateCategory('user-1', 'c9', { icon: null });
+    expect(second.calls[1]).toEqual(['update', { icon: null }]);
   });
 });
