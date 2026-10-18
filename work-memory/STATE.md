@@ -6,7 +6,7 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 
 ## Next
 - [ ] `next` ผู้ใช้ขอ (2026-10-19): เขียน plan roadmap ข ข้อ 3-6 ให้ครบก่อน ตรวจทานด้วย reviewer แล้วค่อยลงมือทำทีเดียว; branch docs/roadmap-plans ไฟล์ docs/superpowers/plans/2026-10-19-{weekly-summary,daily-reminder,savings-goals,wallets}.md migration 021-024
-- [ ] `next` LINE check ของถามยอด (Task 5 ของแผน 2026-10-19-ask-totals.md): merge+push แล้ว (95734a1) ผู้ใช้รัน 020 แล้ว รอผู้ใช้ลอง; Minor M1-M5 ของ Falcon (category AND keyword, อ่านหมวด 3 ครั้ง, schema cache, test gaps, เรียก Claude 2 รอบ) ยังไม่ทำ
+- [ ] `next` ถามยอดเป็น Flex: ผู้ใช้ลอง LINE check ถามยอดผ่าน 4 ขั้นแล้ว (2026-10-19) ขอให้คำตอบเป็นการ์ดแบบการ์ดสรุป + ปุ่ม ดูรายการในเว็บ (เปิดแท็บรายการเดือนนั้น กรองคำค้น/ประเภท) ข้อความกรณีพังคงเดิม; Wolf ทำใน worktree C:\GithubPrommin\line-expense-bot-flex branch feat/ask-totals-flex (ดู git log) แล้วต้อง Falcon review + ขออนุญาต merge/push; Minor M1-M5 ของ Falcon ยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, latency ของ schema หลัง deploy
