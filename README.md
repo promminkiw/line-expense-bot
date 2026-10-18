@@ -100,7 +100,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 
 บริการจริงรันบน Render (Free plan, Singapore) ตั้งค่าผ่าน `render.yaml` ขั้นตอนเต็มอยู่ที่ `docs/superpowers/plans/2026-10-02-deploy-render.md` สรุปคือ:
 
-1. push โค้ดขึ้น GitHub (push เข้า `main` = deploy อัตโนมัติ ระหว่างนั้นบอทอาจไม่ตอบ 2-5 นาที) ถ้าเวอร์ชันนั้นมีไฟล์ SQL ใหม่ใน `supabase/` ให้รันใน Supabase SQL Editor ก่อน push เช่น เวอร์ชันที่มีหารบิลต้องรัน `supabase/013_bills.sql` ก่อน ไม่งั้นแท็บหารบิลและปุ่มบนการ์ดบิลจะใช้ไม่ได้ (ไฟล์ล่าสุดตอนนี้คือ `015_bill_invariants.sql`)
+1. push โค้ดขึ้น GitHub (push เข้า `main` = deploy อัตโนมัติ ระหว่างนั้นบอทอาจไม่ตอบ 2-5 นาที) ถ้าเวอร์ชันนั้นมีไฟล์ SQL ใหม่ใน `supabase/` ให้รันใน Supabase SQL Editor ก่อน push เช่น เวอร์ชันที่มีหารบิลต้องรัน `supabase/013_bills.sql` ก่อน ไม่งั้นแท็บหารบิลและปุ่มบนการ์ดบิลจะใช้ไม่ได้ (ไฟล์ล่าสุดตอนนี้คือ `016_line_event_message_id.sql` ต้องรันก่อน push เพราะโค้ดเวอร์ชันนั้นบันทึก message id ทุกข้อความ ถ้ายังไม่รันบอทจะบันทึกอะไรไม่ได้เลย)
 2. สร้าง Blueprint บน Render จาก repo แล้วกรอกค่า secret 8 ตัว (ตัวแปรทั้งหมดในตารางด้านบนที่ไม่ใช่ `CLAUDE_MODEL` และ `PORT`) `render.yaml` ไม่เก็บค่า secret
 3. ตั้ง Webhook URL ของ Messaging API เป็น `<URL ของ Render>/webhook` และ LIFF Endpoint URL เป็น `<URL ของ Render>/liff/`
 4. ตั้ง cron-job.org 2 งาน:
