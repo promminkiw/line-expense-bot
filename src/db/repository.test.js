@@ -198,6 +198,19 @@ describe('repository.getCategoryIds', () => {
     ]);
   });
 
+  it('leaves out hidden categories when asked for visible ones only', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'c1', type: 'expense', name: 'อาหาร' }], error: null });
+
+    await createRepository(supabase).getCategoryIds('user-1', { visibleOnly: true });
+
+    expect(calls).toEqual([
+      ['from', 'categories'],
+      ['select', 'id, type, name'],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'hidden', false],
+    ]);
+  });
+
   it('throws DatabaseError when Supabase returns an error', async () => {
     const { supabase } = fakeSupabase({ data: null, count: null, error: { message: 'boom' } });
 

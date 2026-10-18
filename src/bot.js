@@ -270,7 +270,8 @@ function createBot({
       await rememberConversation(userId, messages);
       return { text: result.question };
     }
-    const categoryIds = await users.loadCategoryIds(userId);
+    // หมวดที่ซ่อนต้องตกไป อื่นๆ เพราะตอนโหลดหมวดไม่ได้ Claude เลือกจากหมวดเริ่มต้นซึ่งอาจถูกซ่อนไว้
+    const categoryIds = await users.loadCategoryIds(userId, { visibleOnly: true });
     const rows = toTransactionRows({
       items: result.items,
       categoryIds,

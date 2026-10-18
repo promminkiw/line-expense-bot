@@ -154,11 +154,9 @@ function createRepository(supabase) {
     throwIfError('seedDefaultCategories', error);
   }
 
-  async function getCategoryIds(userId) {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('id, type, name')
-      .eq('user_id', userId);
+  async function getCategoryIds(userId, { visibleOnly = false } = {}) {
+    const query = supabase.from('categories').select('id, type, name').eq('user_id', userId);
+    const { data, error } = await (visibleOnly ? query.eq('hidden', false) : query);
     throwIfError('getCategoryIds', error);
     return new Map(data.map((row) => [categoryKey(row.type, row.name), row.id]));
   }
