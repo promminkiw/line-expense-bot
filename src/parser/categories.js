@@ -8,14 +8,55 @@ const DEFAULT_CATEGORIES = {
   income: ['เงินเดือน', 'รายได้เสริม', FALLBACK_CATEGORY],
 };
 
-// หมวดที่ให้ Claude เลือกสำหรับข้อความที่พิมพ์
+// หมวดที่ให้ Claude เลือกสำหรับข้อความที่พิมพ์ เมื่อไม่รู้หมวดของผู้ใช้
 const TEXT_CATEGORIES = {
   expense: DEFAULT_CATEGORIES.expense.filter((name) => name !== SLIP_CATEGORY),
   income: DEFAULT_CATEGORIES.income,
 };
 
-function normalizeCategory(type, name) {
-  return TEXT_CATEGORIES[type].includes(name) ? name : FALLBACK_CATEGORY;
+// โค้ดอ้างหมวดเหล่านี้ด้วยชื่อ จึงห้ามผู้ใช้เปลี่ยนชื่อหรือซ่อน
+const SYSTEM_CATEGORIES = {
+  expense: [SLIP_CATEGORY, FALLBACK_CATEGORY],
+  income: [FALLBACK_CATEGORY],
+};
+
+// ทุกหมวดที่ไม่ซ่อนถูกส่งให้ Claude ในทุกข้อความ จึงจำกัดความยาวชื่อและจำนวน
+const MAX_CATEGORY_NAME_LENGTH = 30;
+const MAX_VISIBLE_CATEGORIES = 30;
+
+function isSystemCategory(type, name) {
+  return Object.hasOwn(SYSTEM_CATEGORIES, type) && SYSTEM_CATEGORIES[type].includes(name);
 }
 
-module.exports = { DEFAULT_CATEGORIES, TEXT_CATEGORIES, FALLBACK_CATEGORY, SLIP_CATEGORY, normalizeCategory };
+function isReservedCategoryName(name) {
+  return name === FALLBACK_CATEGORY || name === SLIP_CATEGORY;
+}
+
+function toTextCategories(categories) {
+  const pick = (type) => {
+    const names = categories
+      .filter((category) => category.type === type && !category.hidden && category.name !== SLIP_CATEGORY)
+      .map((category) => category.name);
+    // อื่นๆ ต้องมีเสมอ เพราะเป็นหมวดสำรองเมื่อไม่มีหมวดไหนตรง
+    return names.includes(FALLBACK_CATEGORY) ? names : [...names, FALLBACK_CATEGORY];
+  };
+  return { expense: pick('expense'), income: pick('income') };
+}
+
+function normalizeCategory(type, name, categories = TEXT_CATEGORIES) {
+  return categories[type].includes(name) ? name : FALLBACK_CATEGORY;
+}
+
+module.exports = {
+  DEFAULT_CATEGORIES,
+  TEXT_CATEGORIES,
+  SYSTEM_CATEGORIES,
+  FALLBACK_CATEGORY,
+  SLIP_CATEGORY,
+  MAX_CATEGORY_NAME_LENGTH,
+  MAX_VISIBLE_CATEGORIES,
+  isSystemCategory,
+  isReservedCategoryName,
+  toTextCategories,
+  normalizeCategory,
+};
