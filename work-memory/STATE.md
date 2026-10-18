@@ -1,11 +1,11 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: ทำถามยอดเสร็จบน branch)
+Updated: 2026-10-19 (ล่าสุด: ถามยอด merge+push แล้ว)
 Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว; งานที่เหลือคือ roadmap ข (หมวดของผู้ใช้เอง แล้วถามยอดด้วยภาษาธรรมชาติ) และ ticket/backlog เล็ก
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` ถามยอด (แผน docs/superpowers/plans/2026-10-19-ask-totals.md) Task 1-6 เสร็จบน branch feat/ask-totals ยังไม่ merge/push: ผู้ใช้รัน 020 ใน Supabase แล้ว (2026-10-19) Falcon review แล้ว แก้ I1 (SPEC ผิดที่) + I2 (ถามยอดพังตอบ QUESTION_FAILED_REPLY ไม่ส่งไปบันทึก) ลอง API จริง schema 100 หมวด+"" ผ่าน; รอผู้ใช้อนุญาต merge/push แล้วทำ LINE check ของ Task 5; Minor M1-M5 ของ Falcon (category AND keyword, อ่านหมวด 3 ครั้ง, schema cache, test gaps) ยังไม่ทำ
+- [ ] `next` LINE check ของถามยอด (Task 5 ของแผน 2026-10-19-ask-totals.md): merge+push แล้ว (95734a1) ผู้ใช้รัน 020 แล้ว รอผู้ใช้ลอง; Minor M1-M5 ของ Falcon (category AND keyword, อ่านหมวด 3 ครั้ง, schema cache, test gaps, เรียก Claude 2 รอบ) ยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, latency ของ schema หลัง deploy
@@ -13,11 +13,11 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
+- [x] ถามยอดด้วยภาษาธรรมชาติ roadmap ข ข้อ 2 (2026-10-19, merge 95734a1 push แล้ว): ผู้ใช้รัน 020 ก่อน push; npm test 1609/1609 lint ผ่าน; ลอง API จริง schema 100 หมวด+"" ผ่าน; ถัดไปตาม roadmap คือข้อ 3 สรุปรายสัปดาห์ (migration 021)
 - [x] ยอดยาวในการ์ด K (2026-10-19, branch fix/million-amount-wrap): ยอดเกิน 12 ตัวอักษรเรียงรายรับ/รายจ่ายแนวตั้ง, ยอดคงเหลือย่อตาม --amount-chars; ตรวจ headless Chrome จอ 320/360/390/430 ไม่ล้น; roadmap-b อัปเดตสถานะและเลข migration 020-024
 - [x] PUT /api/budgets/:categoryId รับ id ตัวพิมพ์ใหญ่ (2026-10-19, branch fix/budget-uuid-case): เทสต์ใหม่แดง 404 ก่อนแก้; npm test 1552/1552 lint ผ่าน
 - [x] ปุ่มลบหมวดเป็น pill ขอบแดง (merge+push a537f23) และรายการที่พิมพ์ไม่ลงหมวดที่ซ่อน (merge+push e181ab9, loadCategoryIds visibleOnly เฉพาะเส้นทางข้อความ; บิลยังใช้หมวดที่ซ่อนตาม SPEC) (2026-10-19): เทสต์ใหม่ 3 ตัวแดงก่อนแก้
 - [x] ลบหมวด Task 1-5 merge เข้า main (bfc5dd1) และ push แล้ว (2026-10-19): ผู้ใช้รัน 019 ก่อน push; npm test บน main 1548/1548 lint ผ่าน; เทสต์ถูกเขียนก่อน session นี้ จึงไม่มีหลักฐานว่าเคยแดงก่อน
-- [x] merge fix/budgets-new-category (86455da) เข้า main และ push แล้ว: หมวดรายจ่ายที่เพิ่มใหม่ขึ้นในหน้างบ
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
