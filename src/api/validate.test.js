@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseMonth, validateTransactionUpdate, validateRecurringRule } from './validate.js';
+import {
+  parseMonth,
+  validateTransactionUpdate,
+  validateRecurringRule,
+  validateCategoryCreate,
+  validateCategoryUpdate,
+} from './validate.js';
 
 const VALID = { amount: 60, categoryId: 'cat-1', occurredOn: '2026-09-29', note: ' กินข้าว ' };
 
@@ -96,5 +102,53 @@ describe('validateRecurringRule', () => {
     expect(validateRecurringRule({ ...RULE, note: 'ก'.repeat(201) })).toEqual({ ok: false, error: 'Invalid note' });
     expect(validateRecurringRule({ ...RULE, note: 5 })).toEqual({ ok: false, error: 'Invalid note' });
     expect(validateRecurringRule({ ...RULE, active: 'yes' })).toEqual({ ok: false, error: 'Invalid active' });
+  });
+});
+
+describe('validateCategoryCreate', () => {
+  it('accepts a type and a trimmed name', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: '  ค่าแมว ' })).toEqual({
+      ok: true,
+      value: { type: 'expense', name: 'ค่าแมว' },
+    });
+  });
+
+  it('accepts a 30 unit name and rejects 31', () => {
+    expect(validateCategoryCreate({ type: 'income', name: 'ก'.repeat(30) }).ok).toBe(true);
+    expect(validateCategoryCreate({ type: 'income', name: 'ก'.repeat(31) })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+
+  // prompt ของ Claude คั่นชื่อหมวดด้วยจุลภาค และตัวควบคุมทำให้ prompt เพี้ยน
+  it.each([[''], ['   '], ['แมว,หมา'], ['แมว\nหมา'], ['a\u007fb'], [42], [undefined]])('rejects the name %j', (name) => {
+    expect(validateCategoryCreate({ type: 'expense', name })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+
+  it('rejects the names of system categories for any type', () => {
+    expect(validateCategoryCreate({ type: 'income', name: 'อื่นๆ' })).toEqual({ ok: false, error: 'Reserved name' });
+    expect(validateCategoryCreate({ type: 'income', name: 'ใบเสร็จ/สลิปโอนเงิน' })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
+  it('rejects a bad type or body', () => {
+    expect(validateCategoryCreate({ type: 'saving', name: 'x' })).toEqual({ ok: false, error: 'Invalid type' });
+    expect(validateCategoryCreate(null)).toEqual({ ok: false, error: 'Invalid body' });
+  });
+});
+
+describe('validateCategoryUpdate', () => {
+  it('accepts a new name, a hidden flag, or both', () => {
+    expect(validateCategoryUpdate({ name: ' แมว ' })).toEqual({ ok: true, value: { name: 'แมว' } });
+    expect(validateCategoryUpdate({ hidden: true })).toEqual({ ok: true, value: { hidden: true } });
+    expect(validateCategoryUpdate({ name: 'แมว', hidden: false })).toEqual({ ok: true, value: { name: 'แมว', hidden: false } });
+  });
+
+  it('rejects an empty or missing body', () => {
+    expect(validateCategoryUpdate({})).toEqual({ ok: false, error: 'Invalid body' });
+    expect(validateCategoryUpdate(null)).toEqual({ ok: false, error: 'Invalid body' });
+  });
+
+  it('rejects a bad name or hidden value', () => {
+    expect(validateCategoryUpdate({ name: '' })).toEqual({ ok: false, error: 'Invalid name' });
+    expect(validateCategoryUpdate({ name: 'อื่นๆ' })).toEqual({ ok: false, error: 'Reserved name' });
+    expect(validateCategoryUpdate({ hidden: 'true' })).toEqual({ ok: false, error: 'Invalid hidden' });
   });
 });

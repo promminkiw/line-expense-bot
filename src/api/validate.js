@@ -1,5 +1,6 @@
 const { MAX_AMOUNT } = require('../parser/parse-message');
 const { isValidCalendarDate } = require('../utils/date');
+const { MAX_CATEGORY_NAME_LENGTH, isReservedCategoryName } = require('../parser/categories');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
@@ -68,4 +69,63 @@ function validateRecurringRule(body) {
   return { ok: true, value: { amount, categoryId, dayOfMonth, note: note.trim(), active } };
 }
 
-module.exports = { parseMonth, isValidAmount, validateTransactionUpdate, validateRecurringRule };
+// prompt ของ Claude คั่นชื่อหมวดด้วยจุลภาค และตัวควบคุมทำให้ prompt เพี้ยน จึงไม่รับทั้งสองแบบ
+function hasForbiddenNameCharacter(name) {
+  return [...name].some((char) => char === ',' || char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
+}
+
+function validateCategoryName(value) {
+  if (typeof value !== 'string') {
+    return { ok: false, error: 'Invalid name' };
+  }
+  const name = value.trim();
+  if (name.length === 0 || name.length > MAX_CATEGORY_NAME_LENGTH || hasForbiddenNameCharacter(name)) {
+    return { ok: false, error: 'Invalid name' };
+  }
+  if (isReservedCategoryName(name)) {
+    return { ok: false, error: 'Reserved name' };
+  }
+  return { ok: true, value: name };
+}
+
+function validateCategoryCreate(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  if (body.type !== 'expense' && body.type !== 'income') {
+    return { ok: false, error: 'Invalid type' };
+  }
+  const name = validateCategoryName(body.name);
+  return name.ok ? { ok: true, value: { type: body.type, name: name.value } } : name;
+}
+
+function validateCategoryUpdate(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const value = {};
+  if (body.name !== undefined) {
+    const name = validateCategoryName(body.name);
+    if (!name.ok) return name;
+    value.name = name.value;
+  }
+  if (body.hidden !== undefined) {
+    if (typeof body.hidden !== 'boolean') {
+      return { ok: false, error: 'Invalid hidden' };
+    }
+    value.hidden = body.hidden;
+  }
+  if (Object.keys(value).length === 0) {
+    return { ok: false, error: 'Invalid body' };
+  }
+  return { ok: true, value };
+}
+
+module.exports = {
+  parseMonth,
+  isValidAmount,
+  validateTransactionUpdate,
+  validateRecurringRule,
+  validateCategoryCreate,
+  validateCategoryUpdate,
+};

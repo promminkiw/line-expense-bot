@@ -198,13 +198,177 @@ describe('authentication', () => {
 });
 
 describe('GET /api/categories', () => {
-  it('returns the user categories', async () => {
-    const base = await start(setup());
+  it('returns the user categories with a system flag', async () => {
+    const deps = setup();
+    deps.repository.listCategories.mockResolvedValue([
+      { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false },
+      { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false },
+      { id: 'c-old', name: 'เก่า', type: 'income', hidden: true },
+    ]);
+    const base = await start(deps);
 
     const res = await call(base, '/categories');
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ categories: CATEGORIES });
+    expect(await res.json()).toEqual({
+      categories: [
+        { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false, system: false },
+        { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false, system: true },
+        { id: 'c-old', name: 'เก่า', type: 'income', hidden: true, system: false },
+      ],
+    });
+  });
+});
+
+describe('categories API', () => {
+  const CAT_ID = '22222222-3333-4444-5555-666666666666';
+  const OTHER_ID = '33333333-4444-5555-6666-777777777777';
+  const CAT = { id: CAT_ID, name: 'ค่าแมว', type: 'expense', hidden: false };
+  const OTHER = { id: OTHER_ID, name: 'อื่นๆ', type: 'expense', hidden: false };
+  const visibleExpense = (count) =>
+    Array.from({ length: count }, (_, index) => ({ id: `v-${index}`, name: `หมวด ${index}`, type: 'expense', hidden: false }));
+
+  function withCategories(categories) {
+    const deps = setup();
+    deps.repository.listCategories.mockResolvedValue(categories);
+    deps.repository.createCategory = vi.fn().mockResolvedValue({ status: 'ok', category: CAT });
+    deps.repository.updateCategory = vi.fn().mockResolvedValue({ status: 'ok', category: { ...CAT, name: 'แมว' } });
+    return deps;
+  }
+
+  it('creates a category with a trimmed name', async () => {
+    const deps = withCategories([OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: ' ค่าแมว ' } });
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ category: { ...CAT, system: false } });
+    expect(deps.repository.createCategory).toHaveBeenCalledWith('user-1', { type: 'expense', name: 'ค่าแมว' });
+  });
+
+  it.each([
+    [{ type: 'saving', name: 'x' }, 'Invalid type'],
+    [{ type: 'expense', name: '' }, 'Invalid name'],
+    [{ type: 'expense', name: 'อื่นๆ' }, 'Reserved name'],
+  ])('refuses to create %j', async (body, error) => {
+    const deps = withCategories([OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error });
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+  });
+
+  it('answers 409 for a duplicate name', async () => {
+    const deps = withCategories([OTHER]);
+    deps.repository.createCategory.mockResolvedValue({ status: 'duplicate' });
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'อาหาร' } });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Duplicate name' });
+  });
+
+  it('refuses a 31st visible category of a type but not when the others are hidden', async () => {
+    const full = withCategories(visibleExpense(30));
+    const fullBase = await start(full);
+    const refused = await call(fullBase, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ error: 'Too many categories' });
+    expect(full.repository.createCategory).not.toHaveBeenCalled();
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+
+    const hidden = withCategories(visibleExpense(30).map((category) => ({ ...category, hidden: true })));
+    const hiddenBase = await start(hidden);
+    const allowed = await call(hiddenBase, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+    expect(allowed.status).toBe(201);
+  });
+
+  it('renames a category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { name: 'แมว' } });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ category: { ...CAT, name: 'แมว', system: false } });
+    expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', CAT_ID, { name: 'แมว' });
+  });
+
+  it('hides a category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    deps.repository.updateCategory.mockResolvedValue({ status: 'ok', category: { ...CAT, hidden: true } });
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: true } });
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', CAT_ID, { hidden: true });
+  });
+
+  it('refuses to change a system category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${OTHER_ID}`, { method: 'PATCH', body: { hidden: true } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'System category' });
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for another user category and for an id that is not a uuid', async () => {
+    const deps = withCategories([OTHER]);
+    const base = await start(deps);
+
+    const unknown = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: true } });
+    const bad = await call(base, '/categories/abc', { method: 'PATCH', body: { hidden: true } });
+
+    expect(unknown.status).toBe(404);
+    expect(bad.status).toBe(404);
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
+  it('refuses to unhide past the visible limit', async () => {
+    const deps = withCategories([{ ...CAT, hidden: true }, ...visibleExpense(30)]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: false } });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Too many categories' });
+  });
+
+  it('maps duplicate and not_found from the repository', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    deps.repository.updateCategory
+      .mockResolvedValueOnce({ status: 'duplicate' })
+      .mockResolvedValueOnce({ status: 'not_found' });
+    const base = await start(deps);
+
+    const duplicate = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { name: 'อาหาร' } });
+    const gone = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { name: 'แมว' } });
+
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toEqual({ error: 'Duplicate name' });
+    expect(gone.status).toBe(404);
+  });
+
+  it('rejects a bad patch body', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const empty = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: {} });
+    const badHidden = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: 'yes' } });
+
+    expect(await empty.json()).toEqual({ error: 'Invalid body' });
+    expect(await badHidden.json()).toEqual({ error: 'Invalid hidden' });
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
   });
 });
 
@@ -458,6 +622,28 @@ describe('budgets', () => {
       budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 5000, spent: 60 }],
     });
     expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
+  });
+
+  // หมวดที่ซ่อนแต่ยังมีงบหรือยอดต้องเห็นอยู่ ผู้ใช้จะได้ยกเลิกงบที่ค้างได้
+  it('drops a hidden category only when the month has no budget and no spending', async () => {
+    const deps = setup();
+    deps.repository.listCategories.mockResolvedValue([
+      ...CATEGORIES,
+      { id: 'c-old', name: 'เก่า', type: 'expense', hidden: true },
+      { id: 'c-old2', name: 'เก่า2', type: 'expense', hidden: true },
+      { id: 'c-old3', name: 'เก่า3', type: 'expense', hidden: true },
+    ]);
+    deps.repository.getBudgetStatus.mockResolvedValue([
+      { categoryId: 'c-food', category: 'อาหาร', budget: null, spent: 0 },
+      { categoryId: 'c-old', category: 'เก่า', budget: null, spent: 0 },
+      { categoryId: 'c-old2', category: 'เก่า2', budget: 1000, spent: 0 },
+      { categoryId: 'c-old3', category: 'เก่า3', budget: null, spent: 15 },
+    ]);
+    const base = await start(deps);
+
+    const res = await call(base, '/budgets?month=2026-09');
+
+    expect((await res.json()).budgets.map((row) => row.categoryId)).toEqual(['c-food', 'c-old2', 'c-old3']);
   });
 
   it('rejects a bad month when reading budgets', async () => {
