@@ -289,6 +289,28 @@ describe('categories API', () => {
     expect(allowed.status).toBe(201);
   });
 
+  it('allows a new expense category when only the income side is full', async () => {
+    const incomeFull = Array.from({ length: 30 }, (_, index) => ({ id: `i-${index}`, name: `รายได้ ${index}`, type: 'income', hidden: false }));
+    const deps = withCategories(incomeFull);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+
+    expect(res.status).toBe(201);
+    expect(deps.repository.createCategory).toHaveBeenCalledWith('user-1', { type: 'expense', name: 'ใหม่' });
+  });
+
+  it('counts system categories toward the limit', async () => {
+    const deps = withCategories([...visibleExpense(29), OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Too many categories' });
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+  });
+
   it('renames a category', async () => {
     const deps = withCategories([CAT, OTHER]);
     const base = await start(deps);

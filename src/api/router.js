@@ -122,7 +122,7 @@ function createApiRouter({
       res.status(404).json({ error: 'Not found' });
       return;
     }
-    // โค้ดอ้างหมวดระบบด้วยชื่อ ถ้าเปลี่ยนชื่อหรือซ่อนจะบันทึกรายการที่ไม่เข้าหมวดไหนไม่ได้
+    // โค้ดอ้างหมวดระบบด้วยชื่อ ถ้าเปลี่ยนชื่อจะถูกเติมกลับจนมีหมวดซ้ำ ถ้าซ่อนรายการที่ตกหมวดนี้จะไปอยู่ในหมวดที่มองไม่เห็น
     if (isSystemCategory(category.type, category.name)) {
       res.status(400).json({ error: 'System category' });
       return;
