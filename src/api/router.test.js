@@ -436,6 +436,52 @@ describe('categories API', () => {
     expect(await badHidden.json()).toEqual({ error: 'Invalid hidden' });
     expect(deps.repository.updateCategory).not.toHaveBeenCalled();
   });
+
+  it('creates a category with the picked icon', async () => {
+    const deps = withCategories([OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'กาแฟ', icon: 'coffee' } });
+
+    expect(res.status).toBe(201);
+    expect(deps.repository.createCategory).toHaveBeenCalledWith('user-1', { type: 'expense', name: 'กาแฟ', icon: 'coffee' });
+  });
+
+  it('refuses an unknown icon', async () => {
+    const deps = withCategories([OTHER, CAT]);
+    const base = await start(deps);
+
+    const created = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'กาแฟ', icon: 'unicorn' } });
+    const patched = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { icon: 'unicorn' } });
+
+    expect(created.status).toBe(400);
+    expect(await created.json()).toEqual({ error: 'Invalid icon' });
+    expect(patched.status).toBe(400);
+    expect(await patched.json()).toEqual({ error: 'Invalid icon' });
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
+  it('changes only the icon of a category', async () => {
+    const deps = withCategories([OTHER, CAT]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { icon: 'pet' } });
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', CAT_ID, { icon: 'pet' });
+  });
+
+  it('refuses to change the icon of a system category', async () => {
+    const deps = withCategories([OTHER, CAT]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${OTHER_ID}`, { method: 'PATCH', body: { icon: 'pet' } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'System category' });
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /api/transactions', () => {
