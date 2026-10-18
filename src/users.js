@@ -55,15 +55,15 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     return userId;
   }
 
-  async function loadCategoryIds(userId) {
-    const categoryIds = await repository.getCategoryIds(userId);
+  async function loadCategoryIds(userId, options) {
+    const categoryIds = await repository.getCategoryIds(userId, options);
     // ตรวจเฉพาะหมวดระบบ เพราะหมวดเริ่มต้นอื่นผู้ใช้เปลี่ยนชื่อได้ ถ้าเติมกลับจะมีหมวดซ้ำงอกขึ้นมา
     if (SYSTEM_CATEGORY_KEYS.every((key) => categoryIds.has(key))) {
       return categoryIds;
     }
     // ไม่มีหมวดเลยคือสร้างผู้ใช้สำเร็จแต่สร้างหมวดไม่สำเร็จ จึงเติมหมวดเริ่มต้นครบชุด
     await repository.seedDefaultCategories(userId, categoryIds.size === 0 ? DEFAULT_CATEGORIES : SYSTEM_CATEGORIES);
-    return repository.getCategoryIds(userId);
+    return repository.getCategoryIds(userId, options);
   }
 
   async function loadTextCategories(userId) {

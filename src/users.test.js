@@ -232,6 +232,19 @@ describe('userService.loadCategoryIds', () => {
     expect(ids).toBe(withoutFood);
   });
 
+  it('passes visibleOnly to every category id lookup', async () => {
+    const getCategoryIds = vi
+      .fn()
+      .mockResolvedValueOnce(new Map())
+      .mockResolvedValueOnce(new Map([['expense:อาหาร', 'c1']]));
+    const { service } = setup({ getCategoryIds });
+
+    await service.loadCategoryIds('user-1', { visibleOnly: true });
+
+    expect(getCategoryIds).toHaveBeenNthCalledWith(1, 'user-1', { visibleOnly: true });
+    expect(getCategoryIds).toHaveBeenNthCalledWith(2, 'user-1', { visibleOnly: true });
+  });
+
   it('rejects when seeding fails', async () => {
     const { service } = setup({
       getCategoryIds: vi.fn().mockResolvedValue(new Map()),

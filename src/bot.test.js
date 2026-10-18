@@ -817,6 +817,15 @@ describe('bot text categories', () => {
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
+  // ตอนใช้หมวดเริ่มต้นแทน Claude อาจเลือกหมวดที่ผู้ใช้ซ่อนไว้ จึงต้องหา id จากหมวดที่ไม่ซ่อนเท่านั้น
+  it('looks up only visible category ids when saving a text entry', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.users.loadCategoryIds).toHaveBeenCalledWith('user-1', { visibleOnly: true });
+  });
+
   it('does not load categories for the summary menu', async () => {
     const { deps, bot } = setup();
 
