@@ -5,6 +5,7 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
+- [ ] `next` ผู้ใช้ขอ (2026-10-19): เขียน plan roadmap ข ข้อ 3-6 ให้ครบก่อน ตรวจทานด้วย reviewer แล้วค่อยลงมือทำทีเดียว; branch docs/roadmap-plans ไฟล์ docs/superpowers/plans/2026-10-19-{weekly-summary,daily-reminder,savings-goals,wallets}.md migration 021-024
 - [ ] `next` LINE check ของถามยอด (Task 5 ของแผน 2026-10-19-ask-totals.md): merge+push แล้ว (95734a1) ผู้ใช้รัน 020 แล้ว รอผู้ใช้ลอง; Minor M1-M5 ของ Falcon (category AND keyword, อ่านหมวด 3 ครั้ง, schema cache, test gaps, เรียก Claude 2 รอบ) ยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
