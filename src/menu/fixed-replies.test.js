@@ -67,6 +67,16 @@ describe('getFixedReply', () => {
     expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
   });
 
+  it('documents asking for totals after the summary section', () => {
+    const lines = HELP_REPLY.split('\n');
+    const title = lines.indexOf('🔎 ถามยอด');
+    expect(title).toBeGreaterThan(lines.indexOf('📊 ดูสรุปยอด'));
+    expect(lines.slice(title + 1, title + 3)).toEqual([
+      'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
+      'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
+    ]);
+  });
+
   it('uses the agreed wording', () => {
     expect(WEB_COMING_SOON_REPLY).toBe('หน้าเว็บสำหรับดูและแก้ไขรายการกำลังพัฒนา จะเปิดใช้ได้เร็วๆ นี้');
     expect(HELP_REPLY).toBe(
@@ -101,6 +111,10 @@ describe('getFixedReply', () => {
         '📊 ดูสรุปยอด',
         'กดปุ่ม "สรุป" ในเมนูด้านล่าง หรือพิมพ์ สรุป',
         'แล้วเลือก วันนี้ / สัปดาห์นี้ / เดือนนี้',
+        '',
+        '🔎 ถามยอด',
+        'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
+        'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
         '',
         '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
       ].join('\n')

@@ -9,7 +9,9 @@ const { getFixedReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
 const { formatAmount } = require('./parser/format-reply');
-const { TEXT_CATEGORIES } = require('./parser/categories');
+const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
+const { looksLikeQuestion } = require('./query/parse-question');
+const { formatTotalsAnswer } = require('./query/format-answer');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -54,6 +56,8 @@ const MAX_URI_LENGTH = 1000;
 const PENDING_TTL_MS = 10 * 60 * 1000;
 // จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
 const MAX_HISTORY_MESSAGES = 6;
+// ใช้ถามยอดเมื่อโหลดหมวดของผู้ใช้ไม่ได้ ชื่อซ้ำ (อื่นๆ) ถูกตัดใน schema อยู่แล้ว
+const DEFAULT_QUESTION_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
 function isFromUser(event) {
   return Boolean(event.source && event.source.type === 'user' && event.source.userId);
@@ -115,6 +119,7 @@ function createBot({
   replyText,
   replyFlex,
   parseMessage,
+  parseQuestion,
   commentSummary,
   downloadImage,
   parseSlip,
@@ -169,6 +174,26 @@ function createBot({
       logger.error('Failed to load text categories', { userId }, err);
       return TEXT_CATEGORIES;
     }
+  }
+
+  // ผู้ใช้ถามถึงรายการเก่าได้ จึงใช้ทุกหมวดรวมที่ซ่อน ถ้าโหลดไม่ได้ยังตอบด้วยหมวดเริ่มต้นได้
+  async function loadQuestionCategories(userId) {
+    try {
+      const categories = await repository.listCategories(userId);
+      return [...new Set(categories.map((category) => category.name))];
+    } catch (err) {
+      logger.error('Failed to load question categories', { userId }, err);
+      return DEFAULT_QUESTION_CATEGORIES;
+    }
+  }
+
+  async function answerQuestion(text, userId) {
+    const question = await parseQuestion(text, await loadQuestionCategories(userId));
+    if (!question.isQuestion) {
+      return null;
+    }
+    const rows = await repository.queryTotals(userId, question);
+    return { text: formatTotalsAnswer(question, rows) };
   }
 
   // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
@@ -255,6 +280,13 @@ function createBot({
       return handleSummary(summaryCommand, userId);
     }
     const { messages: history, loadFailed } = await loadHistory(userId);
+    // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม จึงไม่ตีความเป็นคำถามยอด
+    if (history.length === 0 && looksLikeQuestion(event.message.text)) {
+      const answer = await answerQuestion(event.message.text, userId);
+      if (answer) {
+        return answer;
+      }
+    }
     const textCategories = await loadTextCategories(userId);
     const result = await parseMessage(event.message.text, history, textCategories);
     if (result.status === 'clarify') {

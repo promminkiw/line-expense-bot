@@ -91,6 +91,7 @@ function setup(overrides = {}) {
     replyText: vi.fn().mockResolvedValue(),
     replyFlex: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
+    parseQuestion: vi.fn().mockResolvedValue({ isQuestion: false }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
     downloadImage: vi.fn().mockResolvedValue({ status: 'ok', mediaType: 'image/jpeg', data: 'QUJD' }),
     parseSlip: vi.fn().mockResolvedValue(slipResult()),
@@ -105,6 +106,13 @@ function setup(overrides = {}) {
         .fn()
         .mockResolvedValue([{ type: 'expense', category: 'อาหาร', total: 105, entryCount: 2 }]),
       getBudgetStatus: vi.fn().mockResolvedValue([]),
+      listCategories: vi.fn().mockResolvedValue([
+        { id: 'cat-food', name: 'อาหาร', type: 'expense', hidden: false },
+        { id: 'cat-old', name: 'ค่าแมว', type: 'expense', hidden: true },
+        { id: 'cat-other', name: 'อื่นๆ', type: 'expense', hidden: false },
+        { id: 'cat-income-other', name: 'อื่นๆ', type: 'income', hidden: false },
+      ]),
+      queryTotals: vi.fn().mockResolvedValue([{ type: 'expense', total: 450, entryCount: 6 }]),
       savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
@@ -832,6 +840,100 @@ describe('bot text categories', () => {
     await bot.handleEvent(textEvent('สรุป'));
 
     expect(deps.users.loadTextCategories).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot totals questions', () => {
+  const QUESTION = { isQuestion: true, type: 'expense', category: '', keyword: 'กาแฟ', from: '2026-10-01', to: '2026-10-18' };
+
+  it('answers a question with totals from SQL and does not record an entry', async () => {
+    const { deps, bot } = setup();
+    deps.parseQuestion.mockResolvedValue(QUESTION);
+
+    await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+    expect(deps.repository.queryTotals).toHaveBeenCalledWith('user-1', QUESTION);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ช่วง 1-18 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)', undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  // ผู้ใช้ถามถึงรายการเก่าได้ จึงส่งทุกชื่อหมวดรวมที่ซ่อน ไม่ใช่เฉพาะหมวดที่ให้เลือกตอนบันทึก
+  it('gives the parser every category name once, hidden ones included', async () => {
+    const { deps, bot } = setup();
+    deps.parseQuestion.mockResolvedValue(QUESTION);
+
+    await bot.handleEvent(textEvent('ค่าแมวเท่าไหร่'));
+
+    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ']);
+  });
+
+  it('uses the default category names when loading them fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listCategories.mockRejectedValue(new Error('db down'));
+    deps.parseQuestion.mockResolvedValue(QUESTION);
+
+    await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+    const names = deps.parseQuestion.mock.calls[0][1];
+    expect(names).toContain('อาหาร');
+    expect(names).toContain('เงินเดือน');
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to load question categories', { userId: 'user-1' }, expect.any(Error));
+    expect(deps.replyText).toHaveBeenCalledWith('r1', expect.stringContaining('รายจ่าย 450 บาท'), undefined);
+  });
+
+  it('records the message as before when Claude says it is not a question', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ข้าวมันไก่ 50 แพงเท่าไหร่'));
+
+    expect(deps.parseQuestion).toHaveBeenCalled();
+    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything());
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('does not call the question parser without a question word', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.parseQuestion).not.toHaveBeenCalled();
+  });
+
+  // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม
+  it('does not read a reply to a clarifying question as a totals question', async () => {
+    const { deps, bot } = setup();
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: [
+        { role: 'user', text: 'ซื้อรถ' },
+        { role: 'assistant', text: 'ซื้อรถกี่บาท' },
+      ],
+      updatedAt: new Date(NOW_MS).toISOString(),
+    });
+
+    await bot.handleEvent(textEvent('ไม่แน่ใจว่าเท่าไหร่ ประมาณ 500000'));
+
+    expect(deps.parseQuestion).not.toHaveBeenCalled();
+    expect(deps.parseMessage).toHaveBeenCalled();
+  });
+
+  it('counts a question against the rate limit', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+    expect(deps.parseQuestion).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r1', RATE_LIMITED_REPLY, undefined);
+  });
+
+  it('replies with the system error when the question parser fails', async () => {
+    const { deps, bot } = setup();
+    deps.parseQuestion.mockRejectedValue(new Error('timeout'));
+
+    await bot.handleEvent(textEvent('เดือนนี้กินกาแฟไปเท่าไหร่'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
   });
 });
 
