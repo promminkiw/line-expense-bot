@@ -13,6 +13,7 @@ import {
   hasChartData,
   describeExportFailure,
   groupCategoryOptions,
+  categoryOptionLabel,
   describeEditFailure,
   budgetRows,
   createLatestGuard,
@@ -31,6 +32,7 @@ import {
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 import { createFriendsPanel } from './friends-panel.mjs';
+import { createCategoriesPanel } from './categories-panel.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
 import { createBillForm } from './bill-form.mjs';
 import { createBannerSetter } from './banner.mjs';
@@ -231,6 +233,33 @@ const friendsPanel = createFriendsPanel({
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
 });
+const categoriesPanel = createCategoriesPanel({
+  doc: document,
+  els: {
+    section: document.getElementById('categories-manager'),
+    addForm: document.getElementById('category-add-form'),
+    addType: document.getElementById('category-add-type'),
+    addName: document.getElementById('category-add-name'),
+    addSubmit: document.getElementById('category-add-submit'),
+    addError: document.getElementById('category-add-error'),
+    status: document.getElementById('category-status'),
+    toggleError: document.getElementById('category-toggle-error'),
+    expenseRows: document.getElementById('category-rows-expense'),
+    incomeRows: document.getElementById('category-rows-income'),
+    dialog: document.getElementById('category-dialog'),
+    dialogForm: document.getElementById('category-dialog-form'),
+    dialogName: document.getElementById('category-dialog-name'),
+    dialogError: document.getElementById('category-dialog-error'),
+    dialogSave: document.getElementById('category-dialog-save'),
+    dialogCancel: document.getElementById('category-dialog-cancel'),
+  },
+  getApi: () => api,
+  getCategories: () => categories,
+  onChanged: (next) => {
+    setCategories(next);
+    refreshAfterCategoryChange();
+  },
+});
 const billsPanel = createBillsPanel({
   doc: document,
   els: {
@@ -390,7 +419,7 @@ function fillGroupedSelect(select, groups, placeholderOption = null) {
     for (const category of groups[type]) {
       const option = document.createElement('option');
       option.value = category.id;
-      option.textContent = category.name;
+      option.textContent = categoryOptionLabel(category);
       group.append(option);
     }
     select.append(group);
@@ -399,13 +428,27 @@ function fillGroupedSelect(select, groups, placeholderOption = null) {
 }
 
 function fillCategoryOptions() {
-  const groups = groupCategoryOptions(categories);
-  fillGroupedSelect(els.category, groups);
-  fillGroupedSelect(els.recurringCategory, groups);
-  const selected = fillGroupedSelect(els.filterCategory, groups, new Option('ทุกหมวด', ''));
+  const visible = groupCategoryOptions(categories);
+  fillGroupedSelect(els.category, visible);
+  fillGroupedSelect(els.recurringCategory, visible);
+  // ตัวกรองต้องเลือกหมวดที่ซ่อนแล้วได้ เพราะรายการเก่ายังอยู่ในหมวดนั้น
+  const all = groupCategoryOptions(categories, { includeHidden: true });
+  const selected = fillGroupedSelect(els.filterCategory, all, new Option('ทุกหมวด', ''));
   // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
   els.filterCategory.value = selected;
   if (els.filterCategory.value !== selected) els.filterCategory.value = '';
+}
+
+function setCategories(next) {
+  categories = next;
+  fillCategoryOptions();
+  categoriesPanel.render();
+}
+
+// รายการเก่าอาจอยู่ในหมวดที่ซ่อนแล้ว ต้องใส่หมวดนั้นกลับเข้าตัวเลือก ไม่งั้น select ว่างแล้วบันทึกไม่ได้
+function showCategoryOptions(select, keepId) {
+  fillGroupedSelect(select, groupCategoryOptions(categories, { keepId }));
+  select.value = keepId ?? '';
 }
 
 const SWIPE_REVEAL_WIDTH = 88;
@@ -955,8 +998,7 @@ async function loadMonth({ reset = false } = {}) {
 async function ensureCategories() {
   if (categories.length === 0) {
     try {
-      ({ categories } = await api.listCategories());
-      fillCategoryOptions();
+      setCategories((await api.listCategories()).categories);
     } catch {
       // ปล่อยให้ categories ว่าง แล้วผู้เรียกแสดงข้อความผิดพลาด
     }
@@ -980,7 +1022,7 @@ async function openEditor(item) {
     els.error.hidden = false;
     return;
   }
-  els.category.value = item.categoryId;
+  showCategoryOptions(els.category, item.categoryId);
   els.saveButton.disabled = busy;
 }
 
@@ -1285,11 +1327,8 @@ async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
 function openRecurringEditor(row = null) {
   editingRecurring = row;
   els.recurringEditorTitle.textContent = row ? 'แก้รายการประจำ' : 'เพิ่มรายการประจำ';
-  if (row) {
-    els.recurringCategory.value = row.categoryId;
-  } else if (els.recurringCategory.options.length > 0) {
-    els.recurringCategory.selectedIndex = 0;
-  }
+  showCategoryOptions(els.recurringCategory, row ? row.categoryId : null);
+  if (!row && els.recurringCategory.options.length > 0) els.recurringCategory.selectedIndex = 0;
   els.recurringAmount.value = row ? String(row.amount) : '';
   els.recurringDay.value = row ? String(row.dayOfMonth) : '';
   els.recurringNote.value = row ? row.note : '';
@@ -1449,10 +1488,15 @@ function enterBillsPage() {
   document.getElementById('panel-bills').append(document.getElementById('friends'));
 }
 
+// ชื่อหมวดฝังอยู่ในรายการ งบ และรายการประจำ จึงโหลดใหม่ให้ตรงกับชื่อล่าสุด (loader ไม่ throw จึงไม่กระทบผลการแก้หมวด)
+function refreshAfterCategoryChange() {
+  loadMonth();
+  loadRecurring();
+}
+
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
-  ({ categories } = await api.listCategories());
-  fillCategoryOptions();
+  setCategories((await api.listCategories()).categories);
   // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
   els.recurringEmpty.hidden = true;
   els.recurringError.hidden = true;

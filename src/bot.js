@@ -9,6 +9,7 @@ const { getFixedReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
 const { formatAmount } = require('./parser/format-reply');
+const { TEXT_CATEGORIES } = require('./parser/categories');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -160,6 +161,16 @@ function createBot({
     }
   }
 
+  // หมวดของผู้ใช้เป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ใช้หมวดเริ่มต้นแทน ยังบันทึกรายการได้
+  async function loadTextCategories(userId) {
+    try {
+      return await users.loadTextCategories(userId);
+    } catch (err) {
+      logger.error('Failed to load text categories', { userId }, err);
+      return TEXT_CATEGORIES;
+    }
+  }
+
   // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
   // ลิงก์เข้าหน้าแก้ไขรายการ: ใส่วันที่ไปด้วยเพื่อให้หน้าเว็บเปิดเดือนที่ถูกต้องก่อนหารายการ
   function buildEditUrls(rows, ids) {
@@ -244,7 +255,8 @@ function createBot({
       return handleSummary(summaryCommand, userId);
     }
     const { messages: history, loadFailed } = await loadHistory(userId);
-    const result = await parseMessage(event.message.text, history);
+    const textCategories = await loadTextCategories(userId);
+    const result = await parseMessage(event.message.text, history, textCategories);
     if (result.status === 'clarify') {
       // ผู้ใช้ไม่เคยเห็นคำถามนี้ จึงไม่จำไว้เป็นบริบทของข้อความถัดไป
       if (deadline.passed) {

@@ -1,9 +1,9 @@
-const { DEFAULT_CATEGORIES } = require('./parser/categories');
+const { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES, toTextCategories } = require('./parser/categories');
 const { categoryKey } = require('./db/transaction-rows');
 
 // getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
 const PROFILE_TIMEOUT_MS = 3000;
-const DEFAULT_CATEGORY_KEYS = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) =>
+const SYSTEM_CATEGORY_KEYS = Object.entries(SYSTEM_CATEGORIES).flatMap(([type, names]) =>
   names.map((name) => categoryKey(type, name))
 );
 
@@ -57,15 +57,20 @@ function createUserService({ repository, getDisplayName, logger = console, profi
 
   async function loadCategoryIds(userId) {
     const categoryIds = await repository.getCategoryIds(userId);
-    if (DEFAULT_CATEGORY_KEYS.every((key) => categoryIds.has(key))) {
+    // ตรวจเฉพาะหมวดระบบ เพราะหมวดเริ่มต้นอื่นผู้ใช้เปลี่ยนชื่อได้ ถ้าเติมกลับจะมีหมวดซ้ำงอกขึ้นมา
+    if (SYSTEM_CATEGORY_KEYS.every((key) => categoryIds.has(key))) {
       return categoryIds;
     }
-    // ซ่อมกรณีสร้างผู้ใช้สำเร็จแต่สร้างหมวดไม่สำเร็จ และเติมหมวดเริ่มต้นที่เพิ่มมาหลังผู้ใช้สมัคร
-    await repository.seedDefaultCategories(userId);
+    // ไม่มีหมวดเลยคือสร้างผู้ใช้สำเร็จแต่สร้างหมวดไม่สำเร็จ จึงเติมหมวดเริ่มต้นครบชุด
+    await repository.seedDefaultCategories(userId, categoryIds.size === 0 ? DEFAULT_CATEGORIES : SYSTEM_CATEGORIES);
     return repository.getCategoryIds(userId);
   }
 
-  return { ensureUser, loadCategoryIds };
+  async function loadTextCategories(userId) {
+    return toTextCategories(await repository.listCategories(userId));
+  }
+
+  return { ensureUser, loadCategoryIds, loadTextCategories };
 }
 
 module.exports = { createUserService };

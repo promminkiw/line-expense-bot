@@ -35,6 +35,9 @@ export function createApi({ fetchImpl, getIdToken }) {
 
   return {
     listCategories: () => request('/categories'),
+    createCategory: (body) => request('/categories', { method: 'POST', body: JSON.stringify(body) }),
+    updateCategory: (id, body) =>
+      request(`/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
     listTransactions: (month) => request(`/transactions?month=${encodeURIComponent(month)}`),
     getTrend: (month) => request(`/trend?month=${encodeURIComponent(month)}`),
     getProfile: () => request('/profile'),

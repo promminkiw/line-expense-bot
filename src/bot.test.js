@@ -18,10 +18,12 @@ import {
   BILL_REPLIES,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
+import { TEXT_CATEGORIES } from './parser/categories.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
 const FOOD_ITEM = { type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
+const USER_TEXT_CATEGORIES = { expense: ['อาหาร', 'อื่นๆ'], income: ['อื่นๆ'] };
 
 const SLIP_ID = '7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d';
 const SLIP_ITEM = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'โอนให้ ร้านข้าวแกง' };
@@ -110,6 +112,7 @@ function setup(overrides = {}) {
     now: () => NOW_MS,
     users: {
       ensureUser: vi.fn().mockResolvedValue('user-1'),
+      loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
       loadCategoryIds: vi.fn().mockResolvedValue(
         new Map([
           ['expense:อาหาร', 'cat-food'],
@@ -133,7 +136,7 @@ describe('bot text message', () => {
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
         user_id: 'user-1',
@@ -190,7 +193,7 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('500000'));
 
     expect(deps.repository.getPendingClarification).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history);
+    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES);
     expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
@@ -218,7 +221,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(deps.replyFlex).toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
@@ -316,7 +319,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
   });
 
   it('keeps only the last 6 turns while the user keeps being asked', async () => {
@@ -774,6 +777,7 @@ describe('bot budget alerts', () => {
       parseMessage,
       users: {
         ensureUser: vi.fn().mockResolvedValue('user-1'),
+        loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
         loadCategoryIds: vi.fn().mockResolvedValue(new Map([['income:อื่นๆ', 'cat-income-other']])),
       },
     });
@@ -782,6 +786,43 @@ describe('bot budget alerts', () => {
 
     expect(deps.repository.getBudgetStatus).not.toHaveBeenCalled();
     expect(replyFlexOf(deps).text).not.toContain('เช็กงบไม่สำเร็จ');
+  });
+});
+
+describe('bot text categories', () => {
+  it('passes the user categories to the parser', async () => {
+    const { deps, bot } = setup();
+    const categories = { expense: ['ค่าแมว', 'อื่นๆ'], income: ['อื่นๆ'] };
+    deps.users.loadTextCategories.mockResolvedValue(categories);
+
+    await bot.handleEvent(textEvent('อาหารแมว 300'));
+
+    expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
+    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories);
+  });
+
+  // หมวดเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ยังบันทึกด้วยหมวดเริ่มต้นได้ ดีกว่าตอบว่าระบบมีปัญหา
+  it('falls back to the default categories and still saves when loading them fails', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadTextCategories.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES);
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to load text categories',
+      { userId: 'user-1' },
+      expect.any(Error)
+    );
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('does not load categories for the summary menu', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.users.loadTextCategories).not.toHaveBeenCalled();
   });
 });
 

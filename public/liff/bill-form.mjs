@@ -48,7 +48,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   const picked = () => [...els.members.querySelectorAll('.bill-form-member')].filter((row) => row.querySelector('input[type="checkbox"]').checked);
 
   function fillCategories() {
-    const expense = getCategories().filter((category) => category.type === 'expense');
+    const expense = getCategories().filter((category) => category.type === 'expense' && !category.hidden);
     els.category.replaceChildren(
       ...expense.map((category) => {
         const option = doc.createElement('option');

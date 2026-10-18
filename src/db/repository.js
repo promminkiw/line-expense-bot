@@ -3,6 +3,7 @@ const { categoryKey } = require('./transaction-rows');
 const { lastDayOf, monthStartOf } = require('../recurring/schedule');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id';
+const CATEGORY_COLUMNS = 'id, name, type, hidden';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
 const EXPORT_PAGE_SIZE = 1000;
 const EXPORT_COLUMNS = `${TRANSACTION_COLUMNS}, created_at`;
@@ -38,6 +39,10 @@ function toTransaction(row) {
     occurredOn: row.occurred_on,
     categoryId: row.category_id,
   };
+}
+
+function toCategory(row) {
+  return { id: row.id, name: row.name, type: row.type, hidden: row.hidden };
 }
 
 function toOwnedBill(row) {
@@ -139,8 +144,8 @@ function createRepository(supabase) {
     throwIfError('fillMissingDisplayName', error);
   }
 
-  async function seedDefaultCategories(userId) {
-    const rows = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) =>
+  async function seedDefaultCategories(userId, categories = DEFAULT_CATEGORIES) {
+    const rows = Object.entries(categories).flatMap(([type, names]) =>
       names.map((name) => ({ user_id: userId, type, name }))
     );
     const { error } = await supabase
@@ -565,12 +570,43 @@ function createRepository(supabase) {
   async function listCategories(userId) {
     const { data, error } = await supabase
       .from('categories')
-      .select('id, name, type')
+      .select(CATEGORY_COLUMNS)
       .eq('user_id', userId)
       .order('type')
       .order('name');
     throwIfError('listCategories', error);
-    return data.map((row) => ({ id: row.id, name: row.name, type: row.type }));
+    return data.map(toCategory);
+  }
+
+  // ชื่อซ้ำในประเภทเดียวกันชน unique (user_id, type, name) จึงคืน duplicate ให้ API ตอบ 409
+  async function createCategory(userId, { type, name }) {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({ user_id: userId, type, name })
+      .select(CATEGORY_COLUMNS)
+      .single();
+    if (error && error.code === UNIQUE_VIOLATION) {
+      return { status: 'duplicate' };
+    }
+    throwIfError('createCategory', error);
+    return { status: 'ok', category: toCategory(data) };
+  }
+
+  async function updateCategory(userId, id, fields) {
+    const changes = {};
+    if (fields.name !== undefined) changes.name = fields.name;
+    if (fields.hidden !== undefined) changes.hidden = fields.hidden;
+    const { data, error } = await supabase
+      .from('categories')
+      .update(changes)
+      .eq('user_id', userId)
+      .eq('id', id)
+      .select(CATEGORY_COLUMNS);
+    if (error && error.code === UNIQUE_VIOLATION) {
+      return { status: 'duplicate' };
+    }
+    throwIfError('updateCategory', error);
+    return data.length > 0 ? { status: 'ok', category: toCategory(data[0]) } : { status: 'not_found' };
   }
 
   async function updateTransaction(userId, id, fields) {
@@ -698,6 +734,8 @@ function createRepository(supabase) {
     deleteExpiredExportLinks,
     claimExportLink,
     listCategories,
+    createCategory,
+    updateCategory,
     updateTransaction,
     deleteTransaction,
     listRecurringRules,

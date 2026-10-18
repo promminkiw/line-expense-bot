@@ -7,6 +7,7 @@ import {
   groupByDate,
   formatDayNet,
   groupCategoryOptions,
+  categoryOptionLabel,
   describeEditFailure,
   describeDeleteTarget,
   summaryTotals,
@@ -71,11 +72,38 @@ describe('groupByDate', () => {
 });
 
 describe('groupCategoryOptions', () => {
-  it('splits categories by type', () => {
-    const food = { id: 'c1', name: 'อาหาร', type: 'expense' };
-    const salary = { id: 'c2', name: 'เงินเดือน', type: 'income' };
+  const food = { id: 'c1', name: 'อาหาร', type: 'expense' };
+  const salary = { id: 'c2', name: 'เงินเดือน', type: 'income' };
+  const old = { id: 'c3', name: 'เก่า', type: 'expense', hidden: true };
 
+  it('splits categories by type', () => {
     expect(groupCategoryOptions([food, salary])).toEqual({ expense: [food], income: [salary] });
+  });
+
+  it('leaves hidden categories out by default', () => {
+    expect(groupCategoryOptions([food, old, salary])).toEqual({ expense: [food], income: [salary] });
+  });
+
+  it('keeps the hidden category of the entry being edited', () => {
+    expect(groupCategoryOptions([food, old, salary], { keepId: 'c3' })).toEqual({ expense: [food, old], income: [salary] });
+  });
+
+  it('includes every hidden category when asked', () => {
+    expect(groupCategoryOptions([food, old, salary], { includeHidden: true })).toEqual({
+      expense: [food, old],
+      income: [salary],
+    });
+  });
+});
+
+describe('categoryOptionLabel', () => {
+  it('keeps the plain name for a visible category', () => {
+    expect(categoryOptionLabel({ name: 'อาหาร', hidden: false })).toBe('อาหาร');
+    expect(categoryOptionLabel({ name: 'อาหาร' })).toBe('อาหาร');
+  });
+
+  it('marks a hidden category', () => {
+    expect(categoryOptionLabel({ name: 'เก่า', hidden: true })).toBe('เก่า (ซ่อนอยู่)');
   });
 });
 

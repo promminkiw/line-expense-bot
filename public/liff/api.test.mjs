@@ -10,6 +10,19 @@ function setup(fetchImpl) {
 }
 
 describe('createApi', () => {
+  it('creates and updates categories', async () => {
+    const fetchImpl = fakeFetch(200, { category: {} });
+    const api = setup(fetchImpl);
+
+    await api.createCategory({ type: 'expense', name: 'ค่าแมว' });
+    await api.updateCategory('c 1', { hidden: true });
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method, options.body])).toEqual([
+      ['/api/categories', 'POST', JSON.stringify({ type: 'expense', name: 'ค่าแมว' })],
+      ['/api/categories/c%201', 'PATCH', JSON.stringify({ hidden: true })],
+    ]);
+  });
+
   it('sends the ID token and reads JSON', async () => {
     const fetchImpl = fakeFetch(200, { categories: [] });
 

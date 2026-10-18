@@ -1,6 +1,13 @@
 const express = require('express');
 const { AuthError } = require('./verify-id-token');
-const { parseMonth, isValidAmount, validateTransactionUpdate, validateRecurringRule } = require('./validate');
+const {
+  parseMonth,
+  isValidAmount,
+  validateTransactionUpdate,
+  validateRecurringRule,
+  validateCategoryCreate,
+  validateCategoryUpdate,
+} = require('./validate');
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
 const { toBangkokDateString } = require('../utils/date');
 const { lastRunOnAfterSave } = require('../recurring/schedule');
@@ -8,6 +15,15 @@ const { monthsEndingAt, buildTrend } = require('./trend');
 
 const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_RECURRING_RULES = 50;
+const { isSystemCategory, MAX_VISIBLE_CATEGORIES, MAX_TOTAL_CATEGORIES } = require('../parser/categories');
+
+function withSystemFlag(category) {
+  return { ...category, system: isSystemCategory(category.type, category.name) };
+}
+
+function countVisible(categories, type) {
+  return categories.filter((category) => category.type === type && !category.hidden).length;
+}
 
 function readBearerToken(req) {
   const header = req.get('authorization') || '';
@@ -67,7 +83,68 @@ function createApiRouter({
   router.use('/bills', billsRouter);
 
   router.get('/categories', async (req, res) => {
-    res.json({ categories: await repository.listCategories(req.userId) });
+    const categories = await repository.listCategories(req.userId);
+    res.json({ categories: categories.map(withSystemFlag) });
+  });
+
+  router.post('/categories', async (req, res) => {
+    const result = validateCategoryCreate(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const categories = await repository.listCategories(req.userId);
+    if (
+      categories.length >= MAX_TOTAL_CATEGORIES ||
+      countVisible(categories, result.value.type) >= MAX_VISIBLE_CATEGORIES
+    ) {
+      res.status(409).json({ error: 'Too many categories' });
+      return;
+    }
+    const created = await repository.createCategory(req.userId, result.value);
+    if (created.status === 'duplicate') {
+      res.status(409).json({ error: 'Duplicate name' });
+      return;
+    }
+    res.status(201).json({ category: withSystemFlag(created.category) });
+  });
+
+  router.patch('/categories/:id', async (req, res) => {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const result = validateCategoryUpdate(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const categories = await repository.listCategories(req.userId);
+    const category = categories.find((item) => item.id === req.params.id);
+    if (!category) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    // โค้ดอ้างหมวดระบบด้วยชื่อ ถ้าเปลี่ยนชื่อจะถูกเติมกลับจนมีหมวดซ้ำ ถ้าซ่อนรายการที่ตกหมวดนี้จะไปอยู่ในหมวดที่มองไม่เห็น
+    if (isSystemCategory(category.type, category.name)) {
+      res.status(400).json({ error: 'System category' });
+      return;
+    }
+    const unhiding = result.value.hidden === false && category.hidden;
+    if (unhiding && countVisible(categories, category.type) >= MAX_VISIBLE_CATEGORIES) {
+      res.status(409).json({ error: 'Too many categories' });
+      return;
+    }
+    const updated = await repository.updateCategory(req.userId, category.id, result.value);
+    if (updated.status === 'duplicate') {
+      res.status(409).json({ error: 'Duplicate name' });
+      return;
+    }
+    if (updated.status === 'not_found') {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.json({ category: withSystemFlag(updated.category) });
   });
 
   router.get('/transactions', async (req, res) => {
@@ -166,7 +243,15 @@ function createApiRouter({
       res.status(400).json({ error: 'Invalid month' });
       return;
     }
-    res.json({ budgets: await repository.getBudgetStatus(req.userId, month) });
+    const [budgets, categories] = await Promise.all([
+      repository.getBudgetStatus(req.userId, month),
+      repository.listCategories(req.userId),
+    ]);
+    const hiddenIds = new Set(categories.filter((category) => category.hidden).map((category) => category.id));
+    // หมวดที่ซ่อนยังแสดงถ้ามีงบหรือยอดในเดือนนั้น ผู้ใช้จะได้ยกเลิกงบที่ค้างได้
+    res.json({
+      budgets: budgets.filter((row) => !hiddenIds.has(row.categoryId) || row.budget !== null || row.spent > 0),
+    });
   });
 
   router.put('/budgets/:categoryId', async (req, res) => {

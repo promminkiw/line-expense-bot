@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createUserService } from './users.js';
-import { DEFAULT_CATEGORIES } from './parser/categories.js';
+import { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES } from './parser/categories.js';
 
 // ผู้ใช้ที่มีหมวดเริ่มต้นครบ อาหาร = c1 ให้เทสต์อ้างได้
 const ALL_DEFAULT_IDS = new Map([
@@ -17,6 +17,7 @@ function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedVa
     fillMissingDisplayName: vi.fn().mockResolvedValue(),
     seedDefaultCategories: vi.fn().mockResolvedValue(),
     getCategoryIds: vi.fn().mockResolvedValue(ALL_DEFAULT_IDS),
+    listCategories: vi.fn().mockResolvedValue([]),
     ...repositoryOverrides,
   };
   const logger = { error: vi.fn() };
@@ -202,12 +203,12 @@ describe('userService.loadCategoryIds', () => {
 
     const ids = await service.loadCategoryIds('user-1');
 
-    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
+    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1', DEFAULT_CATEGORIES);
     expect(ids.get('expense:อาหาร')).toBe('c1');
   });
 
   // ผู้ใช้ที่สมัครก่อนมีหมวดใหม่ (เช่นหมวดสลิป) ต้องได้หมวดนั้นก่อนบันทึก ไม่งั้นรายการตกไปอยู่ อื่นๆ
-  it('seeds the missing defaults and reloads when a default category was added after the user joined', async () => {
+  it('seeds the missing system categories and reloads', async () => {
     const all = Object.entries(DEFAULT_CATEGORIES).flatMap(([type, names]) => names.map((name) => `${type}:${name}`));
     const withoutSlip = new Map(all.filter((key) => key !== 'expense:ใบเสร็จ/สลิปโอนเงิน').map((key, index) => [key, `c${index}`]));
     const full = new Map(all.map((key, index) => [key, `c${index}`]));
@@ -216,8 +217,19 @@ describe('userService.loadCategoryIds', () => {
 
     const ids = await service.loadCategoryIds('user-1');
 
-    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
+    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1', SYSTEM_CATEGORIES);
     expect(ids.has('expense:ใบเสร็จ/สลิปโอนเงิน')).toBe(true);
+  });
+
+  // ผู้ใช้เปลี่ยนชื่อหมวดเริ่มต้นได้ ถ้าเติมกลับจะมีหมวดชื่อเดิมงอกขึ้นมาซ้ำ
+  it('does not seed when only a renamed default category is missing', async () => {
+    const withoutFood = new Map([...ALL_DEFAULT_IDS].filter(([key]) => key !== 'expense:อาหาร'));
+    const { repository, service } = setup({ getCategoryIds: vi.fn().mockResolvedValue(withoutFood) });
+
+    const ids = await service.loadCategoryIds('user-1');
+
+    expect(repository.seedDefaultCategories).not.toHaveBeenCalled();
+    expect(ids).toBe(withoutFood);
   });
 
   it('rejects when seeding fails', async () => {
@@ -227,5 +239,27 @@ describe('userService.loadCategoryIds', () => {
     });
 
     await expect(service.loadCategoryIds('user-1')).rejects.toThrow('db down');
+  });
+});
+
+describe('userService.loadTextCategories', () => {
+  it('returns the visible category names by type for Claude', async () => {
+    const { repository, service } = setup({
+      listCategories: vi.fn().mockResolvedValue([
+        { id: 'c1', name: 'ค่าแมว', type: 'expense', hidden: false },
+        { id: 'c2', name: 'บันเทิง', type: 'expense', hidden: true },
+        { id: 'c3', name: 'อื่นๆ', type: 'expense', hidden: false },
+        { id: 'c4', name: 'อื่นๆ', type: 'income', hidden: false },
+      ]),
+    });
+
+    expect(await service.loadTextCategories('user-1')).toEqual({ expense: ['ค่าแมว', 'อื่นๆ'], income: ['อื่นๆ'] });
+    expect(repository.listCategories).toHaveBeenCalledWith('user-1');
+  });
+
+  it('rejects when the categories cannot be read', async () => {
+    const { service } = setup({ listCategories: vi.fn().mockRejectedValue(new Error('db down')) });
+
+    await expect(service.loadTextCategories('user-1')).rejects.toThrow('db down');
   });
 });

@@ -22,6 +22,7 @@ const MIGRATIONS = [
   '013_bills.sql',
   '014_bill_indexes.sql',
   '015_bill_invariants.sql',
+  '017_category_hidden.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -683,6 +684,31 @@ describe('014_bill_indexes.sql', () => {
 
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('014_bill_indexes.sql'))).resolves.toBeDefined();
+  });
+});
+
+describe('017_category_hidden.sql', () => {
+  it('adds hidden to categories, false by default', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+
+    expect((await one('select hidden from categories where id = $1', [food])).hidden).toBe(false);
+
+    await db.query('update categories set hidden = true where id = $1', [food]);
+    expect((await one('select hidden from categories where id = $1', [food])).hidden).toBe(true);
+  });
+
+  // เตือนงบยังต้องทำงานกับหมวดที่ซ่อน เพราะรายการประจำยังบันทึกลงหมวดนั้นได้
+  it('keeps a hidden category in budget_status', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await db.query('update categories set hidden = true where id = $1', [food]);
+
+    expect(await rows('select category from budget_status($1, $2)', [user, '2026-10-01'])).toEqual([{ category: 'อาหาร' }]);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('017_category_hidden.sql'))).resolves.toBeDefined();
   });
 });
 
