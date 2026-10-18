@@ -192,8 +192,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     const result = await send(() => getApi().createCategory({ type, name, icon: pickedIcon }));
     if (!result) return;
     const created = result.category;
-    // หมวดใหม่ยังไม่มีรายการ จึงไม่ต้องโหลดรายการ งบ และรายการประจำใหม่
-    onChanged([...getCategories(), created], { refresh: false });
+    // หมวดใหม่ยังไม่มีรายการ จึงไม่ต้องโหลดรายการและรายการประจำใหม่ แต่หน้างบแสดงหมวดรายจ่ายทุกหมวดแม้ยังไม่ตั้งงบ
+    onChanged([...getCategories(), created], { refresh: created.type === 'expense' ? 'budgets' : false });
     setStatus(`เพิ่มหมวด ${created.name} แล้ว`);
     closeSheet(tileSelector(created));
   }

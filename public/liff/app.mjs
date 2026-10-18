@@ -265,7 +265,8 @@ const categoriesPanel = createCategoriesPanel({
   getCategories: () => categories,
   onChanged: (next, { refresh }) => {
     setCategories(next);
-    if (refresh) refreshAfterCategoryChange();
+    if (refresh === 'budgets') loadBudgets();
+    else if (refresh) refreshAfterCategoryChange();
   },
 });
 const billsPanel = createBillsPanel({

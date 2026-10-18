@@ -3353,10 +3353,13 @@ describe('LIFF categories page', () => {
     expect(isOpen()).toBe(false);
   });
 
-  it('adds a category of the selected type with the picked icon and no extra reload', async () => {
+  it('adds a category of the selected type with the picked icon and reloads only the budgets', async () => {
     const created = { id: 'c-new', name: 'กาแฟ', type: 'expense', hidden: false, system: false, icon: 'coffee' };
     const { calls, bodies } = await openPage((method, path) => (method === 'POST' && path === '/api/categories' ? { category: created } : undefined));
-    const listBefore = calls.filter((call) => call === 'GET /api/transactions').length;
+    const count = (call) => calls.filter((item) => item === call).length;
+    const listBefore = count('GET /api/transactions');
+    const budgetsBefore = count('GET /api/budgets');
+    const recurringBefore = count('GET /api/recurring');
 
     document.querySelector('[data-action="add"]').click();
     expect(byId('category-sheet-title').textContent).toBe('เพิ่มหมวดรายจ่าย');
@@ -3370,8 +3373,26 @@ describe('LIFF categories page', () => {
     expect(bodies).toContainEqual({ call: 'POST /api/categories', body: { type: 'expense', name: 'กาแฟ', icon: 'coffee' } });
     expect(tileNames()).toEqual(['อาหาร', 'ค่าแมว', 'อื่นๆ', 'กาแฟ', 'เพิ่มหมวด']);
     expect(optionsOf('edit-category')).toContain('กาแฟ');
-    expect(calls.filter((call) => call === 'GET /api/transactions').length).toBe(listBefore);
+    expect(count('GET /api/transactions')).toBe(listBefore);
+    expect(count('GET /api/recurring')).toBe(recurringBefore);
+    // หน้างบแสดงหมวดรายจ่ายทุกหมวดแม้ยังไม่ตั้งงบ หมวดใหม่จึงต้องโหลดงบใหม่
+    expect(count('GET /api/budgets')).toBe(budgetsBefore + 1);
     expect(document.activeElement).toBe(tileOf('c-new'));
+  });
+
+  it('does not reload the budgets after adding an income category', async () => {
+    const created = { id: 'c-bonus', name: 'โบนัส', type: 'income', hidden: false, system: false, icon: null };
+    const { calls } = await openPage((method, path) => (method === 'POST' && path === '/api/categories' ? { category: created } : undefined));
+    const budgetsBefore = calls.filter((call) => call === 'GET /api/budgets').length;
+
+    byId('category-seg-income').click();
+    document.querySelector('[data-action="add"]').click();
+    byId('category-sheet-name').value = 'โบนัส';
+    submitSheet();
+    await settle();
+
+    expect(tileNames()).toContain('โบนัส');
+    expect(calls.filter((call) => call === 'GET /api/budgets').length).toBe(budgetsBefore);
   });
 
   it('hides a category from the sheet and moves focus to the hidden toggle', async () => {
