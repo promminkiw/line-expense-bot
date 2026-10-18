@@ -380,6 +380,8 @@ describe('style.css balance card style k', () => {
   it('keeps the income and expense boxes inside the card', () => {
     expect(declarations('.stat-cards .stat-sub')).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     expect(declarations('.stat-cards .stat-sub .stat')).toMatch(/container-type:\s*inline-size/);
-    expect(declarations('.stat-cards .stat-sub .stat-value')).toMatch(/font-size:\s*clamp\(13px,[^)]*cqw[^)]*\)/);
+    expect(declarations('.stat-cards .stat-sub .stat-value')).toMatch(/font-size:\s*clamp\(11px,\s*min\(15cqw,\s*calc\(100cqw \/ \(var\(--amount-chars/);
+    expect(declarations('.stat-cards .stat-sub .stat-value')).toMatch(/white-space:\s*nowrap/);
+    expect(declarations('.stat-cards .stat-sub.long')).toMatch(/grid-template-columns:\s*1fr/);
   });
 });

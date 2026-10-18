@@ -373,6 +373,8 @@ function showAmount(el, value) {
   const previous = shownAmounts.get(el);
   if (previous) previous.cancel();
   const from = previous ? previous.value : 0;
+  // ใช้ความยาวของยอดสุดท้ายย่อตัวอักษร ไม่งั้นขนาดเปลี่ยนไปมาระหว่าง count-up
+  el.style.setProperty('--amount-chars', formatBaht(value).length);
   const cancel = animateNumber({
     win: window,
     from,
@@ -675,6 +677,9 @@ function renderChart({ animate = false } = {}) {
   if (animate && !els.panelSummary.hidden) playBars(window, els.chartRows);
 }
 
+// กล่องครึ่งการ์ดที่จอ 390px ใส่ตัวอักษรขนาด 15px ได้ราว 12 ตัว ยาวกว่านี้ต้องเรียงแนวตั้ง
+const SIDE_BY_SIDE_MAX_CHARS = 12;
+
 function render({ transactions, summary, truncated }, { animate = false } = {}) {
   if (loadError) {
     loadError = null;
@@ -685,6 +690,8 @@ function render({ transactions, summary, truncated }, { animate = false } = {}) 
   const sum = summaryTotals(summary);
   showAmount(els.statIncome, sum.income);
   showAmount(els.statExpense, sum.expense);
+  const longestSub = Math.max(formatBaht(sum.income).length, formatBaht(sum.expense).length);
+  els.totals.querySelector('.stat-sub').classList.toggle('long', longestSub > SIDE_BY_SIDE_MAX_CHARS);
   const balance = Math.round((sum.income - sum.expense) * 100) / 100;
   showAmount(els.statBalance, balance);
   els.statBalance.classList.toggle('negative', balance < 0);

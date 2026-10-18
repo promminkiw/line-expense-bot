@@ -413,6 +413,12 @@ describe('LIFF page after a normal boot', () => {
     expect(byId('stat-balance').classList.contains('negative')).toBe(false);
   });
 
+  // CSS ใช้ความยาวของยอดสุดท้ายย่อตัวอักษร ยอดหลักล้านจึงไม่ตัดคำ บาท ขึ้นบรรทัดใหม่
+  it('tells CSS how long each final stat amount is', () => {
+    expect(byId('stat-income').style.getPropertyValue('--amount-chars')).toBe(String('25,000 บาท'.length));
+    expect(byId('stat-expense').style.getPropertyValue('--amount-chars')).toBe(String('100 บาท'.length));
+  });
+
   it('shows the filter bar with the category options and no active filter', () => {
     const options = [...byId('filter-category').options].map((option) => option.textContent);
 
@@ -702,6 +708,21 @@ describe('LIFF page for an empty month', () => {
 
     expect(byId('stat-balance').textContent).toBe('-500 บาท');
     expect(byId('stat-balance').classList.contains('negative')).toBe(true);
+  });
+
+  // ยอดยาวจะไม่พอในกล่องครึ่งการ์ด จึงเรียงรายรับ/รายจ่ายลงแนวตั้งแทนการย่อตัวอักษรจนอ่านยาก
+  it('stacks the income and expense boxes when an amount is long', async () => {
+    const big = { ...RESPONSES['/api/transactions'], summary: [{ type: 'expense', category: 'อาหาร', total: 1234567.89, entryCount: 1 }] };
+    await boot({ overrides: { '/api/transactions': big } });
+
+    expect(byId('stat-expense').textContent).toBe('1,234,567.89 บาท');
+    expect(byId('totals').querySelector('.stat-sub').classList.contains('long')).toBe(true);
+  });
+
+  it('keeps the income and expense boxes side by side for short amounts', async () => {
+    await boot();
+
+    expect(byId('totals').querySelector('.stat-sub').classList.contains('long')).toBe(false);
   });
 
   it('shows the filter bar again when the month changes to one with data', async () => {
