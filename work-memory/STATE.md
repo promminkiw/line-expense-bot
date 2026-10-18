@@ -1,10 +1,11 @@
 # STATE
-Updated: 2026-10-19
+Updated: 2026-10-19 (ล่าสุด: เขียนแผนถามยอด)
 Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว; งานที่เหลือคือ roadmap ข (หมวดของผู้ใช้เอง แล้วถามยอดด้วยภาษาธรรมชาติ) และ ticket/backlog เล็ก
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
+- [ ] `next` ถามยอด (roadmap ข ข้อ 2): แผน docs/superpowers/plans/2026-10-19-ask-totals.md เขียนแล้ว (a57c7d1) กำลังทำ Task 1-6 บน branch feat/ask-totals ด้วย agent; ดู git log ของ branch ว่า task ไหน commit แล้ว
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, latency ของ schema หลัง deploy
