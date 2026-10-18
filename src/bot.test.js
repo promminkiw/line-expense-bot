@@ -13,6 +13,8 @@ import {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   SLIP_TTL_MS,
+  UNSEND_SLIP_CANCELLED_NOTICE,
+  unsendDeletedNotice,
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   BILL_REPLIES,
@@ -55,8 +57,8 @@ const SUMMARY_QUICK_REPLY = [
   { type: 'action', action: { type: 'message', label: 'เดือนนี้', text: 'สรุปเดือนนี้' } },
 ];
 
-function textEvent(text, { replyToken = 'r1', eventId = 'ev1', source = { type: 'user', userId: 'U1' } } = {}) {
-  return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'text', text } };
+function textEvent(text, { replyToken = 'r1', eventId = 'ev1', messageId = 'm-text', source = { type: 'user', userId: 'U1' } } = {}) {
+  return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'text', id: messageId, text } };
 }
 
 function postbackEvent(data, userId = 'U1') {
@@ -67,6 +69,10 @@ function postbackEvent(data, userId = 'U1') {
     source: { type: 'user', userId },
     postback: { data },
   };
+}
+
+function unsendEvent({ eventId = 'ev-unsend', messageId = 'm-text', source = { type: 'user', userId: 'U1' } } = {}) {
+  return { type: 'unsend', webhookEventId: eventId, source, unsend: { messageId } };
 }
 
 function followEvent() {
@@ -88,6 +94,7 @@ function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
     replyFlex: vi.fn().mockResolvedValue(),
+    pushText: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
     downloadImage: vi.fn().mockResolvedValue({ status: 'ok', mediaType: 'image/jpeg', data: 'QUJD' }),
@@ -106,6 +113,8 @@ function setup(overrides = {}) {
       savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
+      findEventByMessageId: vi.fn().mockResolvedValue('ev1'),
+      deletePendingSlipsByEvent: vi.fn().mockResolvedValue(0),
     },
     now: () => NOW_MS,
     users: {
@@ -132,7 +141,7 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
-    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
+    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1', 'm-text');
     expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', []);
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
@@ -651,6 +660,123 @@ describe('bot undo postback', () => {
   });
 });
 
+describe('bot unsend event', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('deletes the entries saved from the unsent message and tells the user by push', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(unsendEvent());
+
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-unsend', 'user-1');
+    expect(deps.repository.findEventByMessageId).toHaveBeenCalledWith('user-1', 'm-text');
+    expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
+    expect(deps.repository.deletePendingSlipsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
+    expect(deps.pushText).toHaveBeenCalledWith('U1', unsendDeletedNotice(2));
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+
+  it('cancels a slip still waiting for confirmation and tells the user', async () => {
+    const { deps, bot } = setup();
+    deps.repository.findEventByMessageId.mockResolvedValue('ev-img');
+    deps.repository.deleteTransactionsByEvent.mockResolvedValue(0);
+    deps.repository.deletePendingSlipsByEvent.mockResolvedValue(1);
+
+    await bot.handleEvent(unsendEvent({ messageId: 'm1' }));
+
+    expect(deps.repository.deletePendingSlipsByEvent).toHaveBeenCalledWith('user-1', 'ev-img');
+    expect(deps.pushText).toHaveBeenCalledWith('U1', UNSEND_SLIP_CANCELLED_NOTICE);
+  });
+
+  // push นับโควตา จึงแจ้งเฉพาะตอนที่ลบอะไรไปจริง เช่นข้อความ "สรุปวันนี้" ไม่ต้องแจ้ง
+  it('stays silent when the unsent message saved nothing', async () => {
+    const { deps, bot } = setup();
+    deps.repository.deleteTransactionsByEvent.mockResolvedValue(0);
+
+    await bot.handleEvent(unsendEvent());
+
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  it('stays silent when the message is not known, such as one sent before this feature', async () => {
+    const { deps, bot } = setup();
+    deps.repository.findEventByMessageId.mockResolvedValue(null);
+
+    await bot.handleEvent(unsendEvent());
+
+    expect(deps.repository.deleteTransactionsByEvent).not.toHaveBeenCalled();
+    expect(deps.repository.deletePendingSlipsByEvent).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  it('does nothing again when LINE redelivers the same unsend event', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(unsendEvent());
+
+    expect(deps.repository.findEventByMessageId).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unsend event without a message id', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent({ type: 'unsend', webhookEventId: 'ev-unsend', source: { type: 'user', userId: 'U1' }, unsend: {} });
+
+    expect(deps.repository.claimEvent).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unsend event from a group', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(unsendEvent({ source: { type: 'group', groupId: 'G1', userId: 'U1' } }));
+
+    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  // unsend event ไม่มี reply token จึงห้ามพยายามตอบกลับแม้ระบบพัง
+  it('logs but does not try to reply when deleting fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.deleteTransactionsByEvent.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(unsendEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'unsend' },
+      expect.any(Error)
+    );
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the unsend event passes the deadline', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ replyDeadlineMs: 1000 });
+    deps.users.ensureUser.mockImplementation(() => new Promise(() => {}));
+
+    const handled = bot.handleEvent(unsendEvent());
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.pushText).not.toHaveBeenCalled();
+  });
+});
+
+describe('unsendDeletedNotice', () => {
+  it('says how many entries were deleted', () => {
+    expect(unsendDeletedNotice(2)).toBe('ลบ 2 รายการที่บันทึกจากข้อความที่คุณยกเลิกการส่งแล้ว');
+  });
+});
+
 describe('bot.handleEvents', () => {
   it('keeps processing other events when one reply fails and logs the failure', async () => {
     const parseMessage = vi.fn().mockResolvedValue({ status: 'clarify', question: 'q' });
@@ -795,7 +921,7 @@ describe('bot slip image', () => {
     await bot.handleEvent(imageEvent());
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
-    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
+    expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1', 'm1');
     expect(deps.downloadImage).toHaveBeenCalledWith('m1');
     expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);

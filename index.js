@@ -82,6 +82,7 @@ const bills = createBillService({
 const bot = createBot({
   replyText: createReplyText(lineClient),
   replyFlex: createReplyFlex(lineClient),
+  pushText: createPushText(lineClient),
   parseMessage,
   commentSummary,
   downloadImage,
