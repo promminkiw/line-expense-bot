@@ -13,6 +13,7 @@ import {
   hasChartData,
   describeExportFailure,
   groupCategoryOptions,
+  categoryOptionLabel,
   describeEditFailure,
   budgetRows,
   createLatestGuard,
@@ -418,7 +419,7 @@ function fillGroupedSelect(select, groups, placeholderOption = null) {
     for (const category of groups[type]) {
       const option = document.createElement('option');
       option.value = category.id;
-      option.textContent = category.name;
+      option.textContent = categoryOptionLabel(category);
       group.append(option);
     }
     select.append(group);

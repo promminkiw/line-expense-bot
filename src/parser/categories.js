@@ -23,6 +23,8 @@ const SYSTEM_CATEGORIES = {
 // ทุกหมวดที่ไม่ซ่อนถูกส่งให้ Claude ในทุกข้อความ จึงจำกัดความยาวชื่อและจำนวน
 const MAX_CATEGORY_NAME_LENGTH = 30;
 const MAX_VISIBLE_CATEGORIES = 30;
+// หมวดที่ซ่อนก็ยังถูกอ่านทุกครั้ง และแถวที่ไม่จำกัดจะชนเพดาน max rows ของ PostgREST
+const MAX_TOTAL_CATEGORIES = 100;
 
 function isSystemCategory(type, name) {
   return Object.hasOwn(SYSTEM_CATEGORIES, type) && SYSTEM_CATEGORIES[type].includes(name);
@@ -55,6 +57,7 @@ module.exports = {
   SLIP_CATEGORY,
   MAX_CATEGORY_NAME_LENGTH,
   MAX_VISIBLE_CATEGORIES,
+  MAX_TOTAL_CATEGORIES,
   isSystemCategory,
   isReservedCategoryName,
   toTextCategories,

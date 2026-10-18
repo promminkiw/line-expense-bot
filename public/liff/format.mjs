@@ -63,6 +63,11 @@ export function groupCategoryOptions(categories, { includeHidden = false, keepId
   };
 }
 
+// หมวดที่ซ่อนโผล่ในตัวกรองและฟอร์มแก้ไข จึงบอกเหตุผลที่ตัวเลือกนี้ไม่อยู่ในฟอร์มเพิ่มใหม่
+export function categoryOptionLabel(category) {
+  return category.hidden ? `${category.name} (ซ่อนอยู่)` : category.name;
+}
+
 export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
 
 export function describeEditFailure(status, action) {

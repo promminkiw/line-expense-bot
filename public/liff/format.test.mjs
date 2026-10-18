@@ -7,6 +7,7 @@ import {
   groupByDate,
   formatDayNet,
   groupCategoryOptions,
+  categoryOptionLabel,
   describeEditFailure,
   describeDeleteTarget,
   summaryTotals,
@@ -92,6 +93,17 @@ describe('groupCategoryOptions', () => {
       expense: [food, old],
       income: [salary],
     });
+  });
+});
+
+describe('categoryOptionLabel', () => {
+  it('keeps the plain name for a visible category', () => {
+    expect(categoryOptionLabel({ name: 'อาหาร', hidden: false })).toBe('อาหาร');
+    expect(categoryOptionLabel({ name: 'อาหาร' })).toBe('อาหาร');
+  });
+
+  it('marks a hidden category', () => {
+    expect(categoryOptionLabel({ name: 'เก่า', hidden: true })).toBe('เก่า (ซ่อนอยู่)');
   });
 });
 

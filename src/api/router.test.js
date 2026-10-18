@@ -366,6 +366,50 @@ describe('categories API', () => {
     expect(await res.json()).toEqual({ error: 'Too many categories' });
   });
 
+  it('unhides a category when the type has room', async () => {
+    const deps = withCategories([{ ...CAT, hidden: true }, ...visibleExpense(29)]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: false } });
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', CAT_ID, { hidden: false });
+  });
+
+  it('unhide counts only the same type', async () => {
+    const incomeFull = Array.from({ length: 30 }, (_, index) => ({ id: `i-${index}`, name: `รายได้ ${index}`, type: 'income', hidden: false }));
+    const deps = withCategories([{ ...CAT, hidden: true }, ...incomeFull]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { hidden: false } });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses to create past the total category cap even when the others are hidden', async () => {
+    const allHidden = visibleExpense(100).map((category) => ({ ...category, hidden: true }));
+    const deps = withCategories(allHidden);
+    const base = await start(deps);
+
+    const res = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Too many categories' });
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+  });
+
+  it('refuses to rename the slip system category', async () => {
+    const slip = { id: OTHER_ID, name: 'ใบเสร็จ/สลิปโอนเงิน', type: 'expense', hidden: false };
+    const deps = withCategories([slip]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${OTHER_ID}`, { method: 'PATCH', body: { name: 'x' } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'System category' });
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
   it('maps duplicate and not_found from the repository', async () => {
     const deps = withCategories([CAT, OTHER]);
     deps.repository.updateCategory

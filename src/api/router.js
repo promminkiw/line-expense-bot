@@ -15,7 +15,7 @@ const { monthsEndingAt, buildTrend } = require('./trend');
 
 const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_RECURRING_RULES = 50;
-const { isSystemCategory, MAX_VISIBLE_CATEGORIES } = require('../parser/categories');
+const { isSystemCategory, MAX_VISIBLE_CATEGORIES, MAX_TOTAL_CATEGORIES } = require('../parser/categories');
 
 function withSystemFlag(category) {
   return { ...category, system: isSystemCategory(category.type, category.name) };
@@ -94,7 +94,10 @@ function createApiRouter({
       return;
     }
     const categories = await repository.listCategories(req.userId);
-    if (countVisible(categories, result.value.type) >= MAX_VISIBLE_CATEGORIES) {
+    if (
+      categories.length >= MAX_TOTAL_CATEGORIES ||
+      countVisible(categories, result.value.type) >= MAX_VISIBLE_CATEGORIES
+    ) {
       res.status(409).json({ error: 'Too many categories' });
       return;
     }

@@ -3247,7 +3247,7 @@ describe('LIFF category manager', () => {
 
     expect(optionsOf('edit-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
     expect(optionsOf('recurring-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
-    expect(optionsOf('filter-category')).toEqual(['ทุกหมวด', 'อาหาร', 'เดินทาง', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('filter-category')).toEqual(['ทุกหมวด', 'อาหาร', 'เดินทาง (ซ่อนอยู่)', 'อื่นๆ', 'เงินเดือน']);
   });
 
   it('keeps the hidden category selected when editing an old entry in it', async () => {
@@ -3258,6 +3258,7 @@ describe('LIFF category manager', () => {
     await settle();
 
     expect(byId('edit-category').value).toBe('c-trip');
+    expect(optionsOf('edit-category')).toContain('เดินทาง (ซ่อนอยู่)');
   });
 
   it('adds a category and offers it in the pickers', async () => {

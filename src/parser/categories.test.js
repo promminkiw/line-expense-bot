@@ -7,6 +7,7 @@ import {
   SYSTEM_CATEGORIES,
   MAX_CATEGORY_NAME_LENGTH,
   MAX_VISIBLE_CATEGORIES,
+  MAX_TOTAL_CATEGORIES,
   normalizeCategory,
   isSystemCategory,
   isReservedCategoryName,
@@ -76,6 +77,7 @@ describe('SYSTEM_CATEGORIES', () => {
   it('caps names and visible categories at 30', () => {
     expect(MAX_CATEGORY_NAME_LENGTH).toBe(30);
     expect(MAX_VISIBLE_CATEGORIES).toBe(30);
+    expect(MAX_TOTAL_CATEGORIES).toBe(100);
   });
 });
 
