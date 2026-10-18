@@ -708,6 +708,15 @@ describe('017_category_hidden.sql', () => {
     expect(await rows('select category from budget_status($1, $2)', [user, '2026-10-01'])).toEqual([{ category: 'อาหาร' }]);
   });
 
+  it('refuses a null hidden', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+
+    await db.exec('savepoint null_hidden');
+    await expect(db.query('update categories set hidden = null where id = $1', [food])).rejects.toThrow('hidden');
+    await db.exec('rollback to savepoint null_hidden');
+  });
+
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('017_category_hidden.sql'))).resolves.toBeDefined();
   });

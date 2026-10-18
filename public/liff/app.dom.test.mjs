@@ -3462,6 +3462,20 @@ describe('LIFF categories page', () => {
     expect(document.activeElement).toBe(byId('category-sheet-name'));
   });
 
+  it('returns focus to the tile that opened the sheet after cancel or close', async () => {
+    await openPage();
+
+    tileOf('c-food').click();
+    byId('category-sheet-cancel').click();
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).toBe(tileOf('c-food'));
+
+    document.querySelector('[data-action="add"]').click();
+    byId('category-sheet-close').click();
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector('[data-action="add"]'));
+  });
+
   it('shows a saving status and locks the form while in flight', async () => {
     await openPage();
     let release;
@@ -3553,6 +3567,18 @@ describe('LIFF categories page', () => {
 
     expect(byId('edit-category').value).toBe('c-trip');
     expect(optionsOf('edit-category')).toContain('เดินทาง (ซ่อนอยู่)');
+  });
+
+  it('keeps the hidden category selected when editing a recurring rule in it', async () => {
+    const rule = { id: 'r-trip', type: 'expense', categoryId: 'c-trip', amount: 1200, dayOfMonth: 5, note: 'ค่ารถ', active: true };
+    await openPage((method, path) => (method === 'GET' && path === '/api/recurring' ? { rules: [rule] } : undefined));
+    byId('page-back').click();
+
+    byId('recurring-rows').querySelector('.recurring-row button').click();
+    await settle();
+
+    expect(byId('recurring-category').value).toBe('c-trip');
+    expect(optionsOf('recurring-category')).toEqual(['อาหาร', 'เดินทาง (ซ่อนอยู่)', 'ค่าแมว', 'อื่นๆ', 'เงินเดือน']);
   });
 
   it('no longer has a category section in the profile tab', async () => {

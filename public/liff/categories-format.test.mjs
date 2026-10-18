@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { describeCategoryError } from './categories-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../src/parser/categories.js';
 
 describe('describeCategoryError', () => {
   it.each([
@@ -16,5 +17,13 @@ describe('describeCategoryError', () => {
     [0, undefined, 'บันทึกหมวดไม่สำเร็จ ลองใหม่อีกครั้ง'],
   ])('status %s %s -> %s', (status, error, message) => {
     expect(describeCategoryError(status, error)).toBe(message);
+  });
+});
+
+// ข้อความในหน้าเว็บเขียนเลขไว้ตรงๆ ถ้าเปลี่ยนเพดานฝั่ง server ต้องแก้ข้อความตามด้วย
+describe('category limits in the messages', () => {
+  it('match the limits the server enforces', () => {
+    expect(describeCategoryError(409, 'Too many categories')).toContain(`ไม่เกิน ${MAX_VISIBLE_CATEGORIES} หมวด`);
+    expect(describeCategoryError(400, 'Invalid name')).toContain(`1-${MAX_CATEGORY_NAME_LENGTH} ตัวอักษร`);
   });
 });

@@ -482,6 +482,72 @@ describe('categories API', () => {
     expect(await res.json()).toEqual({ error: 'System category' });
     expect(deps.repository.updateCategory).not.toHaveBeenCalled();
   });
+
+  it('refuses to create or change a category without a valid token', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const created = await call(base, '/categories', { token: null, method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+    const patched = await call(base, `/categories/${CAT_ID}`, { token: 'bad', method: 'PATCH', body: { name: 'แมว' } });
+
+    expect(created.status).toBe(401);
+    expect(patched.status).toBe(401);
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
+  it('answers 500 and logs when the repository fails', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    deps.repository.createCategory.mockRejectedValue(new Error('db down'));
+    deps.repository.updateCategory.mockRejectedValue(new Error('db down'));
+    const base = await start(deps);
+
+    const created = await call(base, '/categories', { method: 'POST', body: { type: 'expense', name: 'ใหม่' } });
+    const patched = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { name: 'แมว' } });
+
+    expect(created.status).toBe(500);
+    expect(await created.json()).toEqual({ error: 'Internal error' });
+    expect(patched.status).toBe(500);
+    expect(await patched.json()).toEqual({ error: 'Internal error' });
+    expect(deps.logger.error).toHaveBeenCalledWith('API request failed', { path: '/categories' }, expect.any(Error));
+  });
+
+  it('refuses to rename a category to a reserved name', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'PATCH', body: { name: 'ใบเสร็จ/สลิปโอนเงิน' } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Reserved name' });
+    expect(deps.repository.updateCategory).not.toHaveBeenCalled();
+  });
+
+  it('refuses to create a category from a malformed body', async () => {
+    const deps = withCategories([OTHER]);
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer good' },
+      body: '{"type":"expense",',
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid body' });
+    expect(deps.repository.createCategory).not.toHaveBeenCalled();
+  });
+
+  it('finds the category when the id in the url is uppercase', async () => {
+    const lettered = { ...CAT, id: 'abcdef12-3333-4444-5555-666666666666' };
+    const deps = withCategories([lettered, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${lettered.id.toUpperCase()}`, { method: 'PATCH', body: { name: 'แมว' } });
+
+    expect(res.status).toBe(200);
+    expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', lettered.id, { name: 'แมว' });
+  });
 });
 
 describe('GET /api/transactions', () => {

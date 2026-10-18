@@ -120,7 +120,9 @@ function createApiRouter({
       return;
     }
     const categories = await repository.listCategories(req.userId);
-    const category = categories.find((item) => item.id === req.params.id);
+    // Postgres คืน uuid เป็นตัวพิมพ์เล็กเสมอ แต่ UUID_PATTERN รับตัวพิมพ์ใหญ่ด้วย
+    const id = req.params.id.toLowerCase();
+    const category = categories.find((item) => item.id === id);
     if (!category) {
       res.status(404).json({ error: 'Not found' });
       return;
