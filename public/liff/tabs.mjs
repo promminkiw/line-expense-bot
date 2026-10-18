@@ -28,9 +28,10 @@ function buildButton(doc, tab) {
 export function createTabController({ doc, nav, titleEl, monthEl, panelFor, onChange = () => {} }) {
   let current = null;
 
-  function select(id) {
+  // force ใช้ตอนกลับจากหน้าย่อยที่ซ่อน panel ของแท็บปัจจุบันไป
+  function select(id, { force = false } = {}) {
     const tab = findTab(id);
-    if (tab.id === current) return;
+    if (tab.id === current && !force) return;
     current = tab.id;
     for (const button of nav.querySelectorAll('button[data-tab]')) {
       if (button.dataset.tab === tab.id) {
