@@ -191,13 +191,15 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 .stat-cards .stat.balance::before { content: ""; position: absolute; left: -10px; top: 28px; border-style: solid; border-width: 8px 10px 8px 0; border-color: transparent var(--surface) transparent transparent; }
 .stat-cards .stat.balance .stat-label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .stat-cards .stat.balance .stat-label::before { content: "เฮียสมัครบอกว่า "; font-weight: 800; color: var(--primary); }
-.stat-cards .stat.balance .stat-value { font-size: clamp(18px, 12cqw, 32px); white-space: nowrap; color: var(--primary); }
+.stat-cards .stat.balance .stat-value { font-size: clamp(18px, min(12cqw, calc(100cqw / (var(--amount-chars, 10) * 0.56))), 32px); white-space: nowrap; color: var(--primary); }
 /* ใช้เกินรายรับต้องเห็นชัด สีเดียวกับยอดสะสมติดลบในหน้าโปรไฟล์ */
 .stat-cards .stat.balance .stat-value.negative { color: var(--danger); }
 .stat-cards .stat-sub { grid-column: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; margin-top: 10px; }
 .stat-cards .stat-sub .stat { container-type: inline-size; padding: 8px 10px; border-radius: 14px; }
 .stat-cards .stat-sub .stat-label { font-size: 13px; }
-.stat-cards .stat-sub .stat-value { font-size: clamp(13px, 15cqw, 15px); overflow-wrap: normal; }
+/* ย่อเมื่อยอดยาวเกินกล่อง (--amount-chars จาก app.mjs, ตัวเลขหนาราว 0.51-0.55em ต่อตัว) คำ บาท จึงไม่ขึ้นบรรทัดใหม่ */
+.stat-cards .stat-sub .stat-value { font-size: clamp(11px, min(15cqw, calc(100cqw / (var(--amount-chars, 10) * 0.56))), 15px); white-space: nowrap; overflow-wrap: normal; }
+.stat-cards .stat-sub.long { grid-template-columns: 1fr; }
 .stat-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .stat-sub .stat { padding: 12px 14px; background: var(--surface); color: var(--text); border-radius: var(--radius-input); }
 .stat { display: flex; flex-direction: column; gap: 2px; }
