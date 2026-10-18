@@ -307,7 +307,9 @@ function createApiRouter({
       return;
     }
     const categories = await repository.listCategories(req.userId);
-    const category = categories.find((item) => item.id === req.params.categoryId);
+    // Postgres คืน uuid เป็นตัวพิมพ์เล็กเสมอ
+    const categoryId = req.params.categoryId.toLowerCase();
+    const category = categories.find((item) => item.id === categoryId);
     // งบมีเฉพาะหมวดรายจ่าย และต้องเป็นหมวดของผู้ใช้คนนี้
     if (!category || category.type !== 'expense') {
       res.status(404).json({ error: 'Not found' });

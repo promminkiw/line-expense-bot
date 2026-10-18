@@ -923,6 +923,21 @@ describe('budgets', () => {
     });
   });
 
+  it('sets the budget when the category id in the url is uppercase', async () => {
+    const lettered = { id: 'abcdef12-3333-4444-5555-666666666666', name: 'ค่าแมว', type: 'expense', hidden: false };
+    const deps = setup();
+    deps.repository.listCategories.mockResolvedValue([lettered]);
+    const base = await start(deps);
+
+    const res = await call(base, `/budgets/${lettered.id.toUpperCase()}`, {
+      method: 'PUT',
+      body: { month: '2026-09', amount: 5000 },
+    });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.setBudget).toHaveBeenCalledWith(expect.objectContaining({ categoryId: lettered.id }));
+  });
+
   it('stores null to stop the budget', async () => {
     const deps = setup();
     const base = await start(deps);
