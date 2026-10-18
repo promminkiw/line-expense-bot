@@ -25,6 +25,21 @@ function countVisible(categories, type) {
   return categories.filter((category) => category.type === type && !category.hidden).length;
 }
 
+// Postgres คืน uuid เป็นตัวพิมพ์เล็กเสมอ แต่ UUID_PATTERN รับตัวพิมพ์ใหญ่ด้วย
+async function findOwnCategory(repository, userId, rawId) {
+  if (!UUID_PATTERN.test(rawId)) return { status: 'not_found' };
+  const id = rawId.toLowerCase();
+  const category = (await repository.listCategories(userId)).find((item) => item.id === id);
+  if (!category) return { status: 'not_found' };
+  if (isSystemCategory(category.type, category.name)) return { status: 'system' };
+  return { status: 'ok', category };
+}
+
+function answerCategoryLookup(res, found) {
+  if (found.status === 'not_found') res.status(404).json({ error: 'Not found' });
+  else res.status(400).json({ error: 'System category' });
+}
+
 function readBearerToken(req) {
   const header = req.get('authorization') || '';
   return header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
@@ -147,6 +162,30 @@ function createApiRouter({
       return;
     }
     res.json({ category: withSystemFlag(updated.category) });
+  });
+
+  router.get('/categories/:id/usage', async (req, res) => {
+    const found = await findOwnCategory(repository, req.userId, req.params.id);
+    if (found.status !== 'ok') {
+      answerCategoryLookup(res, found);
+      return;
+    }
+    res.json({ usage: await repository.countCategoryUsage(req.userId, found.category.id) });
+  });
+
+  router.delete('/categories/:id', async (req, res) => {
+    const found = await findOwnCategory(repository, req.userId, req.params.id);
+    if (found.status !== 'ok') {
+      answerCategoryLookup(res, found);
+      return;
+    }
+    // ตรวจซ้ำใน SQL เพราะหมวดอาจถูกลบไปแล้วระหว่างที่อ่านรายการหมวด
+    const status = await repository.deleteCategory(req.userId, found.category.id);
+    if (status !== 'deleted') {
+      answerCategoryLookup(res, { status });
+      return;
+    }
+    res.status(204).end();
   });
 
   router.get('/transactions', async (req, res) => {
