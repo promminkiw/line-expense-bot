@@ -3,6 +3,7 @@ import {
   createMessageParser,
   ParseError,
   PARSE_SCHEMA,
+  buildParseSchema,
   DEFAULT_CLARIFY_QUESTION,
   AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
@@ -331,5 +332,57 @@ describe('parseMessage errors', () => {
     const parse = createMessageParser({ client, model: 'm', now: NOW });
 
     await expect(parse('x')).rejects.toThrow('overloaded');
+  });
+});
+
+describe('parseMessage with the user categories', () => {
+  const USER_CATEGORIES = { expense: ['ค่าแมว', 'อาหาร', 'อื่นๆ'], income: ['โบนัส', 'อื่นๆ'] };
+
+  it('offers only the user categories in the prompt and the schema', async () => {
+    const client = fakeClient(okPayload([item({ category: 'ค่าแมว' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('อาหารแมว 300', [], USER_CATEGORIES);
+
+    const params = client.messages.create.mock.calls[0][0];
+    expect(params.system).toContain('- Expense categories: ค่าแมว, อาหาร, อื่นๆ');
+    expect(params.system).toContain('- Income categories: โบนัส, อื่นๆ');
+    expect(params.output_config.format.schema).toEqual(buildParseSchema(USER_CATEGORIES));
+    expect(params.output_config.format.schema.properties.items.items.properties.category.enum).toEqual([
+      'ค่าแมว',
+      'อาหาร',
+      'อื่นๆ',
+      'โบนัส',
+    ]);
+  });
+
+  it('keeps a user category that Claude picked', async () => {
+    const client = fakeClient(okPayload([item({ category: 'ค่าแมว', note: 'อาหารแมว', amount: 300 })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('อาหารแมว 300', [], USER_CATEGORIES);
+
+    expect(result).toEqual({
+      status: 'ok',
+      items: [{ type: 'expense', category: 'ค่าแมว', amount: 300, date: '2026-09-29', note: 'อาหารแมว' }],
+    });
+  });
+
+  it('falls back to อื่นๆ for a category outside the user list', async () => {
+    const client = fakeClient(okPayload([item({ category: 'เดินทาง' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('BTS 40', [], USER_CATEGORIES);
+
+    expect(result.items[0].category).toBe('อื่นๆ');
+  });
+
+  it('uses the default schema object when no categories are given', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กินข้าว 60');
+
+    expect(client.messages.create.mock.calls[0][0].output_config.format.schema).toBe(PARSE_SCHEMA);
   });
 });
