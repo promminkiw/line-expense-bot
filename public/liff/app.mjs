@@ -1568,6 +1568,18 @@ async function loadAll() {
   initialLoadDone = true;
 }
 
+// SQL จับคู่หมวดตามชื่อตรงๆ แต่ช่องค้นหาค้นทั้งชื่อหมวดและโน้ต จึงเลือกหมวดจริงแทนการใส่ชื่อในช่องค้นหา
+function applyLinkedCategory({ category, query, type }) {
+  if (!category) return;
+  const matches = categories.filter((item) => item.name === category && (!type || item.type === type));
+  if (matches.length === 1) {
+    els.filterCategory.value = matches[0].id;
+  } else if (!query) {
+    els.search.value = category;
+  }
+  refilter();
+}
+
 async function boot() {
   // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
   const billsPage = isBillsPageLink(window.location.search);
@@ -1620,6 +1632,7 @@ async function boot() {
       tabController.select('list');
     } else if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
+    if (listFilter) applyLinkedCategory(listFilter);
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
     if (tabController.current === 'profile') friendsPanel.ensureLoaded();
     // ลิงก์ชวนเปิด dialog ของตัวเองแล้ว ไม่เปิดตัวแก้ไขรายการซ้อน

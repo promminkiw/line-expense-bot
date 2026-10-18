@@ -881,13 +881,28 @@ describe('bot totals questions', () => {
       expect(Object.fromEntries(url.searchParams)).toEqual({ tab: 'list', m: '2026-10', q: 'กาแฟ', type: 'expense' });
     });
 
-    it('falls back to the category name and leaves the type out for both', async () => {
+    it('sends the category and the keyword as separate params', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue({ ...QUESTION, category: 'อาหาร' });
+
+      await bot.handleEvent(textEvent('กาแฟในหมวดอาหารเท่าไหร่'));
+
+      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({
+        tab: 'list',
+        m: '2026-10',
+        q: 'กาแฟ',
+        c: 'อาหาร',
+        type: 'expense',
+      });
+    });
+
+    it('sends only the category when there is no keyword and leaves the type out for both', async () => {
       const { deps, bot } = setup({ liffUrl: LIFF_URL });
       deps.parseQuestion.mockResolvedValue({ ...QUESTION, keyword: '', category: 'อาหาร', type: 'both', to: '2026-09-30' });
 
       await bot.handleEvent(textEvent('เดือนที่แล้วอาหารเท่าไหร่'));
 
-      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({ tab: 'list', m: '2026-09', q: 'อาหาร' });
+      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({ tab: 'list', m: '2026-09', c: 'อาหาร' });
     });
 
     it('has no button without a LIFF url', async () => {

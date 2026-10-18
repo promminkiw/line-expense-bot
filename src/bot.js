@@ -224,7 +224,7 @@ function createBot({
     }
   }
 
-  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้นและประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
+  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
   function buildTotalsListUrl(question) {
     if (!liffUrl) {
       return undefined;
@@ -233,8 +233,8 @@ function createBot({
       const url = new URL(liffUrl);
       url.searchParams.set('tab', 'list');
       url.searchParams.set('m', question.to.slice(0, 7));
-      const query = question.keyword || question.category;
-      if (query) url.searchParams.set('q', query);
+      if (question.keyword) url.searchParams.set('q', question.keyword);
+      if (question.category) url.searchParams.set('c', question.category);
       if (question.type !== 'both') url.searchParams.set('type', question.type);
       const text = url.toString();
       return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;

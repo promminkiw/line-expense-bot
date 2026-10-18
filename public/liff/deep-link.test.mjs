@@ -95,24 +95,29 @@ describe('parseListLink', () => {
   it('reads month, query and type from the query string', () => {
     const search = `?tab=list&m=2026-10&q=${encodeURIComponent('กาแฟ')}&type=expense`;
 
-    expect(parseListLink(search)).toEqual({ month: '2026-10', query: 'กาแฟ', type: 'expense' });
+    expect(parseListLink(search)).toEqual({ month: '2026-10', query: 'กาแฟ', category: '', type: 'expense' });
   });
 
   it('reads them from the liff.state wrapper LINE adds after login', () => {
     const state = encodeURIComponent(`?tab=list&m=2026-10&q=${encodeURIComponent('กาแฟ')}&type=income`);
 
-    expect(parseListLink(`?liff.state=${state}`)).toEqual({ month: '2026-10', query: 'กาแฟ', type: 'income' });
+    expect(parseListLink(`?liff.state=${state}`)).toEqual({ month: '2026-10', query: 'กาแฟ', category: '', type: 'income' });
   });
 
   it('fills the parts that are missing or invalid with empty values', () => {
-    expect(parseListLink('?m=2026-10')).toEqual({ month: '2026-10', query: '', type: '' });
-    expect(parseListLink('?m=2026-13&q=a&type=all')).toEqual({ month: '', query: 'a', type: '' });
-    expect(parseListLink('?m=abc&type=income')).toEqual({ month: '', query: '', type: 'income' });
+    expect(parseListLink('?m=2026-10')).toEqual({ month: '2026-10', query: '', category: '', type: '' });
+    expect(parseListLink('?m=2026-13&q=a&type=all')).toEqual({ month: '', query: 'a', category: '', type: '' });
+    expect(parseListLink('?m=abc&type=income')).toEqual({ month: '', query: '', category: '', type: 'income' });
   });
 
   it('trims the query and cuts it to the 50 characters the search box accepts', () => {
     expect(parseListLink('?q=%20%20abc%20%20').query).toBe('abc');
     expect(parseListLink(`?q=${'x'.repeat(80)}`).query).toBe('x'.repeat(50));
+  });
+
+  it('reads the category name, trims it and cuts it to 30 characters', () => {
+    expect(parseListLink(`?c=${encodeURIComponent(' อาหาร ')}`)).toEqual({ month: '', query: '', category: 'อาหาร', type: '' });
+    expect(parseListLink(`?c=${'ก'.repeat(50)}`).category).toBe('ก'.repeat(30));
   });
 
   it('returns null when the link carries no list filter', () => {
