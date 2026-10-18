@@ -54,10 +54,12 @@ export function formatDayNet(items) {
   return `${cents > 0 ? '+' : '-'}${text}`;
 }
 
-export function groupCategoryOptions(categories) {
+// หมวดที่ซ่อนไม่ให้เลือกใหม่ ยกเว้นหมวดเดิมของรายการที่กำลังแก้ หรือเมื่อขอทั้งหมดสำหรับตัวกรอง
+export function groupCategoryOptions(categories, { includeHidden = false, keepId = null } = {}) {
+  const shown = categories.filter((category) => includeHidden || !category.hidden || category.id === keepId);
   return {
-    expense: categories.filter((category) => category.type === 'expense'),
-    income: categories.filter((category) => category.type === 'income'),
+    expense: shown.filter((category) => category.type === 'expense'),
+    income: shown.filter((category) => category.type === 'income'),
   };
 }
 

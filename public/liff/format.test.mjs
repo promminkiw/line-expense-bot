@@ -71,11 +71,27 @@ describe('groupByDate', () => {
 });
 
 describe('groupCategoryOptions', () => {
-  it('splits categories by type', () => {
-    const food = { id: 'c1', name: 'อาหาร', type: 'expense' };
-    const salary = { id: 'c2', name: 'เงินเดือน', type: 'income' };
+  const food = { id: 'c1', name: 'อาหาร', type: 'expense' };
+  const salary = { id: 'c2', name: 'เงินเดือน', type: 'income' };
+  const old = { id: 'c3', name: 'เก่า', type: 'expense', hidden: true };
 
+  it('splits categories by type', () => {
     expect(groupCategoryOptions([food, salary])).toEqual({ expense: [food], income: [salary] });
+  });
+
+  it('leaves hidden categories out by default', () => {
+    expect(groupCategoryOptions([food, old, salary])).toEqual({ expense: [food], income: [salary] });
+  });
+
+  it('keeps the hidden category of the entry being edited', () => {
+    expect(groupCategoryOptions([food, old, salary], { keepId: 'c3' })).toEqual({ expense: [food, old], income: [salary] });
+  });
+
+  it('includes every hidden category when asked', () => {
+    expect(groupCategoryOptions([food, old, salary], { includeHidden: true })).toEqual({
+      expense: [food, old],
+      income: [salary],
+    });
   });
 });
 
