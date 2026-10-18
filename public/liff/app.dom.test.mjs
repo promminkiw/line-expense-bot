@@ -3325,6 +3325,78 @@ describe('LIFF categories page', () => {
     expect(tileNames('category-hidden-tiles')).toEqual(['เดินทาง']);
   });
 
+  it('deletes a category after showing what will move', async () => {
+    const { calls } = await openPage((method, path) => {
+      if (method === 'GET' && path === '/api/categories/c-cat/usage') return { usage: { transactions: 2, recurring: 0, bills: 0 } };
+      // makeFetch ตอบ null เป็น 404 จึงใช้ {} แทน 204
+      if (method === 'DELETE' && path === '/api/categories/c-cat') return {};
+      return undefined;
+    });
+    const listBefore = calls.filter((call) => call === 'GET /api/transactions').length;
+
+    tileOf('c-cat').click();
+    expect(byId('category-sheet-delete-row').hidden).toBe(false);
+    byId('category-sheet-delete').click();
+    await settle();
+
+    expect(byId('category-sheet-confirm').hidden).toBe(false);
+    expect(byId('category-sheet-confirm-text').textContent).toBe(
+      'ลบหมวด ค่าแมว? รายการ 2 รายการ จะย้ายไปหมวด อื่นๆ และงบของหมวดนี้จะหายไป'
+    );
+    expect(document.activeElement).toBe(byId('category-sheet-confirm-cancel'));
+    byId('category-sheet-confirm-ok').click();
+    await settle();
+
+    expect(calls).toContain('DELETE /api/categories/c-cat');
+    expect(isOpen()).toBe(false);
+    expect(tileNames()).toEqual(['อาหาร', 'อื่นๆ', 'เพิ่มหมวด']);
+    expect(byId('category-status').textContent).toBe('ลบหมวด ค่าแมว แล้ว');
+    // รายการที่ย้ายไป อื่นๆ ต้องแสดงชื่อหมวดใหม่ จึงโหลดใหม่
+    expect(calls.filter((call) => call === 'GET /api/transactions').length).toBe(listBefore + 1);
+    expect(document.activeElement).toBe(document.querySelector('[data-action="add"]'));
+  });
+
+  it('keeps the category when the user backs out of the delete', async () => {
+    const { calls } = await openPage((method, path) =>
+      method === 'GET' && path === '/api/categories/c-cat/usage' ? { usage: { transactions: 0, recurring: 0, bills: 0 } } : undefined
+    );
+
+    tileOf('c-cat').click();
+    byId('category-sheet-delete').click();
+    await settle();
+    byId('category-sheet-confirm-cancel').click();
+
+    expect(byId('category-sheet-confirm').hidden).toBe(true);
+    expect(isOpen()).toBe(true);
+    expect(document.activeElement).toBe(byId('category-sheet-delete'));
+    expect(calls.some((call) => call.startsWith('DELETE'))).toBe(false);
+  });
+
+  it('has no delete button when adding and shows the reason when the delete fails', async () => {
+    await openPage((method, path) => {
+      if (method === 'GET' && path === '/api/categories/c-cat/usage') return { usage: { transactions: 0, recurring: 0, bills: 0 } };
+      return undefined;
+    });
+
+    document.querySelector('[data-action="add"]').click();
+    expect(byId('category-sheet-delete-row').hidden).toBe(true);
+    byId('category-sheet-cancel').click();
+
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) =>
+      options.method === 'DELETE' ? new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }) : original(url, options)
+    );
+    tileOf('c-cat').click();
+    byId('category-sheet-delete').click();
+    await settle();
+    byId('category-sheet-confirm-ok').click();
+    await settle();
+
+    expect(isOpen()).toBe(true);
+    expect(byId('category-sheet-error').textContent).toBe('ไม่พบหมวดนี้แล้ว ลองเปิดหน้าใหม่');
+    expect(tileOf('c-cat')).not.toBeNull();
+  });
+
   it('changes the icon of a category and sends only the icon', async () => {
     const { bodies } = await openPage((method, path) =>
       method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], icon: 'coffee' } } : undefined
