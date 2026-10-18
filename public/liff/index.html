@@ -511,7 +511,7 @@
   </dialog>
   <dialog id="category-sheet" class="category-sheet" aria-labelledby="category-sheet-title">
     <form id="category-sheet-form" novalidate>
-      <h2 id="category-sheet-title">แก้หมวด</h2>
+      <h2 id="category-sheet-title" tabindex="-1">แก้หมวด</h2>
       <button type="button" id="category-sheet-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -531,9 +531,12 @@
               แค่ไม่ให้เลือกใหม่</small></span><input id="category-sheet-hidden" type="checkbox" role="switch"></label>
       </div>
       <p id="category-sheet-error" class="error" role="alert"></p>
-      <div class="actions">
-        <button type="button" id="category-sheet-cancel">ยกเลิก</button>
-        <button type="submit" id="category-sheet-save" class="primary">บันทึก</button>
+      <div class="category-sheet-footer">
+        <p id="category-sheet-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+        <div class="actions">
+          <button type="button" id="category-sheet-cancel">ยกเลิก</button>
+          <button type="submit" id="category-sheet-save" class="primary">บันทึก</button>
+        </div>
       </div>
     </form>
   </dialog>

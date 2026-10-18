@@ -26,6 +26,10 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     els.sheetSave.disabled = next;
     els.sheetCancel.disabled = next;
     els.sheetClose.disabled = next;
+    els.sheetName.disabled = next;
+    els.sheetHidden.disabled = next;
+    els.sheetBusy.hidden = !next;
+    for (const button of els.sheetIcons.querySelectorAll('button')) button.disabled = next;
   }
 
   function setStatus(text) {
@@ -159,7 +163,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     renderIconChoices();
     renderPreview();
     els.sheet.showModal();
-    els.sheetName.focus();
+    // แก้ไอคอนอย่างเดียวไม่ควรเด้งคีย์บอร์ดมาบังตาราง จึงโฟกัสหัวข้อ เว้นแต่เพิ่มหมวดใหม่
+    (category ? els.sheetTitle : els.sheetName).focus();
   }
 
   // ปิดเองแล้วคืนโฟกัสทันที เพราะ event close ไม่ได้ยิงในทุก browser

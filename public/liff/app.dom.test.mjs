@@ -3274,6 +3274,7 @@ describe('LIFF categories page', () => {
     expect(byId('bottom-nav').hidden).toBe(false);
     expect(byId('page-back').hidden).toBe(true);
     expect(byId('page-title').textContent).toBe('จัดการงบประมาณ');
+    expect(byId('month').hidden).toBe(false);
     expect(document.activeElement).toBe(byId('categories-open'));
   });
 
@@ -3443,6 +3444,95 @@ describe('LIFF categories page', () => {
     expect(isOpen()).toBe(true);
     release();
     await settle();
+  });
+
+  it('focuses the title, not the name, when editing', async () => {
+    await openPage();
+
+    tileOf('c-food').click();
+
+    expect(document.activeElement).toBe(byId('category-sheet-title'));
+  });
+
+  it('focuses the name when adding', async () => {
+    await openPage();
+
+    document.querySelector('[data-action="add"]').click();
+
+    expect(document.activeElement).toBe(byId('category-sheet-name'));
+  });
+
+  it('shows a saving status and locks the form while in flight', async () => {
+    await openPage();
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PATCH') await gate;
+      return original(url, options);
+    });
+
+    tileOf('c-food').click();
+    expect(byId('category-sheet-busy').hidden).toBe(true);
+    byId('category-sheet-name').value = 'ข้าว';
+    submitSheet();
+    await settle();
+
+    expect(byId('category-sheet-busy').hidden).toBe(false);
+    expect(byId('category-sheet-busy').textContent).toBe('กำลังบันทึก...');
+    expect(byId('category-sheet-name').disabled).toBe(true);
+    expect(byId('category-sheet-hidden').disabled).toBe(true);
+    expect([...byId('category-sheet-icons').querySelectorAll('button')].every((button) => button.disabled)).toBe(true);
+    release();
+    await settle();
+
+    expect(byId('category-sheet-busy').hidden).toBe(true);
+    expect(byId('category-sheet-name').disabled).toBe(false);
+  });
+
+  it('clears the previous status when the page is entered again', async () => {
+    await openPage((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], icon: 'coffee' } } : undefined
+    );
+    tileOf('c-food').click();
+    byId('category-sheet-icons').querySelector('[data-icon="coffee"]').click();
+    submitSheet();
+    await settle();
+    expect(byId('category-status').textContent).not.toBe('');
+
+    byId('page-back').click();
+    byId('categories-open').click();
+
+    expect(byId('category-status').textContent).toBe('');
+  });
+
+  it('keeps the sheet open with the server reason when adding fails', async () => {
+    await openPage((method, path) => (method === 'POST' && path === '/api/categories' ? { status: 409, error: 'Duplicate name' } : undefined));
+
+    document.querySelector('[data-action="add"]').click();
+    byId('category-sheet-name').value = 'อาหาร';
+    submitSheet();
+    await settle();
+
+    expect(isOpen()).toBe(true);
+    expect(byId('category-sheet-error').textContent).toBe('มีหมวดชื่อนี้อยู่แล้ว');
+  });
+
+  it('unhides a hidden category', async () => {
+    const { bodies } = await openPage((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-trip' ? { category: { ...MANAGED[1], hidden: false } } : undefined
+    );
+
+    byId('category-hidden-toggle').click();
+    tileOf('c-trip').click();
+    byId('category-sheet-hidden').checked = false;
+    submitSheet();
+    await settle();
+
+    expect(bodies).toContainEqual({ call: 'PATCH /api/categories/c-trip', body: { hidden: false } });
+    expect(tileNames()).toEqual(['อาหาร', 'เดินทาง', 'ค่าแมว', 'อื่นๆ', 'เพิ่มหมวด']);
+    expect(byId('category-hidden-toggle').hidden).toBe(true);
+    expect(byId('category-status').textContent).toBe('เลิกซ่อนหมวด เดินทาง แล้ว');
   });
 
   it('keeps hidden categories out of the pickers but in the list filter', async () => {

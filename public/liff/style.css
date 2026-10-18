@@ -406,12 +406,13 @@ main#app.categories-page { padding-bottom: calc(16px + env(safe-area-inset-botto
 .category-segment button[aria-pressed="true"] { background: var(--surface); color: var(--primary); font-weight: 800; box-shadow: var(--shadow-card); }
 .category-status { margin: 12px 20px 0; font-size: 13px; color: var(--muted); }
 .category-status:empty { display: none; }
+.category-tiles > li { display: flex; }
 .category-tiles { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 16px 16px 0; padding: 0; }
-.category-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; width: 100%; min-height: 104px; padding: 12px 6px; border: none; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-card); font: inherit; color: var(--text); text-align: center; cursor: pointer; }
+.category-tile { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; width: 100%; min-height: 104px; padding: 12px 6px; border: none; border-radius: 20px; background: var(--surface); box-shadow: var(--shadow-card); font: inherit; color: var(--text); text-align: center; cursor: pointer; }
 .category-tile:active { background: var(--brand-soft); }
 .category-tile .cat-badge { width: 48px; height: 48px; }
 .category-tile .cat-badge .icon { width: 26px; height: 26px; }
-.category-tile-name { font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.category-tile-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
 .category-tile.system { cursor: default; }
 .category-tile.system:active { background: var(--surface); }
 .category-lock { position: absolute; top: 8px; right: 10px; width: 16px; height: 16px; color: var(--muted); }
@@ -443,6 +444,9 @@ main#app.categories-page { padding-bottom: calc(16px + env(safe-area-inset-botto
 #category-sheet-hidden:checked::before { transform: translateX(20px); }
 #category-sheet-hidden:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 #category-sheet .error:empty { display: none; }
+.category-sheet-footer { position: sticky; bottom: 0; margin: 12px -20px 0; padding: 8px 20px calc(20px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); }
+.category-sheet { padding-bottom: 0; }
+.category-sheet-footer .actions { margin-top: 8px; }
 
 /* อยู่ท้ายไฟล์เพื่อทับสีประจำไอคอน ไอคอนที่ผู้ใช้เลือกเองต้องใช้สีตามประเภทหมวด */
 .cat-tone-expense { --cat-bg: var(--cat-food-bg); --cat-fg: var(--cat-food-fg); }

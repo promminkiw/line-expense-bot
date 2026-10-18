@@ -257,6 +257,7 @@ const categoriesPanel = createCategoriesPanel({
     sheetHiddenRow: document.getElementById('category-sheet-hidden-row'),
     sheetHidden: document.getElementById('category-sheet-hidden'),
     sheetError: document.getElementById('category-sheet-error'),
+    sheetBusy: document.getElementById('category-sheet-busy'),
     sheetSave: document.getElementById('category-sheet-save'),
     sheetCancel: document.getElementById('category-sheet-cancel'),
   },
@@ -1516,6 +1517,8 @@ function enterCategoriesPage() {
   els.bottomNav.hidden = true;
   for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== 'panel-categories';
   document.getElementById('page-title').textContent = 'หมวดของฉัน';
+  // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
+  document.getElementById('category-status').textContent = '';
   els.month.hidden = true;
   els.pageBack.hidden = false;
   showStickyLoadError();
