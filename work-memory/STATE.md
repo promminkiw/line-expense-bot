@@ -5,18 +5,18 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` หมวดรายจ่ายที่เพิ่มใหม่ไม่ขึ้นในหน้างบ (ผู้ใช้เจอตอน Browser check 2026-10-19): แก้แล้วบน branch fix/budgets-new-category ให้เพิ่มหมวดรายจ่ายแล้วโหลดงบใหม่ ยังไม่ merge/push
+- [ ] `next` ลบหมวด (แผน docs/superpowers/plans/2026-10-19-delete-category.md) Task 1-5 เสร็จบน branch feat/delete-category (รวม fix 6a4b442 ชื่อหมวดเจ้าของบิล) ยังไม่ merge/push: ผู้ใช้ต้องรัน `supabase/019_delete_category.sql` ก่อน push และทำ Browser check ของ Task 4 ในแอป LINE
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
-- [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ถัดไปแนะนำข้อชื่อหมวดเจ้าของบิล): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, หมวดสำรองอาจลงหมวดที่ซ่อน, latency ของ schema หลัง deploy, ชื่อหมวดเจ้าของบิลโผล่ให้เพื่อนเห็น, PUT /budgets/:categoryId ยังเทียบ id แบบแยกตัวพิมพ์
+- [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, หมวดสำรองอาจลงหมวดที่ซ่อน, latency ของ schema หลัง deploy, PUT /budgets/:categoryId ยังเทียบ id แบบแยกตัวพิมพ์
 - [ ] ตกค้างจาก 2026-10-12 (ยังไม่แก้): ยอดหลักล้านในกล่องรายจ่ายตัดคำ บาท ขึ้นบรรทัดใหม่ตั้งแต่จอ 390; การ์ดยอดคงเหลือ K ยังไม่ตรวจจอต่ำกว่า 360px; ผู้ใช้ตัดสินไม่ทำ: รูปเพื่อนในรายชื่อ, สำเนา UUID_PATTERN ใน LIFF, ลำดับล็อก cancel_bill, push tag design-v1 (ข้อความเต็มดู archive)
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
+- [x] ลบหมวด Task 1-4 (2026-10-19, d7f626c..f47ab2e): npm test 1548/1548 lint ผ่าน node --check ผ่าน; เทสต์ถูกเขียนก่อน session นี้ จึงไม่มีหลักฐานว่าเคยแดงก่อน
+- [x] merge fix/budgets-new-category (86455da) เข้า main และ push แล้ว: หมวดรายจ่ายที่เพิ่มใหม่ขึ้นในหน้างบ
 - [x] merge feat/category-icons (e92e520) + fix/custom-categories-followups (5a0014b) เข้า main และ push แล้ว (2026-10-19): ผู้ใช้รัน 018 ใน Supabase ก่อน push; npm test บน main 1519/1519 lint ผ่าน
 - [x] follow-ups ส่วน test + uppercase UUID (2026-10-19, 75475f4 + 7379c93): npm test 1518/1519 (try-parse timeout ตอนรันพร้อมกัน รันเดี่ยวผ่าน) lint ผ่าน; ทุก test ใหม่ทำ mutation check แล้วแดงจริง
 - [x] ลองฟีเจอร์ลบรายการเมื่อ unsend แล้ว revert (2026-10-18): แชทกับบอทไม่มีเมนูยกเลิกข้อความ จึงไม่มี unsend event; drop คอลัมน์ line_events.message_id ใน Supabase แล้ว ถ้าจะทำใหม่ดู d4886b6
-- [x] ปุ่มเสนอแนะลิงก์ Google Form https://forms.gle/byku7LUs8qsXWaP18 (2026-10-12, merge ee4dd27)
-- [x] อัปเดตส่วนที่ล้าหลัง (2026-10-12, merge 2e36869 push แล้ว CI ผ่าน, ผู้ใช้ลองบน Render ผ่าน)
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
