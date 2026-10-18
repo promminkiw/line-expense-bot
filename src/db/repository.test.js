@@ -779,6 +779,43 @@ describe('repository.updateCategory', () => {
   });
 });
 
+describe('repository.deleteCategory', () => {
+  it('deletes through the rpc and returns its status', async () => {
+    const { supabase, calls } = fakeSupabase({ data: 'deleted', error: null });
+
+    expect(await createRepository(supabase).deleteCategory('user-1', 'c9')).toBe('deleted');
+    expect(calls).toEqual([['rpc', 'delete_category', { p_user: 'user-1', p_category: 'c9' }]]);
+  });
+
+  it('throws a DatabaseError when the rpc fails', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).deleteCategory('user-1', 'c9')).rejects.toThrow('Database deleteCategory failed: boom');
+  });
+});
+
+describe('repository.countCategoryUsage', () => {
+  it('counts the entries, recurring rules and bills of the category', async () => {
+    const { supabase, calls } = fakeSupabase({ count: 3, error: null }, { count: 1, error: null }, { count: 2, error: null });
+
+    expect(await createRepository(supabase).countCategoryUsage('user-1', 'c9')).toEqual({ transactions: 3, recurring: 1, bills: 2 });
+    expect(calls.filter(([method]) => method === 'from')).toEqual([
+      ['from', 'transactions'],
+      ['from', 'recurring_rules'],
+      ['from', 'bills'],
+    ]);
+    expect(calls).toContainEqual(['select', 'id', { count: 'exact', head: true }]);
+    expect(calls).toContainEqual(['eq', 'owner_id', 'user-1']);
+    expect(calls.filter((call) => call[0] === 'eq' && call[1] === 'category_id')).toHaveLength(3);
+  });
+
+  it('throws a DatabaseError when a count fails', async () => {
+    const { supabase } = fakeSupabase({ count: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).countCategoryUsage('user-1', 'c9')).rejects.toThrow('Database countCategoryUsage failed: boom');
+  });
+});
+
 describe('repository.updateTransaction', () => {
   const fields = { type: 'income', amount: 25000, categoryId: 'c9', occurredOn: '2026-09-01', note: 'เงินเดือน' };
 
