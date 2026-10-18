@@ -169,6 +169,19 @@ describe('billService.create', () => {
     expect(repository.createBill).not.toHaveBeenCalled();
   });
 
+  // หมวดที่เจ้าของตั้งชื่อเองอาจเป็นเรื่องส่วนตัว เพื่อนจึงเห็นแค่ชื่อหมวดมาตรฐาน
+  it('leaves a category name the owner made up off the card', async () => {
+    const { service, pushFlex } = setup({
+      listCategories: vi.fn().mockResolvedValue([{ id: FOOD, name: 'ค่าแฟน', type: 'expense' }]),
+    });
+
+    await service.create(OWNER, body());
+
+    const card = JSON.stringify(pushFlex.mock.calls[0][1]);
+    expect(card).not.toContain('ค่าแฟน');
+    expect(card).toContain('08/10/2569');
+  });
+
   it('uses the fallback name on the card when the owner has no name', async () => {
     const { service, pushFlex } = setup({ getDisplayName: vi.fn().mockResolvedValue(null) });
 
@@ -209,8 +222,21 @@ describe('billService.list', () => {
 
     expect(await service.list(OWNER)).toEqual({
       owned: [{ id: BILL, members: [{ userId: F1, displayName: 'ผู้ใช้ LINE' }] }],
-      incoming: [{ id: 'b2', ownerName: 'ผู้ใช้ LINE' }],
+      incoming: [{ id: 'b2', ownerName: 'ผู้ใช้ LINE', categoryName: '' }],
     });
+  });
+
+  it('shows friends only the standard category names of incoming bills', async () => {
+    const { service } = setup({
+      listIncomingBills: vi.fn().mockResolvedValue([
+        { id: 'b1', ownerName: 'เอ', categoryName: 'อาหาร' },
+        { id: 'b2', ownerName: 'เอ', categoryName: 'ค่าแฟน' },
+      ]),
+    });
+
+    const { incoming } = await service.list(F1);
+
+    expect(incoming.map((bill) => bill.categoryName)).toEqual(['อาหาร', '']);
   });
 });
 

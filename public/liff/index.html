@@ -531,6 +531,16 @@
               แค่ไม่ให้เลือกใหม่</small></span><input id="category-sheet-hidden" type="checkbox" role="switch"></label>
       </div>
       <p id="category-sheet-error" class="error" role="alert"></p>
+      <div id="category-sheet-delete-row" class="category-delete-row">
+        <button type="button" id="category-sheet-delete" class="category-delete">ลบหมวด</button>
+      </div>
+      <div id="category-sheet-confirm" class="category-delete-confirm" hidden>
+        <p id="category-sheet-confirm-text" class="confirm-detail"></p>
+        <div class="actions">
+          <button type="button" id="category-sheet-confirm-cancel">ไม่ลบ</button>
+          <button type="button" id="category-sheet-confirm-ok" class="danger-solid">ลบเลย</button>
+        </div>
+      </div>
       <div class="category-sheet-footer">
         <p id="category-sheet-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
         <div class="actions">

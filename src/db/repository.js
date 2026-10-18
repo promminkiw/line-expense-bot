@@ -613,6 +613,22 @@ function createRepository(supabase) {
     return data.length > 0 ? { status: 'ok', category: toCategory(data[0]) } : { status: 'not_found' };
   }
 
+  async function deleteCategory(userId, id) {
+    const { data, error } = await supabase.rpc('delete_category', { p_user: userId, p_category: id });
+    throwIfError('deleteCategory', error);
+    return data;
+  }
+
+  // ใช้บอกผู้ใช้ก่อนยืนยันว่าจะมีกี่แถวย้ายไปหมวด อื่นๆ
+  async function countCategoryUsage(userId, id) {
+    const count = (table, ownerColumn) =>
+      supabase.from(table).select('id', { count: 'exact', head: true }).eq(ownerColumn, userId).eq('category_id', id);
+    const results = await Promise.all([count('transactions', 'user_id'), count('recurring_rules', 'user_id'), count('bills', 'owner_id')]);
+    for (const { error } of results) throwIfError('countCategoryUsage', error);
+    const [transactions, recurring, bills] = results.map((result) => result.count);
+    return { transactions, recurring, bills };
+  }
+
   async function updateTransaction(userId, id, fields) {
     // select('id') ทำให้รู้ว่ามีแถวถูกแก้จริงไหม
     const { data, error } = await supabase
@@ -740,6 +756,8 @@ function createRepository(supabase) {
     listCategories,
     createCategory,
     updateCategory,
+    deleteCategory,
+    countCategoryUsage,
     updateTransaction,
     deleteTransaction,
     listRecurringRules,

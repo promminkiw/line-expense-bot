@@ -1,4 +1,4 @@
--- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางหลัก แล้วรัน 002_pending_clarifications.sql, 003_summary_function.sql, 004_export_links.sql, 005_budgets.sql, 006_pending_slips.sql, 007_pending_slips_items.sql, 008_pending_slips_event_index.sql, 009_recurring.sql, 010_profile_and_trend.sql, 011_slip_category.sql, 012_friends.sql, 013_bills.sql, 014_bill_indexes.sql, 015_bill_invariants.sql, 017_category_hidden.sql และ 018_category_icon.sql ต่อตามลำดับ (ไม่มี 016 เพราะถูกถอยออก)
+-- รันครั้งเดียวใน Supabase SQL Editor เพื่อสร้างตารางหลัก แล้วรัน 002_pending_clarifications.sql, 003_summary_function.sql, 004_export_links.sql, 005_budgets.sql, 006_pending_slips.sql, 007_pending_slips_items.sql, 008_pending_slips_event_index.sql, 009_recurring.sql, 010_profile_and_trend.sql, 011_slip_category.sql, 012_friends.sql, 013_bills.sql, 014_bill_indexes.sql, 015_bill_invariants.sql, 017_category_hidden.sql, 018_category_icon.sql และ 019_delete_category.sql ต่อตามลำดับ (ไม่มี 016 เพราะถูกถอยออก)
 
 create table public.users (
   id uuid primary key default gen_random_uuid(),

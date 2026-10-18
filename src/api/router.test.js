@@ -233,6 +233,8 @@ describe('categories API', () => {
     deps.repository.listCategories.mockResolvedValue(categories);
     deps.repository.createCategory = vi.fn().mockResolvedValue({ status: 'ok', category: CAT });
     deps.repository.updateCategory = vi.fn().mockResolvedValue({ status: 'ok', category: { ...CAT, name: 'แมว' } });
+    deps.repository.countCategoryUsage = vi.fn().mockResolvedValue({ transactions: 3, recurring: 1, bills: 0 });
+    deps.repository.deleteCategory = vi.fn().mockResolvedValue('deleted');
     return deps;
   }
 
@@ -547,6 +549,77 @@ describe('categories API', () => {
 
     expect(res.status).toBe(200);
     expect(deps.repository.updateCategory).toHaveBeenCalledWith('user-1', lettered.id, { name: 'แมว' });
+  });
+
+  it('counts what a category holds before deleting it', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}/usage`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ usage: { transactions: 3, recurring: 1, bills: 0 } });
+    expect(deps.repository.countCategoryUsage).toHaveBeenCalledWith('user-1', CAT_ID);
+  });
+
+  it('deletes a category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { method: 'DELETE' });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.deleteCategory).toHaveBeenCalledWith('user-1', CAT_ID);
+  });
+
+  it('refuses to count or delete a system category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const usage = await call(base, `/categories/${OTHER_ID}/usage`);
+    const deleted = await call(base, `/categories/${OTHER_ID}`, { method: 'DELETE' });
+
+    expect(usage.status).toBe(400);
+    expect(await usage.json()).toEqual({ error: 'System category' });
+    expect(deleted.status).toBe(400);
+    expect(await deleted.json()).toEqual({ error: 'System category' });
+    expect(deps.repository.deleteCategory).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for an unknown, a non-uuid or an already deleted category', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    deps.repository.deleteCategory.mockResolvedValue('not_found');
+    const base = await start(deps);
+
+    const unknownUsage = await call(base, '/categories/99999999-8888-7777-6666-555555555555/usage');
+    const badDelete = await call(base, '/categories/abc', { method: 'DELETE' });
+    const gone = await call(base, `/categories/${CAT_ID}`, { method: 'DELETE' });
+
+    expect(unknownUsage.status).toBe(404);
+    expect(badDelete.status).toBe(404);
+    expect(gone.status).toBe(404);
+    expect(await gone.json()).toEqual({ error: 'Not found' });
+  });
+
+  it('deletes a category whose id in the url is uppercase', async () => {
+    const lettered = { ...CAT, id: 'abcdef12-3333-4444-5555-666666666666' };
+    const deps = withCategories([lettered, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${lettered.id.toUpperCase()}`, { method: 'DELETE' });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.deleteCategory).toHaveBeenCalledWith('user-1', lettered.id);
+  });
+
+  it('refuses to delete without a valid token', async () => {
+    const deps = withCategories([CAT, OTHER]);
+    const base = await start(deps);
+
+    const res = await call(base, `/categories/${CAT_ID}`, { token: null, method: 'DELETE' });
+
+    expect(res.status).toBe(401);
+    expect(deps.repository.deleteCategory).not.toHaveBeenCalled();
   });
 });
 

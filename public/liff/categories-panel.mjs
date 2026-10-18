@@ -1,7 +1,7 @@
 import { ApiError } from './api.mjs';
 import { createCategoryBadge, effectiveIconKey } from './categories.mjs';
 import { CATEGORY_ICONS } from './category-icons.mjs';
-import { describeCategoryError } from './categories-format.mjs';
+import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
 import { createSvgIcon } from './icons.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
@@ -28,6 +28,9 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     els.sheetClose.disabled = next;
     els.sheetName.disabled = next;
     els.sheetHidden.disabled = next;
+    els.sheetDelete.disabled = next;
+    els.sheetConfirmOk.disabled = next;
+    els.sheetConfirmCancel.disabled = next;
     els.sheetBusy.hidden = !next;
     for (const button of els.sheetIcons.querySelectorAll('button')) button.disabled = next;
   }
@@ -160,6 +163,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     els.sheetHidden.checked = category ? category.hidden : false;
     els.sheetHiddenRow.hidden = !category;
     els.sheetError.textContent = '';
+    els.sheetDeleteRow.hidden = !category;
+    els.sheetConfirm.hidden = true;
     renderIconChoices();
     renderPreview();
     els.sheet.showModal();
@@ -231,6 +236,31 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     closeSheet(updated.hidden && !showHidden ? '#category-hidden-toggle' : tileSelector(updated));
   }
 
+  async function askDelete() {
+    const category = editing;
+    els.sheetError.textContent = '';
+    const result = await send(() => getApi().getCategoryUsage(category.id));
+    if (!result || editing !== category) return;
+    els.sheetConfirmText.textContent = describeCategoryUsage(category, result.usage);
+    els.sheetConfirm.hidden = false;
+    // ปุ่มที่โฟกัสก่อนคือไม่ลบ กันกด Enter แล้วลบโดยไม่ตั้งใจ
+    els.sheetConfirmCancel.focus();
+  }
+
+  async function confirmDelete() {
+    const category = editing;
+    els.sheetError.textContent = '';
+    const result = await send(() => getApi().deleteCategory(category.id));
+    if (!result) return;
+    // รายการที่ย้ายไป อื่นๆ ต้องแสดงชื่อหมวดใหม่ จึงโหลดรายการ งบ และรายการประจำใหม่
+    onChanged(
+      getCategories().filter((item) => item.id !== category.id),
+      { refresh: true }
+    );
+    setStatus(`ลบหมวด ${category.name} แล้ว`);
+    closeSheet('[data-action="add"]');
+  }
+
   els.sheetForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (busy || !sheetOpen) return;
@@ -242,6 +272,16 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
 
   els.sheetCancel.addEventListener('click', () => closeSheet(returnFocus));
   els.sheetClose.addEventListener('click', () => closeSheet(returnFocus));
+  els.sheetDelete.addEventListener('click', () => {
+    if (!busy && editing) askDelete();
+  });
+  els.sheetConfirmOk.addEventListener('click', () => {
+    if (!busy && editing) confirmDelete();
+  });
+  els.sheetConfirmCancel.addEventListener('click', () => {
+    els.sheetConfirm.hidden = true;
+    els.sheetDelete.focus();
+  });
   // กัน Esc ปิด sheet ระหว่างรอ request ไม่งั้นข้อผิดพลาดที่ตามมาจะไม่มีที่แสดง
   els.sheet.addEventListener('cancel', (event) => {
     if (busy) event.preventDefault();

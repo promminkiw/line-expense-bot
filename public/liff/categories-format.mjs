@@ -14,3 +14,18 @@ export function describeCategoryError(status, error) {
   if (status === 404) return 'ไม่พบหมวดนี้แล้ว ลองเปิดหน้าใหม่';
   return MESSAGES.get(`${status}:${error}`) ?? 'บันทึกหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
 }
+
+// บอกก่อนยืนยันว่าอะไรจะย้ายไป อื่นๆ ผู้ใช้จะได้ไม่ตกใจว่ารายการหาย
+export function describeCategoryUsage(category, usage) {
+  const parts = [
+    usage.transactions > 0 ? `รายการ ${usage.transactions} รายการ` : null,
+    usage.recurring > 0 ? `รายการประจำ ${usage.recurring} รายการ` : null,
+    usage.bills > 0 ? `บิล ${usage.bills} ใบ` : null,
+  ].filter(Boolean);
+  const moved =
+    parts.length === 0
+      ? 'หมวดนี้ยังไม่มีรายการ'
+      : `${parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} และ${parts[parts.length - 1]}`} จะย้ายไปหมวด อื่นๆ`;
+  const budget = category.type === 'expense' ? ' และงบของหมวดนี้จะหายไป' : '';
+  return `ลบหมวด ${category.name}? ${moved}${budget}`;
+}

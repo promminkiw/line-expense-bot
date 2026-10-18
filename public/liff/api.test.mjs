@@ -23,6 +23,22 @@ describe('createApi', () => {
     ]);
   });
 
+  it('reads the usage of a category and deletes it', async () => {
+    const fetchImpl = fakeFetch(200, { usage: { transactions: 1, recurring: 0, bills: 0 } });
+    const api = setup(fetchImpl);
+
+    const usage = await api.getCategoryUsage('c 1');
+    fetchImpl.mockResolvedValueOnce({ ok: true, status: 204, json: async () => { throw new Error('no body'); } });
+    const deleted = await api.deleteCategory('c 1');
+
+    expect(usage).toEqual({ usage: { transactions: 1, recurring: 0, bills: 0 } });
+    expect(deleted).toBe(true);
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method ?? 'GET'])).toEqual([
+      ['/api/categories/c%201/usage', 'GET'],
+      ['/api/categories/c%201', 'DELETE'],
+    ]);
+  });
+
   it('sends the ID token and reads JSON', async () => {
     const fetchImpl = fakeFetch(200, { categories: [] });
 

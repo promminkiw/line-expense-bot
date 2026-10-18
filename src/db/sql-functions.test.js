@@ -24,6 +24,7 @@ const MIGRATIONS = [
   '015_bill_invariants.sql',
   '017_category_hidden.sql',
   '018_category_icon.sql',
+  '019_delete_category.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -747,6 +748,80 @@ describe('018_category_icon.sql', () => {
   });
 });
 
+describe('019_delete_category.sql', () => {
+  async function setupUser() {
+    const user = await createUser('U1');
+    const other = await createCategory(user, 'อื่นๆ', 'expense');
+    const slip = await createCategory(user, 'ใบเสร็จ/สลิปโอนเงิน', 'expense');
+    const incomeOther = await createCategory(user, 'อื่นๆ', 'income');
+    const cat = await createCategory(user, 'ค่าแมว', 'expense');
+    return { user, other, slip, incomeOther, cat };
+  }
+
+  it('moves entries, recurring rules and bills to the other category, drops the budget and deletes the category', async () => {
+    const { user, other, cat } = await setupUser();
+    await addTransaction(user, cat, 'expense', 120, '2026-10-05');
+    await db.query(
+      "insert into recurring_rules (user_id, type, category_id, amount, day_of_month) values ($1, 'expense', $2, 300, 5)",
+      [user, cat]
+    );
+    await db.query("insert into bills (owner_id, title, total, category_id, occurred_on, owner_share) values ($1, 'ข้าวแมว', 500, $2, '2026-10-05', 500)", [
+      user,
+      cat,
+    ]);
+    await db.query("insert into budgets (user_id, category_id, month, amount) values ($1, $2, '2026-10-01', 1000)", [user, cat]);
+
+    expect((await one('select delete_category($1, $2) as status', [user, cat])).status).toBe('deleted');
+
+    expect(await rows('select category_id from transactions where user_id = $1', [user])).toEqual([{ category_id: other }]);
+    expect(await rows('select category_id from recurring_rules where user_id = $1', [user])).toEqual([{ category_id: other }]);
+    expect(await rows('select category_id from bills where owner_id = $1', [user])).toEqual([{ category_id: other }]);
+    expect(await rows('select id from budgets where user_id = $1', [user])).toEqual([]);
+    expect(await rows('select id from categories where id = $1', [cat])).toEqual([]);
+  });
+
+  it('moves an income category to the income other category', async () => {
+    const { user, incomeOther } = await setupUser();
+    const bonus = await createCategory(user, 'โบนัส', 'income');
+    await addTransaction(user, bonus, 'income', 5000, '2026-10-01');
+
+    expect((await one('select delete_category($1, $2) as status', [user, bonus])).status).toBe('deleted');
+    expect(await rows('select category_id from transactions where user_id = $1', [user])).toEqual([{ category_id: incomeOther }]);
+  });
+
+  it('refuses the system categories', async () => {
+    const { user, other, slip, incomeOther } = await setupUser();
+
+    for (const id of [other, slip, incomeOther]) {
+      expect((await one('select delete_category($1, $2) as status', [user, id])).status).toBe('system');
+    }
+    expect((await one('select count(*)::int as n from categories where user_id = $1', [user])).n).toBe(4);
+  });
+
+  it('answers not_found for a category of another user and leaves it alone', async () => {
+    const { cat } = await setupUser();
+    const stranger = await createUser('U2');
+
+    expect((await one('select delete_category($1, $2) as status', [stranger, cat])).status).toBe('not_found');
+    expect(await rows('select id from categories where id = $1', [cat])).toEqual([{ id: cat }]);
+  });
+
+  it('fails without changing anything when the other category is missing', async () => {
+    const user = await createUser('U3');
+    const cat = await createCategory(user, 'ค่าแมว', 'expense');
+    await addTransaction(user, cat, 'expense', 50, '2026-10-02');
+
+    await db.exec('savepoint no_fallback');
+    await expect(db.query('select delete_category($1, $2)', [user, cat])).rejects.toThrow('Fallback category is missing');
+    await db.exec('rollback to savepoint no_fallback');
+    expect(await rows('select category_id from transactions where user_id = $1', [user])).toEqual([{ category_id: cat }]);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('019_delete_category.sql'))).resolves.toBeDefined();
+  });
+});
+
 describe('function permissions', () => {
   const calls = [
     ['summarize_transactions', "select * from summarize_transactions(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
@@ -758,6 +833,7 @@ describe('function permissions', () => {
     ['confirm_bill_share', 'select confirm_bill_share(gen_random_uuid(), gen_random_uuid(), gen_random_uuid())'],
     ['decline_bill_share', 'select decline_bill_share(gen_random_uuid(), gen_random_uuid())'],
     ['cancel_bill', 'select cancel_bill(gen_random_uuid(), gen_random_uuid())'],
+    ['delete_category', 'select delete_category(gen_random_uuid(), gen_random_uuid())'],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว

@@ -451,3 +451,7 @@ main#app.categories-page { padding-bottom: calc(16px + env(safe-area-inset-botto
 /* อยู่ท้ายไฟล์เพื่อทับสีประจำไอคอน ไอคอนที่ผู้ใช้เลือกเองต้องใช้สีตามประเภทหมวด */
 .cat-tone-expense { --cat-bg: var(--cat-food-bg); --cat-fg: var(--cat-food-fg); }
 .cat-tone-income { --cat-bg: var(--cat-salary-bg); --cat-fg: var(--cat-salary-fg); }
+.category-delete-row { margin-top: 12px; }
+.category-delete { color: var(--danger); border-color: var(--danger); background: transparent; }
+.category-delete-confirm { margin-top: 12px; padding: 12px; border: 1px solid var(--danger); border-radius: 12px; }
+.category-delete:disabled, .category-delete-confirm button:disabled { color: var(--muted); border-color: var(--muted); cursor: not-allowed; }

@@ -54,6 +54,11 @@ function toTextCategories(categories) {
   return { expense: pick('expense'), income: pick('income') };
 }
 
+// ชื่อหมวดที่ผู้ใช้ตั้งเองอาจเป็นเรื่องส่วนตัว จึงให้คนอื่นเห็นเฉพาะชื่อมาตรฐาน
+function shareableCategoryName(name) {
+  return DEFAULT_CATEGORIES.expense.includes(name) ? name : '';
+}
+
 function normalizeCategory(type, name, categories = TEXT_CATEGORIES) {
   return categories[type].includes(name) ? name : FALLBACK_CATEGORY;
 }
@@ -70,6 +75,7 @@ module.exports = {
   CATEGORY_ICONS,
   isSystemCategory,
   isReservedCategoryName,
+  shareableCategoryName,
   toTextCategories,
   normalizeCategory,
 };

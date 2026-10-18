@@ -38,6 +38,9 @@ export function createApi({ fetchImpl, getIdToken }) {
     createCategory: (body) => request('/categories', { method: 'POST', body: JSON.stringify(body) }),
     updateCategory: (id, body) =>
       request(`/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    getCategoryUsage: (id) => request(`/categories/${encodeURIComponent(id)}/usage`),
+    // คืน true เพราะ 204 ได้ null ซึ่งฝั่ง panel ใช้แทนความล้มเหลว
+    deleteCategory: (id) => request(`/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(() => true),
     listTransactions: (month) => request(`/transactions?month=${encodeURIComponent(month)}`),
     getTrend: (month) => request(`/trend?month=${encodeURIComponent(month)}`),
     getProfile: () => request('/profile'),

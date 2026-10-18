@@ -12,6 +12,7 @@ import {
   normalizeCategory,
   isSystemCategory,
   isReservedCategoryName,
+  shareableCategoryName,
   toTextCategories,
 } from './categories.js';
 
@@ -100,6 +101,15 @@ describe('isReservedCategoryName', () => {
     expect(isReservedCategoryName('อื่นๆ')).toBe(true);
     expect(isReservedCategoryName('ใบเสร็จ/สลิปโอนเงิน')).toBe(true);
     expect(isReservedCategoryName('อาหาร')).toBe(false);
+  });
+});
+
+describe('shareableCategoryName', () => {
+  it('keeps a standard expense name and drops a name the user made up', () => {
+    expect(shareableCategoryName('อาหาร')).toBe('อาหาร');
+    expect(shareableCategoryName(SLIP_CATEGORY)).toBe(SLIP_CATEGORY);
+    expect(shareableCategoryName('ค่าแฟน')).toBe('');
+    expect(shareableCategoryName(undefined)).toBe('');
   });
 });
 
