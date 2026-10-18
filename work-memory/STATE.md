@@ -5,7 +5,8 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
+- [ ] `next` หมวดรายจ่ายที่เพิ่มใหม่ไม่ขึ้นในหน้างบ (ผู้ใช้เจอตอน Browser check 2026-10-19): แก้แล้วบน branch fix/budgets-new-category ให้เพิ่มหมวดรายจ่ายแล้วโหลดงบใหม่ ยังไม่ merge/push
+- [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ถัดไปแนะนำข้อชื่อหมวดเจ้าของบิล): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, หมวดสำรองอาจลงหมวดที่ซ่อน, latency ของ schema หลัง deploy, ชื่อหมวดเจ้าของบิลโผล่ให้เพื่อนเห็น, PUT /budgets/:categoryId ยังเทียบ id แบบแยกตัวพิมพ์
 - [ ] ตกค้างจาก 2026-10-12 (ยังไม่แก้): ยอดหลักล้านในกล่องรายจ่ายตัดคำ บาท ขึ้นบรรทัดใหม่ตั้งแต่จอ 390; การ์ดยอดคงเหลือ K ยังไม่ตรวจจอต่ำกว่า 360px; ผู้ใช้ตัดสินไม่ทำ: รูปเพื่อนในรายชื่อ, สำเนา UUID_PATTERN ใน LIFF, ลำดับล็อก cancel_bill, push tag design-v1 (ข้อความเต็มดู archive)
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
