@@ -207,6 +207,10 @@
   <main id="app">
     <div class="top-sticky">
       <header class="bar">
+        <button type="button" id="page-back" class="bar-back" aria-label="กลับไปจัดการงบ" hidden><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#icon-back"></use>
+          </svg></button>
         <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
         <h1 id="page-title">รายการของฉัน</h1>
         <input type="month" id="month" aria-label="เลือกเดือน">
@@ -291,6 +295,30 @@
           <button type="button" id="budgets-retry">ลองใหม่</button>
         </div>
       </section>
+      <div class="categories-entry">
+        <button type="button" id="categories-open" class="categories-open" disabled><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#icon-categories"></use>
+          </svg>เพิ่มหมวดของฉัน</button>
+        <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน หรือซ่อนหมวด</p>
+      </div>
+    </div>
+    <div id="panel-categories" class="panel" hidden>
+      <div class="category-segment" role="group" aria-label="ประเภทหมวด">
+        <button type="button" id="category-seg-expense" aria-pressed="true">รายจ่าย</button>
+        <button type="button" id="category-seg-income" aria-pressed="false">รายรับ</button>
+      </div>
+      <p id="category-status" class="category-status" role="status" aria-live="polite"></p>
+      <ul id="category-tiles" class="category-tiles"></ul>
+      <button type="button" id="category-hidden-toggle" class="category-hidden-toggle" aria-expanded="false"
+        aria-controls="category-hidden-tiles" hidden><svg class="icon" aria-hidden="true" focusable="false">
+          <use href="#icon-eye-off"></use>
+        </svg><span id="category-hidden-text"></span><svg class="icon category-chevron" aria-hidden="true"
+          focusable="false">
+          <use href="#icon-chevron"></use>
+        </svg></button>
+      <ul id="category-hidden-tiles" class="category-tiles category-hidden-tiles" hidden></ul>
+      <p class="category-page-hint">แตะหมวดเพื่อเปลี่ยนชื่อ ไอคอน หรือซ่อน หมวดที่มีรูปกุญแจเป็นของระบบ แก้ไม่ได้</p>
     </div>
     <div id="panel-recurring" class="panel" hidden>
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
@@ -408,28 +436,6 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
-      <section id="categories-manager" class="categories-manager" aria-labelledby="categories-manager-title" hidden>
-        <h2 id="categories-manager-title">หมวดของฉัน</h2>
-        <p class="friends-hint">หมวดที่ซ่อนจะไม่ให้เลือกใหม่ แต่รายการเก่ายังอยู่ครบ</p>
-        <form id="category-add-form" class="category-add" novalidate>
-          <label for="category-add-name">เพิ่มหมวด</label>
-          <div class="category-add-fields">
-            <select id="category-add-type" aria-label="ประเภทหมวด">
-              <option value="expense">รายจ่าย</option>
-              <option value="income">รายรับ</option>
-            </select>
-            <input id="category-add-name" type="text" maxlength="30" autocomplete="off" placeholder="เช่น ค่าแมว">
-            <button type="submit" id="category-add-submit">เพิ่ม</button>
-          </div>
-          <p id="category-add-error" class="error" role="alert"></p>
-        </form>
-        <p id="category-status" class="export-status" role="status" aria-live="polite"></p>
-        <p id="category-toggle-error" class="error" role="alert"></p>
-        <h3 class="category-group">หมวดรายจ่าย</h3>
-        <ul id="category-rows-expense" class="category-rows"></ul>
-        <h3 class="category-group">หมวดรายรับ</h3>
-        <ul id="category-rows-income" class="category-rows"></ul>
-      </section>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
         <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
@@ -503,15 +509,31 @@
       <button type="button" id="friend-dialog-ok" class="primary"></button>
     </div>
   </dialog>
-  <dialog id="category-dialog" aria-labelledby="category-dialog-title">
-    <form id="category-dialog-form" novalidate>
-      <h2 id="category-dialog-title">เปลี่ยนชื่อหมวด</h2>
-      <label for="category-dialog-name">ชื่อใหม่</label>
-      <input id="category-dialog-name" type="text" maxlength="30" autocomplete="off">
-      <p id="category-dialog-error" class="error" role="alert"></p>
+  <dialog id="category-sheet" class="category-sheet" aria-labelledby="category-sheet-title">
+    <form id="category-sheet-form" novalidate>
+      <h2 id="category-sheet-title">แก้หมวด</h2>
+      <button type="button" id="category-sheet-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+          aria-hidden="true" focusable="false">
+          <use href="#icon-close"></use>
+        </svg></button>
+      <div class="category-sheet-head">
+        <span id="category-sheet-preview" class="category-sheet-preview" aria-hidden="true"></span>
+        <label class="category-sheet-label">ชื่อหมวด
+          <input id="category-sheet-name" type="text" maxlength="30" autocomplete="off" placeholder="เช่น ค่าแมว">
+        </label>
+      </div>
+      <fieldset class="category-icon-field">
+        <legend>ไอคอน</legend>
+        <div id="category-sheet-icons" class="category-icon-grid"></div>
+      </fieldset>
+      <div id="category-sheet-hidden-row" class="category-hidden-row">
+        <label class="category-switch"><span class="category-switch-text"><span>ซ่อนหมวดนี้</span><small>รายการเก่ายังอยู่
+              แค่ไม่ให้เลือกใหม่</small></span><input id="category-sheet-hidden" type="checkbox" role="switch"></label>
+      </div>
+      <p id="category-sheet-error" class="error" role="alert"></p>
       <div class="actions">
-        <button type="button" id="category-dialog-cancel">ยกเลิก</button>
-        <button type="submit" id="category-dialog-save" class="primary">บันทึก</button>
+        <button type="button" id="category-sheet-cancel">ยกเลิก</button>
+        <button type="submit" id="category-sheet-save" class="primary">บันทึก</button>
       </div>
     </form>
   </dialog>

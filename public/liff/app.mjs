@@ -164,6 +164,9 @@ const els = {
   profileRetry: document.getElementById('profile-retry'),
   profileClose: document.getElementById('profile-close'),
   profileStaleNotice: document.getElementById('profile-stale'),
+  categoriesOpen: document.getElementById('categories-open'),
+  pageBack: document.getElementById('page-back'),
+  bottomNav: document.getElementById('bottom-nav'),
 };
 
 let api;
@@ -236,28 +239,32 @@ const friendsPanel = createFriendsPanel({
 const categoriesPanel = createCategoriesPanel({
   doc: document,
   els: {
-    section: document.getElementById('categories-manager'),
-    addForm: document.getElementById('category-add-form'),
-    addType: document.getElementById('category-add-type'),
-    addName: document.getElementById('category-add-name'),
-    addSubmit: document.getElementById('category-add-submit'),
-    addError: document.getElementById('category-add-error'),
+    page: document.getElementById('panel-categories'),
+    segExpense: document.getElementById('category-seg-expense'),
+    segIncome: document.getElementById('category-seg-income'),
     status: document.getElementById('category-status'),
-    toggleError: document.getElementById('category-toggle-error'),
-    expenseRows: document.getElementById('category-rows-expense'),
-    incomeRows: document.getElementById('category-rows-income'),
-    dialog: document.getElementById('category-dialog'),
-    dialogForm: document.getElementById('category-dialog-form'),
-    dialogName: document.getElementById('category-dialog-name'),
-    dialogError: document.getElementById('category-dialog-error'),
-    dialogSave: document.getElementById('category-dialog-save'),
-    dialogCancel: document.getElementById('category-dialog-cancel'),
+    tiles: document.getElementById('category-tiles'),
+    hiddenToggle: document.getElementById('category-hidden-toggle'),
+    hiddenText: document.getElementById('category-hidden-text'),
+    hiddenTiles: document.getElementById('category-hidden-tiles'),
+    sheet: document.getElementById('category-sheet'),
+    sheetForm: document.getElementById('category-sheet-form'),
+    sheetTitle: document.getElementById('category-sheet-title'),
+    sheetClose: document.getElementById('category-sheet-close'),
+    sheetPreview: document.getElementById('category-sheet-preview'),
+    sheetName: document.getElementById('category-sheet-name'),
+    sheetIcons: document.getElementById('category-sheet-icons'),
+    sheetHiddenRow: document.getElementById('category-sheet-hidden-row'),
+    sheetHidden: document.getElementById('category-sheet-hidden'),
+    sheetError: document.getElementById('category-sheet-error'),
+    sheetSave: document.getElementById('category-sheet-save'),
+    sheetCancel: document.getElementById('category-sheet-cancel'),
   },
   getApi: () => api,
   getCategories: () => categories,
-  onChanged: (next) => {
+  onChanged: (next, { refresh }) => {
     setCategories(next);
-    refreshAfterCategoryChange();
+    if (refresh) refreshAfterCategoryChange();
   },
 });
 const billsPanel = createBillsPanel({
@@ -443,6 +450,8 @@ function setCategories(next) {
   categories = next;
   fillCategoryOptions();
   categoriesPanel.render();
+  // ยังโหลดหมวดไม่ได้ หน้าหมวดจะว่างเปล่า จึงยังไม่ให้เข้า
+  els.categoriesOpen.disabled = categories.length === 0;
 }
 
 // รายการเก่าอาจอยู่ในหมวดที่ซ่อนแล้ว ต้องใส่หมวดนั้นกลับเข้าตัวเลือก ไม่งั้น select ว่างแล้วบันทึกไม่ได้
@@ -1500,6 +1509,33 @@ function refreshAfterCategoryChange() {
   loadMonth();
   loadRecurring();
 }
+
+// หมวดของฉันเป็นหน้าย่อยของแท็บงบ ไม่อยู่ในแถบเมนูล่าง จึงซ่อนเมนูและมีปุ่มย้อนกลับแทน
+function enterCategoriesPage() {
+  document.getElementById('app').classList.add('categories-page');
+  els.bottomNav.hidden = true;
+  for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== 'panel-categories';
+  document.getElementById('page-title').textContent = 'หมวดของฉัน';
+  els.month.hidden = true;
+  els.pageBack.hidden = false;
+  showStickyLoadError();
+  window.scrollTo(0, 0);
+  categoriesPanel.render();
+  els.pageBack.focus();
+}
+
+function leaveCategoriesPage() {
+  document.getElementById('app').classList.remove('categories-page');
+  els.bottomNav.hidden = false;
+  els.pageBack.hidden = true;
+  document.getElementById('panel-categories').hidden = true;
+  // controller ยังจำว่าอยู่แท็บงบ จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
+  tabController.select('budgets', { force: true });
+  els.categoriesOpen.focus();
+}
+
+els.categoriesOpen.addEventListener('click', enterCategoriesPage);
+els.pageBack.addEventListener('click', leaveCategoriesPage);
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {

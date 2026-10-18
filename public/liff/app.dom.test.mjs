@@ -332,7 +332,10 @@ describe('index.html static invariants', () => {
       'trend-empty',
       'edit-busy',
       'friends',
-      'categories-manager',
+      'panel-categories',
+      'page-back',
+      'category-hidden-toggle',
+      'category-hidden-tiles',
       'friend-qr',
       'friends-skeleton',
       'friend-dialog-busy',
@@ -3212,54 +3215,247 @@ describe('LIFF bills tab', () => {
   });
 });
 
-describe('LIFF category manager', () => {
+describe('LIFF categories page', () => {
   const MANAGED = [
-    { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false, system: false },
-    { id: 'c-trip', name: 'เดินทาง', type: 'expense', hidden: true, system: false },
-    { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false, system: true },
-    { id: 'c-salary', name: 'เงินเดือน', type: 'income', hidden: false, system: false },
+    { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false, system: false, icon: null },
+    { id: 'c-trip', name: 'เดินทาง', type: 'expense', hidden: true, system: false, icon: null },
+    { id: 'c-cat', name: 'ค่าแมว', type: 'expense', hidden: false, system: false, icon: 'pet' },
+    { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false, system: true, icon: null },
+    { id: 'c-salary', name: 'เงินเดือน', type: 'income', hidden: false, system: false, icon: null },
   ];
 
-  // หยุด boot ที่ liff.init เพื่อให้ route ใช้กับการโหลดหมวดครั้งแรกด้วย
-  async function openManager(route = () => undefined) {
+  // หยุด boot ที่ liff.init เพื่อให้ route ใช้กับการโหลดหมวดครั้งแรกด้วย และเก็บ body ที่ส่งไว้ตรวจ
+  async function openPage(route = () => undefined) {
     const liff = await boot({ holdInit: true });
-    const calls = routeFetch((method, path) => {
-      const override = route(method, path);
-      if (override !== undefined) return override;
-      return method === 'GET' && path === '/api/categories' ? { categories: MANAGED } : undefined;
+    const calls = [];
+    const bodies = [];
+    const fallback = makeFetch({});
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      const method = options.method ?? 'GET';
+      calls.push(`${method} ${path}`);
+      if (options.body) bodies.push({ call: `${method} ${path}`, body: JSON.parse(options.body) });
+      const routed = route(method, path);
+      const override = routed !== undefined ? routed : method === 'GET' && path === '/api/categories' ? { categories: MANAGED } : undefined;
+      return override === undefined ? fallback(url, options) : makeFetch({ [path]: override })(url, options);
     });
     liff.releaseInit();
     await settle();
-    clickTab('profile');
-    return calls;
+    clickTab('budgets');
+    byId('categories-open').click();
+    return { calls, bodies };
   }
 
-  const namesIn = (id) => [...byId(id).querySelectorAll('.category-row-name')].map((el) => el.textContent);
+  const tileNames = (id = 'category-tiles') => [...byId(id).querySelectorAll('.category-tile-name')].map((el) => el.textContent);
+  const tileOf = (id) => document.querySelector(`.category-tile[data-category-id="${id}"]`);
   const optionsOf = (id) => [...byId(id).options].map((option) => option.textContent);
-  const rowOf = (id) => document.querySelector(`[data-category-id="${id}"]`);
+  const submitSheet = () => byId('category-sheet-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  const isOpen = () => byId('category-sheet').hasAttribute('open');
 
-  it('lists the categories by type and marks hidden and system ones', async () => {
-    await openManager();
+  it('opens from the bottom of the budgets tab as a page without the bottom nav', async () => {
+    await openPage();
 
-    expect(byId('categories-manager').hidden).toBe(false);
-    expect(namesIn('category-rows-expense')).toEqual(['อาหาร', 'เดินทาง', 'อื่นๆ']);
-    expect(namesIn('category-rows-income')).toEqual(['เงินเดือน']);
-    expect(rowOf('c-trip').querySelector('.category-hidden-tag').textContent).toBe('ซ่อนอยู่');
-    expect(rowOf('c-trip').querySelector('[data-action="toggle-hidden"]').textContent).toBe('เลิกซ่อน');
-    expect(rowOf('c-other').querySelector('.category-system-note').textContent).toBe('หมวดของระบบ');
-    expect(rowOf('c-other').querySelectorAll('button')).toHaveLength(0);
+    expect(byId('panel-categories').hidden).toBe(false);
+    expect(byId('panel-budgets').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('หมวดของฉัน');
+    expect(byId('month').hidden).toBe(true);
+    expect(byId('page-back').hidden).toBe(false);
+    expect(document.activeElement).toBe(byId('page-back'));
+  });
+
+  it('goes back to the budgets tab', async () => {
+    await openPage();
+
+    byId('page-back').click();
+
+    expect(byId('panel-categories').hidden).toBe(true);
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(byId('page-back').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('จัดการงบประมาณ');
+    expect(document.activeElement).toBe(byId('categories-open'));
+  });
+
+  it('shows the visible tiles of the selected type, a locked system tile and the add tile last', async () => {
+    await openPage();
+
+    expect(byId('category-seg-expense').textContent).toBe('รายจ่าย · 3');
+    expect(byId('category-seg-income').textContent).toBe('รายรับ · 1');
+    expect(byId('category-seg-expense').getAttribute('aria-pressed')).toBe('true');
+    expect(tileNames()).toEqual(['อาหาร', 'ค่าแมว', 'อื่นๆ', 'เพิ่มหมวด']);
+    const system = [...byId('category-tiles').querySelectorAll('.category-tile.system')];
+    expect(system).toHaveLength(1);
+    expect(system[0].tagName).toBe('DIV');
+    expect(system[0].querySelector('.category-lock')).not.toBeNull();
+    expect(tileOf('c-cat').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-pet');
+    expect(tileOf('c-cat').querySelector('.cat-badge').classList.contains('cat-tone-expense')).toBe(true);
+    expect(byId('category-tiles').lastElementChild.querySelector('[data-action="add"]')).not.toBeNull();
+  });
+
+  it('switches to the income tiles', async () => {
+    await openPage();
+
+    byId('category-seg-income').click();
+
+    expect(byId('category-seg-income').getAttribute('aria-pressed')).toBe('true');
+    expect(tileNames()).toEqual(['เงินเดือน', 'เพิ่มหมวด']);
+    expect(tileOf('c-salary').querySelector('.cat-badge').classList.contains('cat-tone-income')).toBe(true);
+    expect(byId('category-hidden-toggle').hidden).toBe(true);
+  });
+
+  it('expands the hidden categories', async () => {
+    await openPage();
+
+    expect(byId('category-hidden-text').textContent).toBe('ซ่อนอยู่ 1 หมวด');
+    expect(byId('category-hidden-tiles').hidden).toBe(true);
+    byId('category-hidden-toggle').click();
+
+    expect(byId('category-hidden-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(byId('category-hidden-tiles').hidden).toBe(false);
+    expect(tileNames('category-hidden-tiles')).toEqual(['เดินทาง']);
+  });
+
+  it('changes the icon of a category and sends only the icon', async () => {
+    const { bodies } = await openPage((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], icon: 'coffee' } } : undefined
+    );
+
+    tileOf('c-food').click();
+    expect(isOpen()).toBe(true);
+    expect(byId('category-sheet-title').textContent).toBe('แก้หมวด');
+    expect(byId('category-sheet-name').value).toBe('อาหาร');
+    expect(byId('category-sheet-hidden-row').hidden).toBe(false);
+    expect(byId('category-sheet-icons').querySelector('[aria-pressed="true"]').dataset.icon).toBe('food');
+    expect(byId('category-sheet-icons').querySelectorAll('button')).toHaveLength(36);
+
+    byId('category-sheet-icons').querySelector('[data-icon="coffee"]').click();
+    expect(byId('category-sheet-preview').querySelector('use').getAttribute('href')).toBe('#cat-coffee');
+    submitSheet();
+    await settle();
+
+    expect(bodies).toContainEqual({ call: 'PATCH /api/categories/c-food', body: { icon: 'coffee' } });
+    expect(isOpen()).toBe(false);
+    expect(tileOf('c-food').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
+    expect(byId('category-status').textContent).toBe('บันทึกหมวด อาหาร แล้ว');
+    expect(document.activeElement).toBe(tileOf('c-food'));
+  });
+
+  it('closes without a request when nothing changed', async () => {
+    const { calls } = await openPage();
+
+    tileOf('c-cat').click();
+    submitSheet();
+    await settle();
+
+    expect(calls.filter((call) => call.startsWith('PATCH'))).toEqual([]);
+    expect(isOpen()).toBe(false);
+  });
+
+  it('adds a category of the selected type with the picked icon and no extra reload', async () => {
+    const created = { id: 'c-new', name: 'กาแฟ', type: 'expense', hidden: false, system: false, icon: 'coffee' };
+    const { calls, bodies } = await openPage((method, path) => (method === 'POST' && path === '/api/categories' ? { category: created } : undefined));
+    const listBefore = calls.filter((call) => call === 'GET /api/transactions').length;
+
+    document.querySelector('[data-action="add"]').click();
+    expect(byId('category-sheet-title').textContent).toBe('เพิ่มหมวดรายจ่าย');
+    expect(byId('category-sheet-hidden-row').hidden).toBe(true);
+    expect(byId('category-sheet-icons').querySelector('[aria-pressed="true"]').dataset.icon).toBe('other');
+    byId('category-sheet-name').value = '  กาแฟ ';
+    byId('category-sheet-icons').querySelector('[data-icon="coffee"]').click();
+    submitSheet();
+    await settle();
+
+    expect(bodies).toContainEqual({ call: 'POST /api/categories', body: { type: 'expense', name: 'กาแฟ', icon: 'coffee' } });
+    expect(tileNames()).toEqual(['อาหาร', 'ค่าแมว', 'อื่นๆ', 'กาแฟ', 'เพิ่มหมวด']);
+    expect(optionsOf('edit-category')).toContain('กาแฟ');
+    expect(calls.filter((call) => call === 'GET /api/transactions').length).toBe(listBefore);
+    expect(document.activeElement).toBe(tileOf('c-new'));
+  });
+
+  it('hides a category from the sheet and moves focus to the hidden toggle', async () => {
+    const { bodies } = await openPage((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], hidden: true } } : undefined
+    );
+
+    tileOf('c-food').click();
+    byId('category-sheet-hidden').checked = true;
+    submitSheet();
+    await settle();
+
+    expect(bodies).toContainEqual({ call: 'PATCH /api/categories/c-food', body: { hidden: true } });
+    expect(tileNames()).toEqual(['ค่าแมว', 'อื่นๆ', 'เพิ่มหมวด']);
+    expect(byId('category-hidden-text').textContent).toBe('ซ่อนอยู่ 2 หมวด');
+    expect(byId('category-status').textContent).toBe('ซ่อนหมวด อาหาร แล้ว');
+    expect(optionsOf('edit-category')).not.toContain('อาหาร');
+    expect(document.activeElement).toBe(byId('category-hidden-toggle'));
+  });
+
+  it('refreshes the list and recurring rules after an edit', async () => {
+    const { calls } = await openPage((method, path) =>
+      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], name: 'ข้าว' } } : undefined
+    );
+    const count = (path) => calls.filter((call) => call === `GET ${path}`).length;
+    const listBefore = count('/api/transactions');
+    const recurringBefore = count('/api/recurring');
+
+    tileOf('c-food').click();
+    byId('category-sheet-name').value = 'ข้าว';
+    submitSheet();
+    await settle();
+
+    expect(count('/api/transactions')).toBe(listBefore + 1);
+    expect(count('/api/recurring')).toBe(recurringBefore + 1);
+  });
+
+  it('keeps the sheet open with the reason when saving fails', async () => {
+    await openPage((method, path) => (method === 'PATCH' && path === '/api/categories/c-food' ? { status: 409, error: 'Duplicate name' } : undefined));
+
+    tileOf('c-food').click();
+    byId('category-sheet-name').value = 'ค่าแมว';
+    submitSheet();
+    await settle();
+
+    expect(isOpen()).toBe(true);
+    expect(byId('category-sheet-error').textContent).toBe('มีหมวดชื่อนี้อยู่แล้ว');
+  });
+
+  it('keeps the sheet open while the save is in flight', async () => {
+    await openPage();
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PATCH') await gate;
+      return original(url, options);
+    });
+
+    tileOf('c-food').click();
+    byId('category-sheet-name').value = 'ข้าว';
+    submitSheet();
+    await settle();
+
+    expect(byId('category-sheet-cancel').disabled).toBe(true);
+    expect(byId('category-sheet-close').disabled).toBe(true);
+    const escape = new Event('cancel', { cancelable: true });
+    byId('category-sheet').dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(isOpen()).toBe(true);
+    release();
+    await settle();
   });
 
   it('keeps hidden categories out of the pickers but in the list filter', async () => {
-    await openManager();
+    await openPage();
 
-    expect(optionsOf('edit-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
-    expect(optionsOf('recurring-category')).toEqual(['อาหาร', 'อื่นๆ', 'เงินเดือน']);
-    expect(optionsOf('filter-category')).toEqual(['ทุกหมวด', 'อาหาร', 'เดินทาง (ซ่อนอยู่)', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('edit-category')).toEqual(['อาหาร', 'ค่าแมว', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('recurring-category')).toEqual(['อาหาร', 'ค่าแมว', 'อื่นๆ', 'เงินเดือน']);
+    expect(optionsOf('filter-category')).toEqual(['ทุกหมวด', 'อาหาร', 'เดินทาง (ซ่อนอยู่)', 'ค่าแมว', 'อื่นๆ', 'เงินเดือน']);
   });
 
   it('keeps the hidden category selected when editing an old entry in it', async () => {
-    await openManager();
+    await openPage();
+    byId('page-back').click();
     clickTab('list');
 
     [...document.querySelectorAll('#list .row-button')].find((button) => button.textContent.includes('BTS')).click();
@@ -3269,144 +3465,11 @@ describe('LIFF category manager', () => {
     expect(optionsOf('edit-category')).toContain('เดินทาง (ซ่อนอยู่)');
   });
 
-  it('adds a category and offers it in the pickers', async () => {
-    const created = { id: 'c-cat', name: 'ค่าแมว', type: 'expense', hidden: false, system: false };
-    const calls = await openManager((method, path) => (method === 'POST' && path === '/api/categories' ? { category: created } : undefined));
+  it('no longer has a category section in the profile tab', async () => {
+    await openPage();
 
-    byId('category-add-type').value = 'expense';
-    byId('category-add-name').value = '  ค่าแมว ';
-    byId('category-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(calls).toContain('POST /api/categories');
-    expect(namesIn('category-rows-expense')).toContain('ค่าแมว');
-    expect(optionsOf('edit-category')).toContain('ค่าแมว');
-    expect(byId('category-add-name').value).toBe('');
-    expect(byId('category-status').textContent).toBe('เพิ่มหมวด ค่าแมว แล้ว');
-  });
-
-  it('shows the server reason when adding fails', async () => {
-    await openManager((method, path) =>
-      method === 'POST' && path === '/api/categories' ? { status: 409, error: 'Duplicate name' } : undefined
-    );
-
-    byId('category-add-name').value = 'อาหาร';
-    byId('category-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(byId('category-add-error').textContent).toBe('มีหมวดชื่อนี้อยู่แล้ว');
-    expect(namesIn('category-rows-expense')).toEqual(['อาหาร', 'เดินทาง', 'อื่นๆ']);
-  });
-
-  it('hides a category and drops it from the edit picker', async () => {
-    const calls = await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], hidden: true } } : undefined
-    );
-
-    rowOf('c-food').querySelector('[data-action="toggle-hidden"]').click();
-    await settle();
-
-    expect(calls).toContain('PATCH /api/categories/c-food');
-    expect(rowOf('c-food').querySelector('[data-action="toggle-hidden"]').textContent).toBe('เลิกซ่อน');
-    expect(optionsOf('edit-category')).not.toContain('อาหาร');
-    expect(byId('category-status').textContent).toBe('ซ่อนหมวด อาหาร แล้ว');
-  });
-
-  it('renames a category through the dialog', async () => {
-    await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], name: 'ข้าว' } } : undefined
-    );
-
-    rowOf('c-food').querySelector('[data-action="rename"]').click();
-    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
-    expect(byId('category-dialog-name').value).toBe('อาหาร');
-    byId('category-dialog-name').value = 'ข้าว';
-    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(byId('category-dialog').hasAttribute('open')).toBe(false);
-    expect(namesIn('category-rows-expense')).toContain('ข้าว');
-    expect(optionsOf('edit-category')).toContain('ข้าว');
-  });
-
-  it('returns focus to the toggle button of the same row after hiding', async () => {
-    await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], hidden: true } } : undefined
-    );
-
-    rowOf('c-food').querySelector('[data-action="toggle-hidden"]').click();
-    await settle();
-
-    expect(document.activeElement).toBe(rowOf('c-food').querySelector('[data-action="toggle-hidden"]'));
-  });
-
-  it('shows a toggle failure as an alert, not as status', async () => {
-    await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-trip' ? { status: 409, error: 'Too many categories' } : undefined
-    );
-
-    rowOf('c-trip').querySelector('[data-action="toggle-hidden"]').click();
-    await settle();
-
-    const alert = byId('category-toggle-error');
-    expect(alert.getAttribute('role')).toBe('alert');
-    expect(alert.textContent).not.toBe('');
-    expect(byId('category-status').textContent).toBe('');
-  });
-
-  it('keeps the rename dialog open while the rename is in flight', async () => {
-    await openManager();
-    let release;
-    const gate = new Promise((resolve) => (release = resolve));
-    const original = globalThis.fetch;
-    vi.stubGlobal('fetch', async (url, options = {}) => {
-      if (options.method === 'PATCH') await gate;
-      return original(url, options);
-    });
-
-    rowOf('c-food').querySelector('[data-action="rename"]').click();
-    byId('category-dialog-name').value = 'ข้าว';
-    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(byId('category-dialog-cancel').disabled).toBe(true);
-    byId('category-dialog-cancel').click();
-    const escape = new Event('cancel', { cancelable: true });
-    byId('category-dialog').dispatchEvent(escape);
-    expect(escape.defaultPrevented).toBe(true);
-    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
-    release();
-  });
-
-  it('renaming a category refreshes the list and recurring rows', async () => {
-    const calls = await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-food' ? { category: { ...MANAGED[0], name: 'ข้าว' } } : undefined
-    );
-    const before = (path) => calls.filter((call) => call === `GET ${path}`).length;
-    const listBefore = before('/api/transactions');
-    const recurringBefore = before('/api/recurring');
-
-    rowOf('c-food').querySelector('[data-action="rename"]').click();
-    byId('category-dialog-name').value = 'ข้าว';
-    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(before('/api/transactions')).toBe(listBefore + 1);
-    expect(before('/api/recurring')).toBe(recurringBefore + 1);
-  });
-
-  it('keeps the rename dialog open with the reason when it fails', async () => {
-    await openManager((method, path) =>
-      method === 'PATCH' && path === '/api/categories/c-food' ? { status: 400, error: 'Invalid name' } : undefined
-    );
-
-    rowOf('c-food').querySelector('[data-action="rename"]').click();
-    byId('category-dialog-name').value = 'a,b';
-    byId('category-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await settle();
-
-    expect(byId('category-dialog').hasAttribute('open')).toBe(true);
-    expect(byId('category-dialog-error').textContent).toBe('ชื่อหมวดต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)');
+    expect(byId('categories-manager')).toBeNull();
+    expect(byId('category-dialog')).toBeNull();
   });
 });
 
