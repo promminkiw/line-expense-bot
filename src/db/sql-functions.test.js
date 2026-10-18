@@ -25,6 +25,7 @@ const MIGRATIONS = [
   '017_category_hidden.sql',
   '018_category_icon.sql',
   '019_delete_category.sql',
+  '020_query_totals.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -117,6 +118,85 @@ describe('summarize_transactions', () => {
     const user = await createUser('U1');
 
     expect(await rows('select * from summarize_transactions($1, $2, $3)', [user, '2026-09-01', '2026-09-30'])).toEqual([]);
+  });
+});
+
+describe('query_totals', () => {
+  async function addNoted(userId, categoryId, type, amount, occurredOn, note) {
+    await db.query(
+      'insert into transactions (user_id, category_id, type, amount, occurred_on, note) values ($1, $2, $3, $4, $5, $6)',
+      [userId, categoryId, type, amount, occurredOn, note],
+    );
+  }
+
+  async function totals(userId, type, category = '', keyword = '', from = '2026-10-01', to = '2026-10-31') {
+    const result = await rows('select * from query_totals($1, $2, $3, $4, $5, $6)', [userId, from, to, type, category, keyword]);
+    return result.map(numbers);
+  }
+
+  it('totals this user rows in the range by type when asked for both', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    const salary = await createCategory(user, 'เงินเดือน', 'income');
+    const otherFood = await createCategory(other, 'อาหาร', 'expense');
+    await addNoted(user, food, 'expense', 60, '2026-10-01', 'กินข้าว');
+    await addNoted(user, food, 'expense', 45.5, '2026-10-31', 'กาแฟ');
+    await addNoted(user, salary, 'income', 25000, '2026-10-25', 'เงินเดือน');
+    await addNoted(user, food, 'expense', 999, '2026-09-30', 'นอกช่วง');
+    await addNoted(user, food, 'expense', 999, '2026-11-01', 'นอกช่วง');
+    await addNoted(other, otherFood, 'expense', 777, '2026-10-10', 'กาแฟ');
+
+    expect(await totals(user, 'both')).toEqual([
+      { type: 'expense', total: 105.5, entry_count: 2 },
+      { type: 'income', total: 25000, entry_count: 1 },
+    ]);
+    expect(await totals(user, 'expense')).toEqual([{ type: 'expense', total: 105.5, entry_count: 2 }]);
+  });
+
+  it('filters by category name across both types', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    const otherExpense = await createCategory(user, 'อื่นๆ', 'expense');
+    const otherIncome = await createCategory(user, 'อื่นๆ', 'income');
+    await addNoted(user, food, 'expense', 60, '2026-10-01', 'กินข้าว');
+    await addNoted(user, otherExpense, 'expense', 30, '2026-10-02', 'ค่าจอด');
+    await addNoted(user, otherIncome, 'income', 500, '2026-10-03', 'ขายของ');
+
+    expect(await totals(user, 'both', 'อื่นๆ')).toEqual([
+      { type: 'expense', total: 30, entry_count: 1 },
+      { type: 'income', total: 500, entry_count: 1 },
+    ]);
+    expect(await totals(user, 'expense', 'อาหาร')).toEqual([{ type: 'expense', total: 60, entry_count: 1 }]);
+  });
+
+  it('finds the keyword anywhere in the note ignoring letter case', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addNoted(user, food, 'expense', 45, '2026-10-01', 'กาแฟเย็น');
+    await addNoted(user, food, 'expense', 55, '2026-10-02', 'Coffee ร้านหน้าออฟฟิศ');
+    await addNoted(user, food, 'expense', 60, '2026-10-03', 'กินข้าว');
+
+    expect(await totals(user, 'expense', '', 'กาแฟ')).toEqual([{ type: 'expense', total: 45, entry_count: 1 }]);
+    expect(await totals(user, 'expense', '', 'coffee')).toEqual([{ type: 'expense', total: 55, entry_count: 1 }]);
+  });
+
+  // คำค้นมาจากข้อความผู้ใช้ % และ _ ต้องเป็นตัวอักษรธรรมดา ไม่ใช่ wildcard ที่จับทุกแถว
+  it('treats % and _ in the keyword as plain characters', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addNoted(user, food, 'expense', 10, '2026-10-01', 'ลด 50% ร้านกาแฟ');
+    await addNoted(user, food, 'expense', 20, '2026-10-02', 'กินข้าว');
+    await addNoted(user, food, 'expense', 30, '2026-10-03', 'a_b');
+
+    expect(await totals(user, 'expense', '', '%')).toEqual([{ type: 'expense', total: 10, entry_count: 1 }]);
+    expect(await totals(user, 'expense', '', '_')).toEqual([{ type: 'expense', total: 30, entry_count: 1 }]);
+  });
+
+  it('returns no rows when nothing matches', async () => {
+    const user = await createUser('U1');
+
+    expect(await totals(user, 'both')).toEqual([]);
   });
 });
 
@@ -834,6 +914,7 @@ describe('function permissions', () => {
     ['decline_bill_share', 'select decline_bill_share(gen_random_uuid(), gen_random_uuid())'],
     ['cancel_bill', 'select cancel_bill(gen_random_uuid(), gen_random_uuid())'],
     ['delete_category', 'select delete_category(gen_random_uuid(), gen_random_uuid())'],
+    ['query_totals', "select * from query_totals(gen_random_uuid(), '2026-10-01', '2026-10-31', 'both', '', '')"],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว

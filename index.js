@@ -7,6 +7,7 @@ const { createApp } = require('./src/app');
 const { createBot, SLIP_TTL_MS } = require('./src/bot');
 const { createReplyText, createReplyFlex, createPushText, createPushFlex } = require('./src/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
+const { createQuestionParser } = require('./src/query/parse-question');
 const { createRepository } = require('./src/db/repository');
 const { createUserService } = require('./src/users');
 const { createRateLimiter } = require('./src/rate-limit');
@@ -50,6 +51,7 @@ const lineBlobClient = new messagingApi.MessagingApiBlobClient({
 });
 const anthropic = new Anthropic({ apiKey: config.anthropicApiKey });
 const parseMessage = createMessageParser({ client: anthropic, model: config.claudeModel });
+const parseQuestion = createQuestionParser({ client: anthropic, model: config.claudeModel });
 const commentSummary = createSummaryCommenter({ client: anthropic, model: config.claudeModel });
 const downloadImage = createImageDownloader({ blobClient: lineBlobClient });
 const parseSlip = createSlipParser({ client: anthropic, model: config.claudeModel, preprocessImage });
@@ -83,6 +85,7 @@ const bot = createBot({
   replyText: createReplyText(lineClient),
   replyFlex: createReplyFlex(lineClient),
   parseMessage,
+  parseQuestion,
   commentSummary,
   downloadImage,
   parseSlip,

@@ -9,7 +9,9 @@ const { getFixedReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
 const { formatAmount } = require('./parser/format-reply');
-const { TEXT_CATEGORIES } = require('./parser/categories');
+const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
+const { looksLikeQuestion } = require('./query/parse-question');
+const { formatTotalsAnswer } = require('./query/format-answer');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -18,6 +20,7 @@ const SLOW_PROCESSING_REPLY =
 const REPLY_DEADLINE_MS = 50000;
 const DEADLINE_PASSED = Symbol('deadline passed');
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
+const QUESTION_FAILED_REPLY = 'ตอบคำถามยอดไม่ได้ตอนนี้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const BILL_REPLIES = {
@@ -54,6 +57,8 @@ const MAX_URI_LENGTH = 1000;
 const PENDING_TTL_MS = 10 * 60 * 1000;
 // จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
 const MAX_HISTORY_MESSAGES = 6;
+// ใช้ถามยอดเมื่อโหลดหมวดของผู้ใช้ไม่ได้ ชื่อซ้ำ (อื่นๆ) ถูกตัดใน schema อยู่แล้ว
+const DEFAULT_QUESTION_CATEGORIES = [...new Set([...DEFAULT_CATEGORIES.expense, ...DEFAULT_CATEGORIES.income])];
 
 function isFromUser(event) {
   return Boolean(event.source && event.source.type === 'user' && event.source.userId);
@@ -115,6 +120,7 @@ function createBot({
   replyText,
   replyFlex,
   parseMessage,
+  parseQuestion,
   commentSummary,
   downloadImage,
   parseSlip,
@@ -168,6 +174,32 @@ function createBot({
     } catch (err) {
       logger.error('Failed to load text categories', { userId }, err);
       return TEXT_CATEGORIES;
+    }
+  }
+
+  // ผู้ใช้ถามถึงรายการเก่าได้ จึงใช้ทุกหมวดรวมที่ซ่อน ถ้าโหลดไม่ได้ยังตอบด้วยหมวดเริ่มต้นได้
+  async function loadQuestionCategories(userId) {
+    try {
+      const categories = await repository.listCategories(userId);
+      return [...new Set(categories.map((category) => category.name))];
+    } catch (err) {
+      logger.error('Failed to load question categories', { userId }, err);
+      return DEFAULT_QUESTION_CATEGORIES;
+    }
+  }
+
+  // ไม่ส่งต่อไปบันทึกรายการเมื่อพัง เพราะคำถามที่มีวันที่ เช่น "1-15 ต.ค. ใช้ไปเท่าไหร่" อาจกลายเป็นรายการ 15 บาท
+  async function answerQuestion(text, userId) {
+    try {
+      const question = await parseQuestion(text, await loadQuestionCategories(userId));
+      if (!question.isQuestion) {
+        return null;
+      }
+      const rows = await repository.queryTotals(userId, question);
+      return { text: formatTotalsAnswer(question, rows) };
+    } catch (err) {
+      logger.error('Failed to answer totals question', { userId }, err);
+      return { text: QUESTION_FAILED_REPLY };
     }
   }
 
@@ -255,6 +287,13 @@ function createBot({
       return handleSummary(summaryCommand, userId);
     }
     const { messages: history, loadFailed } = await loadHistory(userId);
+    // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม จึงไม่ตีความเป็นคำถามยอด
+    if (history.length === 0 && looksLikeQuestion(event.message.text)) {
+      const answer = await answerQuestion(event.message.text, userId);
+      if (answer) {
+        return answer;
+      }
+    }
     const textCategories = await loadTextCategories(userId);
     const result = await parseMessage(event.message.text, history, textCategories);
     if (result.status === 'clarify') {
@@ -526,6 +565,7 @@ module.exports = {
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   RATE_LIMITED_REPLY,
+  QUESTION_FAILED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
