@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TABS } from './tabs.mjs';
 import { categoryStyle } from './categories.mjs';
 import { createEmptyState } from './empty-state.mjs';
+import { CATEGORY_ICON_KEYS } from './category-icons.mjs';
 
 // jsdom replaces the global URL with one that rejects file: URLs, so use Node's
 const html = readFileSync(new NodeUrl('./index.html', import.meta.url), 'utf8');
@@ -217,6 +218,13 @@ describe('index.html static invariants', () => {
     expect(missing).toEqual([]);
     expect(symbolIds.has('cat-food')).toBe(true);
     expect(symbolIds.has('cat-other')).toBe(true);
+  });
+
+  it('defines a sprite symbol for every icon a user can pick and for the categories page', () => {
+    const missing = CATEGORY_ICON_KEYS.map((key) => `cat-${key}`).filter((id) => !symbolIds.has(id));
+
+    expect(missing).toEqual([]);
+    expect(['icon-back', 'icon-plus', 'icon-lock', 'icon-eye-off', 'icon-categories'].filter((id) => !symbolIds.has(id))).toEqual([]);
   });
 
   it('defines a sprite symbol for every bottom tab icon', () => {

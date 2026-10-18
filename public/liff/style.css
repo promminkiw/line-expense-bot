@@ -410,3 +410,7 @@ main#app.bills-page .bar h1 { flex: 0 1 auto; margin: 0 -16px 0 auto; padding: 6
 .category-actions button { font: inherit; font-weight: 700; min-height: 44px; padding: 0 12px; border: none; background: none; color: var(--primary); }
 .category-actions button:disabled { color: var(--muted); cursor: not-allowed; }
 #category-add-error:empty, #category-toggle-error:empty, #category-dialog .error:empty { display: none; }
+
+/* อยู่ท้ายไฟล์เพื่อทับสีประจำไอคอน ไอคอนที่ผู้ใช้เลือกเองต้องใช้สีตามประเภทหมวด */
+.cat-tone-expense { --cat-bg: var(--cat-food-bg); --cat-fg: var(--cat-food-fg); }
+.cat-tone-income { --cat-bg: var(--cat-salary-bg); --cat-fg: var(--cat-salary-fg); }
