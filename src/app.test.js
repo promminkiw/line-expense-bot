@@ -13,8 +13,8 @@ function sign(body) {
 
 let server;
 
-async function start(handleEvents, logger = { error: vi.fn() }, apiRouter, exportRouter, recurringRouter) {
-  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter, exportRouter, recurringRouter });
+async function start(handleEvents, logger = { error: vi.fn() }, apiRouter, exportRouter, recurringRouter, notificationsRouter) {
+  const app = createApp({ channelSecret: SECRET, handleEvents, logger, apiRouter, exportRouter, recurringRouter, notificationsRouter });
   server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -281,5 +281,21 @@ describe('recurring router', () => {
     const res = await fetch(`${baseUrl}/internal/recurring/run`, { method: 'POST' });
 
     expect(await res.json()).toEqual({ ok: true });
+  });
+});
+
+describe('notifications router', () => {
+  it('mounts the router under /internal next to the recurring router', async () => {
+    const recurringRouter = express.Router();
+    recurringRouter.post('/recurring/run', (req, res) => res.json({ job: 'recurring' }));
+    const notificationsRouter = express.Router();
+    notificationsRouter.post('/notifications/weekly', (req, res) => res.json({ job: 'weekly' }));
+    const baseUrl = await start(vi.fn(), undefined, undefined, undefined, recurringRouter, notificationsRouter);
+
+    const weekly = await fetch(`${baseUrl}/internal/notifications/weekly`, { method: 'POST' });
+    const recurring = await fetch(`${baseUrl}/internal/recurring/run`, { method: 'POST' });
+
+    expect(await weekly.json()).toEqual({ job: 'weekly' });
+    expect(await recurring.json()).toEqual({ job: 'recurring' });
   });
 });
