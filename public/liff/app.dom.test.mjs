@@ -4752,6 +4752,19 @@ describe('LIFF wallets on entries', () => {
     expect(byId('banner').textContent).toContain('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
   });
 
+  it('selects the linked wallet and clears the notice once the wallets load later', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': WALLET_MONTH };
+    await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
+    await settle();
+    stubFetch({ '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': WALLET_MONTH });
+
+    byId('wallets-retry').click();
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('w-card');
+    expect(byId('banner').hidden).toBe(true);
+  });
+
   it('keeps the load error and its retry button when a linked wallet page fails to load at all', async () => {
     const failing = { '/api/wallets': { status: 500 }, '/api/transactions': { status: 500 } };
     await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
@@ -4792,6 +4805,20 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
     expect(ids()).toEqual(['t2']);
     expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
     expect(byId('filter-clear').hidden).toBe(false);
+  });
+
+  // โหลดรอบแรกพังแล้วกดลองใหม่ ต้องยังกรองตามลิงก์ ไม่งั้นจำนวนรายการไม่ตรงกับการ์ด
+  it('applies the linked wallet after a retry when the first load failed', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': { status: 500 } };
+    await boot({ overrides: failing, search: link('บัตรเครดิต') });
+    await settle();
+    vi.stubGlobal('fetch', makeFetch({ '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': month }));
+
+    byId('banner-retry').click();
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('w-card');
+    expect(ids()).toEqual(['t2']);
   });
 
   it('ignores a wallet name the user does not have', async () => {
