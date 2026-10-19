@@ -8,31 +8,29 @@
 
 **Tech Stack:** Node.js 24 + Express 5, @line/bot-sdk, Supabase Postgres, LIFF (vanilla JS ES modules ใน `public/liff/`), vitest + PGlite + jsdom
 
-## คำถามถึงผู้ใช้ก่อนเริ่ม
+## คำถามถึงผู้ใช้ก่อนเริ่ม (ตอบแล้ว 2026-10-19)
 
-1. **แท็บที่ 6 "ออม" ในแถบล่างพอดีจอแคบไหม** แถบล่างตอนนี้มี 5 แท็บ (รายการ สรุป จัดการงบ รอบเดือน โปรไฟล์) ปุ่มแบ่งความกว้างเท่ากัน (`flex: 1`, `padding: 8px 2px`, ตัวอักษร 13px) และมีเทสต์ห้ามตัวอักษรเล็กกว่า 13px (`style.test.mjs` "has no font size below 13px") จึงย่อตัวอักษรไม่ได้ เมื่อเป็น 6 แท็บ จอ 320px เหลือปุ่มละราว 53px (ลบ padding เหลือ 49px) ส่วนคำว่า "จัดการงบ" และ "รอบเดือน" ที่ 13px กว้างราว 50px (ประมาณจากความกว้างตัวอักษรไทย ยังไม่ได้วัดจริงบนมือถือ) จอ 360px ขึ้นไปพอดีสบาย
-   - (ก) แท็บที่ 6 ตาม roadmap แล้วตัด padding ซ้ายขวาของปุ่มเป็น 0 และให้ชื่อแท็บอยู่บรรทัดเดียว (`white-space: nowrap`) ได้ที่ราว 53px ต่อปุ่มที่จอ 320px
-   - (ข) ไม่เพิ่มแท็บ ทำเป็นหน้าย่อย "เป้าออม" เปิดจากปุ่มในแท็บโปรไฟล์ (แบบเดียวกับหน้าหมวดของฉันที่เปิดจากแท็บจัดการงบ มีปุ่มย้อนกลับ)
-   - (ค) แท็บที่ 6 และเปลี่ยนชื่อ "จัดการงบ" เป็น "งบ" ให้มีที่เหลือมากขึ้น
-   - **คำแนะนำ:** (ก) เพราะตรงกับ roadmap เปิดง่ายที่สุด (แตะครั้งเดียว) จอมือถือส่วนใหญ่ในไทยกว้าง 360px ขึ้นไป และจอ 320px ก็ยังน่าจะพอ แผนนี้เขียนตาม (ก) ถ้าเลือก (ข) หรือ (ค) จะแก้แค่ Task 8 (Task 9-10 ใช้ panel เดิมได้) ส่วน (ข) ต้องเพิ่มปุ่มเปิดในแท็บโปรไฟล์และ enter/leave page แบบ `enterCategoriesPage` แทนการเพิ่มใน `TABS`
+1. **แท็บที่ 6 "ออม" ในแถบล่างพอดีจอแคบไหม** ตอบแล้ว 2026-10-19: เพิ่มแท็บที่ 6 "ออม" และเปลี่ยนชื่อแท็บ "จัดการงบ" เป็น "งบ" (หัวหน้าแท็บยังเป็น "จัดการงบประมาณ") ผลวัดจริงใน headless Chrome วันเดียวกัน (6 แท็บ ตัวอักษร 13px ฟอนต์ของ Windows): จอ 320px ปุ่มเหลือพื้นที่ข้อความ 49px เมื่อ padding ข้าง 2px และ 53px เมื่อ padding ข้าง 0; "รอบเดือน" กว้าง 51.3px จึงตัดเป็น 2 บรรทัดถ้ายังมี padding ข้าง ส่วน "งบ" กว้าง 13.9px; Task 8 จึงตัด padding ข้างของปุ่มเป็น 0 และให้ชื่อแท็บอยู่บรรทัดเดียว แล้ววัดซ้ำที่ 320/360/390px
+2. การตัดสินใจอื่นในแผนนี้ ผู้ใช้รับแล้ว 2026-10-19: ชื่อเป้าห้ามซ้ำแบบไม่สนตัวพิมพ์, เปิดอยู่ได้ไม่เกิน 20 เป้า, ไม่มีการลบเป้า (ปิดแทน), เป้าที่ปิดแล้วรับยอดออมเพิ่มไม่ได้แต่ลบรายการออมได้, คำสั่ง `ออม <ชื่อ> <ยอด>` ในแชตจับเฉพาะผู้ใช้ที่มีเป้าที่เปิดอยู่อย่างน้อยหนึ่งเป้า
 
 ## Global Constraints
 
 - ตามแผนใหญ่ `docs/superpowers/plans/2026-10-18-roadmap-b.md` ข้อ 5 แต่ปรับหลังอ่านโค้ดจริง: (1) ชื่อเป้าห้ามซ้ำแบบไม่สนตัวพิมพ์ (unique index `(user_id, lower(name))` แทน `unique (user_id, name)`) เพราะแชตหาเป้าจากชื่อแบบไม่สนตัวพิมพ์ ถ้า "Japan" กับ "japan" อยู่ด้วยกันได้ แชตจะเลือกไม่ได้ (2) ใช้ทั้ง function `goal_progress(p_user_id)` (อ่านยอด) และ `add_goal_contribution(...)` (ออมเข้าเป้าแล้วคืนยอดสะสมใหม่ใน transaction เดียว) เพราะบอทต้องตอบยอดสะสมหลังออม และต้องกันการออมเข้าเป้าที่เพิ่งถูกปิด (3) ปุ่ม "ยกเลิก" ในแชตอ้างรายการออมด้วย event id ของข้อความ (`action=undo_saving&event=<webhookEventId>`, ลบตาม `line_event_id`) แบบเดียวกับปุ่มยกเลิกรายการเดิม (4) API ของเป้าอยู่ใน router แยก `src/goals/router.js` ส่งเข้า `createApiRouter` เป็น `goalsRouter` แบบ `friendsRouter`/`billsRouter` เพราะ `src/api/router.js` ยาว 459 บรรทัดแล้ว
 - การตัดสินใจที่ roadmap ไม่ได้ระบุ: ออมเข้าเป้าที่ปิดแล้วไม่ได้ (409 `Goal closed`, แชตตอบว่าเป้าปิดแล้ว) แต่ลบรายการออมของเป้าที่ปิดแล้วได้; เป้าที่เปิดอยู่ได้ไม่เกิน 20 เป้า (`MAX_OPEN_GOALS`) เพราะแชตแสดงรายชื่อเป้าที่เปิดทั้งหมดเมื่อหาไม่เจอ (เป้าที่ปิดไม่นับ เพราะเฟสนี้ลบเป้าไม่ได้); ชื่อเป้ายาว 1-30 ตัวอักษร (นับ code point เหมือน `char_length` ของ Postgres); ยอดเป้าและยอดออมต่อครั้งอยู่ในช่วง 0.01-10,000,000 บาท ทศนิยมไม่เกิน 2 ตำแหน่ง (ใช้ `isValidAmount` เดิมและเพดานเดียวกับตารางอื่น); ไม่มีการลบเป้า (ใช้ปิดเป้า) และไม่มีการถอน (YAGNI ตาม roadmap)
-- ลำดับงาน: ทำแผนนี้หลัง `feat/weekly-summary` (migration 021) และ `feat/daily-reminder` (migration 022) merge เข้า main แล้ว แต่ไม่พึ่งโค้ดของสองฟีเจอร์นั้น ก่อนเริ่มให้ตรวจว่า `'021_...sql'` และ `'022_daily_reminder.sql'` อยู่ใน `MIGRATIONS` ของ `src/db/sql-functions.test.js` แล้ว ถ้าชื่อไฟล์ 021/022 จริงต่างจาก roadmap ให้ใช้ชื่อจริงทุกที่ที่แผนนี้อ้าง; เลขบรรทัดที่อ้างในแผนนี้นับจาก main ณ 2026-10-19 อาจเลื่อนหลังสองฟีเจอร์นั้น ให้หาจากข้อความ anchor ที่ให้ไว้
+- ลำดับงาน: ทำแผนนี้หลัง `feat/weekly-summary` (migration 021) และ `feat/daily-reminder` (migration 022) merge เข้า main แล้ว แต่ไม่พึ่งโค้ดของสองฟีเจอร์นั้น ก่อนเริ่มให้ตรวจว่า `'021_...sql'` และ `'022_daily_reminder.sql'` อยู่ใน `MIGRATIONS` ของ `src/db/sql-functions.test.js` แล้ว ถ้าชื่อไฟล์ 021/022 จริงต่างจาก roadmap ให้ใช้ชื่อจริงทุกที่ที่แผนนี้อ้าง; anchor ทุกตัวในแผนนี้ตรวจกับ main ณ 2026-10-19 หลัง merge การ์ดถามยอด (`18ee475`: `src/bot.js` require `buildTotalsFlex` จาก `./query/answer-flex` แทน `formatTotalsAnswer`) เลขบรรทัดอาจเลื่อนหลังสองฟีเจอร์นั้น ให้หาจากข้อความ anchor ที่ให้ไว้
+- แถบล่างมี 6 แท็บตามที่ผู้ใช้ตัดสิน 2026-10-19: รายการ สรุป งบ รอบเดือน ออม โปรไฟล์ (เปลี่ยนแค่ `label` ของแท็บ `budgets` จาก "จัดการงบ" เป็น "งบ" ส่วน `title` "จัดการงบประมาณ" คงเดิม); ปุ่มแท็บไม่มี padding ข้าง และชื่อแท็บอยู่บรรทัดเดียว (วัดที่ 320/360/390px ใน Task 8)
 - branch `feat/savings-goals` แตกจาก main ล่าสุด, TDD (เขียน test ให้ fail ก่อน), commit ทีละ task, merge เข้า main ในเครื่องด้วย `--no-ff` เมื่อจบ
 - ห้าม `git push`, ห้ามรัน SQL ใน Supabase, ห้ามแก้ `.env`, ห้ามติดตั้งแพ็กเกจใหม่
 - migration ใหม่คือ `supabase/023_savings_goals.sql` (ไม่มีไฟล์ 016) รันซ้ำได้ (`create table if not exists`, `create index if not exists`, `create or replace function`) ตารางใหม่เปิด RLS ไม่มี policy, function ใหม่ revoke จาก `public, anon, authenticated` แล้ว grant ให้ `service_role` และเพิ่มในเทสต์ `function permissions`; เพิ่มชื่อไฟล์ใน `MIGRATIONS` (ต่อจาก `'022_daily_reminder.sql'`), หัวไฟล์ `supabase/schema.sql`, ลำดับรัน SQL และประโยค "ไฟล์ล่าสุด" ใน README
 - โค้ดใหม่อ่านตารางใหม่ตั้งแต่ request แรกของแท็บออมและคำสั่ง ออม จึงต้องรัน `023_savings_goals.sql` ใน Supabase ก่อน push (README ต้องบอก)
 - ตัวเลขยอดสะสมทุกตัวคำนวณด้วย SQL; เปอร์เซ็นต์ในข้อความและหลอดคิดใน JS จากยอดที่ SQL คืนแบบเดียวกับ `budgetRows` (สตางค์ ปัดลง); server กรอง `user_id` ทุก query
-- คำสั่งออมในแชต: ไม่เรียก Claude, อยู่หลัง `claimEvent` และก่อน fixed replies, ไม่นับ rate limit
+- คำสั่งออมในแชต: ไม่เรียก Claude, อยู่หลัง `claimEvent` และก่อน fixed replies, ไม่นับ rate limit; จับเฉพาะผู้ใช้ที่มีเป้าที่เปิดอยู่อย่างน้อยหนึ่งเป้า (ตัดสิน 2026-10-19) ถ้าไม่มีเป้าที่เปิดอยู่ ข้อความไปทางปกติทั้งหมด (fixed replies, rate limit, ถามยอด, บันทึกรายการ) เช่น "ออมสิน 1000" ถูกบันทึกเป็นรายการเหมือนเดิม; อ่านรายชื่อเป้าไม่ได้ตอบข้อความระบบมีปัญหา (ไม่เดาว่าเป็นรายการ เพราะอาจกลายเป็นรายจ่ายผิด)
 - คอมเมนต์ในโค้ดภาษาไทย บรรทัดเดียว อธิบาย "ทำไม" เท่านั้น; ชื่อตัวแปร/function/log ภาษาอังกฤษ; ไม่มี emoji ในโค้ด คอมเมนต์ log commit (ข้อความช่วยเหลือ `HELP_REPLY` เป็นข้อยกเว้นเดียวที่ใช้ emoji ได้)
 - ข้อความที่ผู้ใช้เห็นเป็นภาษาไทย
 - ไฟล์ใหม่ใช้ CRLF เหมือนไฟล์เดิม (git autocrlf=true จัดการให้ตอน commit)
 - เทสต์อยู่คู่ไฟล์: `foo.js` -> `foo.test.js`, LIFF ใช้ `foo.test.mjs` หรือ jsdom ใน `public/liff/app.dom.test.mjs`; LIFF ต้องล็อกอิน LINE จึงตรวจ UI ด้วยมือในแอป LINE ตามตาราง LINE check
 - ก่อนจบ: `npm test`, `npm run lint`, `node --check index.js` ผ่านทั้งหมด
-- commit message ภาษาอังกฤษ ขึ้นต้นด้วยกริยา และลงท้ายด้วยบรรทัดว่างตามด้วย `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
+- commit message ภาษาอังกฤษ ขึ้นต้นด้วยกริยา และลงท้ายด้วยบรรทัดว่างตามด้วยสองบรรทัด `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` และ `Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC`
 
 ---
 
@@ -47,12 +45,12 @@
 | `src/goals/router.js` (ใหม่) | `/api/goals` ทุกเส้น |
 | `src/api/router.js` | รับ `goalsRouter` แล้ว mount ที่ `/goals` |
 | `index.js` | สร้าง `createGoalsRouter({ repository })` ส่งเข้า `createApiRouter` |
-| `src/goals/chat.js` (ใหม่) | อ่านคำสั่ง `ออม <ชื่อ> <ยอด>`, หาเป้า, ข้อความตอบ |
-| `src/bot.js` | เส้นทางคำสั่งออมใน `handleText`, postback `undo_saving` |
+| `src/goals/chat.js` (ใหม่) | อ่านคำสั่ง `ออม <ชื่อ> <ยอด>`, มีเป้าที่เปิดอยู่ไหม, หาเป้า, ข้อความตอบ |
+| `src/bot.js` | เส้นทางคำสั่งออมใน `handleText` (เฉพาะผู้ใช้ที่มีเป้าที่เปิดอยู่), postback `undo_saving` |
 | `src/menu/fixed-replies.js` | หัวข้อออมเงินในข้อความช่วยเหลือ |
 | `public/liff/api.mjs` | method ของ API เป้า |
 | `public/liff/goals-format.mjs` (ใหม่) | เปอร์เซ็นต์ แถวเป้า แถวประวัติ ข้อความ error |
-| `public/liff/tabs.mjs` | แท็บ `goals` |
+| `public/liff/tabs.mjs` | แท็บ `goals` และชื่อแท็บ `budgets` เป็น "งบ" |
 | `public/liff/goals-panel.mjs` (ใหม่) | แท็บออม: รายการเป้า สร้าง/แก้/ปิดเป้า รายละเอียด ออมเพิ่ม ประวัติ ลบ |
 | `public/liff/index.html` | ไอคอน `tab-goal`, `#panel-goals`, dialog `#goal-editor`, `#goal-detail` |
 | `public/liff/style.css` | การ์ดเป้า ชื่อแท็บบรรทัดเดียว |
@@ -354,7 +352,7 @@ revoke execute on function public.add_goal_contribution(uuid, uuid, numeric, dat
 grant execute on function public.add_goal_contribution(uuid, uuid, numeric, date, text) to service_role;
 ```
 
-ใน `supabase/schema.sql` บรรทัดแรก เปลี่ยนท้ายประโยคจาก `... และ 022_daily_reminder.sql ต่อตามลำดับ` เป็น `..., 022_daily_reminder.sql และ 023_savings_goals.sql ต่อตามลำดับ` (คงส่วน `(ไม่มี 016 เพราะถูกถอยออก)` ไว้ท้ายเหมือนเดิม)
+ใน `supabase/schema.sql` บรรทัดแรก (ข้อความที่แผนเตือนลืมจดเขียนไว้) เปลี่ยน `021_notification_settings.sql และ 022_daily_reminder.sql ต่อตามลำดับ` เป็น `021_notification_settings.sql, 022_daily_reminder.sql และ 023_savings_goals.sql ต่อตามลำดับ` (คงส่วน `(ไม่มี 016 เพราะถูกถอยออก)` ไว้ท้ายเหมือนเดิม)
 
 - [ ] **Step 4: รันเทสต์ให้ผ่าน**
 
@@ -367,7 +365,8 @@ Expected: PASS ทั้งไฟล์ รวม `023_savings_goals.sql` 8 เ�
 git add supabase/023_savings_goals.sql supabase/schema.sql src/db/sql-functions.test.js
 git commit -m "feat: add savings goal tables and progress functions
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -698,7 +697,8 @@ Expected: PASS ทั้งไฟล์
 git add src/db/repository.js src/db/repository.test.js
 git commit -m "feat: let the repository read and change savings goals
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -898,7 +898,8 @@ Expected: PASS ทั้งไฟล์
 git add src/goals/validate.js src/goals/validate.test.js
 git commit -m "feat: validate savings goal requests
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -1401,7 +1402,8 @@ Expected: ไม่มี output
 git add src/goals/router.js src/goals/router.test.js src/api/router.js src/api/router.test.js src/app.test.js index.js
 git commit -m "feat: add the savings goals API
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -1417,11 +1419,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `formatAmount` จาก `src/parser/format-reply.js`, `isValidAmount` จาก `src/api/validate.js`
 - Produces:
-  - `parseSavingCommand(text: string) => null | { name: string, amount: number | null }` (`amount` เป็น null เมื่อยอดไม่อยู่ใน 0.01-10,000,000)
+  - `parseSavingCommand(text: string) => null | { name: string, amount: number | null }` (`amount` เป็น null เมื่อยอดไม่อยู่ใน 0.01-10,000,000) อ่านแค่รูปแบบข้อความ ส่วนการตัดสินว่าจะจับเป็นคำสั่งออมไหมอยู่ที่บอท (Task 6) ด้วย `hasOpenGoal`
+  - `hasOpenGoal(goals: Goal[]) => boolean` true เมื่อมีเป้าที่ `closed` เป็น false อย่างน้อยหนึ่งเป้า
   - `findOpenGoal(goals: Goal[], name: string) => Goal | null` เทียบชื่อแบบ trim และไม่สนตัวพิมพ์ ข้ามเป้าที่ปิด
   - `formatSavingReply({ name, amount, saved, target }) => string`
-  - `formatGoalNotFoundReply(name, goals) => string`
-  - `SAVING_AMOUNT_REPLY`, `NO_GOALS_REPLY`, `GOAL_GONE_REPLY` (string)
+  - `formatGoalNotFoundReply(name, goals) => string` (บอทเรียกเฉพาะเมื่อ `hasOpenGoal(goals)` เป็น true)
+  - `SAVING_AMOUNT_REPLY`, `GOAL_GONE_REPLY` (string)
 
 - [ ] **Step 1: เขียนเทสต์ที่ fail**
 
@@ -1432,13 +1435,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const {
-  parseSavingCommand,
-  findOpenGoal,
-  formatSavingReply,
-  formatGoalNotFoundReply,
-  NO_GOALS_REPLY,
-} = require('./chat.js');
+const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply } = require('./chat.js');
 
 const GOALS = [
   { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, closed: false },
@@ -1453,12 +1450,22 @@ describe('parseSavingCommand', () => {
     ['  ออม iPhone 15 30000  ', { name: 'iPhone 15', amount: 30000 }],
     ['ออม ทริป 0', { name: 'ทริป', amount: null }],
     ['ออม ทริป 20,000,000', { name: 'ทริป', amount: null }],
+    // รูปแบบตรงกับคำสั่งออม บอทจึงต้องดู hasOpenGoal ก่อนจับ ไม่งั้นคนที่ไม่มีเป้าจะจดรายการนี้ไม่ได้
+    ['ออมสิน 1000', { name: 'สิน', amount: 1000 }],
   ])('reads %s', (text, expected) => {
     expect(parseSavingCommand(text)).toEqual(expected);
   });
 
   it.each(['กินข้าว 60', 'ออม', 'ออม 1000', 'ออมเงิน', 'ออม ทริป 10.555', 'สรุปเดือนนี้'])('leaves %s to the other paths', (text) => {
     expect(parseSavingCommand(text)).toBeNull();
+  });
+});
+
+describe('hasOpenGoal', () => {
+  it('is true only when at least one goal is open', () => {
+    expect(hasOpenGoal(GOALS)).toBe(true);
+    expect(hasOpenGoal([GOALS[2]])).toBe(false);
+    expect(hasOpenGoal([])).toBe(false);
   });
 });
 
@@ -1489,15 +1496,10 @@ describe('formatSavingReply', () => {
 });
 
 describe('formatGoalNotFoundReply', () => {
-  it('lists the open goals with an example', () => {
+  it('lists only the open goals with an example', () => {
     expect(formatGoalNotFoundReply('คอนโด', GOALS)).toBe(
       'ไม่พบเป้า "คอนโด"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000'
     );
-  });
-
-  it('tells the user to create a goal when none is open', () => {
-    expect(formatGoalNotFoundReply('คอนโด', [GOALS[2]])).toBe(NO_GOALS_REPLY);
-    expect(NO_GOALS_REPLY).toBe('ยังไม่มีเป้าออมที่เปิดอยู่ สร้างเป้าได้ในหน้าเว็บ แท็บ ออม');
   });
 });
 ```
@@ -1519,7 +1521,6 @@ const { isValidAmount } = require('../api/validate');
 const SAVING_PATTERN = /^ออม\s*(.+?)\s+([\d,]+(?:\.\d{1,2})?)\s*(?:บาท)?$/;
 
 const SAVING_AMOUNT_REPLY = 'จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท';
-const NO_GOALS_REPLY = 'ยังไม่มีเป้าออมที่เปิดอยู่ สร้างเป้าได้ในหน้าเว็บ แท็บ ออม';
 const GOAL_GONE_REPLY = 'ไม่พบเป้านี้แล้ว อาจถูกปิดไปแล้ว ดูเป้าที่เปิดอยู่ในหน้าเว็บ แท็บ ออม';
 
 function parseSavingCommand(text) {
@@ -1529,6 +1530,11 @@ function parseSavingCommand(text) {
   }
   const amount = Number(match[2].replace(/,/g, ''));
   return { name: match[1].trim(), amount: isValidAmount(amount) ? amount : null };
+}
+
+// คนที่ไม่มีเป้าเปิดอยู่ไม่ได้ใช้คำสั่งออม ข้อความอย่าง "ออมสิน 1000" ของเขาต้องเป็นรายการตามเดิม
+function hasOpenGoal(goals) {
+  return goals.some((goal) => !goal.closed);
 }
 
 function normalizeGoalName(name) {
@@ -1559,9 +1565,6 @@ function formatSavingReply({ name, amount, saved, target }) {
 
 function formatGoalNotFoundReply(name, goals) {
   const open = goals.filter((goal) => !goal.closed);
-  if (open.length === 0) {
-    return NO_GOALS_REPLY;
-  }
   return [
     `ไม่พบเป้า "${name}"`,
     `เป้าที่เปิดอยู่: ${open.map((goal) => goal.name).join(', ')}`,
@@ -1571,11 +1574,11 @@ function formatGoalNotFoundReply(name, goals) {
 
 module.exports = {
   parseSavingCommand,
+  hasOpenGoal,
   findOpenGoal,
   formatSavingReply,
   formatGoalNotFoundReply,
   SAVING_AMOUNT_REPLY,
-  NO_GOALS_REPLY,
   GOAL_GONE_REPLY,
 };
 ```
@@ -1591,7 +1594,8 @@ Expected: PASS ทั้งไฟล์
 git add src/goals/chat.js src/goals/chat.test.js
 git commit -m "feat: read the saving command and write its replies
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -1601,13 +1605,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Depends on:** Task 2, Task 5
 
 **Files:**
-- Modify: `src/bot.js` (require ด้านบน, ค่าคงที่, `buildUndoSavingQuickReply`, `handleSaving` และ `handleUndoSaving` ใน `createBot`, `handleText` ต่อจาก `claimEvent`, `handlePostback`, `module.exports`)
+- Modify: `src/bot.js` (require ด้านบนต่อจากบรรทัด 14 `const { buildTotalsFlex } = require('./query/answer-flex');`, ค่าคงที่ต่อจาก `UNDO_NOT_FOUND_REPLY` บรรทัด 25 และ `UNDO_ACTION` บรรทัด 52, `buildUndoSavingQuickReply` ต่อจาก `buildUndoQuickReply` บรรทัด 75, `handleSaving` ต่อจาก `handleSummary` บรรทัด 274-283, `handleText` ต่อจากบล็อก `claimed` บรรทัด 288-291, `handleUndoSaving` ต่อจาก `handleUndo` บรรทัด 403-411, `handlePostback` บรรทัด 472-477, `module.exports` บรรทัด 581-600)
 - Modify: `src/menu/fixed-replies.js` (`HELP_REPLY`)
 - Test: `src/bot.test.js`, `src/menu/fixed-replies.test.js`
 
 **Interfaces:**
-- Consumes: `repository.listGoals`, `repository.addGoalContribution`, `repository.deleteGoalContributionsByEvent` (Task 2); `parseSavingCommand`, `findOpenGoal`, `formatSavingReply`, `formatGoalNotFoundReply`, `SAVING_AMOUNT_REPLY`, `GOAL_GONE_REPLY` (Task 5); `toBangkokDateString` จาก `src/utils/date.js`
-- Produces: postback data `action=undo_saving&event=<webhookEventId>`; export `UNDO_SAVING_DONE_REPLY = 'ยกเลิกการออมแล้ว'`, `UNDO_SAVING_NOT_FOUND_REPLY = 'ไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว'`
+- Consumes: `repository.listGoals`, `repository.addGoalContribution`, `repository.deleteGoalContributionsByEvent` (Task 2); `parseSavingCommand`, `hasOpenGoal`, `findOpenGoal`, `formatSavingReply`, `formatGoalNotFoundReply`, `SAVING_AMOUNT_REPLY`, `GOAL_GONE_REPLY` (Task 5); `toBangkokDateString` จาก `src/utils/date.js`
+- Produces: postback data `action=undo_saving&event=<webhookEventId>`; export `UNDO_SAVING_DONE_REPLY = 'ยกเลิกการออมแล้ว'`, `UNDO_SAVING_NOT_FOUND_REPLY = 'ไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว'`; ข้อความที่ตรงรูปแบบ `ออม <ชื่อ> <ยอด>` ถูกจับเป็นคำสั่งออมเฉพาะเมื่อ `repository.listGoals` มีเป้าที่เปิดอยู่ ไม่งั้นไปทางเดิมทั้งหมด
 
 **LINE check:** *(ทำหลังผู้ใช้รัน `supabase/023_savings_goals.sql` ใน Supabase แล้ว merge+push และ Render deploy เสร็จ และหลัง LINE check ของ Task 9 ที่สร้างเป้าไว้)*
 - Preconditions: บอทใน LINE ของผู้ใช้ มีเป้าที่เปิดอยู่ชื่อ `เที่ยวญี่ปุ่น` ยอดเป้า 50,000 (สร้างในแท็บ ออม)
@@ -1618,8 +1622,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 | 2 | กดปุ่ม `ยกเลิก` ของข้อความในข้อ 1 | บอทตอบ `ยกเลิกการออมแล้ว` และแท็บ ออม ในหน้าเว็บแสดงยอดสะสมเท่าก่อนข้อ 1 |
 | 3 | พิมพ์ `ออม คอนโด 500` | บอทตอบ `ไม่พบเป้า "คอนโด"` ตามด้วยบรรทัด `เป้าที่เปิดอยู่: เที่ยวญี่ปุ่น` |
 | 4 | พิมพ์ `ออม เที่ยวญี่ปุ่น 0` | บอทตอบ `จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท` |
-| 5 | พิมพ์ `ช่วยเหลือ` | ข้อความช่วยเหลือมีหัวข้อ `🎯 ออมเงินเข้าเป้า` |
+| 5 | พิมพ์ `ช่วยเหลือ` | ข้อความช่วยเหลือมีหัวข้อ `🎯 ออมเงินเข้าเป้า` และบรรทัด `ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ` |
 | 6 | พิมพ์ `กินข้าว 60` | บอทตอบการ์ด "บันทึกแล้ว" ตามเดิม |
+| 7 | พิมพ์ `ออมสิน 1000` (ยังมีเป้า `เที่ยวญี่ปุ่น` เปิดอยู่) | บอทตอบ `ไม่พบเป้า "สิน"` ตามด้วยบรรทัด `เป้าที่เปิดอยู่: เที่ยวญี่ปุ่น` ไม่มีการ์ด "บันทึกแล้ว" |
+| 8 | ในหน้าเว็บแท็บ `ออม` ปิดเป้า `เที่ยวญี่ปุ่น` (ไม่มีเป้าที่เปิดอยู่เลย) แล้วพิมพ์ `ออมสิน 1000` ในแชต | บอทตอบการ์ด "บันทึกแล้ว" รายการ 1,000 บาท เหมือนรายการทั่วไป (กดปุ่ม `ยกเลิก` ใต้การ์ดเพื่อลบรายการทดสอบนี้ แล้วเปิดเป้า `เที่ยวญี่ปุ่น` อีกครั้งในหน้าเว็บสำหรับ Browser check ของ Task 10) |
 
 - [ ] **Step 1: เขียนเทสต์ที่ fail ใน bot.test.js**
 
@@ -1703,13 +1709,52 @@ describe('bot saving command', () => {
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
   });
 
-  it('asks for a valid amount before reading the goals', async () => {
+  it('asks for a valid amount when the user has an open goal', async () => {
     const { deps, bot } = setup();
 
     await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 0'));
 
     expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
-    expect(deps.repository.listGoals).not.toHaveBeenCalled();
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  // ผู้ใช้ตัดสิน 2026-10-19: คนที่ไม่มีเป้าเปิดอยู่ ข้อความอย่าง "ออมสิน 1000" ต้องเป็นรายการตามเดิม
+  it('records the message as an entry when the user has no open goal', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([
+      { id: 'g-2', name: 'มือถือ', targetAmount: 30000, targetDate: null, closed: true, saved: 30000, contributionCount: 3 },
+    ]);
+
+    await bot.handleEvent(textEvent('ออมสิน 1000'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES);
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('leaves even a bad saving amount to the normal flow when the user has no goals', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออม ทริป 0'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.replyText).not.toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES);
+  });
+
+  it('counts the rate limit once the message falls through to the normal flow', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออมสิน 1000'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.allowRequest).toHaveBeenCalledWith('U1');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', RATE_LIMITED_REPLY, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
   });
 
   // เป้าอาจถูกปิดจากหน้าเว็บระหว่างอ่านรายชื่อกับตอนบันทึก
@@ -1785,34 +1830,52 @@ describe('bot undo saving postback', () => {
     const lines = HELP_REPLY.split('\n');
     const title = lines.indexOf('🎯 ออมเงินเข้าเป้า');
     expect(title).toBeGreaterThan(lines.indexOf('🔎 ถามยอด'));
-    expect(lines.slice(title + 1, title + 3)).toEqual([
+    expect(lines.slice(title + 1, title + 4)).toEqual([
       'สร้างเป้าในหน้าเว็บ แท็บ ออม',
       'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
+      'ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ',
     ]);
   });
 ```
 
-ในเทสต์ `uses the agreed wording` เพิ่มบรรทัดเดียวกันใน array ที่ pin ไว้ ก่อนบรรทัด `'',` ที่อยู่ก่อน `'⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',` (ถ้าฟีเจอร์ก่อนหน้าเพิ่มหัวข้อหลัง 🔎 ถามยอด แล้ว ให้ใส่หัวข้อนี้ต่อท้ายหัวข้อเหล่านั้น ก่อนบรรทัดว่างที่นำหน้า ⚠️ เหมือนกันทั้งสองที่):
+ในเทสต์ `uses the agreed wording` (แผนสรุปรายสัปดาห์และเตือนลืมจดไม่แก้ `HELP_REPLY` จึงยังตรงกับ main) array ที่ pin ไว้ เปลี่ยน:
 
 ```js
+        '🔎 ถามยอด',
+        'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
+        'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
+        '',
+        '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
+```
+
+เป็น:
+
+```js
+        '🔎 ถามยอด',
+        'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
+        'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
         '',
         '🎯 ออมเงินเข้าเป้า',
         'สร้างเป้าในหน้าเว็บ แท็บ ออม',
         'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
+        'ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ',
+        '',
+        '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
 ```
 
 - [ ] **Step 3: รันเทสต์ให้เห็นว่า fail**
 
 Run: `npx vitest run src/bot.test.js src/menu/fixed-replies.test.js`
-Expected: FAIL เทสต์ใน `bot saving command`, `bot undo saving postback`, `documents the saving command after the totals section` และ `uses the agreed wording` ส่วนเทสต์เดิมยังผ่าน
+Expected: FAIL เทสต์ใน `bot saving command` (รวมสามเทสต์ของผู้ใช้ที่ไม่มีเป้าเปิดอยู่ ซึ่ง fail ที่ `listGoals` ไม่ถูกเรียก) ยกเว้น `leaves other messages to the parser` ที่ผ่านอยู่แล้ว, `bot undo saving postback`, `documents the saving command after the totals section` และ `uses the agreed wording` ส่วนเทสต์เดิมยังผ่าน
 
 - [ ] **Step 4: ต่อคำสั่งออมใน bot.js**
 
-ด้านบน `src/bot.js` ต่อจาก `const { formatTotalsAnswer } = require('./query/format-answer');` เพิ่ม:
+ด้านบน `src/bot.js` ต่อจาก `const { buildTotalsFlex } = require('./query/answer-flex');` (บรรทัด 14 ของ main หลัง merge การ์ดถามยอด) เพิ่ม:
 
 ```js
 const {
   parseSavingCommand,
+  hasOpenGoal,
   findOpenGoal,
   formatSavingReply,
   formatGoalNotFoundReply,
@@ -1856,11 +1919,15 @@ function buildUndoSavingQuickReply(webhookEventId) {
 ใน `createBot` ต่อจาก function `handleSummary` เพิ่ม:
 
 ```js
+  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ handleText ทำทางเดิมต่อ เพราะคนที่ไม่ใช้เป้าอาจพิมพ์ "ออมสิน 1000" เป็นรายการ
   async function handleSaving(command, userId, webhookEventId) {
+    const goals = await repository.listGoals(userId);
+    if (!hasOpenGoal(goals)) {
+      return null;
+    }
     if (command.amount === null) {
       return { text: SAVING_AMOUNT_REPLY };
     }
-    const goals = await repository.listGoals(userId);
     const goal = findOpenGoal(goals, command.name);
     if (!goal) {
       return { text: formatGoalNotFoundReply(command.name, goals) };
@@ -1887,9 +1954,14 @@ function buildUndoSavingQuickReply(webhookEventId) {
     // คำสั่งออมไม่เรียก Claude จึงไม่นับ rate limit และต้องมาก่อนทางบันทึกรายการ ไม่งั้นยอดออมจะกลายเป็นรายจ่าย
     const savingCommand = parseSavingCommand(event.message.text);
     if (savingCommand) {
-      return handleSaving(savingCommand, userId, event.webhookEventId);
+      const savingReply = await handleSaving(savingCommand, userId, event.webhookEventId);
+      if (savingReply) {
+        return savingReply;
+      }
     }
 ```
+
+(ถ้า `repository.listGoals` throw ให้ปล่อยขึ้นไปถึง `handleEvent` ซึ่งตอบ `SYSTEM_ERROR_REPLY` อยู่แล้ว เทสต์ `replies with the system error and records nothing when the goals cannot be read` ครอบกรณีนี้)
 
 ต่อจาก function `handleUndo` เพิ่ม:
 
@@ -1922,13 +1994,14 @@ function buildUndoSavingQuickReply(webhookEventId) {
 
 - [ ] **Step 5: เพิ่มหัวข้อในข้อความช่วยเหลือ**
 
-ใน `src/menu/fixed-replies.js` ต่อจากบรรทัด `'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',` (หรือต่อจากหัวข้อสุดท้ายก่อนบรรทัดว่างที่นำหน้า ⚠️ ให้ตรงกับเทสต์ใน Step 2):
+ใน `src/menu/fixed-replies.js` ต่อจากบรรทัด `'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',` (บรรทัด 36 ของ main) เพิ่ม:
 
 ```js
   '',
   '🎯 ออมเงินเข้าเป้า',
   'สร้างเป้าในหน้าเว็บ แท็บ ออม',
   'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
+  'ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ',
 ```
 
 - [ ] **Step 6: รันเทสต์ให้ผ่าน**
@@ -1945,7 +2018,8 @@ Expected: ไม่มี output
 git add src/bot.js src/bot.test.js src/menu/fixed-replies.js src/menu/fixed-replies.test.js
 git commit -m "feat: save into a goal from the chat with an undo button
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -2166,32 +2240,35 @@ Expected: PASS ทั้งสองไฟล์
 git add public/liff/api.mjs public/liff/api.test.mjs public/liff/goals-format.mjs public/liff/goals-format.test.mjs
 git commit -m "feat: add goal API calls and goal formatting to the web page
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
 
-### Task 8: แท็บ "ออม" ในแถบล่าง
+### Task 8: แท็บ "ออม" ในแถบล่าง และชื่อแท็บ "งบ"
 
 **Depends on:** none
 
 **Files:**
-- Modify: `public/liff/tabs.mjs` (`TABS`)
+- Modify: `public/liff/tabs.mjs` (`TABS` บรรทัด 3-9: label ของ `budgets` และแถว `goals`)
 - Modify: `public/liff/index.html` (symbol `tab-goal` ต่อจาก symbol `tab-user`, `#panel-goals` ต่อจาก `#panel-recurring`)
-- Modify: `public/liff/style.css` (`.nav-button` และกฎใหม่ต่อจากกฎ `.nav-button .icon`, การ์ด `.goals` ต่อจากกฎ `.recurring-rows`)
+- Modify: `public/liff/style.css` (`.nav-button` บรรทัด 144 และกฎใหม่ต่อจากกฎ `.nav-button .icon` บรรทัด 145, การ์ด `.goals` ต่อจากกฎ `.recurring-rows`)
 - Test: `public/liff/tabs.test.mjs`, `public/liff/style.test.mjs`, `public/liff/app.dom.test.mjs`
+- Scratch (ไม่อยู่ใน repo ไม่ commit): `<scratchpad ของ session>/nav-width.html` สำหรับวัดความกว้างชื่อแท็บใน headless Chrome (ตอนเขียนแผนคือ `C:\Users\Lenovo\AppData\Local\Temp\claude\C--GithubPrommin-line-expense-bot\3f260a06-b79d-48c5-ad5a-6c9c0f394662\scratchpad`; ถ้า session ของผู้ลงมือมี scratchpad อื่นให้ใช้ของตัวเอง)
 
 **Interfaces:**
-- Produces: tab `{ id: 'goals', label: 'ออม', title: 'เป้าหมายการออม', icon: 'tab-goal', showMonth: false }` อยู่ระหว่าง `recurring` กับ `profile`; panel `#panel-goals` มี `section#goals.goals` และ `h2#goals-title[tabindex="-1"]` (Task 9 เติมเนื้อหาใน section นี้); ลิงก์ `?tab=goals` ใช้ได้ทันทีเพราะ `parseTabLink` อ่าน id จาก `TABS`
+- Produces: tab `{ id: 'goals', label: 'ออม', title: 'เป้าหมายการออม', icon: 'tab-goal', showMonth: false }` อยู่ระหว่าง `recurring` กับ `profile`; tab `budgets` เปลี่ยนเฉพาะ `label` เป็น `'งบ'` (`title: 'จัดการงบประมาณ'` คงเดิม เพราะเทสต์ `page-title` และหน้าหมวดของฉันอ้างหัวข้อนี้); panel `#panel-goals` มี `section#goals.goals` และ `h2#goals-title[tabindex="-1"]` (Task 9 เติมเนื้อหาใน section นี้); ลิงก์ `?tab=goals` ใช้ได้ทันทีเพราะ `parseTabLink` อ่าน id จาก `TABS`
 
 **Browser check in LINE app:** *(ทำหลัง merge+push และ Render deploy)*
 - Preconditions: เปิดหน้าเว็บจากปุ่ม เปิดเว็บ ในแชตบอท บนมือถือของผู้ใช้ (ถ้ามีมือถือจอเล็กหรือ iPhone SE ให้ลองด้วย)
 
 | # | Action | Expected |
 |---|---|---|
-| 1 | ดูแถบล่าง | มี 6 แท็บเรียง รายการ สรุป จัดการงบ รอบเดือน ออม โปรไฟล์ ชื่อทุกแท็บอยู่บรรทัดเดียว ไม่ถูกตัด ไม่ล้นเข้าแท็บข้างๆ และแถบสูงเท่าเดิม |
-| 2 | แตะแท็บ `ออม` | หัวหน้าเป็น `เป้าหมายการออม` ช่องเลือกเดือนหายไป แท็บ ออม มีขีดน้ำเงินด้านบน |
-| 3 | แตะแท็บ `รายการ` | กลับมาหน้ารายการตามเดิม ช่องเลือกเดือนกลับมา |
+| 1 | ดูแถบล่าง | มี 6 แท็บเรียง รายการ สรุป งบ รอบเดือน ออม โปรไฟล์ ชื่อทุกแท็บอยู่บรรทัดเดียว ไม่ถูกตัด ไม่ล้นเข้าแท็บข้างๆ และแถบสูงเท่าเดิม |
+| 2 | แตะแท็บ `งบ` | หัวหน้าเป็น `จัดการงบประมาณ` เหมือนเดิม และเห็นงบต่อหมวด |
+| 3 | แตะแท็บ `ออม` | หัวหน้าเป็น `เป้าหมายการออม` ช่องเลือกเดือนหายไป แท็บ ออม มีขีดน้ำเงินด้านบน |
+| 4 | แตะแท็บ `รายการ` | กลับมาหน้ารายการตามเดิม ช่องเลือกเดือนกลับมา |
 
 - [ ] **Step 1: เขียนเทสต์ที่ fail**
 
@@ -2200,8 +2277,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```js
   it('has the six tabs in order, without bills which has its own page', () => {
     expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'goals', 'profile']);
-    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
+    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
     expect(DEFAULT_TAB).toBe('list');
+  });
+
+  // ชื่อแท็บสั้นลงให้ 6 แท็บพอดีจอ 320px แต่หัวหน้ายังบอกเต็มว่าแท็บนี้ทำอะไร
+  it('keeps the full page title of the budgets tab', () => {
+    expect(TABS.find((tab) => tab.id === 'budgets').title).toBe('จัดการงบประมาณ');
   });
 ```
 
@@ -2215,7 +2297,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ใน `public/liff/style.test.mjs` ภายใน describe ที่มีเทสต์ `makes the bottom nav 68px tall` เพิ่มต่อจากเทสต์นั้น:
 
 ```js
-  // 6 แท็บที่จอ 320px เหลือปุ่มละราว 53px และห้ามย่อตัวอักษรต่ำกว่า 13px จึงตัด padding ข้างและห้ามตัดบรรทัด
+  // วัดจริง 2026-10-19: 6 แท็บที่จอ 320px "รอบเดือน" กว้าง 51.3px แต่ปุ่มเหลือ 49px ถ้ามี padding ข้าง และห้ามย่อตัวอักษรต่ำกว่า 13px
   it('keeps every tab label on one line without side padding', () => {
     expect(declarations('.nav-button')).toMatch(/padding:\s*8px 0;/);
     expect(declarations('.nav-button span')).toMatch(/white-space:\s*nowrap/);
@@ -2223,7 +2305,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
 ใน `public/liff/app.dom.test.mjs`:
-- เทสต์ `renders the five bottom tabs with the list tab selected` เปลี่ยนชื่อเป็น `renders the six bottom tabs with the list tab selected` เปลี่ยน array ที่คาดเป็น `['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']` และ loop `for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile'])` เป็น `for (const id of ['summary', 'budgets', 'recurring', 'goals', 'bills', 'profile'])`
+- เทสต์ `renders the five bottom tabs with the list tab selected` (บรรทัด 359) เปลี่ยนชื่อเป็น `renders the six bottom tabs with the list tab selected` เปลี่ยน array ที่คาดเป็น `['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']` และ loop `for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile'])` เป็น `for (const id of ['summary', 'budgets', 'recurring', 'goals', 'bills', 'profile'])`
 - เทสต์ `switches through every tab updating selection, panels, title, and month picker` เพิ่มใน `expected` ต่อจาก `recurring`:
 
 ```js
@@ -2233,11 +2315,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 2: รันเทสต์ให้เห็นว่า fail**
 
 Run: `npx vitest run public/liff/tabs.test.mjs public/liff/style.test.mjs public/liff/app.dom.test.mjs`
-Expected: FAIL เทสต์ที่แก้ทั้งหมดข้างบน (ยังมี 5 แท็บ, ยังไม่มี `#panel-goals`, padding ยังเป็น `8px 2px`)
+Expected: FAIL เทสต์ที่แก้ทั้งหมดข้างบน (ยังมี 5 แท็บและชื่อ จัดการงบ, ยังไม่มี `#panel-goals`, padding ยังเป็น `8px 2px`) ยกเว้น `keeps the full page title of the budgets tab` ที่ผ่านอยู่แล้ว (เป็นเทสต์กันไม่ให้เปลี่ยน title ไปด้วย)
 
 - [ ] **Step 3: เพิ่มแท็บ ไอคอน panel และ CSS**
 
-ใน `public/liff/tabs.mjs` ต่อจากแถว `recurring` ใน `TABS`:
+ใน `public/liff/tabs.mjs` เปลี่ยนแถว `budgets` ใน `TABS` เป็น (เปลี่ยนแค่ `label`):
+
+```js
+  { id: 'budgets', label: 'งบ', title: 'จัดการงบประมาณ', icon: 'tab-budget', showMonth: true },
+```
+
+และต่อจากแถว `recurring` เพิ่ม:
 
 ```js
   { id: 'goals', label: 'ออม', title: 'เป้าหมายการออม', icon: 'tab-goal', showMonth: false },
@@ -2283,13 +2371,77 @@ Expected: FAIL เทสต์ที่แก้ทั้งหมดข้า�
 Run: `npx vitest run public/liff/tabs.test.mjs public/liff/style.test.mjs public/liff/app.dom.test.mjs`
 Expected: PASS ทั้งสามไฟล์ (เทสต์ `defines a sprite symbol for every bottom tab icon` ผ่านเพราะมี `tab-goal` แล้ว)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: วัดความกว้างชื่อแท็บใน headless Chrome ที่ 320/360/390px**
+
+jsdom ไม่มี layout จึงวัดด้วย Chrome จริง สร้างไฟล์ `nav-width.html` ใน scratchpad ของ session (ไม่ใช่ใน repo) ด้วยเนื้อหานี้ (ปรับ path `file:///C:/GithubPrommin/line-expense-bot/...` ถ้า repo อยู่ที่อื่น หรือถ้าทำใน worktree ให้ชี้ไปที่ worktree นั้น):
+
+```html
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="file:///C:/GithubPrommin/line-expense-bot/public/liff/tokens.css">
+<link rel="stylesheet" href="file:///C:/GithubPrommin/line-expense-bot/public/liff/style.css">
+</head><body>
+<pre id="out"></pre>
+<script>
+// ต้องตรงกับ label ใน public/liff/tabs.mjs
+const LABELS = ['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์'];
+function measure(width) {
+  const frame = document.createElement('div');
+  frame.style.cssText = `position:relative;width:${width}px;height:80px;`;
+  const nav = document.createElement('nav');
+  nav.className = 'bottom-nav';
+  nav.style.position = 'absolute';
+  for (const text of LABELS) {
+    const button = document.createElement('button');
+    button.className = 'nav-button';
+    button.innerHTML = '<svg class="icon"></svg><span></span>';
+    button.querySelector('span').textContent = text;
+    nav.append(button);
+  }
+  frame.append(nav);
+  document.body.append(frame);
+  const rows = [...nav.children].map((button) => {
+    const style = getComputedStyle(button);
+    const content = button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const span = button.querySelector('span');
+    // nowrap ทำให้นับบรรทัดได้ 1 เสมอ จึงวัดความกว้างข้อความจริงเทียบกับพื้นที่ในปุ่มด้วย
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;white-space:nowrap;visibility:hidden;font:inherit;';
+    probe.textContent = span.textContent;
+    button.append(probe);
+    const text = probe.getBoundingClientRect().width;
+    probe.remove();
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const lines = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+    return `${span.textContent}: content ${content.toFixed(1)}px text ${text.toFixed(1)}px lines ${lines} fits ${text <= content ? 'yes' : 'NO'}`;
+  });
+  frame.remove();
+  return rows;
+}
+const out = [];
+for (const width of [320, 360, 390]) out.push(`${width}px`, ...measure(width).map((line) => '  ' + line));
+document.getElementById('out').textContent = out.join('\n');
+</script></body></html>
+```
+
+Run (Git Bash, แทน `<scratchpad>` ด้วย path จริงแบบ `C:/Users/...` ใน URL):
+
+```bash
+"/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --allow-file-access-from-files --disable-gpu --virtual-time-budget=3000 --dump-dom "file:///<scratchpad>/nav-width.html" 2>/dev/null | sed -n '/<pre id="out">/,/<\/pre>/p'
+```
+
+Expected: ทุกบรรทัดของทั้ง 320px, 360px และ 390px เป็น `lines 1 fits yes` ตอนเขียนแผน (2026-10-19, ฟอนต์ของ Windows) วัดได้ที่ 320px: ปุ่มละ `content 53.0px`, `รอบเดือน: text 51.3px`, `โปรไฟล์: text 45.0px`, `รายการ: text 43.1px`, `งบ: text 13.9px` (ก่อนตัด padding ข้าง ปุ่มเหลือ 49.0px และ `รอบเดือน` ตัดเป็น 2 บรรทัด) ถ้ามีบรรทัดไหนเป็น `fits NO` ให้หยุดและรายงานผู้ใช้พร้อมตัวเลข อย่าย่อตัวอักษรต่ำกว่า 13px เอง (ฟอนต์บนมือถือต่างจาก Windows ได้ จึงยังต้องดูจริงใน Browser check)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add public/liff/tabs.mjs public/liff/tabs.test.mjs public/liff/index.html public/liff/style.css public/liff/style.test.mjs public/liff/app.dom.test.mjs
-git commit -m "feat: add the savings tab to the bottom bar
+git commit -m "feat: add the savings tab and shorten the budgets tab label
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -2886,7 +3038,8 @@ Expected: PASS ทั้งสองไฟล์ (รวมเทสต์ `has 
 git add public/liff/goals-panel.mjs public/liff/index.html public/liff/style.css public/liff/app.mjs public/liff/app.dom.test.mjs
 git commit -m "feat: list, create and close savings goals in the web page
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -3351,7 +3504,8 @@ Expected: PASS ทั้งสองไฟล์
 git add public/liff/goals-panel.mjs public/liff/index.html public/liff/style.css public/liff/app.mjs public/liff/app.dom.test.mjs
 git commit -m "feat: add, list and delete goal contributions in the web page
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -3361,46 +3515,47 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8, Task 9, Task 10
 
 **Files:**
-- Modify: `README.md` (ส่วน ความสามารถ, ขั้นตอนรัน SQL, ประโยค deploy "ไฟล์ล่าสุด")
-- Modify: `SPEC.md` (ฟังก์ชันข้อใหม่, ข้อ 3 เว็บ LIFF, ย่อหน้า API, Database, ลำดับการทำข้อ 17)
+- Modify: `README.md` (ส่วน ความสามารถ ต่อจาก bullet **เตือนลืมจด:**, bullet เว็บ LIFF และ sub-bullet จัดการงบ บรรทัด 15-19, ขั้นตอนรัน SQL บรรทัด 95, ประโยค deploy "ไฟล์ล่าสุด" บรรทัด 104)
+- Modify: `SPEC.md` (ฟังก์ชันข้อใหม่ 13 ต่อจากข้อ 12, ข้อ 3 เว็บ LIFF บรรทัด 31, ข้อ 9 บรรทัด 49, ย่อหน้า API, Database, ลำดับการทำข้อ 17 ต่อจากข้อ 16)
 - Modify: `docs/superpowers/plans/2026-10-18-roadmap-b.md` (บรรทัดสถานะและตารางลำดับ)
 - Modify: `work-memory/STATE.md`
 
 **Interfaces:**
-- Consumes: พฤติกรรมจาก Task 1-10
+- Consumes: พฤติกรรมจาก Task 1-10; ข้อความ README/SPEC ที่แผน `2026-10-19-weekly-summary.md` (Task 9) และ `2026-10-19-daily-reminder.md` (Task 7) ทิ้งไว้: bullet **สรุปรายสัปดาห์:** และ **เตือนลืมจด:** ต่อจาก **รายการประจำ:**, `` `002` ถึง `022` ``, ประโยค deploy ที่ขึ้นต้นด้วย `(ไฟล์ล่าสุดตอนนี้คือ `022_daily_reminder.sql` ต้องรันก่อน push เพราะ`, SPEC ข้อ 11-12 และลำดับการทำข้อ 15-16 (ถ้าข้อความจริงต่างจากนี้ ให้หยุดและตรวจสองแผนนั้นก่อน)
 
 - [ ] **Step 1: อัปเดต README**
 
-- ส่วน ความสามารถ ต่อจาก bullet **รายการประจำ:** เพิ่ม:
+- ส่วน ความสามารถ ต่อจาก bullet **เตือนลืมจด:** (ที่แผนเตือนลืมจดเพิ่มต่อจาก **สรุปรายสัปดาห์:**) เพิ่ม:
 
 ```markdown
-- **เป้าหมายการออม:** สร้างเป้า (ชื่อ ยอดเป้า วันที่อยากถึงเป้า ไม่บังคับ) ในแท็บ ออม ของหน้าเว็บ ออมเข้าเป้าจากหน้าเว็บ หรือพิมพ์ในแชต `ออม เที่ยวญี่ปุ่น 1000` (ไม่เรียก Claude ไม่นับ rate limit ชื่อเป้าไม่สนตัวพิมพ์ มีปุ่ม "ยกเลิก") ดูหลอดความคืบหน้าและประวัติ ลบรายการออมที่ใส่ผิด และปิด/เปิดเป้า (เปิดอยู่ได้ไม่เกิน 20 เป้า) ยอดออมแยกจากรายรับรายจ่าย ไม่กระทบยอดคงเหลือ
+- **เป้าหมายการออม:** สร้างเป้า (ชื่อ ยอดเป้า วันที่อยากถึงเป้า ไม่บังคับ) ในแท็บ ออม ของหน้าเว็บ ออมเข้าเป้าจากหน้าเว็บ หรือพิมพ์ในแชต `ออม เที่ยวญี่ปุ่น 1000` (ไม่เรียก Claude ไม่นับ rate limit ชื่อเป้าไม่สนตัวพิมพ์ มีปุ่ม "ยกเลิก" ใช้ได้เฉพาะเมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มี ข้อความที่ขึ้นต้นด้วย ออม เช่น `ออมสิน 1000` ถูกบันทึกเป็นรายการตามปกติ) ดูหลอดความคืบหน้าและประวัติ ลบรายการออมที่ใส่ผิด (ลบได้แม้เป้าปิดแล้ว) และปิด/เปิดเป้า (เปิดอยู่ได้ไม่เกิน 20 เป้า เป้าที่ปิดรับยอดออมเพิ่มไม่ได้ ไม่มีการลบเป้า) ยอดออมแยกจากรายรับรายจ่าย ไม่กระทบยอดคงเหลือ
 ```
 
-- bullet **เว็บ LIFF 5 แท็บ** เปลี่ยนเป็น **เว็บ LIFF 6 แท็บ** และเพิ่ม sub-bullet ระหว่าง `  - รอบเดือน: ...` กับ `  - โปรไฟล์: ...`:
+- bullet **เว็บ LIFF 5 แท็บ** เปลี่ยนเป็น **เว็บ LIFF 6 แท็บ**, sub-bullet `  - จัดการงบ: ตั้งงบต่อหมวดต่อเดือน ...` เปลี่ยนคำนำหน้า `  - จัดการงบ:` เป็น `  - งบ:` (ข้อความหลังโคลอนคงเดิม) และเพิ่ม sub-bullet ระหว่าง `  - รอบเดือน: ...` กับ `  - โปรไฟล์: ...`:
 
 ```markdown
   - ออม: เป้าหมายการออม หลอดความคืบหน้า แตะเป้าเพื่อออมเพิ่ม ดูประวัติ (ลบได้) และแก้/ปิดเป้า
 ```
 
 - ขั้นตอนรัน SQL: เปลี่ยน `` `002` ถึง `022` `` เป็น `` `002` ถึง `023` ``
-- ประโยค deploy: แทนช่วงต้นของวงเล็บ `(ไฟล์ล่าสุดตอนนี้คือ `<ไฟล์ 022>` ต้องรันก่อน push เพราะ` ด้วยข้อความด้านล่าง แล้วเปลี่ยนคำเปิดของประโยคเดิมเป็น `` `<ไฟล์ 022>` ก็ต้องรันก่อน เพราะ `` (เหตุผลเดิมคงไว้ทั้งหมด):
+- ประโยค deploy: เปลี่ยน `(ไฟล์ล่าสุดตอนนี้คือ `022_daily_reminder.sql` ต้องรันก่อน push เพราะ` เป็นข้อความด้านล่าง (ข้อความหลังจากนั้นของ 022 และไฟล์ก่อนหน้าคงไว้ทั้งหมด):
 
 ```
-(ไฟล์ล่าสุดตอนนี้คือ `023_savings_goals.sql` ต้องรันก่อน push เพราะแท็บ ออม และคำสั่ง ออม ในแชตอ่านตาราง savings_goals และเรียก function `goal_progress` ถ้ายังไม่รัน แท็บ ออม จะโหลดไม่สำเร็จ และคำสั่ง ออม จะได้ข้อความระบบมีปัญหา ส่วนการบันทึกรายการยังใช้ได้;
+(ไฟล์ล่าสุดตอนนี้คือ `023_savings_goals.sql` ต้องรันก่อน push เพราะแท็บ ออม และข้อความที่ขึ้นต้นด้วย ออม ในแชตอ่านตาราง savings_goals และเรียก function `goal_progress` ถ้ายังไม่รัน แท็บ ออม จะโหลดไม่สำเร็จ และทุกข้อความที่ตรงรูปแบบ `ออม <ชื่อ> <ยอด>` (รวม `ออมสิน 1000` ของคนที่ไม่มีเป้า) จะได้ข้อความระบบมีปัญหา ส่วนการบันทึกรายการอื่นยังใช้ได้; `022_daily_reminder.sql` ก็ต้องรันก่อน เพราะ
 ```
 
-ตรวจทุกประโยคกับโค้ดจริงก่อน commit (`grep -n "022\|023\|5 แท็บ\|6 แท็บ" README.md`)
+ตรวจทุกประโยคกับโค้ดจริงก่อน commit (`grep -n "022\|023\|5 แท็บ\|6 แท็บ\|จัดการงบ" README.md` ต้องไม่เหลือ `5 แท็บ` และ `  - จัดการงบ:`)
 
 - [ ] **Step 2: อัปเดต SPEC**
 
-- ส่วนฟังก์ชัน ต่อจากย่อหน้าข้อสุดท้าย (ถ้าแผนสรุปรายสัปดาห์และเตือนลืมจดเพิ่มข้อ 11 และ 12 แล้ว ข้อนี้คือ 13 ถ้าไม่ใช่ให้ใช้เลขถัดไป) เพิ่มย่อหน้า (เว้นบรรทัดว่างคั่นเหมือนข้ออื่น):
+- ส่วนฟังก์ชัน ต่อจากย่อหน้าข้อ 12 (ขึ้นต้นด้วย `12\. เตือนลืมจด:` ที่แผนเตือนลืมจดเพิ่ม) เพิ่มย่อหน้า (เว้นบรรทัดว่างคั่นเหมือนข้ออื่น):
 
 ```markdown
-13\. เป้าหมายการออม: ผู้ใช้สร้างเป้าในแท็บ ออม (ชื่อ 1-30 ตัวอักษร ห้ามซ้ำแบบไม่สนตัวพิมพ์ ยอดเป้า 0.01-10,000,000 บาท วันที่อยากถึงเป้าไม่บังคับ เปิดอยู่ได้ไม่เกิน 20 เป้า) ออมเข้าเป้าจากหน้าเว็บ (เลือกวันที่ได้) หรือพิมพ์ในแชต `ออม <ชื่อเป้า> <ยอด>` เช่น `ออม เที่ยวญี่ปุ่น 1000` (regex ไม่เรียก Claude ทำหลังจอง event และก่อนปุ่มเมนู ไม่นับ rate limit หาเป้าที่เปิดอยู่จากชื่อแบบไม่สนตัวพิมพ์ ไม่เจอตอบรายชื่อเป้าที่เปิดอยู่) บอทตอบยอดสะสมกับเปอร์เซ็นต์พร้อมปุ่ม "ยกเลิก" (postback `undo_saving` ลบรายการออมของข้อความนั้น) ยอดสะสมคำนวณด้วย SQL function `goal_progress` และออมผ่าน `add_goal_contribution` ที่ปฏิเสธเป้าที่ปิดแล้ว (`023_savings_goals.sql`) ลบรายการออมได้ ปิด/เปิดเป้าได้ ไม่มีการลบเป้าและการถอนในเฟสนี้ ยอดออมแยกจาก transactions ไม่กระทบยอดคงเหลือสะสม
+13\. เป้าหมายการออม: ผู้ใช้สร้างเป้าในแท็บ ออม (ชื่อ 1-30 ตัวอักษร ห้ามซ้ำแบบไม่สนตัวพิมพ์ ยอดเป้า 0.01-10,000,000 บาท วันที่อยากถึงเป้าไม่บังคับ เปิดอยู่ได้ไม่เกิน 20 เป้า) ออมเข้าเป้าจากหน้าเว็บ (เลือกวันที่ได้) หรือพิมพ์ในแชต `ออม <ชื่อเป้า> <ยอด>` เช่น `ออม เที่ยวญี่ปุ่น 1000` (regex ไม่เรียก Claude ทำหลังจอง event และก่อนปุ่มเมนู ไม่นับ rate limit จับเป็นคำสั่งออมเฉพาะเมื่อผู้ใช้มีเป้าที่เปิดอยู่อย่างน้อยหนึ่งเป้า ถ้าไม่มี ข้อความไปทางปกติ เช่น `ออมสิน 1000` ถูกบันทึกเป็นรายการ หาเป้าที่เปิดอยู่จากชื่อแบบไม่สนตัวพิมพ์ ไม่เจอตอบรายชื่อเป้าที่เปิดอยู่) บอทตอบยอดสะสมกับเปอร์เซ็นต์พร้อมปุ่ม "ยกเลิก" (postback `undo_saving` ลบรายการออมของข้อความนั้น) ยอดสะสมคำนวณด้วย SQL function `goal_progress` และออมผ่าน `add_goal_contribution` ที่ปฏิเสธเป้าที่ปิดแล้ว (`023_savings_goals.sql`) ลบรายการออมได้ ปิด/เปิดเป้าได้ ไม่มีการลบเป้าและการถอนในเฟสนี้ ยอดออมแยกจาก transactions ไม่กระทบยอดคงเหลือสะสม
 ```
 
-- ข้อ 3 เว็บ LIFF: เปลี่ยน `แท็บล่าง 6 แท็บ (` เป็น `แท็บล่าง 6 แท็บ และหน้าหารบิลแยก (` และเปลี่ยน `รอบเดือน = จัดการรายการประจำ;` เป็น `รอบเดือน = จัดการรายการประจำ; ออม = เป้าหมายการออม หลอดความคืบหน้า ออมเพิ่ม ประวัติ และแก้/ปิดเป้า;`
+- ข้อ 3 เว็บ LIFF: เปลี่ยน `แท็บล่าง 6 แท็บ (` เป็น `แท็บล่าง 6 แท็บ และหน้าหารบิลแยก (`, เปลี่ยน `จัดการงบ ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บจัดการงบ` เป็น `งบ (หัวหน้า จัดการงบประมาณ) ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บงบ` และเปลี่ยน `รอบเดือน = จัดการรายการประจำ;` เป็น `รอบเดือน = จัดการรายการประจำ; ออม = เป้าหมายการออม หลอดความคืบหน้า ออมเพิ่ม ประวัติ และแก้/ปิดเป้า;`
+- ข้อ 9: เปลี่ยน `(เปิดจากปุ่มล่างสุดของแท็บจัดการงบ` เป็น `(เปิดจากปุ่มล่างสุดของแท็บงบ`
 - ต่อจากย่อหน้า `API หารบิล ...` เพิ่มย่อหน้า:
 
 ```markdown
@@ -3428,12 +3583,13 @@ API เป้าหมายการออม (หลัง ID token ทุก�
 
 - [ ] **Step 4: ตรวจทั้งหมดแล้ว commit**
 
-Run: `npm test`, `npm run lint`, `node --check index.js`
+Run: `npm test`, `npm run lint`, `node --check index.js`, `node --check public/liff/app.mjs`
 Expected: ผ่านทั้งหมด (ถ้า `scripts/try-parse.test.js` timeout ตอนรันพร้อมกัน ให้รันเดี่ยวด้วย `npx vitest run scripts/try-parse.test.js` ก่อนสรุปว่าพัง)
 
 ```bash
 git add README.md SPEC.md docs/superpowers/plans/2026-10-18-roadmap-b.md work-memory/STATE.md
 git commit -m "docs: describe savings goals
 
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
