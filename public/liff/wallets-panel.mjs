@@ -148,6 +148,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
       await getApi().updateWallet(walletId, { name });
       renaming = null;
       els.dialog.close();
+      els.addError.textContent = '';
       els.status.textContent = `เปลี่ยนชื่อเป็น ${name} แล้ว`;
       await load(rowSelector(walletId, '.wallet-rename'));
     } catch (err) {

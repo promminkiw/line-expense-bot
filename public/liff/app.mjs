@@ -1752,8 +1752,10 @@ function applyLinkedCategory({ category, query, type }) {
 function applyLinkedWallet({ wallet }) {
   if (!wallet) return;
   if (!walletsPanel.isLoaded()) {
+    // ข้อความโหลดข้อมูลไม่สำเร็จพร้อมปุ่มลองใหม่สำคัญกว่า ห้ามเขียนทับ
+    if (loadError) return;
     // จำนวนรายการจึงอาจไม่ตรงกับการ์ด ต้องบอกผู้ใช้
-    setBanner('โหลดกระเป๋าไม่สำเร็จ รายการนี้ยังไม่ได้กรองตามกระเป๋า');
+    setBanner('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
     return;
   }
   if (els.filterWallet.hidden) return;

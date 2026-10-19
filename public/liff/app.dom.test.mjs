@@ -4538,6 +4538,22 @@ describe('LIFF wallets section', () => {
     expect(byId('wallet-status').textContent).toBe('');
   });
 
+  it('clears an old hide failure after a successful rename', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    stubFetch((method) => (method === 'PATCH' ? { status: 500 } : undefined));
+    rowOf('w-card').querySelector('.wallet-toggle').click();
+    await settle();
+    expect(byId('wallet-add-error').textContent).not.toBe('');
+    stubFetch((method) => (method === 'PATCH' ? { wallet: {} } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-rename').click();
+    byId('wallet-dialog-name').value = 'บัตรกรุงศรี';
+    submit('wallet-dialog-form');
+    await settle();
+
+    expect(byId('wallet-add-error').textContent).toBe('');
+  });
+
   it('separates the two sentences of the wallets hint', async () => {
     await boot();
 
@@ -4680,7 +4696,16 @@ describe('LIFF wallets on entries', () => {
     await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
     await settle();
     expect(byId('banner').hidden).toBe(false);
-    expect(byId('banner').textContent).toContain('โหลดกระเป๋าไม่สำเร็จ รายการนี้ยังไม่ได้กรองตามกระเป๋า');
+    expect(byId('banner').textContent).toContain('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
+  });
+
+  it('keeps the load error and its retry button when a linked wallet page fails to load at all', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': { status: 500 } };
+    await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
+    await settle();
+
+    expect(byId('banner').textContent).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('banner-retry').hidden).toBe(false);
   });
 
   it('retries loading the wallets when the editor opens', async () => {
