@@ -1,11 +1,11 @@
 import { ApiError } from './api.mjs';
 import { createLoadingIndicator } from './skeleton.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
-import { splitGoals, describeGoalError } from './goals-format.mjs';
+import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from './format.mjs';
+import { splitGoals, goalRow, contributionRows, describeGoalError } from './goals-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
-const ROW_ACTION_LABEL = 'แก้เป้า';
+const ROW_ACTION_LABEL = 'ออมเพิ่ม';
 
 // แท็บออม: โหลดตอนเข้าแท็บเท่านั้น และโหลดใหม่ทุกครั้งเพราะผู้ใช้อาจออมผ่านแชตระหว่างนั้น
 export function createGoalsPanel({ doc, els, getApi }) {
@@ -16,10 +16,14 @@ export function createGoalsPanel({ doc, els, getApi }) {
   let editorOpen = false;
   // เป้าที่กำลังแก้ ถ้าเป็น null แปลว่ากำลังสร้างเป้าใหม่
   let editing = null;
+  let detailOpen = false;
+  let detailBusy = false;
+  // จำ id แทนตัวเป้า เพราะหลังโหลดใหม่ต้องใช้ยอดล่าสุดของเป้าเดิม
+  let viewing = null;
   const loadingIndicator = createLoadingIndicator({ doc, textEl: els.loadingText, skeletonEl: els.skeleton, count: 3, variant: 'budget' });
 
   function onRowClick(row) {
-    openEditor(row);
+    openDetail(row);
   }
 
   function renderRow(row) {
@@ -187,6 +191,125 @@ export function createGoalsPanel({ doc, els, getApi }) {
     els.title.focus();
   }
 
+  function currentGoal() {
+    return goals.find((goal) => goal.id === viewing) ?? null;
+  }
+
+  function setDetailBusy(next) {
+    detailBusy = next;
+    for (const el of [els.detailAmount, els.detailDate, els.detailSave, els.detailClose, els.detailEdit]) el.disabled = next;
+    for (const button of els.history.querySelectorAll('button')) button.disabled = next;
+    els.detailBusy.hidden = !next;
+  }
+
+  function setDetailError(text) {
+    els.detailError.textContent = text;
+    els.detailError.hidden = !text;
+  }
+
+  function renderDetailHead() {
+    const goal = currentGoal();
+    if (!goal) return;
+    const row = goalRow(goal);
+    els.detailTitle.textContent = row.name;
+    els.detailProgress.textContent = row.text;
+    els.detailForm.hidden = row.closed;
+    els.detailClosedNote.hidden = !row.closed;
+  }
+
+  function renderHistoryRow(row) {
+    const item = doc.createElement('li');
+    item.className = 'friend-row';
+    const text = doc.createElement('span');
+    text.textContent = row.text;
+    const remove = doc.createElement('button');
+    remove.type = 'button';
+    remove.className = 'friend-remove';
+    remove.textContent = 'ลบ';
+    remove.setAttribute('aria-label', row.label);
+    remove.addEventListener('click', () => removeContribution(row.id));
+    item.append(text, remove);
+    return item;
+  }
+
+  function renderHistory(contributions) {
+    const rows = contributionRows(contributions);
+    els.history.replaceChildren(...rows.map(renderHistoryRow));
+    els.historyEmpty.hidden = rows.length > 0;
+    const goal = currentGoal();
+    els.historyLimit.hidden = !goal || goal.contributionCount <= rows.length;
+  }
+
+  async function loadHistory() {
+    const id = viewing;
+    els.historyLoading.hidden = false;
+    els.historyError.hidden = true;
+    try {
+      const result = await getApi().listGoalContributions(id);
+      if (viewing === id) renderHistory(result.contributions);
+    } catch (err) {
+      if (viewing !== id) return;
+      els.historyError.textContent = statusOf(err) === 401 ? LOGIN_REQUIRED_MESSAGE : 'โหลดประวัติการออมไม่สำเร็จ';
+      els.historyError.hidden = false;
+    } finally {
+      if (viewing === id) els.historyLoading.hidden = true;
+    }
+  }
+
+  function openDetail(goal) {
+    viewing = goal.id;
+    detailOpen = true;
+    els.detailAmount.value = '';
+    els.detailDate.value = currentDate(new Date());
+    els.detailStatus.textContent = '';
+    setDetailError('');
+    els.history.replaceChildren();
+    els.historyEmpty.hidden = true;
+    els.historyLimit.hidden = true;
+    renderDetailHead();
+    els.detail.showModal();
+    els.detailTitle.focus();
+    loadHistory();
+  }
+
+  function closeDetail() {
+    detailOpen = false;
+    viewing = null;
+    els.detail.close();
+  }
+
+  // หลังบันทึกโหลดทั้งรายการเป้าและประวัติใหม่ เพื่อให้ยอดมาจาก SQL เสมอ
+  async function runDetail(request, message) {
+    setDetailError('');
+    els.detailStatus.textContent = '';
+    setDetailBusy(true);
+    try {
+      await request();
+    } catch (err) {
+      setDetailError(describeGoalError(statusOf(err), errorOf(err)));
+      return false;
+    } finally {
+      setDetailBusy(false);
+    }
+    els.detailStatus.textContent = message;
+    await load();
+    renderDetailHead();
+    await loadHistory();
+    return true;
+  }
+
+  async function addContribution() {
+    const amount = Number(els.detailAmount.value);
+    const occurredOn = els.detailDate.value;
+    const saved = await runDetail(() => getApi().addGoalContribution(viewing, { amount, occurredOn }), `ออมเพิ่ม ${formatBaht(amount)} แล้ว`);
+    if (saved) els.detailAmount.value = '';
+  }
+
+  function removeContribution(id) {
+    if (detailBusy) return;
+    runDetail(() => getApi().deleteGoalContribution(viewing, id), 'ลบรายการออมแล้ว');
+  }
+
   els.add.addEventListener('click', () => openEditor(null));
   els.retry.addEventListener('click', () => {
     if (!loading) load();
@@ -211,6 +334,34 @@ export function createGoalsPanel({ doc, els, getApi }) {
     }
     editorOpen = false;
     editing = null;
+  });
+
+  els.detailForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (detailBusy || !detailOpen) return;
+    await addContribution();
+  });
+  els.detailClose.addEventListener('click', () => {
+    if (!detailBusy) closeDetail();
+  });
+  els.detailEdit.addEventListener('click', () => {
+    const goal = currentGoal();
+    if (detailBusy || !goal) return;
+    closeDetail();
+    openEditor(goal);
+  });
+  // กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นข้อผิดพลาดที่ตามมาจะไม่มีที่แสดง
+  els.detail.addEventListener('cancel', (event) => {
+    if (detailBusy) event.preventDefault();
+  });
+  els.detail.addEventListener('close', () => {
+    // browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
+    if (detailBusy) {
+      els.detail.showModal();
+      return;
+    }
+    detailOpen = false;
+    viewing = null;
   });
 
   return { refresh };

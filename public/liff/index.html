@@ -758,6 +758,36 @@
       </div>
     </form>
   </dialog>
+  <dialog id="goal-detail" aria-labelledby="goal-detail-title">
+    <h2 id="goal-detail-title" tabindex="-1"></h2>
+    <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+        aria-hidden="true" focusable="false">
+        <use href="#icon-close"></use>
+      </svg></button>
+    <p id="goal-detail-progress" class="confirm-detail"></p>
+    <button type="button" id="goal-detail-edit" class="goal-detail-edit">แก้เป้า</button>
+    <p id="goal-detail-closed-note" class="confirm-detail" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
+    <form id="goal-detail-form">
+      <label>ออมเพิ่ม (บาท)
+        <input id="goal-detail-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>วันที่
+        <input id="goal-detail-date" type="date" required>
+      </label>
+      <div class="actions">
+        <button type="submit" id="goal-detail-save" class="primary">ออมเพิ่ม</button>
+      </div>
+    </form>
+    <p id="goal-detail-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+    <p id="goal-detail-status" class="goals-status" role="status" aria-live="polite"></p>
+    <p id="goal-detail-error" class="error" role="alert" hidden></p>
+    <h3 class="goal-history-title">ประวัติการออม</h3>
+    <p id="goal-history-loading" class="confirm-detail" role="status" hidden>กำลังโหลดประวัติ...</p>
+    <p id="goal-history-error" class="error" role="alert" hidden></p>
+    <ul id="goal-history" class="friend-rows"></ul>
+    <p id="goal-history-empty" class="confirm-detail" hidden>ยังไม่มีรายการออม</p>
+    <p id="goal-history-limit" class="confirm-detail" hidden>แสดง 100 รายการล่าสุด</p>
+  </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>
 </body>
