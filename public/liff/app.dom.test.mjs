@@ -4323,6 +4323,26 @@ describe('LIFF goals tab', () => {
     expect(calls.map((entry) => entry.call)).not.toContain('GET /api/goals');
   });
 
+  // ลบแล้วกู้คืนไม่ได้ จึงถามยืนยันในแถวเดิมแบบเดียวกับการลบหมวด
+  it('asks to confirm in the row before deleting a contribution and can back out', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch();
+    const firstRow = () => byId('goal-history').querySelector('li');
+
+    firstRow().querySelector('.friend-remove').click();
+    await settle();
+
+    const buttons = [...firstRow().querySelectorAll('button')].map((button) => button.textContent);
+    expect(buttons).toEqual(['ยืนยันลบ', 'ไม่ลบ']);
+    expect(document.activeElement.textContent).toBe('ไม่ลบ');
+    firstRow().querySelector('[data-action="cancel-delete"]').click();
+    await settle();
+
+    expect(calls).toEqual([]);
+    expect([...firstRow().querySelectorAll('button')].map((button) => button.textContent)).toEqual(['ลบ']);
+  });
+
   it('deletes a contribution from the history and reloads', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);
@@ -4331,6 +4351,9 @@ describe('LIFF goals tab', () => {
     const remove = byId('goal-history').querySelector('.friend-remove');
     expect(remove.getAttribute('aria-label')).toBe('ลบรายการออม 1,000 บาท วันที่ 14 ต.ค. 2569');
     remove.click();
+    await settle();
+    expect(calls).toEqual([]);
+    byId('goal-history').querySelector('[data-action="confirm-delete"]').click();
     await settle();
 
     expect(calls.map((entry) => entry.call)).toEqual([

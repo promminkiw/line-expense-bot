@@ -229,9 +229,31 @@ export function createGoalsPanel({ doc, els, getApi }) {
     remove.className = 'friend-remove';
     remove.textContent = 'ลบ';
     remove.setAttribute('aria-label', row.label);
-    remove.addEventListener('click', () => removeContribution(row.id));
+    remove.addEventListener('click', () => askRemove(item, remove, row.id));
     item.append(text, remove);
     return item;
+  }
+
+  // ลบแล้วกู้คืนไม่ได้ จึงถามในแถวเดิม โฟกัส ไม่ลบ ก่อนกันกด Enter แล้วลบโดยไม่ตั้งใจ
+  function askRemove(item, remove, id) {
+    if (detailBusy) return;
+    const button = (label, action, onClick) => {
+      const element = doc.createElement('button');
+      element.type = 'button';
+      element.className = 'friend-remove';
+      element.textContent = label;
+      element.dataset.action = action;
+      element.addEventListener('click', onClick);
+      return element;
+    };
+    const confirm = button('ยืนยันลบ', 'confirm-delete', () => removeContribution(id));
+    const cancel = button('ไม่ลบ', 'cancel-delete', () => {
+      confirm.remove();
+      cancel.replaceWith(remove);
+      remove.focus();
+    });
+    remove.replaceWith(confirm, cancel);
+    cancel.focus();
   }
 
   function renderHistory(contributions) {
