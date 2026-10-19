@@ -4,24 +4,19 @@
 
 **Goal:** ผู้ใช้เปิดสวิตช์ "ส่งสรุปทุกวันอาทิตย์" ในแท็บโปรไฟล์ของหน้า LIFF แล้วทุกวันอาทิตย์ 19:00 บอท push การ์ดสรุปสัปดาห์นั้น (จันทร์-อาทิตย์) ให้ โดยไม่ส่งซ้ำและไม่ส่งสัปดาห์ที่ไม่มีรายการ
 
-**Architecture:** migration `021_notification_settings.sql` เพิ่มสวิตช์สองตัวในตาราง `users` (ของข้อนี้และของเตือนลืมจด) และตาราง `notification_log` สำหรับจองก่อน push; API `GET/PATCH /api/settings` อ่าน/เขียนสวิตช์ผ่านตารางคู่ชื่อใน `src/notifications/settings.js`; endpoint cron ใหม่ `POST /internal/notifications/weekly` ใช้ helper ตรวจ secret ที่แยกออกมาจาก `src/recurring/router.js` แล้วเรียก runner ที่ใช้ `buildSummary` + `buildSummaryFlex` เดิมโดยไม่เรียก Claude; หน้า LIFF มี module ใหม่ `public/liff/settings-panel.mjs` แสดงสวิตช์ในแท็บโปรไฟล์
+**Architecture:** migration `021_notification_settings.sql` เพิ่มสวิตช์สองตัวในตาราง `users` (ของข้อนี้และของเตือนลืมจด) และตาราง `notification_log` สำหรับจองก่อน push; API `GET/PATCH /api/settings` อ่าน/เขียนสวิตช์ผ่านตารางคู่ชื่อใน `src/notifications/settings.js`; endpoint cron ใหม่ `POST /internal/notifications/weekly` ใช้ helper ตรวจ secret ที่แยกออกมาจาก `src/recurring/router.js` แล้วเรียก runner ที่ใช้ `buildSummary` + `buildSummaryFlex` เดิมโดยไม่เรียก Claude; หน้า LIFF มี module ใหม่ `public/liff/settings-panel.mjs` แสดงสวิตช์ในแท็บโปรไฟล์; event `unfollow` ใน `src/bot.js` เรียก `repository.disableNotifications` ปิดสวิตช์ทั้งสองโดยไม่ตอบ
 
 **Tech Stack:** Node.js 24 + Express 5, @line/bot-sdk, Supabase Postgres, LIFF (vanilla JS ES modules), vitest + PGlite + jsdom
 
 ## คำถามถึงผู้ใช้ก่อนเริ่ม
 
-1. **ถ้างาน cron สรุปรายสัปดาห์ถูกเรียกในวันที่ไม่ใช่วันอาทิตย์ (เช่น กดทดสอบวันพุธ) ให้ทำอย่างไร**
-   - ก. ส่งสรุปตั้งแต่วันจันทร์ถึงวันนั้นตามปกติ (แผนนี้เขียนแบบนี้) ข้อเสีย: ทดสอบกลางสัปดาห์แล้วจะใช้สิทธิ์ส่งของสัปดาห์นั้นไป วันอาทิตย์คนที่ได้การ์ดแล้วจะไม่ได้อีก (period คือวันจันทร์ของสัปดาห์)
-   - ข. ส่งเฉพาะวันอาทิตย์ตามเวลาไทย วันอื่นตอบ 200 `{ eligible: 0, sent: 0, skipped: 0, failed: 0 }` โดยไม่อ่านอะไรเลย ข้อเสีย: LINE check ของ Task 9 ทำได้เฉพาะวันอาทิตย์ ถ้าเลือกข้อนี้ ใน Task 5 Step 3 ให้ใส่บรรทัดนี้ต่อจาก `const range = ...` และเพิ่มเทสต์ที่ใช้ `now` เป็น `new Date('2026-10-14T12:00:00Z')` (วันพุธ) แล้วคาดว่าได้ศูนย์ทั้งหมดและ `listWeeklySummaryUsers` ไม่ถูกเรียก:
-     ```js
-     // วันอื่นไม่ส่ง กันสัปดาห์ที่ยังไม่จบใช้สิทธิ์ส่งของสัปดาห์นั้นไปก่อน
-     if (new Date(`${range.to}T00:00:00Z`).getUTCDay() !== 0) return { eligible: 0, sent: 0, skipped: 0, failed: 0 };
-     ```
-   - **คำแนะนำ: ก.** ตรงกับแผนใหญ่ (ใช้ช่วง `week` ของ `getPeriodRange` ตรงๆ) ทดสอบได้ทันทีหลัง deploy และการจองต่อสัปดาห์กันส่งซ้ำอยู่แล้ว ความเสี่ยงเดียวคือตั้ง cron ผิดวัน ซึ่ง README และ Task 9 บอกเวลาไว้ชัด
+1. **ถ้างาน cron สรุปรายสัปดาห์ถูกเรียกในวันที่ไม่ใช่วันอาทิตย์ (เช่น กดทดสอบวันพุธ) ให้ทำอย่างไร** -- **ตอบแล้ว (ผู้ใช้ตัดสิน 2026-10-19): ก.** ส่งสรุปตั้งแต่วันจันทร์ถึงวันนั้นตามปกติ (ใช้ช่วง `week` ของ `getPeriodRange` ตรงๆ ไม่มีโค้ดเช็กวัน) ผลที่ยอมรับแล้ว: ทดสอบกลางสัปดาห์จะใช้สิทธิ์ส่งของสัปดาห์นั้นไป (period คือวันจันทร์ของสัปดาห์) วันอาทิตย์คนที่ได้การ์ดแล้วจะไม่ได้อีก README และ LINE check ของ Task 10 บอกเรื่องนี้ไว้
+
+ไม่มีคำถามค้าง
 
 ## Global Constraints
 
-- ตามแผนใหญ่ `docs/superpowers/plans/2026-10-18-roadmap-b.md` ข้อ 3 และเพิ่มรายละเอียดที่แผนใหญ่ไม่ได้ระบุ 5 จุดหลังอ่านโค้ดจริง: (1) `notification_log` มี check ของ `kind` (`weekly_summary`, `daily_reminder`) และรูปแบบ `period` (YYYY-MM-DD) เพราะทั้งสองงานใช้วันที่เป็น period (2) API settings ของแผนนี้รู้จักแค่ `weeklySummary` ส่วน `dailyReminder` เติมในแผน `2026-10-19-daily-reminder.md` ตามที่แผนใหญ่บอก ("ข้อ 6 เติม field") แม้คอลัมน์ทั้งสองจะสร้างใน 021 (3) helper ตรวจ secret อยู่ที่ `src/utils/cron-auth.js` และ router ใหม่ `src/notifications/router.js` mount ที่ `/internal` ผ่าน parameter ใหม่ `notificationsRouter` ของ `createApp` (4) ถ้า push พังหลังจองแล้ว ไม่ลบการจอง เพราะ LINE อาจส่งถึงแล้วแม้ client ได้ error (ดู Learned ใน STATE เรื่องสถานะ "ไม่ทราบผล") คนนั้นจึงไม่ได้การ์ดสัปดาห์นั้น และ cron ตอบ 500 ให้รู้ (5) หน้า LIFF โหลดสวิตช์เมื่อเข้าแท็บโปรไฟล์เท่านั้น (เหมือนส่วนเพื่อน) ไม่ให้หน้าแรกยิง request เพิ่ม
+- ตามแผนใหญ่ `docs/superpowers/plans/2026-10-18-roadmap-b.md` ข้อ 3 และเพิ่มรายละเอียดที่แผนใหญ่ไม่ได้ระบุ 6 จุดหลังอ่านโค้ดจริงและคำตอบของผู้ใช้ 2026-10-19: (1) `notification_log` มี check ของ `kind` (`weekly_summary`, `daily_reminder`) และรูปแบบ `period` (YYYY-MM-DD) เพราะทั้งสองงานใช้วันที่เป็น period (2) API settings ของแผนนี้รู้จักแค่ `weeklySummary` ส่วน `dailyReminder` เติมในแผน `2026-10-19-daily-reminder.md` ตามที่แผนใหญ่บอก ("ข้อ 6 เติม field") แม้คอลัมน์ทั้งสองจะสร้างใน 021 (3) helper ตรวจ secret อยู่ที่ `src/utils/cron-auth.js` และ router ใหม่ `src/notifications/router.js` mount ที่ `/internal` ผ่าน parameter ใหม่ `notificationsRouter` ของ `createApp` (4) ถ้า push พังหลังจองแล้ว ไม่ลบการจอง เพราะ LINE อาจส่งถึงแล้วแม้ client ได้ error (ดู Learned ใน STATE เรื่องสถานะ "ไม่ทราบผล") คนนั้นจึงไม่ได้การ์ดสัปดาห์นั้น push ที่พังนับใน `pushFailed` และ log ไว้ แต่ไม่ทำให้ cron ตอบ 500 (ผู้ใช้ตัดสิน 2026-10-19 แบบเดียวกับ `pushFailed` ของ `src/recurring/run.js`) cron ตอบ 500 เฉพาะเมื่อ `failed > 0` คืออ่าน DB หรือจองไม่สำเร็จ (5) หน้า LIFF โหลดสวิตช์เมื่อเข้าแท็บโปรไฟล์เท่านั้น (เหมือนส่วนเพื่อน) ไม่ให้หน้าแรกยิง request เพิ่ม (6) เมื่อได้ event `unfollow` (ผู้ใช้ block บอท) server ปิดทั้ง `weekly_summary_enabled` และ `daily_reminder_enabled` ของคนนั้นและไม่ตอบอะไร (ผู้ใช้ตัดสิน 2026-10-19) แผน daily-reminder ไม่ต้องแก้ส่วนนี้เพราะคอลัมน์ทั้งสองมีจาก 021
 - branch `feat/weekly-summary` แตกจาก main ล่าสุด, TDD (เขียน test ให้ fail ก่อน), commit ทีละ task, merge เข้า main ในเครื่องด้วย `--no-ff` เมื่อจบ
 - ห้าม `git push`, ห้ามรัน SQL ใน Supabase, ห้ามแก้ `.env`, ห้ามติดตั้งแพ็กเกจใหม่, ห้ามเปิด/ปิด server
 - migration ใหม่คือ `021_notification_settings.sql` (ไฟล์ล่าสุดตอนนี้คือ `020_query_totals.sql`; ไม่มีไฟล์ 016) รันซ้ำได้ (`add column if not exists`, `create table if not exists`) เพิ่มชื่อไฟล์ใน `MIGRATIONS` ของ `src/db/sql-functions.test.js` หัวไฟล์ `supabase/schema.sql` ขั้นตอนรัน SQL และประโยค "ไฟล์ล่าสุด" ใน README
@@ -33,7 +28,7 @@
 - ข้อความที่ผู้ใช้เห็นเป็นภาษาไทย; ไม่แก้ `HELP_REPLY` (เทสต์ใน `src/menu/fixed-replies.test.js` pin ข้อความทั้งก้อน)
 - ไฟล์ใหม่ใช้ CRLF เหมือนไฟล์เดิม (git autocrlf=true จัดการให้ตอน commit)
 - ก่อนจบ: `npm test`, `npm run lint`, `node --check index.js`, `node --check public/liff/app.mjs` ผ่านทั้งหมด
-- commit message ภาษาอังกฤษ ลงท้ายด้วยบรรทัดว่างและ `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (ใช้ `-m` ตัวที่สองตามตัวอย่างในแต่ละ task)
+- commit message ภาษาอังกฤษ ลงท้ายด้วยบรรทัดว่างแล้วสองบรรทัด `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` และ `Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC` (ใช้ `-m` ตัวที่สองที่มีสองบรรทัดนี้ติดกันตามตัวอย่างในแต่ละ task)
 - แผน `2026-10-19-daily-reminder.md` ใช้ชื่อและ signature ใน Interfaces ของแผนนี้ตรงตัว ถ้าเปลี่ยนชื่อระหว่างทำ ต้องแก้แผนนั้นด้วย
 
 ---
@@ -44,7 +39,8 @@
 |---|---|
 | `supabase/021_notification_settings.sql` (ใหม่) | คอลัมน์ `users.weekly_summary_enabled`, `users.daily_reminder_enabled` และตาราง `notification_log` |
 | `src/notifications/settings.js` (ใหม่) | ตารางคู่ชื่อ field ของ API กับคอลัมน์ใน `users` และตัวแปลงไปกลับ |
-| `src/db/repository.js` | `getNotificationSettings`, `updateNotificationSettings`, `listWeeklySummaryUsers`, `reserveNotification` |
+| `src/db/repository.js` | `getNotificationSettings`, `updateNotificationSettings`, `listWeeklySummaryUsers`, `reserveNotification`, `disableNotifications` |
+| `src/bot.js` | event `unfollow` ปิดสวิตช์แจ้งเตือนทั้งหมดโดยไม่ตอบ |
 | `src/api/validate.js` | `validateSettingsUpdate(body)` |
 | `src/api/router.js` | `GET /api/settings`, `PATCH /api/settings` |
 | `src/utils/cron-auth.js` (ใหม่) | `safeEqual`, `requireCronSecret`, `hasCronSecret` ใช้ร่วมกันทุก endpoint cron |
@@ -198,7 +194,8 @@ Expected: PASS ทั้งไฟล์ รวม `021_notification_settings.sql
 
 ```bash
 git add supabase/021_notification_settings.sql supabase/schema.sql src/db/sql-functions.test.js
-git commit -m "feat: add notification switches and a send log" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: add notification switches and a send log" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -433,7 +430,8 @@ Expected: PASS ทั้งสองไฟล์
 
 ```bash
 git add src/notifications/settings.js src/notifications/settings.test.js src/db/repository.js src/db/repository.test.js
-git commit -m "feat: let the repository read and save notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: let the repository read and save notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -599,7 +597,8 @@ Expected: PASS ทั้งสองไฟล์
 
 ```bash
 git add src/api/validate.js src/api/validate.test.js src/api/router.js src/api/router.test.js
-git commit -m "feat: add an API to read and save notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: add an API to read and save notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -724,7 +723,8 @@ Expected: PASS ทั้งสองไฟล์ (เทสต์ recurring เ�
 
 ```bash
 git add src/utils/cron-auth.js src/utils/cron-auth.test.js src/recurring/router.js
-git commit -m "refactor: share the cron secret check between cron routers" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "refactor: share the cron secret check between cron routers" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -740,8 +740,9 @@ git commit -m "refactor: share the cron secret check between cron routers" -m "C
 **Interfaces:**
 - Consumes: `repository.listWeeklySummaryUsers()`, `repository.reserveNotification({ userId, kind, period })` (Task 2), `repository.summarizeTransactions(userId, from, to)` เดิม (คืน `[{ type, category, total, entryCount }]`), `getPeriodRange('week', now)` จาก `src/summary/period.js`, `buildSummary(rows, label)` จาก `src/summary/summary.js`, `buildSummaryFlex(summary, comment)` จาก `src/summary/flex.js`, `pushFlex(to, flexMessage)` จาก `createPushFlex` ใน `src/line-reply.js`
 - Produces:
-  - `createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(), logger = console }) => run(): Promise<{ eligible: number, sent: number, skipped: number, failed: number }>`
+  - `createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(), logger = console }) => run(): Promise<{ eligible: number, sent: number, skipped: number, failed: number, pushFailed: number }>` โดย `failed` = อ่านยอดหรือจองไม่สำเร็จ (ไม่ push คนนั้น), `pushFailed` = จองแล้วแต่ push พัง (เก็บการจองไว้ ไม่ลองซ้ำ) แบ่งแบบเดียวกับ `src/recurring/run.js`
   - `WEEKLY_SUMMARY_KIND = 'weekly_summary'`
+  - log: `Failed to prepare weekly summary` และ `Failed to push weekly summary` พร้อม `{ userId, reason }`
 
 - [ ] **Step 1: เขียนเทสต์ที่ fail**
 
@@ -787,14 +788,14 @@ describe('createWeeklySummaryRunner', () => {
     // คอมเมนต์เป็นข้อความเดียวในการ์ดที่ wrap
     expect(JSON.stringify(flex)).not.toContain('"wrap":true');
     expect(repository.reserveNotification.mock.invocationCallOrder[0]).toBeLessThan(pushFlex.mock.invocationCallOrder[0]);
-    expect(result).toEqual({ eligible: 1, sent: 1, skipped: 0, failed: 0 });
+    expect(result).toEqual({ eligible: 1, sent: 1, skipped: 0, failed: 0, pushFailed: 0 });
   });
 
   it('skips a week without entries without reserving or pushing', async () => {
     const { repository, pushFlex, run } = setup();
     repository.summarizeTransactions.mockResolvedValue([]);
 
-    expect(await run()).toEqual({ eligible: 1, sent: 0, skipped: 1, failed: 0 });
+    expect(await run()).toEqual({ eligible: 1, sent: 0, skipped: 1, failed: 0, pushFailed: 0 });
     expect(repository.reserveNotification).not.toHaveBeenCalled();
     expect(pushFlex).not.toHaveBeenCalled();
   });
@@ -803,35 +804,55 @@ describe('createWeeklySummaryRunner', () => {
     const { repository, pushFlex, run } = setup();
     repository.reserveNotification.mockResolvedValue(false);
 
-    expect(await run()).toEqual({ eligible: 1, sent: 0, skipped: 1, failed: 0 });
+    expect(await run()).toEqual({ eligible: 1, sent: 0, skipped: 1, failed: 0, pushFailed: 0 });
     expect(pushFlex).not.toHaveBeenCalled();
   });
 
-  it('keeps going after one user fails and logs only the reason', async () => {
+  it('keeps going after reading one user fails and logs only the reason', async () => {
     const { repository, pushFlex, logger, run } = setup([
       { userId: 'user-1', lineUserId: 'U1' },
       { userId: 'user-2', lineUserId: 'U2' },
     ]);
     repository.summarizeTransactions.mockRejectedValueOnce(new Error('db down'));
 
-    expect(await run()).toEqual({ eligible: 2, sent: 1, skipped: 0, failed: 1 });
+    expect(await run()).toEqual({ eligible: 2, sent: 1, skipped: 0, failed: 1, pushFailed: 0 });
     expect(pushFlex).toHaveBeenCalledTimes(1);
     expect(pushFlex.mock.calls[0][0]).toBe('U2');
-    expect(logger.error).toHaveBeenCalledWith('Failed to send weekly summary', { userId: 'user-1', reason: 'db down' });
+    expect(logger.error).toHaveBeenCalledWith('Failed to prepare weekly summary', { userId: 'user-1', reason: 'db down' });
   });
 
-  // จองไว้แล้วไม่ลบ เพราะ LINE อาจส่งถึงแล้วแม้ client ได้ error
-  it('counts a failed push as failed and keeps the reservation', async () => {
-    const { pushFlex, run } = setup();
-    pushFlex.mockRejectedValue(new Error('LINE 500'));
+  it('counts a reservation error as failed and does not push to that user', async () => {
+    const { repository, pushFlex, logger, run } = setup([
+      { userId: 'user-1', lineUserId: 'U1' },
+      { userId: 'user-2', lineUserId: 'U2' },
+    ]);
+    repository.reserveNotification.mockRejectedValueOnce(new Error('db down'));
 
-    expect(await run()).toEqual({ eligible: 1, sent: 0, skipped: 0, failed: 1 });
+    expect(await run()).toEqual({ eligible: 2, sent: 1, skipped: 0, failed: 1, pushFailed: 0 });
+    expect(pushFlex).toHaveBeenCalledTimes(1);
+    expect(pushFlex.mock.calls[0][0]).toBe('U2');
+    expect(logger.error).toHaveBeenCalledWith('Failed to prepare weekly summary', { userId: 'user-1', reason: 'db down' });
+  });
+
+  // จองไว้แล้วไม่ลบและไม่ลองซ้ำ เพราะ LINE อาจส่งถึงแล้วแม้ client ได้ error
+  it('counts a failed push as pushFailed, keeps the reservation and still sends to the next user', async () => {
+    const { repository, pushFlex, logger, run } = setup([
+      { userId: 'user-1', lineUserId: 'U1' },
+      { userId: 'user-2', lineUserId: 'U2' },
+    ]);
+    pushFlex.mockRejectedValueOnce(new Error('LINE 500'));
+
+    expect(await run()).toEqual({ eligible: 2, sent: 1, skipped: 0, failed: 0, pushFailed: 1 });
+    expect(repository.reserveNotification).toHaveBeenCalledTimes(2);
+    expect(pushFlex).toHaveBeenCalledTimes(2);
+    expect(pushFlex.mock.calls[1][0]).toBe('U2');
+    expect(logger.error).toHaveBeenCalledWith('Failed to push weekly summary', { userId: 'user-1', reason: 'LINE 500' });
   });
 
   it('returns zero counts when nobody turned the summary on', async () => {
     const { repository, run } = setup([]);
 
-    expect(await run()).toEqual({ eligible: 0, sent: 0, skipped: 0, failed: 0 });
+    expect(await run()).toEqual({ eligible: 0, sent: 0, skipped: 0, failed: 0, pushFailed: 0 });
     expect(repository.summarizeTransactions).not.toHaveBeenCalled();
   });
 });
@@ -857,12 +878,13 @@ function createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(
   return async function run() {
     const range = getPeriodRange('week', now());
     const users = await repository.listWeeklySummaryUsers();
-    const result = { eligible: users.length, sent: 0, skipped: 0, failed: 0 };
-    // ส่งทีละคน push พังของคนหนึ่งไม่หยุดคนอื่น
+    const result = { eligible: users.length, sent: 0, skipped: 0, failed: 0, pushFailed: 0 };
+    // ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น
     for (const user of users) {
+      let summary;
       try {
         const rows = await repository.summarizeTransactions(user.userId, range.from, range.to);
-        const summary = buildSummary(rows, range.label);
+        summary = buildSummary(rows, range.label);
         // สัปดาห์ที่ไม่มีรายการไม่ส่ง เพื่อไม่เสียโควตา push
         if (summary.entryCount === 0) {
           result.skipped += 1;
@@ -878,13 +900,20 @@ function createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(
           result.skipped += 1;
           continue;
         }
+      } catch (err) {
+        // ไม่ log err ทั้งก้อนเพราะ cause อาจมียอดเงิน
+        logger.error('Failed to prepare weekly summary', { userId: user.userId, reason: err?.message ?? String(err) });
+        result.failed += 1;
+        continue;
+      }
+      try {
         // ไม่เรียก Claude เขียนคอมเมนต์ ให้ทัน timeout 30 วินาทีของ cron-job.org และไม่เสียค่า Claude
         await pushFlex(user.lineUserId, buildSummaryFlex(summary, ''));
         result.sent += 1;
       } catch (err) {
-        // ไม่ลบการจองเพราะ LINE อาจส่งถึงแล้ว และไม่ log err ทั้งก้อนเพราะ cause อาจมียอดเงิน
-        logger.error('Failed to send weekly summary', { userId: user.userId, reason: err?.message ?? String(err) });
-        result.failed += 1;
+        // ไม่ลบการจองและไม่ลองซ้ำเพราะ LINE อาจส่งถึงแล้ว นับแยกจาก failed เพื่อไม่ให้ cron ตอบ 500 เหมือนรายการประจำ
+        logger.error('Failed to push weekly summary', { userId: user.userId, reason: err?.message ?? String(err) });
+        result.pushFailed += 1;
       }
     }
     return result;
@@ -897,13 +926,14 @@ module.exports = { createWeeklySummaryRunner, WEEKLY_SUMMARY_KIND };
 - [ ] **Step 4: รันเทสต์ให้ผ่าน**
 
 Run: `npx vitest run src/notifications/weekly.test.js`
-Expected: PASS ทั้งไฟล์ 6 เทสต์
+Expected: PASS ทั้งไฟล์ 7 เทสต์
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/notifications/weekly.js src/notifications/weekly.test.js
-git commit -m "feat: send the weekly summary card to users who opted in" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: send the weekly summary card to users who opted in" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -917,12 +947,12 @@ git commit -m "feat: send the weekly summary card to users who opted in" -m "Co-
 - Test: `src/notifications/router.test.js`
 - Modify: `src/app.js` (parameter ของ `createApp` บรรทัด 7 และ mount ต่อจาก `recurringRouter` ราวบรรทัด 26-28)
 - Test: `src/app.test.js` (`start` บรรทัด 16-17 และ describe ใหม่ท้ายไฟล์)
-- Modify: `index.js` (require ราวบรรทัด 23-24, สร้าง router ต่อจาก `recurringRouter` ราวบรรทัด 125-128, `createApp` ราวบรรทัด 129-135)
+- Modify: `index.js` (require ราวบรรทัด 23-24, สร้าง router ต่อจาก `recurringRouter` ราวบรรทัด 118-121, `createApp` ราวบรรทัด 122-128)
 
 **Interfaces:**
 - Consumes: `requireCronSecret`, `hasCronSecret` (Task 4), `createWeeklySummaryRunner` (Task 5), `createPushFlex(lineClient)` เดิม
 - Produces:
-  - `createNotificationsRouter({ cronSecret: string, runWeeklySummary: () => Promise<{ failed: number, ... }>, logger = console }) => express.Router` มี `POST /notifications/weekly` (401 `{ error: 'Unauthorized' }` เมื่อ secret ผิด, 200 หรือ 500 พร้อมผลของ runner ตาม `failed > 0`, 500 `{ error: 'Internal error' }` เมื่อ runner throw)
+  - `createNotificationsRouter({ cronSecret: string, runWeeklySummary: () => Promise<{ eligible, sent, skipped, failed, pushFailed }>, logger = console }) => express.Router` มี `POST /notifications/weekly` (401 `{ error: 'Unauthorized' }` เมื่อ secret ผิด, ผลของ runner ด้วย 500 เมื่อ `failed > 0` ไม่งั้น 200 แม้ `pushFailed > 0`, 500 `{ error: 'Internal error' }` เมื่อ runner throw)
   - ภายใน router มี `mountJob(path, run, failureLog)` สำหรับเพิ่มงานถัดไป (แผน daily-reminder เรียก `mountJob('/notifications/daily-reminder', runDailyReminder, 'Daily reminder run failed')`)
   - `createApp({ ..., notificationsRouter })` mount ที่ `/internal`
 
@@ -935,7 +965,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import express from 'express';
 import { createNotificationsRouter } from './router.js';
 
-const COUNTS = { eligible: 2, sent: 1, skipped: 1, failed: 0 };
+const COUNTS = { eligible: 2, sent: 1, skipped: 1, failed: 0, pushFailed: 0 };
 
 let server;
 
@@ -991,13 +1021,24 @@ describe('POST /internal/notifications/weekly', () => {
     expect(options.runWeeklySummary).toHaveBeenCalledTimes(1);
   });
 
-  it('returns 500 with the counts when any push failed', async () => {
-    const counts = { eligible: 2, sent: 1, skipped: 0, failed: 1 };
+  it('returns 500 with the counts when reading or reserving failed for a user', async () => {
+    const counts = { eligible: 2, sent: 1, skipped: 0, failed: 1, pushFailed: 0 };
     const base = await start(deps({ runWeeklySummary: vi.fn().mockResolvedValue(counts) }));
 
     const res = await post(base, '/notifications/weekly', 's3cret');
 
     expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(counts);
+  });
+
+  // push พังนับใน pushFailed แต่ไม่ทำให้ cron ล้มเหลว เหมือนรายการประจำ
+  it('returns 200 with the counts when only pushes failed', async () => {
+    const counts = { eligible: 2, sent: 1, skipped: 0, failed: 0, pushFailed: 1 };
+    const base = await start(deps({ runWeeklySummary: vi.fn().mockResolvedValue(counts) }));
+
+    const res = await post(base, '/notifications/weekly', 's3cret');
+
+    expect(res.status).toBe(200);
     expect(await res.json()).toEqual(counts);
   });
 
@@ -1086,7 +1127,7 @@ function createNotificationsRouter({ cronSecret, runWeeklySummary, logger = cons
       }
       try {
         const result = await run();
-        // ให้ cron-job.org แจ้งเตือนเมื่อส่งไม่สำเร็จอย่างน้อยหนึ่งคน
+        // ให้ cron-job.org แจ้งเตือนเมื่ออ่านหรือจองของใครไม่สำเร็จ ส่วน pushFailed ไม่นับเหมือนรายการประจำ
         res.status(result.failed > 0 ? 500 : 200).json(result);
       } catch (err) {
         // ไม่ log err ทั้งก้อนเพราะ cause อาจมีข้อมูลของผู้ใช้
@@ -1148,7 +1189,8 @@ Expected: ไม่มี output (syntax ถูกต้อง)
 
 ```bash
 git add src/notifications/router.js src/notifications/router.test.js src/app.js src/app.test.js index.js
-git commit -m "feat: add the weekly summary cron endpoint" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: add the weekly summary cron endpoint" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -1169,6 +1211,7 @@ git commit -m "feat: add the weekly summary cron endpoint" -m "Co-Authored-By: C
   - `api.getSettings() => Promise<{ weeklySummary: boolean }>`, `api.updateSettings(body: { weeklySummary?: boolean }) => Promise<{ weeklySummary: boolean }>`
   - `createSettingsPanel({ els: { section, loadingText, error, errorText, retry, body, status, switches: { [field: string]: HTMLInputElement } }, getApi: () => api | null }) => { ensureLoaded(): Promise<void> }` โดย key ของ `switches` คือชื่อ field ของ API (แผน daily-reminder เพิ่ม `dailyReminder` ใน `switches` โดยไม่ต้องแก้ไฟล์นี้)
   - ข้อความ: โหลดพัง `โหลดการตั้งค่าไม่สำเร็จ`, บันทึกสำเร็จ `บันทึกแล้ว`, บันทึกพัง `บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง`, 401 ใช้ `LOGIN_REQUIRED_MESSAGE`
+  - บันทึกสำเร็จแล้วตั้งเฉพาะสวิตช์ที่บันทึก (`els.switches[field].checked = saved[field] === true`) ไม่ render สวิตช์อื่นจากผล PATCH
 
 - [ ] **Step 1: เขียนเทสต์ที่ fail**
 
@@ -1201,14 +1244,19 @@ import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 const byId = (id) => document.getElementById(id);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function setup(api) {
+// second: เพิ่มสวิตช์ตัวที่สอง (key dailyReminder) เพื่อพิสูจน์ว่าบันทึกตัวหนึ่งไม่ไปทับอีกตัว
+function setup(api, { second = false } = {}) {
   document.body.innerHTML = `
     <section id="notify" hidden>
       <p id="notify-loading" hidden></p>
       <div id="notify-error" hidden><p id="notify-error-text"></p><button type="button" id="notify-retry"></button></div>
-      <div id="notify-body" hidden><input id="notify-weekly-summary" type="checkbox"></div>
+      <div id="notify-body" hidden><input id="notify-weekly-summary" type="checkbox">${
+        second ? '<input id="notify-second" type="checkbox">' : ''
+      }</div>
       <p id="notify-status"></p>
     </section>`;
+  const switches = { weeklySummary: byId('notify-weekly-summary') };
+  if (second) switches.dailyReminder = byId('notify-second');
   return createSettingsPanel({
     els: {
       section: byId('notify'),
@@ -1218,7 +1266,7 @@ function setup(api) {
       retry: byId('notify-retry'),
       body: byId('notify-body'),
       status: byId('notify-status'),
-      switches: { weeklySummary: byId('notify-weekly-summary') },
+      switches,
     },
     getApi: () => api,
   });
@@ -1308,6 +1356,28 @@ describe('createSettingsPanel', () => {
     expect(box.disabled).toBe(false);
     expect(box.checked).toBe(true);
     expect(byId('notify-status').textContent).toBe('บันทึกแล้ว');
+  });
+
+  // ผลของการบันทึกสวิตช์หนึ่งมาถึงตอนอีกสวิตช์กำลังบันทึกอยู่ ต้องไม่ทับค่าที่ผู้ใช้เพิ่งกด
+  it('updates only the saved switch from the answer', async () => {
+    const finish = {};
+    const api = {
+      getSettings: vi.fn().mockResolvedValue({ weeklySummary: false, dailyReminder: false }),
+      updateSettings: vi.fn((body) => new Promise((resolve) => (finish[Object.keys(body)[0]] = resolve))),
+    };
+    const panel = setup(api, { second: true });
+    await panel.ensureLoaded();
+    const weekly = byId('notify-weekly-summary');
+    const daily = byId('notify-second');
+
+    toggle(weekly, true);
+    toggle(daily, true);
+    finish.weeklySummary({ weeklySummary: true, dailyReminder: false });
+    await flush();
+
+    expect(weekly.checked).toBe(true);
+    expect(daily.checked).toBe(true);
+    expect(daily.disabled).toBe(true);
   });
 
   it('puts the switch back when saving fails', async () => {
@@ -1421,7 +1491,9 @@ export function createSettingsPanel({ els, getApi }) {
     input.disabled = true;
     els.status.textContent = '';
     try {
-      render(await getApi().updateSettings({ [field]: wanted }));
+      const saved = await getApi().updateSettings({ [field]: wanted });
+      // ตั้งเฉพาะสวิตช์ที่บันทึก สวิตช์อื่นอาจกำลังบันทึกอยู่และผลนี้ยังไม่รู้ค่าที่ผู้ใช้เพิ่งกด
+      input.checked = saved[field] === true;
       els.status.textContent = SAVED_MESSAGE;
     } catch (err) {
       // ถือว่า server ยังไม่เปลี่ยน ถ้าที่จริงเปลี่ยนแล้ว เปิดหน้าใหม่จะเห็นค่าจริง
@@ -1452,7 +1524,8 @@ Expected: PASS ทั้งสองไฟล์
 
 ```bash
 git add public/liff/api.mjs public/liff/api.test.mjs public/liff/settings-panel.mjs public/liff/settings-panel.test.mjs
-git commit -m "feat: add a LIFF panel that loads and saves notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: add a LIFF panel that loads and saves notification switches" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
@@ -1465,8 +1538,8 @@ git commit -m "feat: add a LIFF panel that loads and saves notification switches
 - Modify: `public/liff/index.html` (section ใหม่ระหว่าง `</section>` ของ `profile-card` กับ `<section id="friends"` ราวบรรทัด 437-439)
 - Modify: `public/liff/style.css` (กฎใหม่ต่อจาก `.profile-stale` ราวบรรทัด 272)
 - Test: `public/liff/style.test.mjs` (describe ใหม่ท้ายไฟล์)
-- Modify: `public/liff/app.mjs` (import ราวบรรทัด 34, สร้าง panel ก่อน `const categoriesPanel` ราวบรรทัด 238, `onChange` ของแท็บโปรไฟล์ ราวบรรทัด 1490-1494, `boot` ราวบรรทัด 1616)
-- Test: `public/liff/app.dom.test.mjs` (`RESPONSES` ราวบรรทัด 89, static invariant ใหม่ใน `describe('index.html static invariants', ...)`, describe ใหม่ต่อจาก `describe('LIFF profile picture', ...)` ราวบรรทัด 1940)
+- Modify: `public/liff/app.mjs` (import ราวบรรทัด 34, สร้าง panel ก่อน `const categoriesPanel` ราวบรรทัด 238, `onChange` ของแท็บโปรไฟล์ ราวบรรทัด 1490-1494, `boot` ราวบรรทัด 1636-1637 หลัง `if (listFilter) applyLinkedCategory(listFilter);`)
+- Test: `public/liff/app.dom.test.mjs` (`RESPONSES` ราวบรรทัด 89, static invariant ใหม่ใน `describe('index.html static invariants', ...)`, describe ใหม่ต่อจาก `describe('LIFF profile picture', ...)` ราวบรรทัด 2036)
 
 **Interfaces:**
 - Consumes: `createSettingsPanel` (Task 7), `GET/PATCH /api/settings` (Task 3)
@@ -1738,42 +1811,247 @@ Expected: ไม่มี output
 
 ```bash
 git add public/liff/index.html public/liff/style.css public/liff/style.test.mjs public/liff/app.mjs public/liff/app.dom.test.mjs
-git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
 
 ---
 
-### Task 9: เอกสาร งาน cron และ STATE
+### Task 9: ปิดสวิตช์แจ้งเตือนเมื่อผู้ใช้ unfollow
 
-**Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8
+**Depends on:** Task 2 (แก้ `src/db/repository.js` และ `src/db/repository.test.js` ไฟล์เดียวกัน)
+
+**Files:**
+- Modify: `src/db/repository.js` (function ใหม่ต่อจาก `updateNotificationSettings` ที่ Task 2 เพิ่ม; ชื่อใน object ที่ return ต่อจาก `updateNotificationSettings,`)
+- Test: `src/db/repository.test.js` (describe ใหม่ต่อจาก `describe('repository notification settings', ...)` ที่ Task 2 เพิ่ม)
+- Modify: `src/bot.js` (function ใหม่ต่อจาก `isTextMessage` ราวบรรทัด 67-69, `buildReply` ราวบรรทัด 497-501, `buildReplyBeforeDeadline` ราวบรรทัด 539, `handleEvent` ราวบรรทัด 553)
+- Test: `src/bot.test.js` (helper ต่อจาก `followEvent` ราวบรรทัด 75-77, mock ใน `setup` ราวบรรทัด 98-123, describe ใหม่ต่อจาก `describe('bot follow event', ...)` ราวบรรทัด 601-624, เทสต์ใหม่ใน `describe('bot reply deadline', ...)` ต่อจาก `sends nothing for a follow event that passes the deadline` ราวบรรทัด 1755-1766)
+
+**Interfaces:**
+- Consumes: คอลัมน์ `users.weekly_summary_enabled`, `users.daily_reminder_enabled`, `users.line_user_id` (Task 1)
+- Produces:
+  - `repository.disableNotifications(lineUserId: string) => Promise<void>` ตั้งทั้งสองคอลัมน์เป็น false ของแถวที่ `line_user_id` ตรง (ไม่มีแถวก็ไม่ error และไม่สร้าง user ใหม่) throw `DatabaseError` เมื่อ Supabase error; ระบุสองคอลัมน์ตรงๆ แผน daily-reminder จึงไม่ต้องแก้
+  - `createBot` รับ event `unfollow` (LINE ไม่ส่ง `replyToken` มากับ event นี้): เรียก `repository.disableNotifications(event.source.userId)` และไม่เรียก `replyText` / `replyFlex` ทั้งตอนสำเร็จ ตอน error และตอนเกิน deadline
+
+- [ ] **Step 1: เขียนเทสต์ที่ fail ใน repository.test.js**
+
+ใน `src/db/repository.test.js` ต่อจาก describe `repository notification settings`:
+
+```js
+describe('repository.disableNotifications', () => {
+  it('turns off both notification switches of that LINE user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await expect(createRepository(supabase).disableNotifications('U1')).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['update', { weekly_summary_enabled: false, daily_reminder_enabled: false }],
+      ['eq', 'line_user_id', 'U1'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).disableNotifications('U1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database disableNotifications failed: boom');
+  });
+});
+```
+
+- [ ] **Step 2: เขียนเทสต์ที่ fail ใน bot.test.js**
+
+ใน `src/bot.test.js` ต่อจาก function `followEvent` เพิ่ม:
+
+```js
+// LINE ไม่ส่ง replyToken มากับ unfollow
+function unfollowEvent() {
+  return { type: 'unfollow', webhookEventId: 'ev4', source: { type: 'user', userId: 'U1' } };
+}
+```
+
+ใน `setup` object `repository:` เพิ่มต่อจาก `claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),`:
+
+```js
+      disableNotifications: vi.fn().mockResolvedValue(),
+```
+
+ต่อจาก `describe('bot follow event', ...)` เพิ่ม:
+
+```js
+describe('bot unfollow event', () => {
+  it('turns off the notifications of that LINE user without replying or creating a user', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(unfollowEvent());
+
+    expect(deps.repository.disableNotifications).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+
+  it('logs but does not reply when turning off fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.disableNotifications.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(unfollowEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'unfollow' },
+      expect.any(Error)
+    );
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+});
+```
+
+ใน `describe('bot reply deadline', ...)` ต่อจากเทสต์ `sends nothing for a follow event that passes the deadline` เพิ่ม:
+
+```js
+  it('sends nothing for an unfollow event that passes the deadline', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ replyDeadlineMs: 1000 });
+    deps.repository.disableNotifications.mockImplementation(() => new Promise(() => {}));
+
+    const handled = bot.handleEvent(unfollowEvent());
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.logger.error).toHaveBeenCalledWith('Event passed the reply deadline', { lineUserId: 'U1', eventType: 'unfollow' });
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+```
+
+- [ ] **Step 3: รันเทสต์ให้เห็นว่า fail**
+
+Run: `npx vitest run src/db/repository.test.js src/bot.test.js`
+Expected: FAIL `createRepository(...).disableNotifications is not a function` (สองเทสต์ใน repository.test), `turns off the notifications ...` (`disableNotifications` ไม่ถูกเรียก), `logs but does not reply when turning off fails` (ไม่มี log) และ `sends nothing for an unfollow event ...` (ไม่มี log `Event passed the reply deadline`) ส่วนเทสต์เดิมยังผ่าน
+
+- [ ] **Step 4: เขียนโค้ด**
+
+ใน `src/db/repository.js` ต่อจาก function `updateNotificationSettings` เพิ่ม:
+
+```js
+  // ผู้ใช้ block บอทแล้ว push ไม่ถึง จึงปิดทุกสวิตช์ ถ้ากลับมาเพิ่มเพื่อนต้องเปิดเองในแท็บโปรไฟล์
+  async function disableNotifications(lineUserId) {
+    const { error } = await supabase
+      .from('users')
+      .update({ weekly_summary_enabled: false, daily_reminder_enabled: false })
+      .eq('line_user_id', lineUserId);
+    throwIfError('disableNotifications', error);
+  }
+```
+
+ใน object ที่ return ท้ายไฟล์ เพิ่ม `disableNotifications,` ต่อจาก `updateNotificationSettings,`
+
+ใน `src/bot.js` ต่อจาก function `isTextMessage` (ระดับบนสุดของไฟล์ นอก `createBot`) เพิ่ม:
+
+```js
+// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบมีปัญหาหรือตอบช้า
+function isSilentEvent(event) {
+  return event.type === 'follow' || event.type === 'unfollow';
+}
+```
+
+ใน `buildReply` เปลี่ยน:
+
+```js
+    if (event.type === 'follow') {
+      await users.ensureUser(lineUserId);
+      return null;
+    }
+```
+
+เป็น:
+
+```js
+    if (event.type === 'follow') {
+      await users.ensureUser(lineUserId);
+      return null;
+    }
+    if (event.type === 'unfollow') {
+      await repository.disableNotifications(lineUserId);
+      return null;
+    }
+```
+
+ใน `buildReplyBeforeDeadline` เปลี่ยน:
+
+```js
+    return event.type === 'follow' ? null : { text: SLOW_PROCESSING_REPLY };
+```
+
+เป็น:
+
+```js
+    return isSilentEvent(event) ? null : { text: SLOW_PROCESSING_REPLY };
+```
+
+ใน `handleEvent` เปลี่ยน:
+
+```js
+      reply = event.type === 'follow' ? null : { text: SYSTEM_ERROR_REPLY };
+```
+
+เป็น:
+
+```js
+      reply = isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
+```
+
+- [ ] **Step 5: รันเทสต์ให้ผ่าน**
+
+Run: `npx vitest run src/db/repository.test.js src/bot.test.js`
+Expected: PASS ทั้งสองไฟล์ (รวมเทสต์ follow เดิมทั้งหมด)
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/db/repository.js src/db/repository.test.js src/bot.js src/bot.test.js
+git commit -m "feat: turn off notifications when a user unfollows the bot" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
+```
+
+---
+
+### Task 10: เอกสาร งาน cron และ STATE
+
+**Depends on:** Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8, Task 9
 
 **Files:**
 - Modify: `README.md` (ความสามารถ ราวบรรทัด 13 และ 19, mermaid ราวบรรทัด 39-41, ตารางเส้นทาง ราวบรรทัด 50, ขั้นตอนรัน SQL ราวบรรทัด 95, ประโยค deploy ราวบรรทัด 104, งาน cron-job.org ราวบรรทัด 107-109, ความปลอดภัย ราวบรรทัด 127, ข้อจำกัด ราวบรรทัด 137)
 - Modify: `SPEC.md` (ฟังก์ชันข้อ 3 ราวบรรทัด 31, ข้อใหม่ 11 ต่อจากข้อ 10 ราวบรรทัด 51, Database ราวบรรทัด 57 และ 73, Deploy ราวบรรทัด 101-103, ลำดับการทำข้อ 15 ต่อจากข้อ 14 ราวบรรทัด 135)
-- Modify: `docs/superpowers/plans/2026-10-18-roadmap-b.md` (บรรทัดสถานะ และตารางลำดับแถว 2-4)
+- Modify: `docs/superpowers/plans/2026-10-18-roadmap-b.md` (บรรทัดสถานะ บรรทัด 7 และตารางลำดับแถว 2-4 บรรทัด 33-35)
 - Modify: `work-memory/STATE.md`
 
 **Interfaces:**
-- Consumes: พฤติกรรมจาก Task 1-8
+- Consumes: พฤติกรรมจาก Task 1-9
 
 **LINE check (งาน cron):** *(ทำหลัง Browser check ของ Task 8 และหลังผู้ใช้เพิ่มงานใน cron-job.org ตาม Step 1)*
 - Preconditions: รัน `021_notification_settings.sql` แล้ว, deploy แล้ว, สวิตช์ "ส่งสรุปทุกวันอาทิตย์" ของบัญชีผู้ใช้เปิดอยู่, สัปดาห์นี้ (ตั้งแต่วันจันทร์) มีรายการอย่างน้อย 1 รายการ, มีค่า `CRON_SECRET` จากหน้า Environment ของ Render
 
 | # | Action | Expected |
 |---|---|---|
-| 1 | ใน cron-job.org เปิดงาน `POST .../internal/notifications/weekly` แล้วกดรันทดสอบ (หรือใน Git Bash รัน `curl -i -X POST -H "Authorization: Bearer <CRON_SECRET>" https://<URL ของ Render>/internal/notifications/weekly`) | ได้ HTTP 200 body เช่น `{"eligible":1,"sent":1,"skipped":0,"failed":0}` และในแชต LINE ได้การ์ดหัวข้อ `สรุปสัปดาห์นี้ (<วันจันทร์> - <วันนี้>)` มีรายรับ รายจ่าย คงเหลือ ไม่มีย่อหน้าคอมเมนต์ท้ายการ์ด |
+| 1 | ใน cron-job.org เปิดงาน `POST .../internal/notifications/weekly` แล้วกดรันทดสอบ (หรือใน Git Bash รัน `curl -i -X POST -H "Authorization: Bearer <CRON_SECRET>" https://<URL ของ Render>/internal/notifications/weekly`) | ได้ HTTP 200 body เช่น `{"eligible":1,"sent":1,"skipped":0,"failed":0,"pushFailed":0}` และในแชต LINE ได้การ์ดหัวข้อ `สรุปสัปดาห์นี้ (<วันจันทร์> - <วันนี้>)` มีรายรับ รายจ่าย คงเหลือ ไม่มีย่อหน้าคอมเมนต์ท้ายการ์ด |
 | 2 | รันซ้ำแบบข้อ 1 | ได้ 200 body `"sent":0,"skipped":1` และไม่มีการ์ดใบที่สองในแชต |
 | 3 | รันแบบข้อ 1 แต่ใส่ secret ผิด | ได้ HTTP 401 `{"error":"Unauthorized"}` |
 | 4 | (ไม่บังคับ) ใน Supabase SQL Editor รัน `select kind, period, created_at from notification_log order by created_at desc limit 5;` | มีแถว `weekly_summary` period เป็นวันจันทร์ของสัปดาห์นี้ |
+| 5 | (ไม่บังคับ ใช้บัญชีทดสอบที่ไม่ใช่บัญชีหลัก) ในแอป LINE block บอท แล้วใน Supabase SQL Editor รัน `select weekly_summary_enabled, daily_reminder_enabled from users where line_user_id = '<LINE user id ของบัญชีนั้น>';` แล้ว unblock | ได้ `false` ทั้งสองช่อง และในแชตไม่มีข้อความใหม่จากบอท หลัง unblock สวิตช์ในแท็บโปรไฟล์เป็นปิด |
 
-หมายเหตุ: ถ้าทดสอบในวันที่ไม่ใช่วันอาทิตย์ (คำถามข้อ 1 ตอบ ก.) การ์ดจะสรุปจันทร์ถึงวันนั้น และวันอาทิตย์นี้จะไม่ส่งซ้ำ
+หมายเหตุ: ถ้าทดสอบในวันที่ไม่ใช่วันอาทิตย์ (คำถามข้อ 1 ผู้ใช้ตอบ ก.) การ์ดจะสรุปจันทร์ถึงวันนั้น และวันอาทิตย์นี้จะไม่ส่งซ้ำ
 
 - [ ] **Step 1: อัปเดต README**
 
 - ส่วน ความสามารถ ต่อจาก bullet **รายการประจำ:** เพิ่ม:
 
 ```markdown
-- **สรุปรายสัปดาห์:** เปิดสวิตช์ `ส่งสรุปทุกวันอาทิตย์` ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด) แล้วทุกวันอาทิตย์ 19:00 บอท push การ์ดสรุปสัปดาห์นั้น (จันทร์-อาทิตย์) แบบเดียวกับ `สรุปสัปดาห์นี้` แต่ไม่มีคอมเมนต์จาก Claude สัปดาห์ที่ไม่มีรายการไม่ส่ง และไม่ส่งเกินสัปดาห์ละครั้งต่อคน
+- **สรุปรายสัปดาห์:** เปิดสวิตช์ `ส่งสรุปทุกวันอาทิตย์` ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด) แล้วทุกวันอาทิตย์ 19:00 บอท push การ์ดสรุปสัปดาห์นั้น (จันทร์-อาทิตย์) แบบเดียวกับ `สรุปสัปดาห์นี้` แต่ไม่มีคอมเมนต์จาก Claude สัปดาห์ที่ไม่มีรายการไม่ส่ง และไม่ส่งเกินสัปดาห์ละครั้งต่อคน ถ้าผู้ใช้ block บอท (unfollow) สวิตช์แจ้งเตือนทุกตัวของคนนั้นถูกปิด กลับมาเพิ่มเพื่อนแล้วต้องเปิดเองในแท็บโปรไฟล์
 ```
 
 - bullet โปรไฟล์ของเว็บ LIFF: เปลี่ยนท้าย `สำหรับหารบิล` เป็น `สำหรับหารบิล และส่วนการแจ้งเตือน (สวิตช์ส่งสรุปทุกวันอาทิตย์)`
@@ -1800,7 +2078,7 @@ git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-A
 - ขั้นตอน deploy ข้อ 4: เปลี่ยน `ตั้ง cron-job.org 2 งาน:` เป็น `ตั้ง cron-job.org 3 งาน:` และต่อจาก bullet `POST <URL>/internal/recurring/run ...` เพิ่ม:
 
 ```markdown
-   - `POST <URL>/internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 (ตั้งเขตเวลาของงานเป็น `Asia/Bangkok`) พร้อม header `Authorization: Bearer <CRON_SECRET>` แบบเดียวกับงานรายการประจำ และเปิดแจ้งเตือนเมื่อล้มเหลว (ตอบ 500 เมื่อส่งไม่สำเร็จอย่างน้อยหนึ่งคน) ทดสอบด้วยการรันมือได้ แต่ถ้ารันวันอื่นการ์ดจะสรุปจันทร์ถึงวันนั้น และสัปดาห์นั้นจะไม่ส่งซ้ำ
+   - `POST <URL>/internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 (ตั้งเขตเวลาของงานเป็น `Asia/Bangkok`) พร้อม header `Authorization: Bearer <CRON_SECRET>` แบบเดียวกับงานรายการประจำ และเปิดแจ้งเตือนเมื่อล้มเหลว (ตอบ 500 เมื่ออ่านข้อมูลหรือจองการส่งของใครไม่สำเร็จ ส่วน push ที่ LINE ปฏิเสธนับใน `pushFailed` และยังตอบ 200 เหมือนงานรายการประจำ) ทดสอบด้วยการรันมือได้ แต่ถ้ารันวันอื่นการ์ดจะสรุปจันทร์ถึงวันนั้น และสัปดาห์นั้นจะไม่ส่งซ้ำ
 ```
 
 - ความปลอดภัย: เปลี่ยน `- endpoint cron `/internal/recurring/run` ป้องกันด้วย secret` เป็น `- endpoint cron `/internal/recurring/run` และ `/internal/notifications/weekly` ป้องกันด้วย secret`
@@ -1808,10 +2086,11 @@ git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-A
 
 ```markdown
 - ข้อความ push (รายการประจำ และสรุปรายสัปดาห์ของคนที่เปิดสวิตช์ สัปดาห์ละไม่เกิน 1 ข้อความต่อคน) นับโควตาของแพ็กเกจ LINE ส่วนข้อความตอบกลับ (reply) ไม่นับ
-- สรุปรายสัปดาห์ส่งทีละคน ถ้าคนที่เปิดสวิตช์มีมาก งาน cron อาจเกิน timeout 30 วินาทีของ cron-job.org (server ยังส่งต่อจนครบ แต่ cron-job.org จะแจ้งว่าล้มเหลว) และถ้า push ของใครพัง คนนั้นจะไม่ได้การ์ดสัปดาห์นั้น (ไม่ลองซ้ำ เพราะ LINE อาจส่งถึงแล้ว)
+- สรุปรายสัปดาห์ส่งทีละคน ถ้าคนที่เปิดสวิตช์มีมาก งาน cron อาจเกิน timeout 30 วินาทีของ cron-job.org (server ยังส่งต่อจนครบ แต่ cron-job.org จะแจ้งว่าล้มเหลว) และถ้า push ของใครพัง คนนั้นจะไม่ได้การ์ดสัปดาห์นั้น (ไม่ลองซ้ำ เพราะ LINE อาจส่งถึงแล้ว) งาน cron ยังตอบ 200 ดูได้จาก `pushFailed` ในผลของงานและ log `Failed to push weekly summary` ใน Render
+- งาน cron สรุปรายสัปดาห์อ่านรายชื่อคนที่เปิดสวิตช์ได้ไม่เกินจำนวนแถวสูงสุดต่อ request ของ PostgREST ใน Supabase (ค่าตั้งต้น 1000 แถว) คนที่เกินจะไม่ได้ข้อความ ผู้ใช้ตอนนี้น้อยกว่านั้นมากจึงยังไม่มีผล
 ```
 
-ตรวจทุกประโยคกับโค้ดจริงก่อน commit (`grep -n "020\|021\|notifications" README.md`)
+ตรวจทุกประโยคกับโค้ดจริงก่อน commit (`grep -n "020\|021\|notifications\|pushFailed\|unfollow" README.md`)
 
 - [ ] **Step 2: อัปเดต SPEC**
 
@@ -1819,7 +2098,7 @@ git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-A
 - ต่อจากย่อหน้าฟังก์ชันข้อ 10 (ขึ้นต้นด้วย `10\. ถามยอดด้วยภาษาธรรมชาติ:`) เพิ่มย่อหน้าใหม่ (เว้นบรรทัดว่างคั่นเหมือนข้ออื่น):
 
 ```markdown
-11\. สรุปรายสัปดาห์: ผู้ใช้เปิดสวิตช์ "ส่งสรุปทุกวันอาทิตย์" ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด เพราะ push นับโควตา LINE OA; API `GET /api/settings` คืน `{ weeklySummary }`, `PATCH /api/settings` รับ boolean เฉพาะ field ที่รู้จัก field อื่นตัดทิ้ง) งาน cron `POST /internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 ส่งการ์ดสรุปช่วง `week` (วันจันทร์ถึงวันที่รัน) ด้วย `buildSummary` + `buildSummaryFlex` เดิม ไม่เรียก Claude เขียนคอมเมนต์ สัปดาห์ที่ไม่มีรายการไม่ส่ง กันส่งซ้ำด้วยการจองแถวใน `notification_log` (kind `weekly_summary`, period = วันจันทร์ของสัปดาห์) ก่อน push ส่งทีละคน push พังของคนหนึ่งไม่หยุดคนอื่นและไม่ลองซ้ำ ตอบ `{ eligible, sent, skipped, failed }` และ 500 เมื่อ failed > 0
+11\. สรุปรายสัปดาห์: ผู้ใช้เปิดสวิตช์ "ส่งสรุปทุกวันอาทิตย์" ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด เพราะ push นับโควตา LINE OA; API `GET /api/settings` คืน `{ weeklySummary }`, `PATCH /api/settings` รับ boolean เฉพาะ field ที่รู้จัก field อื่นตัดทิ้ง) งาน cron `POST /internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 ส่งการ์ดสรุปช่วง `week` (วันจันทร์ถึงวันที่รัน) ด้วย `buildSummary` + `buildSummaryFlex` เดิม ไม่เรียก Claude เขียนคอมเมนต์ สัปดาห์ที่ไม่มีรายการไม่ส่ง กันส่งซ้ำด้วยการจองแถวใน `notification_log` (kind `weekly_summary`, period = วันจันทร์ของสัปดาห์) ก่อน push ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น อ่านยอดหรือจองไม่สำเร็จนับใน failed ส่วน push พังนับใน pushFailed (เก็บการจองไว้ ไม่ลองซ้ำ) ตอบ `{ eligible, sent, skipped, failed, pushFailed }` และ 500 เฉพาะเมื่อ failed > 0 (แบบเดียวกับรายการประจำ) เมื่อผู้ใช้ unfollow บอท server ปิด weekly\_summary\_enabled และ daily\_reminder\_enabled ของคนนั้นโดยไม่ตอบข้อความ
 ```
 
 - Database: บรรทัด `\- users: ...` ต่อท้ายด้วย `, weekly\_summary\_enabled และ daily\_reminder\_enabled (boolean ค่าตั้งต้น false ใช้ SQL `021_notification_settings.sql`)` และต่อจากบรรทัด `\- bill\_members: ...` เพิ่ม (เว้นบรรทัดว่างคั่น):
@@ -1828,7 +2107,7 @@ git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-A
 \- notification\_log: user\_id, kind (weekly\_summary/daily\_reminder), period (YYYY-MM-DD), created\_at (primary key user\_id+kind+period; จองก่อน push กันส่งซ้ำ; ลบ user แล้วลบแถวตามด้วย cascade; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `021_notification_settings.sql`
 ```
 
-- Deploy: ต่อท้ายบรรทัดที่ขึ้นต้นด้วย `\- รายการประจำและแจ้งเตือน:` ด้วย ` สัญญาของสรุปรายสัปดาห์คือ `POST /internal/notifications/weekly` header เดียวกัน ทุกวันอาทิตย์ 19:00 (Asia/Bangkok) ตอบ JSON { eligible, sent, skipped, failed }, 401 เมื่อ token ผิด, 500 เมื่อส่งไม่สำเร็จอย่างน้อยหนึ่งคน`; บรรทัด Push message เปลี่ยน `(รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ)` เป็น `(รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ สรุปรายสัปดาห์ใช้ไม่เกิน 1 ครั้งต่อคนต่อสัปดาห์ เฉพาะคนที่เปิดสวิตช์)`
+- Deploy: ต่อท้ายบรรทัดที่ขึ้นต้นด้วย `\- รายการประจำและแจ้งเตือน:` ด้วย ` สัญญาของสรุปรายสัปดาห์คือ `POST /internal/notifications/weekly` header เดียวกัน ทุกวันอาทิตย์ 19:00 (Asia/Bangkok) ตอบ JSON { eligible, sent, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่ออ่านหรือจองของใครไม่สำเร็จ (push พังอย่างเดียวยังตอบ 200)`; บรรทัด Push message เปลี่ยน `(รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ)` เป็น `(รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ สรุปรายสัปดาห์ใช้ไม่เกิน 1 ครั้งต่อคนต่อสัปดาห์ เฉพาะคนที่เปิดสวิตช์)`
 - ส่วนลำดับการทำ ต่อจากข้อ 14 เพิ่ม (เว้นบรรทัดว่างคั่น):
 
 ```markdown
@@ -1837,8 +2116,8 @@ git commit -m "feat: show the weekly summary switch in the profile tab" -m "Co-A
 
 - [ ] **Step 3: อัปเดต roadmap และ STATE**
 
-- `docs/superpowers/plans/2026-10-18-roadmap-b.md`: ในตารางลำดับ แถวลำดับ 2 เปลี่ยนสถานะเป็น `เสร็จ push แล้ว` (ตรงกับ STATE: merge 95734a1 push แล้ว), แถวลำดับ 3 เป็น `เสร็จบน branch รอ push`, แถวลำดับ 4 เป็น `ยังไม่เริ่ม (ถัดไป)`; บรรทัด **สถานะ** ด้านบนเพิ่มประโยค `ข้อ 3 เสร็จบน branch feat/weekly-summary รอผู้ใช้รัน `021_notification_settings.sql` แล้ว push (แผน 2026-10-19-weekly-summary.md)`
-- `work-memory/STATE.md` ส่วน Next เพิ่มบรรทัดบนสุด: `` - [ ] `next` สรุปรายสัปดาห์ (แผน docs/superpowers/plans/2026-10-19-weekly-summary.md) Task 1-9 เสร็จบน branch feat/weekly-summary ยังไม่ merge/push: ผู้ใช้ต้องรัน `supabase/021_notification_settings.sql` ก่อน push, เพิ่มงาน cron-job.org `POST /internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 Asia/Bangkok แล้วทำ Browser check ของ Task 8 และ LINE check ของ Task 9; ถัดไปคือแผน 2026-10-19-daily-reminder.md (ทำหลัง merge) ``
+- `docs/superpowers/plans/2026-10-18-roadmap-b.md`: ในตารางลำดับ แถวลำดับ 2 เปลี่ยนสถานะเป็น `เสร็จ push แล้ว` (ตรงกับ STATE: merge 95734a1 และการ์ด Flex 18ee475 push แล้ว), แถวลำดับ 3 เป็น `เสร็จบน branch รอ push`, แถวลำดับ 4 เป็น `ยังไม่เริ่ม (ถัดไป)`; ในบรรทัด **สถานะ** ด้านบน เปลี่ยน (ไม่ใช่ต่อท้าย) ประโยคเก่า `ข้อ 2 เสร็จบน branch feat/ask-totals รอผู้ใช้รัน `020_query_totals.sql` แล้ว push (แผน 2026-10-19-ask-totals.md) ข้อ 3-6 ยังไม่เริ่ม` เป็น `ข้อ 2 เสร็จและ push แล้ว (รวมคำตอบแบบการ์ด Flex) ข้อ 3 เสร็จบน branch feat/weekly-summary รอผู้ใช้รัน `021_notification_settings.sql` แล้ว push (แผน 2026-10-19-weekly-summary.md) ข้อ 4-6 ยังไม่เริ่ม` (ถ้าข้อความเก่าไม่ตรงตัว ให้แก้ประโยคที่พูดถึงข้อ 2 และข้อ 3-6 ให้ได้ความหมายนี้ ห้ามเหลือประโยคว่าข้อ 2 รอ push) และเปลี่ยน `(อัปเดต 2026-10-19)` เป็นวันที่ทำ
+- `work-memory/STATE.md` ส่วน Next: แทนที่ (ไม่เพิ่มบรรทัดใหม่) บรรทัดที่ขึ้นต้นด้วย `` - [ ] `next` plan roadmap ข ข้อ 3-6 `` ด้วย `` - [ ] `next` สรุปรายสัปดาห์ (แผน docs/superpowers/plans/2026-10-19-weekly-summary.md) Task 1-10 เสร็จบน branch feat/weekly-summary ยังไม่ merge/push: รัน `supabase/021_notification_settings.sql` ก่อน push, เพิ่มงาน cron-job.org weekly อาทิตย์ 19:00 Asia/Bangkok, Browser check Task 8, LINE check Task 10; ถัดไป เตือนลืมจด แล้วออม กระเป๋า (แผน 2026-10-19-{daily-reminder,savings-goals,wallets}.md) `` ถ้าบรรทัดนั้นถูกเปลี่ยนไปแล้ว ให้แทนที่บรรทัด Next ที่พูดถึงแผนเหล่านี้แทน ห้ามมีสองบรรทัดที่พูดถึงแผนเดียวกัน; ส่วน Done ไม่เพิ่ม (ยังไม่ push) แล้วตรวจว่าทั้งไฟล์ไม่เกินราว 60 บรรทัดด้วย `wc -l work-memory/STATE.md`
 
 - [ ] **Step 4: ตรวจทั้งหมดแล้ว commit**
 
@@ -1847,5 +2126,6 @@ Expected: ผ่านทั้งหมด (ถ้า `scripts/try-parse.test.j
 
 ```bash
 git add README.md SPEC.md docs/superpowers/plans/2026-10-18-roadmap-b.md work-memory/STATE.md
-git commit -m "docs: describe the weekly summary and its cron job" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "docs: describe the weekly summary and its cron job" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LtK8uZvstjmG8HjLn6PaeC"
 ```
