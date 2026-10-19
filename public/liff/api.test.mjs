@@ -39,6 +39,38 @@ describe('createApi', () => {
     ]);
   });
 
+  it('lists, creates and updates goals', async () => {
+    const fetchImpl = fakeFetch(200, { goals: [] });
+    const api = setup(fetchImpl);
+
+    await api.listGoals();
+    await api.createGoal({ name: 'เที่ยว', targetAmount: 1000, targetDate: null });
+    await api.updateGoal('g 1', { closed: true });
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method ?? 'GET', options.body])).toEqual([
+      ['/api/goals', 'GET', undefined],
+      ['/api/goals', 'POST', JSON.stringify({ name: 'เที่ยว', targetAmount: 1000, targetDate: null })],
+      ['/api/goals/g%201', 'PATCH', JSON.stringify({ closed: true })],
+    ]);
+  });
+
+  it('lists, adds and deletes the contributions of a goal', async () => {
+    const fetchImpl = fakeFetch(200, { contributions: [] });
+    const api = setup(fetchImpl);
+
+    await api.listGoalContributions('g 1');
+    await api.addGoalContribution('g 1', { amount: 500, occurredOn: '2026-10-19' });
+    fetchImpl.mockResolvedValueOnce({ ok: true, status: 204, json: async () => { throw new Error('no body'); } });
+    const deleted = await api.deleteGoalContribution('g 1', 'c 2');
+
+    expect(deleted).toBe(true);
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method ?? 'GET', options.body])).toEqual([
+      ['/api/goals/g%201/contributions', 'GET', undefined],
+      ['/api/goals/g%201/contributions', 'POST', JSON.stringify({ amount: 500, occurredOn: '2026-10-19' })],
+      ['/api/goals/g%201/contributions/c%202', 'DELETE', undefined],
+    ]);
+  });
+
   it('sends the ID token and reads JSON', async () => {
     const fetchImpl = fakeFetch(200, { categories: [] });
 

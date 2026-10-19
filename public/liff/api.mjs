@@ -76,5 +76,14 @@ export function createApi({ fetchImpl, getIdToken }) {
       }),
     confirmBill: (id) => request(`/bills/${encodeURIComponent(id)}/confirm`, { method: 'POST' }),
     declineBill: (id) => request(`/bills/${encodeURIComponent(id)}/decline`, { method: 'POST' }),
+    listGoals: () => request('/goals'),
+    createGoal: (body) => request('/goals', { method: 'POST', body: JSON.stringify(body) }),
+    updateGoal: (id, body) => request(`/goals/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    listGoalContributions: (id) => request(`/goals/${encodeURIComponent(id)}/contributions`),
+    addGoalContribution: (id, body) =>
+      request(`/goals/${encodeURIComponent(id)}/contributions`, { method: 'POST', body: JSON.stringify(body) }),
+    // คืน true เพราะ 204 ได้ null ซึ่งฝั่ง panel ใช้แทนความล้มเหลว
+    deleteGoalContribution: (id, contributionId) =>
+      request(`/goals/${encodeURIComponent(id)}/contributions/${encodeURIComponent(contributionId)}`, { method: 'DELETE' }).then(() => true),
   };
 }
