@@ -76,6 +76,11 @@ function followEvent() {
   return { type: 'follow', webhookEventId: 'ev3', replyToken: 'r3', source: { type: 'user', userId: 'U1' } };
 }
 
+// LINE ไม่ส่ง replyToken มากับ unfollow
+function unfollowEvent() {
+  return { type: 'unfollow', webhookEventId: 'ev4', source: { type: 'user', userId: 'U1' } };
+}
+
 function imageEvent({ eventId = 'ev-img', replyToken = 'r-img', messageId = 'm1', source = { type: 'user', userId: 'U1' } } = {}) {
   return { type: 'message', webhookEventId: eventId, replyToken, source, message: { type: 'image', id: messageId } };
 }
@@ -117,6 +122,7 @@ function setup(overrides = {}) {
       savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
+      disableNotifications: vi.fn().mockResolvedValue(),
     },
     now: () => NOW_MS,
     users: {
@@ -620,6 +626,34 @@ describe('bot follow event', () => {
       expect.any(Error)
     );
     expect(deps.replyText).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot unfollow event', () => {
+  it('turns off the notifications of that LINE user without replying or creating a user', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(unfollowEvent());
+
+    expect(deps.repository.disableNotifications).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+
+  it('logs but does not reply when turning off fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.disableNotifications.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(unfollowEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'unfollow' },
+      expect.any(Error)
+    );
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
   });
 });
 
@@ -1761,6 +1795,20 @@ describe('bot reply deadline', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await handled;
 
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing for an unfollow event that passes the deadline', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setup({ replyDeadlineMs: 1000 });
+    deps.repository.disableNotifications.mockImplementation(() => new Promise(() => {}));
+
+    const handled = bot.handleEvent(unfollowEvent());
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.logger.error).toHaveBeenCalledWith('Event passed the reply deadline', { lineUserId: 'U1', eventType: 'unfollow' });
     expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.replyFlex).not.toHaveBeenCalled();
   });

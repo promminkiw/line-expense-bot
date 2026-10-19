@@ -328,6 +328,15 @@ function createRepository(supabase) {
     return toNotificationSettings(data);
   }
 
+  // ผู้ใช้ block บอทแล้ว push ไม่ถึง จึงปิดทุกสวิตช์ ถ้ากลับมาเพิ่มเพื่อนต้องเปิดเองในแท็บโปรไฟล์
+  async function disableNotifications(lineUserId) {
+    const { error } = await supabase
+      .from('users')
+      .update({ weekly_summary_enabled: false, daily_reminder_enabled: false })
+      .eq('line_user_id', lineUserId);
+    throwIfError('disableNotifications', error);
+  }
+
   async function getFriendCode(userId) {
     const { data, error } = await supabase.from('users').select('friend_code').eq('id', userId).maybeSingle();
     throwIfError('getFriendCode', error);
@@ -824,6 +833,7 @@ function createRepository(supabase) {
     getDisplayName,
     getNotificationSettings,
     updateNotificationSettings,
+    disableNotifications,
     getFriendCode,
     setFriendCode,
     findUserByFriendCode,

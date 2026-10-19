@@ -68,6 +68,11 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
+// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบมีปัญหาหรือตอบช้า
+function isSilentEvent(event) {
+  return event.type === 'follow' || event.type === 'unfollow';
+}
+
 function isImageMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'image';
 }
@@ -499,6 +504,10 @@ function createBot({
       await users.ensureUser(lineUserId);
       return null;
     }
+    if (event.type === 'unfollow') {
+      await repository.disableNotifications(lineUserId);
+      return null;
+    }
     if (isTextMessage(event)) {
       return handleText(event, lineUserId, deadline);
     }
@@ -536,7 +545,7 @@ function createBot({
       () => logger.info('Dropped a reply that finished after the deadline', context),
       (err) => logger.error('Failed to process event after the reply deadline', context, err)
     );
-    return event.type === 'follow' ? null : { text: SLOW_PROCESSING_REPLY };
+    return isSilentEvent(event) ? null : { text: SLOW_PROCESSING_REPLY };
   }
 
   async function handleEvent(event) {
@@ -550,7 +559,7 @@ function createBot({
       reply = await buildReplyBeforeDeadline(event, lineUserId);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
-      reply = event.type === 'follow' ? null : { text: SYSTEM_ERROR_REPLY };
+      reply = isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
     }
     if (reply) {
       try {

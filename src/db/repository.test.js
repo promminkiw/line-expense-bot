@@ -1472,6 +1472,28 @@ describe('repository notification settings', () => {
   });
 });
 
+describe('repository.disableNotifications', () => {
+  it('turns off both notification switches of that LINE user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await expect(createRepository(supabase).disableNotifications('U1')).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['update', { weekly_summary_enabled: false, daily_reminder_enabled: false }],
+      ['eq', 'line_user_id', 'U1'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).disableNotifications('U1');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database disableNotifications failed: boom');
+  });
+});
+
 describe('repository.listWeeklySummaryUsers', () => {
   it('lists only users who turned the weekly summary on', async () => {
     const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
