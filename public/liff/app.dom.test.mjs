@@ -279,6 +279,7 @@ describe('index.html static invariants', () => {
     expect(button.hasAttribute('disabled')).toBe(true);
     expect(button.textContent.trim()).toBe('รายการประจำ');
     expect(button.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
+    expect(button.closest('.categories-entry').querySelector('.categories-entry-hint').textContent.trim()).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
   });
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
