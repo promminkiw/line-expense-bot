@@ -28,7 +28,7 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 2\. สรุปผล: พิมพ์ "สรุปวันนี้/สัปดาห์นี้/เดือนนี้" หรือกด Rich Menu คำนวณยอดด้วย SQL (ห้ามให้ Claude คิดเลข) แล้วให้ Claude เขียนคำอธิบายสั้นๆ ส่งเป็น Flex Message
 
-3\. เว็บ LIFF: แท็บล่าง 6 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บจัดการงบ เปิดหน้าหมวดของฉัน (ไม่อยู่ในแถบเมนูล่าง มีปุ่มย้อนกลับ); รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท และส่วนเพื่อน: รหัสเพื่อนของตัวเอง ส่งลิงก์ชวน/QR เพิ่มเพื่อนด้วยรหัส รายชื่อเพื่อน ลบเพื่อน เปลี่ยนรหัส (แท็บโปรไฟล์ไม่มีส่วนหมวดแล้ว); หารบิล = สร้างบิลแล้วหารกับเพื่อน ดูและตอบบิล), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
+3\. เว็บ LIFF: แท็บล่าง 6 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บจัดการงบ เปิดหน้าหมวดของฉัน (ไม่อยู่ในแถบเมนูล่าง มีปุ่มย้อนกลับ); รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท และส่วนเพื่อน: รหัสเพื่อนของตัวเอง ส่งลิงก์ชวน/QR เพิ่มเพื่อนด้วยรหัส รายชื่อเพื่อน ลบเพื่อน เปลี่ยนรหัส และส่วนการแจ้งเตือน (สวิตช์ส่งสรุปทุกวันอาทิตย์) (แท็บโปรไฟล์ไม่มีส่วนหมวดแล้ว); หารบิล = สร้างบิลแล้วหารกับเพื่อน ดูและตอบบิล), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
 
 API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend?month=` (6 เดือนสิ้นสุดเดือนที่เลือก) และ `GET /api/profile` (ชื่อ ยอดสะสม ยอดคงเหลือ จำนวนรายการ วันที่รายการแรก) ใช้ SQL `010_profile_and_trend.sql`
 
@@ -50,11 +50,13 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 10\. ถามยอดด้วยภาษาธรรมชาติ: ข้อความที่มีคำว่า เท่าไหร่ เท่าไร กี่บาท ไปเท่า หรือ รวมเท่า และไม่ได้อยู่ระหว่างบอทถามกลับ จะถูกส่งให้ Claude แปลงเป็น `{ is_question, type: expense|income|both, category, keyword, from, to }` ด้วย json_schema (หมวดให้เลือกจากทุกหมวดของผู้ใช้รวมที่ซ่อน ถ้าโหลดไม่ได้ใช้หมวดเริ่มต้น) ถ้าไม่ใช่คำถามไปทางบันทึกรายการตามเดิม server ตรวจวันที่ (วันที่จริง from <= to ช่วงไม่เกิน 366 วัน ไม่ผ่านใช้วันที่ 1 ของเดือนนี้ถึงวันนี้) ตัดคำค้นไม่เกิน 50 ตัวอักษร แล้วรวมยอดด้วย SQL function `query_totals` (`020_query_totals.sql` กรองตามชื่อหมวด และค้นคำในโน้ตแบบไม่สนตัวพิมพ์ โดย % _ เป็นตัวอักษรธรรมดา) ตอบเป็นการ์ด Flex สไตล์เดียวกับการ์ดสรุป (หัวการ์ด `ยอด 1-18 ต.ค. 2569` แถวคำค้น/หมวด แล้วยอดตามประเภทพร้อมจำนวนรายการ ถ้าถามทั้งสองประเภทแสดงรายรับก่อนรายจ่าย) ส่วน altText เป็นประโยคข้อความเดิม เช่น `ช่วง 1-18 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)` (ตัดไม่เกิน 400 ตัวอักษร) และมีปุ่ม `ดูรายการในเว็บ` ที่เปิดหน้า LIFF `?tab=list&m=<เดือนของวันสิ้นสุดช่วง>&q=<คำค้น>&c=<ชื่อหมวด>&type=<expense|income>` (ใส่ q เมื่อมีคำค้น ใส่ c เมื่อมีหมวด ถามทั้งสองประเภทไม่ใส่ type) หน้าเว็บเปิดแท็บรายการของเดือนสิ้นสุดช่วงนั้น กรอกช่องค้นหาด้วย q ตั้งตัวกรองประเภท และเลือกตัวกรองหมวดตามชื่อ c ให้จำนวนรายการตรงกับที่การ์ดนับ (ถ้าชื่อหมวดซ้ำกันทั้งรายรับและรายจ่ายขณะไม่ระบุประเภท หรือหาหมวดไม่พบ จะใส่ชื่อหมวดในช่องค้นหาแทนเมื่อไม่มี q) ไม่แสดงปุ่มเมื่อไม่มี LIFF URL, LIFF URL ไม่ใช่ https หรือลิงก์ยาวเกิน 1000 ตัวอักษร นับ rate limit เหมือนข้อความอื่นที่เรียก Claude ถ้าอ่านคำถามหรือรวมยอดไม่สำเร็จ บอทตอบว่าตอบคำถามยอดไม่ได้ตอนนี้ และไม่ส่งต่อไปบันทึกรายการ
 
+11\. สรุปรายสัปดาห์: ผู้ใช้เปิดสวิตช์ "ส่งสรุปทุกวันอาทิตย์" ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด เพราะ push นับโควตา LINE OA; API `GET /api/settings` คืน `{ weeklySummary }`, `PATCH /api/settings` รับ boolean เฉพาะ field ที่รู้จัก field อื่นตัดทิ้ง) งาน cron `POST /internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 ส่งการ์ดสรุปช่วง `week` (วันจันทร์ถึงวันที่รัน) ด้วย `buildSummary` + `buildSummaryFlex` เดิม ไม่เรียก Claude เขียนคอมเมนต์ สัปดาห์ที่ไม่มีรายการไม่ส่ง กันส่งซ้ำด้วยการจองแถวใน `notification_log` (kind `weekly_summary`, period = วันจันทร์ของสัปดาห์) ก่อน push ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น อ่านยอดหรือจองไม่สำเร็จนับใน failed ส่วน push พังนับใน pushFailed (เก็บการจองไว้ ไม่ลองซ้ำ) ตอบ `{ eligible, sent, skipped, failed, pushFailed }` และ 500 เฉพาะเมื่อ failed > 0 (แบบเดียวกับรายการประจำ) เมื่อผู้ใช้ unfollow บอท server ปิด weekly\_summary\_enabled และ daily\_reminder\_enabled ของคนนั้นโดยไม่ตอบข้อความ
+
 
 
 \## Database (Supabase)
 
-\- users: id, line\_user\_id (unique), display\_name (ถ้ายังว่าง server เติมจากชื่อใน ID token ตอนเรียก API จากหน้า LIFF), created\_at, friend\_code (unique, 8 ตัวจากชุดตัวอักษรที่ตัด I O 0 1 ออก, สร้างตอนผู้ใช้เปิดส่วนเพื่อนครั้งแรก จึงเป็น null ได้)
+\- users: id, line\_user\_id (unique), display\_name (ถ้ายังว่าง server เติมจากชื่อใน ID token ตอนเรียก API จากหน้า LIFF), created\_at, friend\_code (unique, 8 ตัวจากชุดตัวอักษรที่ตัด I O 0 1 ออก, สร้างตอนผู้ใช้เปิดส่วนเพื่อนครั้งแรก จึงเป็น null ได้), weekly\_summary\_enabled และ daily\_reminder\_enabled (boolean ค่าตั้งต้น false ใช้ SQL `021_notification_settings.sql`)
 
 \- categories: id, user\_id, name, type, hidden (ซ่อนหมวดโดยเก็บไว้ ใช้ SQL `017_category_hidden.sql`; ลบจริงได้ด้วย function `delete_category` ใน `019_delete_category.sql`), icon (key ไอคอนที่ผู้ใช้เลือก null = ตั้งต้นตามชื่อ ใช้ SQL `018_category_icon.sql`)
 
@@ -71,6 +73,8 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 \- bills: id, owner\_id, title, total, category\_id, occurred\_on, owner\_share, status (open/cancelled), owner\_transaction\_id, created\_at
 
 \- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql` (index ของ FK ไปยัง transactions และ categories อยู่ใน `014_bill_indexes.sql`; `015_bill_invariants.sql` ให้ create_bill ปฏิเสธหมวดที่ไม่ใช่รายจ่าย บิลที่ไม่มีสมาชิก และยอดที่รวมไม่เท่ายอดบิล และให้ตาราง bills ตรวจ owner_share <= total)
+
+\- notification\_log: user\_id, kind (weekly\_summary/daily\_reminder), period (YYYY-MM-DD), created\_at (primary key user\_id+kind+period; จองก่อน push กันส่งซ้ำ; ลบ user แล้วลบแถวตามด้วย cascade; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `021_notification_settings.sql`
 
 \- ทุกตารางมี user\_id (bills ใช้ owner\_id, bill\_members ใช้ bill\_id+user\_id), เปิด RLS ทุกตาราง
 
@@ -98,9 +102,9 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 \- แพ็กเกจฟรีจะ "หลับ" ทำให้ข้อความแรกช้า
 
-\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ และยาวอย่างน้อย 32 ตัวอักษร
+\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ และยาวอย่างน้อย 32 ตัวอักษร สัญญาของสรุปรายสัปดาห์คือ `POST /internal/notifications/weekly` header เดียวกัน ทุกวันอาทิตย์ 19:00 (Asia/Bangkok) ตอบ JSON { eligible, sent, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่ออ่านหรือจองของใครไม่สำเร็จ (push พังอย่างเดียวยังตอบ 200)
 
-\- Push message นับโควตาของแพ็กเกจ LINE OA ต้องเช็กจำกัดต่อเดือน (รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ)
+\- Push message นับโควตาของแพ็กเกจ LINE OA ต้องเช็กจำกัดต่อเดือน (รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ สรุปรายสัปดาห์ใช้ไม่เกิน 1 ครั้งต่อคนต่อสัปดาห์ เฉพาะคนที่เปิดสวิตช์)
 
 
 
@@ -133,6 +137,8 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 13\. หน้าหมวดของฉันแบบใหม่และไอคอนหมวด (docs/superpowers/plans/2026-10-18-category-icons.md)
 
 14\. ถามยอดด้วยภาษาธรรมชาติ (roadmap ทิศทาง ข ข้อ 2: docs/superpowers/plans/2026-10-19-ask-totals.md)
+
+15\. สรุปรายสัปดาห์ (roadmap ทิศทาง ข ข้อ 3: docs/superpowers/plans/2026-10-19-weekly-summary.md)
 
 
 

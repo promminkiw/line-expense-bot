@@ -5,6 +5,7 @@ import {
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
+  validateSettingsUpdate,
 } from './validate.js';
 
 const VALID = { amount: 60, categoryId: 'cat-1', occurredOn: '2026-09-29', note: ' กินข้าว ' };
@@ -175,5 +176,20 @@ describe('validateCategoryUpdate', () => {
 
   it('rejects an unknown icon', () => {
     expect(validateCategoryUpdate({ icon: 'unicorn' })).toEqual({ ok: false, error: 'Invalid icon' });
+  });
+});
+
+describe('validateSettingsUpdate', () => {
+  it('keeps a known boolean switch and drops unknown fields', () => {
+    expect(validateSettingsUpdate({ weeklySummary: true, isAdmin: true })).toEqual({ ok: true, value: { weeklySummary: true } });
+    expect(validateSettingsUpdate({ weeklySummary: false })).toEqual({ ok: true, value: { weeklySummary: false } });
+  });
+
+  it.each([[null], ['on'], [{}], [{ isAdmin: true }], [[true]]])('refuses %j without a known switch', (body) => {
+    expect(validateSettingsUpdate(body)).toEqual({ ok: false, error: 'Invalid body' });
+  });
+
+  it('refuses a switch that is not a boolean', () => {
+    expect(validateSettingsUpdate({ weeklySummary: 'true' })).toEqual({ ok: false, error: 'Invalid weeklySummary' });
   });
 });

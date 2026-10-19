@@ -1,6 +1,7 @@
 const { MAX_AMOUNT } = require('../parser/parse-message');
 const { isValidCalendarDate } = require('../utils/date');
 const { MAX_CATEGORY_NAME_LENGTH, CATEGORY_ICONS, isReservedCategoryName } = require('../parser/categories');
+const { NOTIFICATION_SETTINGS } = require('../notifications/settings');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
@@ -140,6 +141,25 @@ function validateCategoryUpdate(body) {
   return { ok: true, value };
 }
 
+// รับเฉพาะสวิตช์ที่รู้จัก field อื่นตัดทิ้ง เพื่อไม่ให้ client เขียนคอลัมน์อื่นของ users ได้
+function validateSettingsUpdate(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const value = {};
+  for (const field of Object.keys(NOTIFICATION_SETTINGS)) {
+    if (body[field] === undefined) continue;
+    if (typeof body[field] !== 'boolean') {
+      return { ok: false, error: `Invalid ${field}` };
+    }
+    value[field] = body[field];
+  }
+  if (Object.keys(value).length === 0) {
+    return { ok: false, error: 'Invalid body' };
+  }
+  return { ok: true, value };
+}
+
 module.exports = {
   parseMonth,
   isValidAmount,
@@ -147,4 +167,5 @@ module.exports = {
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
+  validateSettingsUpdate,
 };

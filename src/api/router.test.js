@@ -60,6 +60,8 @@ function setup(overrides = {}) {
       ]),
       getLifetimeTotals: vi.fn().mockResolvedValue({ income: 25000.1, expense: 60.2, entryCount: 3, firstDate: '2026-08-03' }),
       getDisplayName: vi.fn().mockResolvedValue('สมชาย'),
+      getNotificationSettings: vi.fn().mockResolvedValue({ weeklySummary: false }),
+      updateNotificationSettings: vi.fn().mockImplementation(async (userId, changes) => ({ weeklySummary: false, ...changes })),
     },
     allowExport: vi.fn().mockReturnValue(true),
     friendsRouter: express.Router(),
@@ -1295,6 +1297,52 @@ describe('GET /api/profile', () => {
     const base = await start(setup());
 
     expect((await call(base, '/profile', { token: null })).status).toBe(401);
+  });
+});
+
+describe('notification settings API', () => {
+  it('returns the switches of the logged in user', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/settings');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ weeklySummary: false });
+    expect(deps.repository.getNotificationSettings).toHaveBeenCalledWith('user-1');
+  });
+
+  it('saves a known switch and returns the saved values', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/settings', { method: 'PATCH', body: { weeklySummary: true, isAdmin: true } });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ weeklySummary: true });
+    expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { weeklySummary: true });
+  });
+
+  it.each([
+    [{}, 'Invalid body'],
+    [{ isAdmin: true }, 'Invalid body'],
+    [{ weeklySummary: 'yes' }, 'Invalid weeklySummary'],
+  ])('refuses %j with 400', async (body, error) => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/settings', { method: 'PATCH', body });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error });
+    expect(deps.repository.updateNotificationSettings).not.toHaveBeenCalled();
+  });
+
+  it('requires login', async () => {
+    const base = await start(setup());
+
+    expect((await call(base, '/settings', { token: null })).status).toBe(401);
+    expect((await call(base, '/settings', { token: null, method: 'PATCH', body: { weeklySummary: true } })).status).toBe(401);
   });
 });
 

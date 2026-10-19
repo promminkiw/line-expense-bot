@@ -44,6 +44,8 @@ export function createApi({ fetchImpl, getIdToken }) {
     listTransactions: (month) => request(`/transactions?month=${encodeURIComponent(month)}`),
     getTrend: (month) => request(`/trend?month=${encodeURIComponent(month)}`),
     getProfile: () => request('/profile'),
+    getSettings: () => request('/settings'),
+    updateSettings: (body) => request('/settings', { method: 'PATCH', body: JSON.stringify(body) }),
     updateTransaction: (id, body) =>
       request(`/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
     deleteTransaction: (id) => request(`/transactions/${encodeURIComponent(id)}`, { method: 'DELETE' }),

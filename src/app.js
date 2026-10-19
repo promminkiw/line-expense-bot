@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
-function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recurringRouter, logger = console }) {
+function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recurringRouter, notificationsRouter, logger = console }) {
   const app = express();
 
   app.get('/health', (req, res) => {
@@ -24,6 +24,10 @@ function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recur
 
   if (recurringRouter) {
     app.use('/internal', recurringRouter);
+  }
+
+  if (notificationsRouter) {
+    app.use('/internal', notificationsRouter);
   }
 
   // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature

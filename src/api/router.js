@@ -7,6 +7,7 @@ const {
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
+  validateSettingsUpdate,
 } = require('./validate');
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
 const { toBangkokDateString } = require('../utils/date');
@@ -235,6 +236,19 @@ function createApiRouter({
       entryCount: totals.entryCount,
       firstDate: totals.firstDate,
     });
+  });
+
+  router.get('/settings', async (req, res) => {
+    res.json(await repository.getNotificationSettings(req.userId));
+  });
+
+  router.patch('/settings', async (req, res) => {
+    const result = validateSettingsUpdate(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(await repository.updateNotificationSettings(req.userId, result.value));
   });
 
   router.patch('/transactions/:id', async (req, res) => {

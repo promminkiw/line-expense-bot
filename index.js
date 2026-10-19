@@ -22,6 +22,8 @@ const { createApiRouter } = require('./src/api/router');
 const { createExportRouter } = require('./src/export/router');
 const { createRecurringRunner } = require('./src/recurring/run');
 const { createRecurringRouter } = require('./src/recurring/router');
+const { createWeeklySummaryRunner } = require('./src/notifications/weekly');
+const { createNotificationsRouter } = require('./src/notifications/router');
 const { createFriendService } = require('./src/friends/service');
 const { createFriendsRouter } = require('./src/friends/router');
 const { createBillService } = require('./src/bills/service');
@@ -119,12 +121,17 @@ const recurringRouter = createRecurringRouter({
   cronSecret: config.cronSecret,
   run: createRecurringRunner({ repository, pushText: createPushText(lineClient) }),
 });
+const notificationsRouter = createNotificationsRouter({
+  cronSecret: config.cronSecret,
+  runWeeklySummary: createWeeklySummaryRunner({ repository, pushFlex: createPushFlex(lineClient) }),
+});
 const app = createApp({
   channelSecret: config.lineChannelSecret,
   handleEvents: bot.handleEvents,
   apiRouter,
   exportRouter: createExportRouter({ repository }),
   recurringRouter,
+  notificationsRouter,
 });
 
 app.listen(config.port, (err) => {

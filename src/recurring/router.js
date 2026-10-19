@@ -1,23 +1,12 @@
-const crypto = require('node:crypto');
 const express = require('express');
-
-// เทียบ hash เพื่อให้ timingSafeEqual ได้ความยาวเท่ากันเสมอ และไม่เปิดเผยความยาวของ secret
-function safeEqual(a, b) {
-  const left = crypto.createHash('sha256').update(a).digest();
-  const right = crypto.createHash('sha256').update(b).digest();
-  return crypto.timingSafeEqual(left, right);
-}
+const { requireCronSecret, hasCronSecret } = require('../utils/cron-auth');
 
 function createRecurringRouter({ cronSecret, run, logger = console }) {
-  if (typeof cronSecret !== 'string' || cronSecret.length === 0) {
-    throw new TypeError('createRecurringRouter requires cronSecret');
-  }
+  requireCronSecret(cronSecret, 'createRecurringRouter');
   const router = express.Router();
 
   router.post('/recurring/run', async (req, res) => {
-    const header = req.get('authorization') || '';
-    const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
-    if (!token || !safeEqual(token, cronSecret)) {
+    if (!hasCronSecret(req, cronSecret)) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
