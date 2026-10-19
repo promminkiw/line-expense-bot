@@ -1775,13 +1775,19 @@ const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจ
 
 els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 
-const WALLETS_PAGE = mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen);
-const NOTIFY_PAGE = mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen);
+// เปิดแท็บ ฉัน ก่อน liff พร้อม หรือ loadAll ล้ม ส่วนเหล่านี้ยังไม่เคยโหลด จึงโหลดตอนเข้าหน้าถ้ายังไม่มีข้อมูล
+const WALLETS_PAGE = {
+  ...mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen),
+  render: () => {
+    if (!walletsPanel.isLoaded()) walletsPanel.load();
+  },
+};
+const NOTIFY_PAGE = { ...mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen), render: () => settingsPanel.ensureLoaded() };
 
 els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
 els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
 
-const FRIENDS_PAGE = mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen);
+const FRIENDS_PAGE = { ...mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen), render: () => friendsPanel.ensureLoaded() };
 
 els.friendsOpen.addEventListener('click', () => enterSubPage(FRIENDS_PAGE));
 
@@ -1883,7 +1889,7 @@ async function boot() {
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
-    // ส่วนเหล่านี้โหลดตอนเข้าแท็บ ฉัน ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
+    // ส่วนเหล่านี้โหลดตอนเข้าแท็บหรือหน้าย่อย ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
     for (const button of [els.walletsOpen, els.notifyOpen, els.friendsOpen]) button.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
@@ -1913,8 +1919,9 @@ async function boot() {
       // ตั้งตัวกรองก่อน loadAll เพื่อให้ render ครั้งแรกกรองให้เลย
       els.search.value = listFilter.query;
       els.filterType.value = listFilter.type;
-      tabController.select('list');
-    } else if (tabId && !link && !friendCode) tabController.select(tabId);
+      // ผู้ใช้เปิดหน้าย่อยไปแล้วระหว่างรอ liff จึงไม่สลับแท็บทับหน้านั้น
+      if (!activeSubPage) tabController.select('list');
+    } else if (tabId && !link && !friendCode && !activeSubPage) tabController.select(tabId);
     pendingListFilter = listFilter;
     await loadAll();
     applyPendingListFilter();

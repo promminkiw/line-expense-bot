@@ -4280,6 +4280,23 @@ describe('LIFF wallets and notification pages under the me tab', () => {
     expect(byId('page-title').textContent).toBe('ฉัน');
     expect(document.activeElement).toBe(byId(openId));
   });
+
+  it.each([
+    ['wallets-open', ['wallets']],
+    ['notify-open', ['notify', 'notify-body']],
+    ['friends-open', ['friends', 'friends-body']],
+  ])('loads the page on entry when the me tab was opened before liff was ready and the first load failed (%s)', async (openId, visibleIds) => {
+    const liff = await boot({ holdInit: true, overrides: { '/api/categories': { status: 500 } } });
+    clickTab('profile');
+    liff.releaseInit();
+    await settle();
+    routeFetch(() => undefined);
+
+    byId(openId).click();
+    await settle();
+
+    for (const id of visibleIds) expect(byId(id).hidden).toBe(false);
+  });
 });
 
 describe('LIFF friends page under the me tab', () => {
@@ -4327,12 +4344,33 @@ describe('LIFF friends page under the me tab', () => {
 
     expect(byId('panel-friends').hidden).toBe(false);
     expect(byId('panel-list').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
     liff.releaseInit();
     await settle();
   });
 });
 
 describe('LIFF usage page under the me tab', () => {
+  it('keeps the usage page alone when a tab link finishes booting after the row was tapped', async () => {
+    const liff = await boot({ holdInit: true, search: '?tab=summary' });
+    clickTab('profile');
+    byId('tips-open').click();
+    liff.releaseInit();
+    await settle();
+
+    expect(byId('panel-tips').hidden).toBe(false);
+    expect(byId('panel-summary').hidden).toBe(true);
+    expect(byId('panel-list').hidden).toBe(true);
+  });
+
+  it('keeps both category rows disabled when there are no categories', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+
+    expect(byId('me-categories-open').disabled).toBe(true);
+    expect(byId('categories-open').disabled).toBe(true);
+  });
+
   it('opens the usage tips as a page and goes back to the me tab', async () => {
     await boot();
     clickTab('profile');
