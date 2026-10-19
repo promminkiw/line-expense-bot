@@ -4629,6 +4629,36 @@ describe('LIFF wallets on entries', () => {
     await openRow('t1');
     expect(byId('edit-wallet-row').hidden).toBe(true);
   });
+
+  it('says the wallets could not load in the editor and on a linked wallet', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': WALLET_MONTH };
+    await boot({ overrides: failing });
+    const bodies = stubFetch(failing);
+
+    await openRow('t2');
+    expect(byId('edit-error').hidden).toBe(false);
+    expect(byId('edit-error').textContent).toBe('โหลดกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('edit-wallet-row').hidden).toBe(true);
+    await submitEdit();
+    expect(bodies[0]).toMatchObject({ call: 'PATCH /api/transactions/t2' });
+    expect(bodies[0].body).not.toHaveProperty('walletId');
+
+    await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
+    await settle();
+    expect(byId('banner').hidden).toBe(false);
+    expect(byId('banner').textContent).toContain('โหลดกระเป๋าไม่สำเร็จ รายการนี้ยังไม่ได้กรองตามกระเป๋า');
+  });
+
+  it('retries loading the wallets when the editor opens', async () => {
+    await boot({ overrides: { '/api/wallets': { status: 500 }, '/api/transactions': WALLET_MONTH } });
+    stubFetch({ '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': WALLET_MONTH });
+
+    await openRow('t2');
+
+    expect(byId('edit-error').hidden).toBe(true);
+    expect(byId('edit-wallet-row').hidden).toBe(false);
+    expect(byId('edit-wallet').value).toBe('w-card');
+  });
 });
 
 describe('LIFF page opened from a totals card that names a wallet', () => {

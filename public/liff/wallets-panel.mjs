@@ -186,5 +186,5 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
   });
   els.retry.addEventListener('click', () => load());
 
-  return { load, getWallets: () => wallets };
+  return { load, getWallets: () => wallets, isLoaded: () => loaded };
 }

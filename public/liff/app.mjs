@@ -1131,6 +1131,12 @@ async function ensureCategories() {
   return categories.length > 0;
 }
 
+// โหลดไม่สำเร็จตอนเปิดหน้า ลองอีกครั้งตอนเปิดตัวแก้ไข ไม่งั้นช่องกระเป๋าหายไปเงียบๆ
+async function ensureWallets() {
+  if (!walletsPanel.isLoaded()) await walletsPanel.load();
+  return walletsPanel.isLoaded();
+}
+
 async function openEditor(item) {
   editing = item;
   els.amount.value = String(item.amount);
@@ -1140,7 +1146,8 @@ async function openEditor(item) {
   els.error.hidden = true;
   els.saveButton.disabled = categories.length === 0;
   els.editor.showModal();
-  const loaded = await ensureCategories();
+  const walletsWereLoaded = walletsPanel.isLoaded();
+  const [loaded, walletsLoaded] = await Promise.all([ensureCategories(), ensureWallets()]);
   // ผู้ใช้อาจปิดหรือเปิดแถวอื่นระหว่างรอ จึงห้ามแตะ editor ของ open ที่เก่าแล้ว
   if (editing !== item || !els.editor.open) return;
   if (!loaded) {
@@ -1150,6 +1157,13 @@ async function openEditor(item) {
   }
   showCategoryOptions(els.category, item.categoryId);
   els.saveButton.disabled = busy;
+  if (!walletsLoaded) {
+    // ยังบันทึกช่องอื่นได้ เพราะไม่ส่ง walletId server จึงไม่แตะกระเป๋าเดิม
+    els.error.textContent = 'โหลดกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง';
+    els.error.hidden = false;
+  } else if (!walletsWereLoaded) {
+    showWalletOptions(item);
+  }
 }
 
 function setBusy(isBusy, kind) {
@@ -1736,7 +1750,13 @@ function applyLinkedCategory({ category, query, type }) {
 
 // ช่องค้นหาไม่ค้นชื่อกระเป๋า จึงเลือกได้แค่ในตัวกรองกระเป๋า ซึ่งมีเฉพาะผู้ใช้หลายกระเป๋า ชื่อที่ไม่มีแล้วข้ามไป
 function applyLinkedWallet({ wallet }) {
-  if (!wallet || els.filterWallet.hidden) return;
+  if (!wallet) return;
+  if (!walletsPanel.isLoaded()) {
+    // จำนวนรายการจึงอาจไม่ตรงกับการ์ด ต้องบอกผู้ใช้
+    setBanner('โหลดกระเป๋าไม่สำเร็จ รายการนี้ยังไม่ได้กรองตามกระเป๋า');
+    return;
+  }
+  if (els.filterWallet.hidden) return;
   const match = wallets.find((item) => item.name === wallet);
   if (!match) return;
   els.filterWallet.value = match.id;
