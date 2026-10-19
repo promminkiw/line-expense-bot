@@ -246,7 +246,10 @@ const settingsPanel = createSettingsPanel({
     retry: document.getElementById('notify-retry'),
     body: document.getElementById('notify-body'),
     status: document.getElementById('notify-status'),
-    switches: { weeklySummary: document.getElementById('notify-weekly-summary') },
+    switches: {
+      weeklySummary: document.getElementById('notify-weekly-summary'),
+      dailyReminder: document.getElementById('notify-daily-reminder'),
+    },
   },
   getApi: () => api,
 });

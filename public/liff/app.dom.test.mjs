@@ -87,7 +87,7 @@ const RESPONSES = {
     ],
   },
   '/api/profile': { displayName: 'สมชาย', income: 25000, expense: 100, balance: 24900, entryCount: 3, firstDate: '2026-08-03' },
-  '/api/settings': { weeklySummary: false },
+  '/api/settings': { weeklySummary: false, dailyReminder: false },
 };
 
 const EMPTY_MONTH = { transactions: [], summary: [], truncated: false };
@@ -310,6 +310,15 @@ describe('index.html static invariants', () => {
     expect(box.closest('label.notify-switch').textContent).toContain('ส่งสรุปทุกวันอาทิตย์');
     expect(doc.getElementById('notify').closest('#panel-profile')).not.toBeNull();
     expect(doc.getElementById('notify').closest('#profile-card')).toBeNull();
+  });
+
+  it('puts the daily reminder switch in the notification section after the weekly one', () => {
+    const box = doc.getElementById('notify-daily-reminder');
+    const labels = [...doc.querySelectorAll('#notify-body label.notify-switch')];
+
+    expect(box.getAttribute('role')).toBe('switch');
+    expect(labels.map((label) => label.querySelector('input').id)).toEqual(['notify-weekly-summary', 'notify-daily-reminder']);
+    expect(box.closest('label').textContent).toContain('เตือนถ้าวันนี้ยังไม่ได้จด');
   });
 
   it('starts every JS-controlled loading and error element hidden', () => {
@@ -2086,7 +2095,7 @@ describe('LIFF notification settings', () => {
 
     expect(calls).toContain('PATCH /api/settings');
     expect(box.checked).toBe(true);
-    expect(byId('notify-status').textContent).toBe('บันทึกแล้ว');
+    expect(byId('notify-status').textContent).toBe('บันทึก ส่งสรุปทุกวันอาทิตย์ แล้ว');
   });
 
   it('puts the switch back when saving fails', async () => {
@@ -2101,7 +2110,7 @@ describe('LIFF notification settings', () => {
     await settle();
 
     expect(box.checked).toBe(false);
-    expect(byId('notify-status').textContent).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('notify-status').textContent).toBe('บันทึก ส่งสรุปทุกวันอาทิตย์ ไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 
   it('shows a retry when the settings fail to load, and loads them from it', async () => {
@@ -2118,6 +2127,34 @@ describe('LIFF notification settings', () => {
 
     expect(byId('notify-error').hidden).toBe(true);
     expect(byId('notify-body').hidden).toBe(false);
+  });
+
+  it('shows each switch from its own field', async () => {
+    await boot({ overrides: { '/api/settings': { weeklySummary: true, dailyReminder: false } } });
+    clickTab('profile');
+    await settle();
+
+    expect(byId('notify-weekly-summary').checked).toBe(true);
+    expect(byId('notify-daily-reminder').checked).toBe(false);
+  });
+
+  it('saves the daily reminder switch without touching the weekly one', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const calls = routeFetch((method, path) =>
+      method === 'PATCH' && path === '/api/settings' ? { weeklySummary: false, dailyReminder: true } : undefined
+    );
+    const box = byId('notify-daily-reminder');
+
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(calls).toContain('PATCH /api/settings');
+    expect(box.checked).toBe(true);
+    expect(byId('notify-weekly-summary').checked).toBe(false);
+    expect(byId('notify-status').textContent).toBe('บันทึก เตือนถ้าวันนี้ยังไม่ได้จด แล้ว');
   });
 });
 
