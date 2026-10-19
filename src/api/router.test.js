@@ -12,11 +12,21 @@ const CATEGORIES = [
   { id: 'c-food', name: 'อาหาร', type: 'expense' },
   { id: 'c-salary', name: 'เงินเดือน', type: 'income' },
 ];
-const WALLET_ID = '99999999-8888-7777-6666-555555555555';
+const WALLET_ID = '99999999-8888-7777-6666-aaaaaaaaaaaa';
 const WALLETS = [
   { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true },
   { id: WALLET_ID, name: 'บัตรเครดิต', hidden: false, isDefault: false },
 ];
+
+// กระเป๋าจำลองสำหรับทดสอบเพดาน: asDefault ทำตัวแรกเป็นกระเป๋าตั้งต้น
+function walletList(count, prefix, hidden, asDefault = false) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `${prefix}${index}`,
+    name: `${prefix}${index}`,
+    hidden,
+    isDefault: asDefault && index === 0,
+  }));
+}
 
 let server;
 
@@ -710,6 +720,37 @@ describe('wallets API', () => {
     expect(deps.repository.createWallet).not.toHaveBeenCalled();
   });
 
+  it('creates a wallet while below the visible and total limits', async () => {
+    const nineVisibleTenHidden = [...walletList(9, 'ก', false, true), ...walletList(10, 'ข', true)];
+    const deps = setup();
+    deps.users.loadWallets.mockResolvedValue(nineVisibleTenHidden);
+    const base = await start(deps);
+
+    const res = await call(base, '/wallets', { method: 'POST', body: { name: 'ใหม่' } });
+
+    expect(nineVisibleTenHidden).toHaveLength(19);
+    expect(res.status).toBe(201);
+  });
+
+  it('refuses a new wallet at exactly twenty wallets', async () => {
+    const deps = setup();
+    deps.users.loadWallets.mockResolvedValue([...walletList(9, 'ก', false, true), ...walletList(11, 'ข', true)]);
+    const base = await start(deps);
+
+    const res = await call(base, '/wallets', { method: 'POST', body: { name: 'ใหม่' } });
+
+    expect([res.status, await res.json()]).toEqual([409, { error: 'Too many wallets' }]);
+  });
+
+  it("checks the wallet limit against the verified caller's wallets", async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/wallets', { method: 'POST', body: { name: 'ใหม่' } });
+
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
+  });
+
   it('renames or hides a wallet of this user, given in any letter case', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -752,6 +793,31 @@ describe('wallets API', () => {
     const res = await call(base, `/wallets/${WALLET_ID}`, { method: 'PATCH', body: { hidden: false } });
 
     expect([res.status, await res.json()]).toEqual([409, { error: 'Too many wallets' }]);
+  });
+
+  it('hides or renames a visible wallet while ten wallets are visible', async () => {
+    const deps = setup();
+    deps.users.loadWallets.mockResolvedValue([...walletList(9, 'ก', false, true), { id: WALLET_ID, name: 'บัตรเครดิต', hidden: false, isDefault: false }]);
+    const base = await start(deps);
+
+    const hide = await call(base, `/wallets/${WALLET_ID}`, { method: 'PATCH', body: { hidden: true } });
+    const rename = await call(base, `/wallets/${WALLET_ID}`, { method: 'PATCH', body: { name: 'กสิกร' } });
+
+    expect([hide.status, rename.status]).toEqual([200, 200]);
+  });
+
+  it('unhides a wallet while nine are visible even with several hidden', async () => {
+    const deps = setup();
+    deps.users.loadWallets.mockResolvedValue([
+      ...walletList(9, 'ก', false, true),
+      { id: WALLET_ID, name: 'บัตรเครดิต', hidden: true, isDefault: false },
+      ...walletList(4, 'ข', true),
+    ]);
+    const base = await start(deps);
+
+    const res = await call(base, `/wallets/${WALLET_ID}`, { method: 'PATCH', body: { hidden: false } });
+
+    expect(res.status).toBe(200);
   });
 
   it('answers 409 for a duplicate rename', async () => {
@@ -918,6 +984,15 @@ describe('PATCH /api/transactions/:id', () => {
 
     expect(res.status).toBe(204);
     expect(deps.repository.updateTransaction).toHaveBeenCalledWith('user-1', ID, { ...body, type: 'income', walletId: WALLET_ID });
+  });
+
+  it("checks the new wallet of an entry against the verified caller's wallets", async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, `/transactions/${ID}`, { method: 'PATCH', body: { ...body, walletId: WALLET_ID } });
+
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
   });
 
   it('stores the default wallet as null', async () => {
