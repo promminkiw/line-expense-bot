@@ -1,10 +1,13 @@
 const express = require('express');
 const { requireCronSecret, hasCronSecret } = require('../utils/cron-auth');
 
-function createNotificationsRouter({ cronSecret, runWeeklySummary, logger = console }) {
+function createNotificationsRouter({ cronSecret, runWeeklySummary, runDailyReminder, logger = console }) {
   requireCronSecret(cronSecret, 'createNotificationsRouter');
   if (typeof runWeeklySummary !== 'function') {
     throw new TypeError('createNotificationsRouter requires runWeeklySummary');
+  }
+  if (typeof runDailyReminder !== 'function') {
+    throw new TypeError('createNotificationsRouter requires runDailyReminder');
   }
   const router = express.Router();
 
@@ -27,6 +30,7 @@ function createNotificationsRouter({ cronSecret, runWeeklySummary, logger = cons
   }
 
   mountJob('/notifications/weekly', runWeeklySummary, 'Weekly summary run failed');
+  mountJob('/notifications/daily-reminder', runDailyReminder, 'Daily reminder run failed');
 
   return router;
 }
