@@ -1694,6 +1694,9 @@ function enterBillsPage() {
   document.getElementById('page-title').textContent = 'หารบิล';
   els.month.hidden = true;
   document.getElementById('panel-bills').append(document.getElementById('friends'));
+  document.getElementById('bills-home').hidden = false;
+  // ส่วนเพื่อนย้ายมาอยู่ในหน้าบิลแล้ว ลิงก์ไปหน้าบิลจึงไม่มีประโยชน์
+  document.getElementById('friends-bills-link').hidden = true;
 }
 
 // ชื่อหมวดฝังอยู่ในรายการ งบ และรายการประจำ จึงโหลดใหม่ให้ตรงกับชื่อล่าสุด (loader ไม่ throw จึงไม่กระทบผลการแก้หมวด)

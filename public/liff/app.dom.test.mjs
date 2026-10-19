@@ -378,6 +378,7 @@ describe('index.html static invariants', () => {
       'wallet-dialog-error',
       'panel-categories',
       'page-back',
+      'bills-home',
       'category-hidden-toggle',
       'category-hidden-tiles',
       'friend-qr',
@@ -2094,6 +2095,25 @@ describe('LIFF friends section guards and failure paths', () => {
   });
 });
 
+describe('LIFF links between the main page and the bills page', () => {
+  it('hides the home link on the main page and links the friends section to the bills page', async () => {
+    await boot();
+
+    expect(byId('bills-home').hidden).toBe(true);
+    const link = byId('friends-bills-link');
+    expect(link.hidden).toBe(false);
+    expect(link.getAttribute('href')).toBe('./?tab=bills');
+    expect(byId('friends').contains(link)).toBe(true);
+  });
+
+  it('shows the home link when a bill card opens the bills page', async () => {
+    await boot({ search: '?bill=0b1c2d3e-4f50-4617-8899-aabbccddeeff' });
+
+    expect(byId('bills-home').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(true);
+  });
+});
+
 describe('LIFF notification settings', () => {
   it('does not ask for the settings before the profile tab opens', async () => {
     const liff = await boot();
@@ -2267,6 +2287,16 @@ describe('LIFF bills tab', () => {
     const paidBoxes = [...ownedCard().querySelectorAll('.bill-member-paid input')];
     expect(paidBoxes.map((box) => box.getAttribute('aria-label'))).toEqual(['บี คืนแล้ว', 'ซี คืนแล้ว']);
     expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง');
+  });
+
+  it('shows a link back to the main page and hides the link to itself', async () => {
+    await openBills();
+
+    const home = byId('bills-home');
+    expect(home.hidden).toBe(false);
+    expect(home.getAttribute('href')).toBe('./');
+    expect(home.textContent.trim()).toBe('หน้าหลัก');
+    expect(byId('friends-bills-link').hidden).toBe(true);
   });
 
   it('puts decline on the left of confirm', async () => {
