@@ -12,6 +12,7 @@ const { formatAmount } = require('./parser/format-reply');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
 const { looksLikeQuestion } = require('./query/parse-question');
 const { buildTotalsFlex } = require('./query/answer-flex');
+const { DEFAULT_WALLET_NAME, walletChoices, walletIdsByName, walletQuestionNames } = require('./wallets/wallets');
 const {
   parseSavingCommand,
   hasOpenGoal,
@@ -220,10 +221,31 @@ function createBot({
     }
   }
 
+  // กระเป๋าเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ทุกรายการลงกระเป๋าตั้งต้น ยังบันทึกได้
+  async function loadTextWallets(userId) {
+    try {
+      return await users.loadWallets(userId);
+    } catch (err) {
+      logger.error('Failed to load wallets', { userId }, err);
+      return [];
+    }
+  }
+
+  // ผู้ใช้ถามถึงรายการเก่าได้ จึงใช้ทุกกระเป๋ารวมที่ซ่อน ถ้าโหลดไม่ได้ยังถามโดยไม่แยกกระเป๋าได้
+  async function loadQuestionWallets(userId) {
+    try {
+      return walletQuestionNames(await repository.listWallets(userId));
+    } catch (err) {
+      logger.error('Failed to load question wallets', { userId }, err);
+      return [];
+    }
+  }
+
   // ไม่ส่งต่อไปบันทึกรายการเมื่อพัง เพราะคำถามที่มีวันที่ เช่น "1-15 ต.ค. ใช้ไปเท่าไหร่" อาจกลายเป็นรายการ 15 บาท
   async function answerQuestion(text, userId) {
     try {
-      const question = await parseQuestion(text, await loadQuestionCategories(userId));
+      const [categoryNames, walletNames] = await Promise.all([loadQuestionCategories(userId), loadQuestionWallets(userId)]);
+      const question = await parseQuestion(text, categoryNames, walletNames);
       if (!question.isQuestion) {
         return null;
       }
@@ -381,8 +403,9 @@ function createBot({
         return answer;
       }
     }
-    const textCategories = await loadTextCategories(userId);
-    const result = await parseMessage(event.message.text, history, textCategories);
+    const [textCategories, wallets] = await Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
+    const choices = walletChoices(wallets);
+    const result = await parseMessage(event.message.text, history, textCategories, choices);
     if (result.status === 'clarify') {
       // ผู้ใช้ไม่เคยเห็นคำถามนี้ จึงไม่จำไว้เป็นบริบทของข้อความถัดไป
       if (deadline.passed) {
@@ -398,11 +421,16 @@ function createBot({
     }
     // หมวดที่ซ่อนต้องตกไป อื่นๆ เพราะตอนโหลดหมวดไม่ได้ Claude เลือกจากหมวดเริ่มต้นซึ่งอาจถูกซ่อนไว้
     const categoryIds = await users.loadCategoryIds(userId, { visibleOnly: true });
+    // ผู้ใช้หลายกระเป๋าเห็นกระเป๋าของทุกรายการบนการ์ด ค่าว่างคือกระเป๋าตั้งต้น
+    const items =
+      choices.length > 0 ? result.items.map((item) => ({ ...item, wallet: item.wallet || DEFAULT_WALLET_NAME })) : result.items;
     const rows = toTransactionRows({
-      items: result.items,
+      items,
       categoryIds,
       userId,
       webhookEventId: event.webhookEventId,
+      // ผู้ใช้กระเป๋าเดียวไม่ส่ง wallet_id เลย จึงยังบันทึกได้แม้อ่านกระเป๋าไม่ได้
+      walletIds: choices.length > 0 ? walletIdsByName(wallets) : undefined,
     });
     const ids = await repository.insertTransactions(rows);
     // ล้างหลังบันทึกสำเร็จ ถ้าบันทึกพังผู้ใช้ส่งคำตอบซ้ำได้โดยบริบทยังอยู่
@@ -411,7 +439,7 @@ function createBot({
       await forgetConversation(userId);
     }
     const budget = await checkBudgets(userId, rows);
-    return { flex: buildSavedReply(result.items, budget, event.webhookEventId, buildEditUrls(rows, ids)) };
+    return { flex: buildSavedReply(items, budget, event.webhookEventId, buildEditUrls(rows, ids)) };
   }
 
   // ล้างของหมดอายุเป็นแค่การดูแลตาราง ถ้าพังยังอ่านสลิปต่อได้
