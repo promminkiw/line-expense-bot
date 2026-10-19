@@ -4,9 +4,8 @@ export const TABS = [
   { id: 'list', label: 'รายการ', title: 'รายการของฉัน', icon: 'tab-list', showMonth: true },
   { id: 'summary', label: 'สรุป', title: 'สรุปรายเดือน', icon: 'tab-chart', showMonth: true },
   { id: 'budgets', label: 'งบ', title: 'จัดการงบประมาณ', icon: 'tab-budget', showMonth: true },
-  { id: 'recurring', label: 'รอบเดือน', title: 'รายการประจำ', icon: 'tab-repeat', showMonth: false },
   { id: 'goals', label: 'ออม', title: 'เป้าหมายการออม', icon: 'tab-goal', showMonth: false },
-  { id: 'profile', label: 'โปรไฟล์', title: 'โปรไฟล์', icon: 'tab-user', showMonth: false },
+  { id: 'profile', label: 'ฉัน', title: 'ฉัน', icon: 'tab-user', showMonth: false },
 ];
 
 export const DEFAULT_TAB = 'list';

@@ -138,6 +138,7 @@ const els = {
   recurringErrorText: document.getElementById('recurring-error-text'),
   recurringRetry: document.getElementById('recurring-retry'),
   recurringAdd: document.getElementById('recurring-add'),
+  recurringOpen: document.getElementById('recurring-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -1399,6 +1400,7 @@ function renderRecurring(rules, focusRuleId = null) {
   recurringLoading.set(false);
   els.recurringError.hidden = true;
   els.recurringAdd.disabled = false;
+  els.recurringOpen.disabled = false;
   els.recurring.hidden = false;
   els.recurringEmpty.hidden = rules.length > 0;
   for (const row of recurringRows(rules, categories)) {
@@ -1445,6 +1447,7 @@ function showRecurringError(err) {
   recurringLoading.set(false);
   els.recurringEmpty.hidden = true;
   els.recurringAdd.disabled = false;
+  els.recurringOpen.disabled = false;
   els.recurring.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.recurringErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดรายการประจำไม่สำเร็จ';
@@ -1753,6 +1756,16 @@ function enterCategoriesPage() {
 
 els.categoriesOpen.addEventListener('click', enterCategoriesPage);
 els.pageBack.addEventListener('click', leaveSubPage);
+
+const RECURRING_PAGE = {
+  panelId: 'panel-recurring',
+  title: 'รายการประจำ',
+  backLabel: 'กลับไปหน้าฉัน',
+  ownerTab: 'profile',
+  returnFocus: els.recurringOpen,
+};
+
+els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {

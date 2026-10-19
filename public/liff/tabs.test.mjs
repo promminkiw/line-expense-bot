@@ -20,13 +20,14 @@ function setup() {
 }
 
 describe('TABS', () => {
-  it('has the six tabs in order, without bills which has its own page', () => {
-    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'goals', 'profile']);
-    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
+  it('has the five tabs in order, without bills and recurring which are separate pages', () => {
+    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'goals', 'profile']);
+    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'งบ', 'ออม', 'ฉัน']);
+    expect(findTab('profile').title).toBe('ฉัน');
     expect(DEFAULT_TAB).toBe('list');
   });
 
-  // ชื่อแท็บสั้นลงให้ 6 แท็บพอดีจอ 320px แต่หัวหน้ายังบอกเต็มว่าแท็บนี้ทำอะไร
+  // ชื่อแท็บสั้นลงให้ 5 แท็บพอดีจอ 320px แต่หัวหน้ายังบอกเต็มว่าแท็บนี้ทำอะไร
   it('keeps the full page title of the budgets tab', () => {
     expect(TABS.find((tab) => tab.id === 'budgets').title).toBe('จัดการงบประมาณ');
   });
@@ -64,9 +65,6 @@ describe('createTabController', () => {
   it('hides the month picker on tabs that do not depend on a month', () => {
     ctx.controller.select('summary');
     expect(ctx.monthEl.hidden).toBe(false);
-
-    ctx.controller.select('recurring');
-    expect(ctx.monthEl.hidden).toBe(true);
 
     ctx.controller.select('profile');
     expect(ctx.monthEl.hidden).toBe(true);
