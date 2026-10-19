@@ -1,0 +1,3 @@
+# ripgrep (และ Grep ของ Claude) ข้ามโฟลเดอร์เหล่านี้ เปิดอ่านตรงๆ หรือค้นโดยระบุ path ได้ตามปกติ
+docs/superpowers/plans/archive/
+work-memory/archive/

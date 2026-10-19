@@ -2,7 +2,7 @@
 
 LINE Official Account บันทึกรายรับรายจ่ายจากข้อความภาษาธรรมชาติ (เช่น "กินข้าว 60 กาแฟ 45") ใช้ Claude แยกข้อความ เก็บใน Supabase และมีเว็บ LIFF ในแอป LINE สำหรับดู แก้ และวิเคราะห์ รองรับหลายผู้ใช้
 
-กติกาของเอกสารนี้: รายการละไม่เกิน 2 บรรทัด รายละเอียดพฤติกรรมอยู่ใน `SPEC.md` ขั้นตอนเต็มอยู่ในแผน `docs/superpowers/plans/`
+กติกาของเอกสารนี้: รายการละไม่เกิน 2 บรรทัด รายละเอียดพฤติกรรมอยู่ใน `SPEC.md` ขั้นตอนเต็มอยู่ในแผน `docs/superpowers/plans/` (เสร็จแล้วอยู่ใน `archive/`)
 
 ## ความสามารถ
 
@@ -63,12 +63,15 @@ flowchart LR
 ## โครงสร้างโฟลเดอร์
 
 ```
-src/                        โค้ดฝั่ง server (bot, api, parser, slip, summary, budget, recurring, goals, wallets, bills, db)
+src/                        โค้ดฝั่ง server: bot.js, api, parser, query, slip, summary, budget, recurring,
+                            notifications, goals, wallets, friends, bills, export, menu, db, utils
 public/liff/                หน้าเว็บ LIFF และเทสต์ของหน้า
 supabase/                   SQL schema และ migration (รันตามลำดับ หัวไฟล์บอกว่าต้องรันก่อน push ไหม)
 scripts/                    สคริปต์ช่วยพัฒนา (try-parse)
-docs/superpowers/plans/     แผนงานรายขั้นของแต่ละฟีเจอร์
-work-memory/STATE.md        สถานะงานและสิ่งที่ค้าง
+docs/superpowers/plans/     แผนงานรายขั้น (ที่เสร็จแล้วอยู่ใน archive/ ซึ่ง .ignore ให้การค้นหาข้ามไว้)
+work-memory/STATE.md        สถานะงานและสิ่งที่ค้าง (อ่านทุก session)
+work-memory/LEARNED.md      สิ่งที่เรียนรู้ แยกตามหัวข้อ (อ่านเฉพาะที่เกี่ยว)
+.ignore                     ให้ ripgrep ข้ามโฟลเดอร์ archive
 render.yaml                 ตั้งค่า Render (Blueprint)
 ```
 
@@ -93,7 +96,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 
 ## Deploy (Render)
 
-ขั้นตอนเต็มอยู่ที่ `docs/superpowers/plans/2026-10-02-deploy-render.md`
+ขั้นตอนเต็มอยู่ที่ `docs/superpowers/plans/archive/2026-10-02-deploy-render.md`
 
 1. push เข้า `main` = deploy อัตโนมัติ (บอทอาจไม่ตอบ 2-5 นาที) ถ้ามีไฟล์ SQL ใหม่ให้รันตามที่หัวไฟล์บอก ส่วนใหญ่ต้องรันก่อน push
 2. สร้าง Blueprint จาก repo แล้วกรอก secret 8 ตัว (ตัวแปรในตารางข้างบน ยกเว้น `CLAUDE_MODEL` และ `PORT`)
