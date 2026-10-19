@@ -251,6 +251,10 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('tab-user')).toBe(true);
   });
 
+  it('names the categories entry for everything the page can do', () => {
+    expect(doc.getElementById('categories-open').textContent.trim()).toBe('จัดการหมวดหมู่');
+  });
+
   // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
   it.each([
     ['edit-form', 'cancel-button', 'delete-button'],
