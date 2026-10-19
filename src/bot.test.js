@@ -777,6 +777,25 @@ describe('bot saving command', () => {
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
   });
 
+  it('asks for the goal name instead of saving an expense when the name is missing', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม 1000'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ใส่ชื่อเป้าด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น', undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('records "ออม 1000" as an entry for a user with no open goal', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออม 1000'));
+
+    expect(deps.parseMessage).toHaveBeenCalled();
+  });
+
   it('asks for a valid amount when the user has an open goal', async () => {
     const { deps, bot } = setup();
 

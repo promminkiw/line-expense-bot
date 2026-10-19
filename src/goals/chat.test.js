@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply } = require('./chat.js');
+const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply, formatGoalNameMissingReply } = require('./chat.js');
 
 const GOALS = [
   { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, closed: false },
@@ -19,11 +19,15 @@ describe('parseSavingCommand', () => {
     ['ออม ทริป 20,000,000', { name: 'ทริป', amount: null }],
     // รูปแบบตรงกับคำสั่งออม บอทจึงต้องดู hasOpenGoal ก่อนจับ ไม่งั้นคนที่ไม่มีเป้าจะจดรายการนี้ไม่ได้
     ['ออมสิน 1000', { name: 'สิน', amount: 1000 }],
+    // ไม่มีชื่อเป้า บอทต้องถามชื่อแทนที่จะจดเป็นรายจ่าย
+    ['ออม 1000', { name: '', amount: 1000 }],
+    ['ออม 1,000 บาท', { name: '', amount: 1000 }],
+    ['ออม 0', { name: '', amount: null }],
   ])('reads %s', (text, expected) => {
     expect(parseSavingCommand(text)).toEqual(expected);
   });
 
-  it.each(['กินข้าว 60', 'ออม', 'ออม 1000', 'ออมเงิน', 'ออม ทริป 10.555', 'สรุปเดือนนี้'])('leaves %s to the other paths', (text) => {
+  it.each(['กินข้าว 60', 'ออม', 'ออมเงิน', 'ออม ทริป 10.555', 'สรุปเดือนนี้'])('leaves %s to the other paths', (text) => {
     expect(parseSavingCommand(text)).toBeNull();
   });
 });
@@ -68,4 +72,16 @@ describe('formatGoalNotFoundReply', () => {
       'ไม่พบเป้า "คอนโด"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000'
     );
   });
+
+  // ผู้ใช้พิมพ์อะไรมาก็ได้ ชื่อยาวเกินชื่อเป้าที่ยาวที่สุดจึงตัดไม่ให้ข้อความตอบยาวเกิน
+  it('cuts a typed name longer than 30 characters', () => {
+    expect(formatGoalNotFoundReply('ก'.repeat(40), GOALS).split('\n')[0]).toBe(`ไม่พบเป้า "${'ก'.repeat(30)}…"`);
+  });
 });
+
+describe('formatGoalNameMissingReply', () => {
+  it('asks for the goal name and lists the open goals', () => {
+    expect(formatGoalNameMissingReply(GOALS)).toBe('ใส่ชื่อเป้าด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip');
+  });
+});
+

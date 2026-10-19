@@ -19,6 +19,7 @@ const {
   hasOpenGoal,
   findOpenGoal,
   formatGoalNotFoundReply,
+  formatGoalNameMissingReply,
   SAVING_AMOUNT_REPLY,
   GOAL_GONE_REPLY,
 } = require('./goals/chat');
@@ -360,6 +361,9 @@ function createBot({
     }
     if (command.amount === null) {
       return { text: SAVING_AMOUNT_REPLY };
+    }
+    if (!command.name) {
+      return { text: formatGoalNameMissingReply(goals) };
     }
     const goal = findOpenGoal(goals, command.name);
     if (!goal) {
