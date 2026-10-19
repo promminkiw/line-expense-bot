@@ -247,6 +247,7 @@
           <option value="income">รายรับ</option>
         </select>
         <select id="filter-category" aria-label="กรองตามหมวด"></select>
+        <select id="filter-wallet" aria-label="กรองตามกระเป๋า" hidden></select>
         <button type="button" id="filter-clear" hidden>ล้างตัวกรอง</button>
         <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
@@ -550,6 +551,9 @@
       </label>
       <label>หมวด
         <select id="edit-category" required></select>
+      </label>
+      <label id="edit-wallet-row" hidden>กระเป๋า
+        <select id="edit-wallet"></select>
       </label>
       <label>วันที่
         <input id="edit-date" type="date" required>

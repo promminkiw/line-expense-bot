@@ -344,6 +344,8 @@ describe('index.html static invariants', () => {
       'banner-retry',
       'filters',
       'filter-clear',
+      'filter-wallet',
+      'edit-wallet-row',
       'list-head-skeleton',
       'summary-skeleton',
       'trend-loading',
@@ -4506,5 +4508,101 @@ describe('LIFF wallets section', () => {
 
     expect(byId('wallet-add-input').disabled).toBe(false);
     expect(byId('wallet-add-submit').disabled).toBe(false);
+  });
+});
+
+describe('LIFF wallets on entries', () => {
+  const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 60, balance: 24940, entryCount: 2 };
+  const CARD = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 40, balance: -40, entryCount: 1 };
+  const WALLET_MONTH = {
+    ...RESPONSES['/api/transactions'],
+    transactions: TRANSACTIONS.map((item) =>
+      item.id === 't2' ? { ...item, walletId: 'w-card', walletName: 'บัตรเครดิต' } : { ...item, walletId: 'w-cash', walletName: 'เงินสด' }
+    ),
+  };
+
+  // คืน body ของ request ที่ส่ง แก้รายการตอบ 204 ส่วนอื่นใช้คำตอบตาม overrides
+  function stubFetch(overrides) {
+    const bodies = [];
+    const fallback = makeFetch(overrides);
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      const method = options.method ?? 'GET';
+      if (options.body) bodies.push({ call: `${method} ${path}`, body: JSON.parse(options.body) });
+      return method === 'PATCH' ? { ok: true, status: 204, json: async () => null } : fallback(url, options);
+    });
+    return bodies;
+  }
+
+  async function bootWith(walletList) {
+    const overrides = { '/api/wallets': { wallets: walletList }, '/api/transactions': WALLET_MONTH };
+    await boot({ overrides });
+    return stubFetch(overrides);
+  }
+
+  const visibleIds = () => [...document.querySelectorAll('#list .row')].map((row) => row.dataset.id);
+  const openRow = async (id) => {
+    document.querySelector(`#list .row[data-id="${id}"] .row-button`).click();
+    await settle();
+  };
+  const submitEdit = async () => {
+    byId('edit-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+  };
+
+  it('hides every wallet control for a single wallet and sends no walletId', async () => {
+    const bodies = await bootWith([CASH]);
+
+    expect(byId('filter-wallet').hidden).toBe(true);
+    expect(document.querySelector('.row-wallet')).toBeNull();
+    await openRow('t1');
+    expect(byId('edit-wallet-row').hidden).toBe(true);
+    await submitEdit();
+    expect(bodies[0].body).not.toHaveProperty('walletId');
+  });
+
+  it('filters the list by wallet and clears the filter', async () => {
+    await bootWith([CASH, CARD]);
+
+    expect(byId('filter-wallet').hidden).toBe(false);
+    expect([...byId('filter-wallet').options].map((option) => option.textContent)).toEqual(['ทุกกระเป๋า', 'เงินสด', 'บัตรเครดิต']);
+    byId('filter-wallet').value = 'w-card';
+    byId('filter-wallet').dispatchEvent(new Event('input'));
+    expect(visibleIds()).toEqual(['t2']);
+    expect(byId('filter-clear').hidden).toBe(false);
+
+    byId('filter-clear').click();
+    expect(byId('filter-wallet').value).toBe('');
+    expect(visibleIds()).toHaveLength(3);
+  });
+
+  it('shows the wallet name on each row', async () => {
+    await bootWith([CASH, CARD]);
+
+    expect(document.querySelector('#list .row[data-id="t2"] .row-wallet').textContent).toBe('บัตรเครดิต');
+    expect(document.querySelector('#list .row[data-id="t1"] .row-wallet').textContent).toBe('เงินสด');
+  });
+
+  it('moves an entry to another wallet from the editor', async () => {
+    const bodies = await bootWith([CASH, CARD]);
+
+    await openRow('t2');
+    expect(byId('edit-wallet-row').hidden).toBe(false);
+    expect(byId('edit-wallet').value).toBe('w-card');
+    byId('edit-wallet').value = 'w-cash';
+    await submitEdit();
+
+    expect(bodies[0]).toMatchObject({ call: 'PATCH /api/transactions/t2', body: { walletId: 'w-cash' } });
+  });
+
+  it('keeps a hidden wallet only for the entry that uses it', async () => {
+    await bootWith([CASH, { ...CARD, hidden: true }]);
+
+    await openRow('t2');
+    expect([...byId('edit-wallet').options].map((option) => option.value)).toEqual(['w-cash', 'w-card']);
+    byId('cancel-button').click();
+
+    await openRow('t1');
+    expect(byId('edit-wallet-row').hidden).toBe(true);
   });
 });

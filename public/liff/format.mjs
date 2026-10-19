@@ -247,18 +247,19 @@ export function shouldCloseRecurringEditor(status) {
   return status === 404;
 }
 
-export function filterTransactions(transactions, { query = '', categoryId = '', type = '' } = {}) {
+export function filterTransactions(transactions, { query = '', categoryId = '', type = '', walletId = '' } = {}) {
   const needle = query.trim().toLowerCase();
   return transactions.filter((item) => {
     if (type && item.type !== type) return false;
     if (categoryId && item.categoryId !== categoryId) return false;
+    if (walletId && item.walletId !== walletId) return false;
     if (!needle) return true;
     return `${item.categoryName} ${item.note || ''}`.toLowerCase().includes(needle);
   });
 }
 
-export function isFilterActive({ query = '', categoryId = '', type = '' } = {}) {
-  return Boolean(query.trim() || categoryId || type);
+export function isFilterActive({ query = '', categoryId = '', type = '', walletId = '' } = {}) {
+  return Boolean(query.trim() || categoryId || type || walletId);
 }
 
 export function describeFilterResult(shown, total, truncated) {
