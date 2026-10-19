@@ -30,6 +30,7 @@ const MIGRATIONS = [
   '022_daily_reminder.sql',
   '023_savings_goals.sql',
   '024_wallets.sql',
+  '025_wallet_name_case.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -1328,6 +1329,40 @@ describe('024_wallets.sql', () => {
 
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('024_wallets.sql'))).resolves.toBeDefined();
+  });
+});
+
+describe('025_wallet_name_case.sql', () => {
+  async function createWallet(userId, name) {
+    return (await one('insert into wallets (user_id, name) values ($1, $2) returning id', [userId, name])).id;
+  }
+
+  // ชื่อที่ต่างกันแค่ตัวพิมพ์ดูเป็นกระเป๋าเดียวกันสำหรับผู้ใช้ เหมือนชื่อเป้าออม
+  it('refuses a wallet name that differs only in letter case for the same user', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    await createWallet(user, 'KBank');
+    await createWallet(other, 'kbank');
+
+    await db.exec('savepoint case_name');
+    await expect(createWallet(user, 'kbank')).rejects.toThrow('wallets_user_lower_name_idx');
+    await db.exec('rollback to savepoint case_name');
+  });
+
+  it('keeps the exact name constraint that the cash wallet seed upserts on', async () => {
+    const constraint = await one("select conname from pg_constraint where conname = 'wallets_user_id_name_key'");
+
+    expect(constraint).toBeDefined();
+  });
+
+  it('indexes transactions by wallet for the wallet foreign key', async () => {
+    const index = await one("select indexdef from pg_indexes where schemaname = 'public' and indexname = 'transactions_wallet_user_idx'");
+
+    expect(index.indexdef).toContain('(wallet_id, user_id)');
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('025_wallet_name_case.sql'))).resolves.toBeDefined();
   });
 });
 
