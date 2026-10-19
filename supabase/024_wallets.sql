@@ -15,7 +15,7 @@ create table if not exists public.wallets (
 -- ไม่สร้าง policy เหมือนตารางอื่น: anon key เข้าถึงไม่ได้ ส่วน server ใช้ service role
 alter table public.wallets enable row level security;
 
--- ผู้ใช้เดิมได้กระเป๋าตั้งต้นทันที คำถามยอดจะได้รู้จักชื่อ เงินสด โดยไม่ต้องรอให้โค้ดซ่อม
+-- ผู้ใช้เดิมได้กระเป๋าตั้งต้นทันที wallet_totals จะได้เห็นแถว เงินสด โดยไม่ต้องรอให้โค้ดซ่อม
 insert into public.wallets (user_id, name)
 select id, 'เงินสด' from public.users
 on conflict (user_id, name) do nothing;

@@ -1320,6 +1320,12 @@ describe('024_wallets.sql', () => {
     expect(await rows('select wallet_id from transactions where user_id = $1', [user])).toEqual([{ wallet_id: null }]);
   });
 
+  it('enables row level security on wallets', async () => {
+    const result = await one("select relname, relrowsecurity from pg_class where oid = 'public.wallets'::regclass");
+
+    expect(result).toEqual({ relname: 'wallets', relrowsecurity: true });
+  });
+
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('024_wallets.sql'))).resolves.toBeDefined();
   });
