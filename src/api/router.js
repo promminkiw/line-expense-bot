@@ -7,6 +7,8 @@ const {
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
+  validateWalletCreate,
+  validateWalletUpdate,
   validateSettingsUpdate,
 } = require('./validate');
 const { createLinkToken, EXPORT_LINK_TTL_MS } = require('../export/link-token');
@@ -17,6 +19,7 @@ const { monthsEndingAt, buildTrend } = require('./trend');
 const { UUID_PATTERN } = require('../utils/uuid');
 const MAX_RECURRING_RULES = 50;
 const { isSystemCategory, MAX_VISIBLE_CATEGORIES, MAX_TOTAL_CATEGORIES } = require('../parser/categories');
+const { MAX_VISIBLE_WALLETS, MAX_TOTAL_WALLETS } = require('../wallets/wallets');
 
 function withSystemFlag(category) {
   return { ...category, system: isSystemCategory(category.type, category.name) };
@@ -39,6 +42,25 @@ async function findOwnCategory(repository, userId, rawId) {
 function answerCategoryLookup(res, found) {
   if (found.status === 'not_found') res.status(404).json({ error: 'Not found' });
   else res.status(400).json({ error: 'System category' });
+}
+
+function countVisibleWallets(wallets) {
+  return wallets.filter((wallet) => !wallet.hidden).length;
+}
+
+function toWalletView(row) {
+  // คิดเป็นสตางค์เพื่อไม่ให้ทศนิยมลอยตัวเพี้ยน เหมือนยอดในโปรไฟล์
+  const balanceSatang = Math.round(row.income * 100) - Math.round(row.expense * 100);
+  return {
+    id: row.id,
+    name: row.name,
+    hidden: row.hidden,
+    isDefault: row.isDefault,
+    income: row.income,
+    expense: row.expense,
+    balance: balanceSatang / 100,
+    entryCount: row.entryCount,
+  };
 }
 
 function readBearerToken(req) {
@@ -194,20 +216,93 @@ function createApiRouter({
     res.status(204).end();
   });
 
+  router.get('/wallets', async (req, res) => {
+    // ซ่อมกระเป๋าตั้งต้นก่อนรวมยอด ไม่งั้นรายการที่ไม่มีกระเป๋าจะไม่ถูกนับที่ไหนเลย
+    await users.loadWallets(req.userId);
+    const totals = await repository.getWalletTotals(req.userId);
+    res.json({ wallets: totals.map(toWalletView) });
+  });
+
+  router.post('/wallets', async (req, res) => {
+    const result = validateWalletCreate(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const wallets = await users.loadWallets(req.userId);
+    if (wallets.length >= MAX_TOTAL_WALLETS || countVisibleWallets(wallets) >= MAX_VISIBLE_WALLETS) {
+      res.status(409).json({ error: 'Too many wallets' });
+      return;
+    }
+    const created = await repository.createWallet(req.userId, result.value);
+    if (created.status === 'duplicate') {
+      res.status(409).json({ error: 'Duplicate name' });
+      return;
+    }
+    res.status(201).json({ wallet: created.wallet });
+  });
+
+  router.patch('/wallets/:id', async (req, res) => {
+    if (!UUID_PATTERN.test(req.params.id)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const result = validateWalletUpdate(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const wallets = await users.loadWallets(req.userId);
+    // Postgres คืน uuid เป็นตัวพิมพ์เล็กเสมอ แต่ UUID_PATTERN รับตัวพิมพ์ใหญ่ด้วย
+    const id = req.params.id.toLowerCase();
+    const wallet = wallets.find((item) => item.id === id);
+    if (!wallet) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    // โค้ดอ้างกระเป๋าตั้งต้นด้วยชื่อ และรายการที่ไม่มีกระเป๋าอยู่ในนั้น จึงห้ามเปลี่ยนชื่อหรือซ่อน
+    if (wallet.isDefault) {
+      res.status(400).json({ error: 'Default wallet' });
+      return;
+    }
+    const unhiding = result.value.hidden === false && wallet.hidden;
+    if (unhiding && countVisibleWallets(wallets) >= MAX_VISIBLE_WALLETS) {
+      res.status(409).json({ error: 'Too many wallets' });
+      return;
+    }
+    const updated = await repository.updateWallet(req.userId, wallet.id, result.value);
+    if (updated.status === 'duplicate') {
+      res.status(409).json({ error: 'Duplicate name' });
+      return;
+    }
+    if (updated.status === 'not_found') {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.json({ wallet: updated.wallet });
+  });
+
   router.get('/transactions', async (req, res) => {
     const range = parseMonth(req.query.month);
     if (!range) {
       res.status(400).json({ error: 'Invalid month' });
       return;
     }
-    const [{ transactions, totalCount }, categories, summary] = await Promise.all([
+    const [{ transactions, totalCount }, categories, summary, wallets] = await Promise.all([
       repository.listTransactions(req.userId, range.from, range.to),
       repository.listCategories(req.userId),
       repository.summarizeTransactions(req.userId, range.from, range.to),
+      users.loadWallets(req.userId),
     ]);
     const names = new Map(categories.map((category) => [category.id, category.name]));
+    const walletNames = new Map(wallets.map((wallet) => [wallet.id, wallet.name]));
+    const defaultWallet = wallets.find((wallet) => wallet.isDefault);
     res.json({
-      transactions: transactions.map((item) => ({ ...item, categoryName: names.get(item.categoryId) || '' })),
+      transactions: transactions.map((item) => {
+        // แถวที่ไม่มีกระเป๋าคือกระเป๋าตั้งต้น ส่ง id จริงไป หน้าเว็บจะได้เทียบ id อย่างเดียว
+        const walletId = item.walletId ?? (defaultWallet ? defaultWallet.id : null);
+        return { ...item, categoryName: names.get(item.categoryId) || '', walletId, walletName: walletNames.get(walletId) || '' };
+      }),
       // ยอดรวมและกราฟใช้ summary จาก SQL จึงนับครบแม้รายการที่ส่งมาถูกตัดตาม max-rows
       summary,
       truncated: totalCount > transactions.length,
@@ -273,10 +368,19 @@ function createApiRouter({
       return;
     }
     // ประเภทรายรับ/รายจ่ายตามหมวดที่เลือก เพื่อไม่ให้ประเภทกับหมวดขัดกัน
-    const updated = await repository.updateTransaction(req.userId, req.params.id, {
-      ...result.value,
-      type: category.type,
-    });
+    const fields = { ...result.value, type: category.type };
+    if (result.value.walletId !== undefined) {
+      const wallets = await users.loadWallets(req.userId);
+      // Postgres คืน uuid เป็นตัวพิมพ์เล็กเสมอ แต่ client อาจส่งตัวพิมพ์ใหญ่
+      const wallet = wallets.find((item) => item.id === result.value.walletId.toLowerCase());
+      if (!wallet) {
+        res.status(400).json({ error: 'Invalid wallet' });
+        return;
+      }
+      // กระเป๋าตั้งต้นเก็บเป็น null แบบเดียวกับรายการเก่า SQL จึงนับที่เดียว
+      fields.walletId = wallet.isDefault ? null : wallet.id;
+    }
+    const updated = await repository.updateTransaction(req.userId, req.params.id, fields);
     if (!updated) {
       res.status(404).json({ error: 'Not found' });
       return;

@@ -122,6 +122,7 @@ function setup(overrides = {}) {
         { id: 'cat-income-other', name: 'อื่นๆ', type: 'income', hidden: false },
       ]),
       queryTotals: vi.fn().mockResolvedValue([{ type: 'expense', total: 450, entryCount: 6 }]),
+      listWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
       listGoals: vi.fn().mockResolvedValue([
         { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: null, closed: false, saved: 5000, contributionCount: 1 },
         { id: 'g-2', name: 'มือถือ', targetAmount: 30000, targetDate: null, closed: true, saved: 30000, contributionCount: 3 },
@@ -143,6 +144,7 @@ function setup(overrides = {}) {
           ['expense:อื่นๆ', 'cat-other'],
         ])
       ),
+      loadWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
     },
     bills: { respond: vi.fn().mockResolvedValue({ status: 'confirmed', share: 300, categoryName: 'อาหาร' }) },
     allowRequest: vi.fn().mockReturnValue(true),
@@ -160,7 +162,7 @@ describe('bot text message', () => {
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
         user_id: 'user-1',
@@ -217,7 +219,7 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('500000'));
 
     expect(deps.repository.getPendingClarification).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES, []);
     expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
@@ -245,7 +247,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(deps.replyFlex).toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
@@ -343,7 +345,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
   });
 
   it('keeps only the last 6 turns while the user keeps being asked', async () => {
@@ -787,7 +789,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -799,7 +801,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.replyText).not.toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES, []);
   });
 
   it('counts the rate limit once the message falls through to the normal flow', async () => {
@@ -1000,6 +1002,7 @@ describe('bot budget alerts', () => {
         ensureUser: vi.fn().mockResolvedValue('user-1'),
         loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
         loadCategoryIds: vi.fn().mockResolvedValue(new Map([['income:อื่นๆ', 'cat-income-other']])),
+        loadWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
       },
     });
 
@@ -1019,7 +1022,7 @@ describe('bot text categories', () => {
     await bot.handleEvent(textEvent('อาหารแมว 300'));
 
     expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories);
+    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, []);
   });
 
   // หมวดเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ยังบันทึกด้วยหมวดเริ่มต้นได้ ดีกว่าตอบว่าระบบมีปัญหา
@@ -1029,7 +1032,7 @@ describe('bot text categories', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES, []);
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to load text categories',
       { userId: 'user-1' },
@@ -1117,6 +1120,20 @@ describe('bot totals questions', () => {
       expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({ tab: 'list', m: '2026-09', c: 'อาหาร' });
     });
 
+    it('sends the wallet name when the question names a wallet', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue({ ...QUESTION, keyword: '', wallet: 'บัตรเครดิต' });
+
+      await bot.handleEvent(textEvent('เดือนนี้รูดบัตรเครดิตไปเท่าไหร่'));
+
+      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({
+        tab: 'list',
+        m: '2026-10',
+        w: 'บัตรเครดิต',
+        type: 'expense',
+      });
+    });
+
     it('has no button without a LIFF url', async () => {
       const { deps, bot } = setup();
       deps.parseQuestion.mockResolvedValue(QUESTION);
@@ -1153,7 +1170,7 @@ describe('bot totals questions', () => {
 
     await bot.handleEvent(textEvent('ค่าแมวเท่าไหร่'));
 
-    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ']);
+    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], []);
   });
 
   it('uses the default category names when loading them fails', async () => {
@@ -1176,7 +1193,7 @@ describe('bot totals questions', () => {
     await bot.handleEvent(textEvent('ข้าวมันไก่ 50 แพงเท่าไหร่'));
 
     expect(deps.parseQuestion).toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything());
+    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything(), []);
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -1231,6 +1248,93 @@ describe('bot totals questions', () => {
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to answer totals question', { userId: 'user-1' }, expect.any(Error));
     expect(deps.parseMessage).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot wallets', () => {
+  const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true };
+  const CARD = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false };
+  const OLD = { id: 'w-old', name: 'บัญชีเก่า', hidden: true, isDefault: false };
+
+  it('offers the visible wallets to the parser when the user has several', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadWallets.mockResolvedValue([CASH, CARD, OLD]);
+
+    await bot.handleEvent(textEvent('กาแฟ 60 บัตรเครดิต'));
+
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
+    expect(deps.parseMessage).toHaveBeenCalledWith('กาแฟ 60 บัตรเครดิต', [], USER_TEXT_CATEGORIES, ['เงินสด', 'บัตรเครดิต']);
+  });
+
+  it('saves the chosen wallet id, cash as null, and shows the wallet on the card', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadWallets.mockResolvedValue([CASH, CARD]);
+    deps.parseMessage.mockResolvedValue({
+      status: 'ok',
+      items: [
+        { ...FOOD_ITEM, wallet: 'บัตรเครดิต' },
+        { ...FOOD_ITEM, amount: 45, note: 'กาแฟ', wallet: '' },
+      ],
+    });
+
+    await bot.handleEvent(textEvent('กินข้าว 60 บัตรเครดิต กาแฟ 45'));
+
+    const rows = deps.repository.insertTransactions.mock.calls[0][0];
+    expect(rows.map((row) => row.wallet_id)).toEqual(['w-card', null]);
+    const card = JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body);
+    expect(card).toContain('29/09 · กินข้าว · บัตรเครดิต');
+    expect(card).toContain('29/09 · กาแฟ · เงินสด');
+  });
+
+  // ผู้ใช้กระเป๋าเดียวไม่ส่ง wallet_id เลย จึงบันทึกได้แม้ DB ยังไม่มีคอลัมน์ หรืออ่านกระเป๋าไม่ได้
+  it('leaves wallet_id out and the card unchanged for a single wallet', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).not.toContain('เงินสด');
+  });
+
+  it('still saves to the default wallet when the wallets cannot be loaded', async () => {
+    const { deps, bot } = setup();
+    deps.users.loadWallets.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to load wallets', { userId: 'user-1' }, expect.any(Error));
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+    expect(deps.replyFlex.mock.calls[0][1].altText).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+  });
+
+  it('adds no wallet notice when the wallets load', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).not.toContain('อ่านกระเป๋าไม่ได้');
+  });
+
+  it('gives the question parser every wallet name, hidden ones included', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listWallets.mockResolvedValue([CASH, OLD]);
+
+    await bot.handleEvent(textEvent('บัญชีเก่าใช้ไปเท่าไหร่'));
+
+    expect(deps.repository.listWallets).toHaveBeenCalledWith('user-1');
+    expect(deps.parseQuestion).toHaveBeenCalledWith('บัญชีเก่าใช้ไปเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], ['เงินสด', 'บัญชีเก่า']);
+  });
+
+  it('asks without wallets when they cannot be loaded for a question', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listWallets.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('เดือนนี้ใช้ไปเท่าไหร่'));
+
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to load question wallets', { userId: 'user-1' }, expect.any(Error));
+    expect(deps.parseQuestion.mock.calls[0][2]).toEqual([]);
   });
 });
 

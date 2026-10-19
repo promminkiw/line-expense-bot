@@ -1,6 +1,7 @@
 const { MAX_AMOUNT } = require('../parser/parse-message');
 const { isValidCalendarDate } = require('../utils/date');
 const { MAX_CATEGORY_NAME_LENGTH, CATEGORY_ICONS, isReservedCategoryName } = require('../parser/categories');
+const { DEFAULT_WALLET_NAME, MAX_WALLET_NAME_LENGTH } = require('../wallets/wallets');
 const { NOTIFICATION_SETTINGS } = require('../notifications/settings');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
@@ -44,7 +45,15 @@ function validateTransactionUpdate(body) {
   if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH) {
     return { ok: false, error: 'Invalid note' };
   }
-  return { ok: true, value: { amount, categoryId, occurredOn, note: note.trim() } };
+  const value = { amount, categoryId, occurredOn, note: note.trim() };
+  // ไม่ส่ง walletId คือไม่เปลี่ยนกระเป๋า หน้าเว็บรุ่นเก่าที่ยังไม่รู้จักกระเป๋าจะได้ไม่ล้างค่าเดิม
+  if (body.walletId !== undefined) {
+    if (typeof body.walletId !== 'string' || body.walletId.length === 0) {
+      return { ok: false, error: 'Invalid wallet' };
+    }
+    value.walletId = body.walletId;
+  }
+  return { ok: true, value };
 }
 
 function validateRecurringRule(body) {
@@ -141,6 +150,52 @@ function validateCategoryUpdate(body) {
   return { ok: true, value };
 }
 
+// ชื่อกระเป๋าถูกส่งให้ Claude คั่นด้วยจุลภาคเหมือนชื่อหมวด จึงใช้กฎตัวอักษรเดียวกัน
+function validateWalletName(value) {
+  if (typeof value !== 'string') {
+    return { ok: false, error: 'Invalid name' };
+  }
+  const name = value.trim();
+  if (name.length === 0 || name.length > MAX_WALLET_NAME_LENGTH || hasForbiddenNameCharacter(name)) {
+    return { ok: false, error: 'Invalid name' };
+  }
+  if (name === DEFAULT_WALLET_NAME) {
+    return { ok: false, error: 'Reserved name' };
+  }
+  return { ok: true, value: name };
+}
+
+function validateWalletCreate(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const name = validateWalletName(body.name);
+  if (!name.ok) return name;
+  return { ok: true, value: { name: name.value } };
+}
+
+function validateWalletUpdate(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const value = {};
+  if (body.name !== undefined) {
+    const name = validateWalletName(body.name);
+    if (!name.ok) return name;
+    value.name = name.value;
+  }
+  if (body.hidden !== undefined) {
+    if (typeof body.hidden !== 'boolean') {
+      return { ok: false, error: 'Invalid hidden' };
+    }
+    value.hidden = body.hidden;
+  }
+  if (Object.keys(value).length === 0) {
+    return { ok: false, error: 'Invalid body' };
+  }
+  return { ok: true, value };
+}
+
 // รับเฉพาะสวิตช์ที่รู้จัก field อื่นตัดทิ้ง เพื่อไม่ให้ client เขียนคอลัมน์อื่นของ users ได้
 function validateSettingsUpdate(body) {
   if (!body || typeof body !== 'object') {
@@ -167,5 +222,7 @@ module.exports = {
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
+  validateWalletCreate,
+  validateWalletUpdate,
   validateSettingsUpdate,
 };

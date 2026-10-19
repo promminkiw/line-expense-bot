@@ -14,7 +14,7 @@ function findCategoryId(categoryIds, item) {
   return categoryId;
 }
 
-function toTransactionRows({ items, categoryIds, userId, webhookEventId, source = 'text' }) {
+function toTransactionRows({ items, categoryIds, userId, webhookEventId, source = 'text', walletIds }) {
   return items.map((item) => ({
     user_id: userId,
     type: item.type,
@@ -24,6 +24,8 @@ function toTransactionRows({ items, categoryIds, userId, webhookEventId, source 
     occurred_on: item.date,
     source,
     line_event_id: webhookEventId,
+    // ไม่ส่ง walletIds คือไม่มี wallet_id DB จึงใส่ null (กระเป๋าตั้งต้น) และบันทึกได้แม้ไม่รู้จักกระเป๋า
+    ...(walletIds ? { wallet_id: walletIds.get(item.wallet) ?? null } : {}),
   }));
 }
 

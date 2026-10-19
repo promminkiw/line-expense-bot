@@ -6,6 +6,8 @@ import {
   validateCategoryCreate,
   validateCategoryUpdate,
   validateSettingsUpdate,
+  validateWalletCreate,
+  validateWalletUpdate,
 } from './validate.js';
 
 const VALID = { amount: 60, categoryId: 'cat-1', occurredOn: '2026-09-29', note: ' กินข้าว ' };
@@ -203,5 +205,50 @@ describe('validateSettingsUpdate', () => {
 
   it('refuses a daily reminder switch that is not a boolean', () => {
     expect(validateSettingsUpdate({ dailyReminder: 1 })).toEqual({ ok: false, error: 'Invalid dailyReminder' });
+  });
+});
+
+describe('validateTransactionUpdate walletId', () => {
+  const body = { amount: 60, categoryId: 'c1', occurredOn: '2026-09-29', note: 'x' };
+
+  it('leaves walletId out when it is not sent', () => {
+    expect(validateTransactionUpdate(body).value).not.toHaveProperty('walletId');
+  });
+
+  it('keeps a walletId string and refuses other values', () => {
+    expect(validateTransactionUpdate({ ...body, walletId: 'w-card' }).value.walletId).toBe('w-card');
+    expect(validateTransactionUpdate({ ...body, walletId: '' })).toEqual({ ok: false, error: 'Invalid wallet' });
+    expect(validateTransactionUpdate({ ...body, walletId: null })).toEqual({ ok: false, error: 'Invalid wallet' });
+  });
+});
+
+describe('validateWalletCreate', () => {
+  it('trims the name', () => {
+    expect(validateWalletCreate({ name: '  บัตรเครดิต ' })).toEqual({ ok: true, value: { name: 'บัตรเครดิต' } });
+  });
+
+  it.each([
+    [{ name: '' }, 'Invalid name'],
+    [{ name: 'ก'.repeat(31) }, 'Invalid name'],
+    [{ name: 'a,b' }, 'Invalid name'],
+    [{ name: 'a\nb' }, 'Invalid name'],
+    [{ name: 5 }, 'Invalid name'],
+    [{ name: ' เงินสด ' }, 'Reserved name'],
+    [null, 'Invalid body'],
+  ])('refuses %j with %s', (body, error) => {
+    expect(validateWalletCreate(body)).toEqual({ ok: false, error });
+  });
+});
+
+describe('validateWalletUpdate', () => {
+  it('accepts a name, hidden, or both', () => {
+    expect(validateWalletUpdate({ name: 'กสิกร' })).toEqual({ ok: true, value: { name: 'กสิกร' } });
+    expect(validateWalletUpdate({ hidden: true })).toEqual({ ok: true, value: { hidden: true } });
+  });
+
+  it('refuses an empty body, a bad hidden and a reserved name', () => {
+    expect(validateWalletUpdate({})).toEqual({ ok: false, error: 'Invalid body' });
+    expect(validateWalletUpdate({ hidden: 'yes' })).toEqual({ ok: false, error: 'Invalid hidden' });
+    expect(validateWalletUpdate({ name: 'เงินสด' })).toEqual({ ok: false, error: 'Reserved name' });
   });
 });

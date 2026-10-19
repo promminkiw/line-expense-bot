@@ -30,6 +30,14 @@ describe('formatTotalsAnswer', () => {
     expect(text).toBe('ช่วง 1-18 ต.ค. 2569 หมวด อาหาร: รายจ่าย 1,234.5 บาท (3 รายการ)');
   });
 
+  it('names the wallet between the category and the keyword', () => {
+    const text = formatTotalsAnswer({ ...base, category: 'อาหาร', wallet: 'บัตรเครดิต', keyword: 'กาแฟ' }, [
+      { type: 'expense', total: 300, entryCount: 2 },
+    ]);
+
+    expect(text).toBe('ช่วง 1-18 ต.ค. 2569 หมวด อาหาร กระเป๋า บัตรเครดิต คำว่า "กาแฟ": รายจ่าย 300 บาท (2 รายการ)');
+  });
+
   it('answers income then expense when asked for both', () => {
     const text = formatTotalsAnswer({ ...base, type: 'both' }, [
       { type: 'expense', total: 100, entryCount: 2 },

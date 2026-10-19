@@ -478,6 +478,13 @@ describe('filterTransactions', () => {
   it('handles a missing note without throwing', () => {
     expect(filterTransactions(items, { query: 'null' })).toEqual([]);
   });
+
+  it('filters by wallet', () => {
+    const withWallets = items.map((item) => ({ ...item, walletId: item.id === '2' ? 'w-card' : 'w-cash' }));
+
+    expect(filterTransactions(withWallets, { walletId: 'w-card' }).map((item) => item.id)).toEqual(['2']);
+    expect(filterTransactions(withWallets, { walletId: '' })).toHaveLength(4);
+  });
 });
 
 describe('isFilterActive', () => {
@@ -495,6 +502,10 @@ describe('isFilterActive', () => {
     expect(isFilterActive({ query: 'a', categoryId: '', type: '' })).toBe(true);
     expect(isFilterActive({ query: '', categoryId: 'c1', type: '' })).toBe(true);
     expect(isFilterActive({ query: '', categoryId: '', type: 'income' })).toBe(true);
+  });
+
+  it('is true when only a wallet is chosen', () => {
+    expect(isFilterActive({ query: '', categoryId: '', type: '', walletId: 'w-card' })).toBe(true);
   });
 });
 

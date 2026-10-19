@@ -22,6 +22,14 @@ function texts(flex) {
 }
 
 describe('buildSavedFlex', () => {
+  it('adds the wallet after the note when the item has one', () => {
+    const flex = buildSavedFlex([{ ...FOOD, wallet: 'บัตรเครดิต' }, SALARY]);
+
+    expect(texts(flex)).toContain('29/09 · กินข้าว · บัตรเครดิต');
+    expect(texts(flex)).toContain('01/09');
+    expect(flex.altText).toBe(formatSavedReply([{ ...FOOD, wallet: 'บัตรเครดิต' }, SALARY]));
+  });
+
   it('returns a bubble with the plain saved text as altText and the buttons in the footer', () => {
     const flex = buildSavedFlex([FOOD], { buttons: UNDO });
 
@@ -102,6 +110,17 @@ describe('buildSavedFlex', () => {
 
     expect(texts(flex)).toContain('เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ');
     expect(flex.altText.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
+  });
+
+  it('shows a notice strip when the wallets could not be read', () => {
+    const flex = buildSavedFlex([FOOD], { walletReadFailed: true });
+    const notice = 'อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+
+    expect(texts(flex)).toContain(notice);
+    expect(flex.altText.endsWith(`
+
+${notice}`)).toBe(true);
+    expect(texts(buildSavedFlex([FOOD]))).not.toContain(notice);
   });
 
   it('keeps altText within the LINE limit even for a long receipt', () => {

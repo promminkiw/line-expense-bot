@@ -1,24 +1,26 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: เป้าหมายการออม merge เข้า main ในเครื่อง)
-Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว; งานที่เหลือคือ roadmap ข (หมวดของผู้ใช้เอง แล้วถามยอดด้วยภาษาธรรมชาติ) และ ticket/backlog เล็ก
+Updated: 2026-10-19 (ล่าสุด: กระเป๋าเงินเสร็จบน branch feat/wallets)
+Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (สรุปรายสัปดาห์, เตือนลืมจด, เป้าหมายการออม, กระเป๋าเงิน) ให้ผ่านการตรวจแล้วขึ้น main; หมวดของผู้ใช้เองและถามยอดเสร็จและ push แล้ว
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` roadmap ข: สรุปรายสัปดาห์ + เตือนลืมจด merge เข้า main ในเครื่องแล้ว (debe0ea) Falcon ผ่านทั้งคู่ ยังไม่ push; เป้าหมายการออม merge เข้า main ในเครื่องแล้ว (784949b) ยังไม่ push; ถัดไป feat/wallets จาก main (แผน 2026-10-19-*.md; คำตอบผู้ใช้อยู่ในหัวข้อ คำถามถึงผู้ใช้ ของแต่ละแผน); ผู้ใช้ตัดสิน: ครบ 4 ฟีเจอร์แล้วผู้ใช้รัน SQL 021-024 ทีเดียว (ออมคือ 023) แล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00) + Browser/LINE check รวมของออม: LINE check Task 6 (ออม ในแชต, ปุ่มยกเลิก, ออมสินตอนไม่มีเป้า) + Browser check Task 8-10 (แถบล่าง 6 แท็บบนจอเล็ก, สร้าง/ปิดเป้า, ออมเพิ่ม/ลบประวัติ)
-- [ ] `next` LINE check การ์ดถามยอด: merge+push แล้ว (18ee475) รอผู้ใช้ลอง (การ์ด, ปุ่ม ดูรายการในเว็บ เปิดเดือนนั้นพร้อมตัวกรองหมวด/คำค้น/ประเภท); worktree C:\GithubPrommin\line-expense-bot-flex ยังไม่ลบ (ต้องถามก่อนลบ); Minor M1-M5 ของ Falcon ถามยอดยังไม่ทำ
+- [ ] `next` กระเป๋าเงิน (แผน docs/superpowers/plans/2026-10-19-wallets.md) เสร็จบน branch feat/wallets รวมรอบแก้จาก final review แล้ว ยังไม่ merge/push: ผู้ใช้รัน `supabase/024_wallets.sql` ก่อน push (ห้ามรัน 020 ซ้ำหลัง 024) แล้วทำ LINE check Task 7 และ 12 กับ Browser check Task 10-11 (รวมชื่อกระเป๋ายาวบนจอ 320px)
+- [ ] `next` roadmap ข: ฟีเจอร์ 3-5 merge เข้า main ในเครื่องแล้ว (debe0ea, 784949b) กระเป๋าเงินยังอยู่บน branch; ผู้ใช้ตัดสินให้รัน SQL 021-024 ทีเดียวแล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00) + LINE/Browser check ของออม (ดูแผน 2026-10-19-savings-goals.md)
+- [ ] `next` LINE check การ์ดถามยอด: merge+push แล้ว (18ee475) รอผู้ใช้ลอง (การ์ด, ปุ่ม ดูรายการในเว็บ เปิดเดือนนั้นพร้อมตัวกรองหมวด/คำค้น/ประเภท); worktree C:\GithubPrommin\line-expense-bot-flex ยังไม่ลบ (ต้องถามก่อนลบ); Minor M1-M5 ของ reviewer ถามยอดยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
 - [ ] custom categories follow-ups ที่เหลือ (ยังไม่เริ่ม; ข้อชื่อหมวดเจ้าของบิลแก้แล้วใน 6a4b442): limit race, unicode แปลก (C1/zero-width/bidi/fullwidth comma), toggle alert ไม่ล้างและอยู่ไกลแถว, refresh ยิง GET เกิน, loadTextCategories ต่อคิว loadHistory และอ่านหมวด 2 ครั้ง, latency ของ schema หลัง deploy
+- [ ] wallets follow-ups (ยังไม่เริ่ม): index transactions(wallet_id,user_id), ชื่อซ้ำแยกตัวพิมพ์, ชื่อ look-alike "เงินสด" (zero-width/bidi), PATCH ไปกระเป๋าซ่อน, cap race, ลิงก์ w= หลังเปลี่ยนชื่อ, grid ตัวกรองครึ่งแถว, เทสต์ที่ขาด (รายละเอียด .superpowers/sdd/wa-final-findings.md)
 - [ ] ตกค้างจาก 2026-10-12 ผู้ใช้ตัดสินไม่ทำ: รูปเพื่อนในรายชื่อ, สำเนา UUID_PATTERN ใน LIFF, ลำดับล็อก cancel_bill, push tag design-v1 (ข้อความเต็มดู archive)
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
-- [x] เป้าหมายการออม roadmap ข (2026-10-19, merge 784949b ในเครื่อง): Falcon I1 กดออมซ้ำระหว่างโหลดใหม่ได้ยอดซ้ำ แก้ใน 2b95e25 (เทสต์แดงก่อนแก้); npm test 1903/1903 lint ผ่าน; Minor M1-M3 M5-M8 ยังไม่ทำ (ตัดชื่อใน ไม่พบเป้า, normalize ชื่อ, 409/404 ไม่โหลดใหม่, ลบประวัติไม่ยืนยัน, "ออม 1000" ไปเป็นรายจ่าย, aria-label งบ, soft cap 20 เป้า/ปี 0000)
+- [x] กระเป๋าเงิน เฟส 1 roadmap ข ข้อ 6 (2026-10-19, branch feat/wallets ยังไม่ merge): migration 024, API /api/wallets, Claude เลือกกระเป๋า, ตัวกรอง/ตัวแก้ในเว็บ, ถามยอดกรองกระเป๋า; ส่วนกระเป๋าในโปรไฟล์โชว์ notify-loading และปิดฟอร์มเพิ่มจนโหลดครั้งแรกเสร็จ (ผู้ใช้ตัดสิน ไม่ตามแผน); npm test 2036/2036 lint ผ่าน (หลังรอบแก้ final review)
+- [x] เป้าหมายการออม roadmap ข (2026-10-19, merge 784949b ในเครื่อง): reviewer I1 กดออมซ้ำระหว่างโหลดใหม่ได้ยอดซ้ำ แก้ใน 2b95e25 (เทสต์แดงก่อนแก้); npm test 1903/1903 lint ผ่าน; Minor M1-M3 M5-M8 ยังไม่ทำ (ตัดชื่อใน ไม่พบเป้า, normalize ชื่อ, 409/404 ไม่โหลดใหม่, ลบประวัติไม่ยืนยัน, "ออม 1000" ไปเป็นรายจ่าย, aria-label งบ, soft cap 20 เป้า/ปี 0000)
 - [x] ถามยอดด้วยภาษาธรรมชาติ roadmap ข ข้อ 2 (2026-10-19, merge 95734a1 push แล้ว): ผู้ใช้รัน 020 ก่อน push; npm test 1609/1609 lint ผ่าน; ลอง API จริง schema 100 หมวด+"" ผ่าน; ถัดไปตาม roadmap คือข้อ 3 สรุปรายสัปดาห์ (migration 021)
 - [x] ยอดยาวในการ์ด K (2026-10-19, branch fix/million-amount-wrap): ยอดเกิน 12 ตัวอักษรเรียงรายรับ/รายจ่ายแนวตั้ง, ยอดคงเหลือย่อตาม --amount-chars; ตรวจ headless Chrome จอ 320/360/390/430 ไม่ล้น; roadmap-b อัปเดตสถานะและเลข migration 020-024
 - [x] PUT /api/budgets/:categoryId รับ id ตัวพิมพ์ใหญ่ (2026-10-19, branch fix/budget-uuid-case): เทสต์ใหม่แดง 404 ก่อนแก้; npm test 1552/1552 lint ผ่าน
-- [x] ปุ่มลบหมวดเป็น pill ขอบแดง (merge+push a537f23) และรายการที่พิมพ์ไม่ลงหมวดที่ซ่อน (merge+push e181ab9, loadCategoryIds visibleOnly เฉพาะเส้นทางข้อความ; บิลยังใช้หมวดที่ซ่อนตาม SPEC) (2026-10-19): เทสต์ใหม่ 3 ตัวแดงก่อนแก้
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
@@ -46,7 +48,7 @@ Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 แล�
 - SDK default timeout 600 วินาทีนานเกินไปสำหรับ reply token ของ LINE; Anthropic SDK ทำตาม retry-after โดยไม่มีเพดาน ต้องใส่ `signal: AbortSignal.timeout(...)`
 - postgrest-js retry GET/HEAD เองเมื่อเจอ TimeoutError (ข้ามเฉพาะ AbortError) และรอ Retry-After ของ 503 โดยไม่มีเพดาน -> ปิดได้ด้วย `db: { retry: false }`
 - structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
-- subagent ใส่ Co-Authored-By ตามชื่อ model ของตัวเอง ไม่ใช่ตามที่แผนเขียน
+- subagent ใส่ Co-Authored-By/Claude-Session ตามชื่อ model และ session ของตัวเอง ไม่ใช่ตามที่แผนเขียน เว้นแต่ข้อความ dispatch ให้บรรทัดตรงตัว
 - Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
 - global `[hidden]{display:none!important}` จำเป็น เพราะ display ของ component (เช่น grid) ชนะ attribute hidden; element ที่ JS สลับโหลด/error ต้องเริ่มด้วย `hidden`
 - LIFF ต้องล็อกอิน LINE จึงใช้ Playwright ทดสอบอัตโนมัติไม่ได้: ตรวจ UI ด้วยมือในแอป LINE + DOM smoke test ด้วย jsdom (`public/liff/app.dom.test.mjs` ใช้ fake `liff`/`fetch`); jsdom ไม่มี `matchMedia`/`showModal` ต้อง stub

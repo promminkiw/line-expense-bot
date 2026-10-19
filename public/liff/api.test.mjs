@@ -254,6 +254,21 @@ describe('createApi', () => {
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ title: 'x' });
     expect(JSON.parse(fetchImpl.mock.calls[3][1].body)).toEqual({ paid: true });
   });
+
+  it('lists, creates and updates wallets', async () => {
+    const fetchImpl = fakeFetch(200, { wallets: [] });
+    const api = setup(fetchImpl);
+
+    await api.listWallets();
+    await api.createWallet({ name: 'บัตรเครดิต' });
+    await api.updateWallet('w 1', { hidden: true });
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method ?? 'GET', options.body])).toEqual([
+      ['/api/wallets', 'GET', undefined],
+      ['/api/wallets', 'POST', JSON.stringify({ name: 'บัตรเครดิต' })],
+      ['/api/wallets/w%201', 'PATCH', JSON.stringify({ hidden: true })],
+    ]);
+  });
 });
 
 describe('readReceipt', () => {

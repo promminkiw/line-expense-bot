@@ -34,6 +34,8 @@ import {
 import { createFriendsPanel } from './friends-panel.mjs';
 import { createSettingsPanel } from './settings-panel.mjs';
 import { createCategoriesPanel } from './categories-panel.mjs';
+import { createWalletsPanel } from './wallets-panel.mjs';
+import { walletOptions, sortWallets, hasSeveralWallets } from './wallets-format.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
 import { createBillForm } from './bill-form.mjs';
 import { createGoalsPanel } from './goals-panel.mjs';
@@ -75,12 +77,15 @@ const els = {
   search: document.getElementById('search'),
   filterType: document.getElementById('filter-type'),
   filterCategory: document.getElementById('filter-category'),
+  filterWallet: document.getElementById('filter-wallet'),
   filterClear: document.getElementById('filter-clear'),
   filterStatus: document.getElementById('filter-status'),
   editor: document.getElementById('editor'),
   form: document.getElementById('edit-form'),
   amount: document.getElementById('edit-amount'),
   category: document.getElementById('edit-category'),
+  editWalletRow: document.getElementById('edit-wallet-row'),
+  editWallet: document.getElementById('edit-wallet'),
   date: document.getElementById('edit-date'),
   note: document.getElementById('edit-note'),
   error: document.getElementById('edit-error'),
@@ -173,6 +178,8 @@ const els = {
 
 let api;
 let categories = [];
+// กระเป๋าพร้อมยอด จากส่วนกระเป๋าในแท็บโปรไฟล์ ใช้กับตัวเลือกและตัวกรองกระเป๋า
+let wallets = [];
 let editing = null;
 let busy = false;
 let chartType = 'expense';
@@ -292,6 +299,30 @@ const categoriesPanel = createCategoriesPanel({
     if (refresh === 'budgets') loadBudgets();
     else if (refresh) refreshAfterCategoryChange();
   },
+});
+const walletsPanel = createWalletsPanel({
+  doc: document,
+  els: {
+    section: document.getElementById('wallets'),
+    loadingText: document.getElementById('wallets-loading'),
+    error: document.getElementById('wallets-error'),
+    errorText: document.getElementById('wallets-error-text'),
+    retry: document.getElementById('wallets-retry'),
+    rows: document.getElementById('wallet-rows'),
+    status: document.getElementById('wallet-status'),
+    addForm: document.getElementById('wallet-add-form'),
+    addInput: document.getElementById('wallet-add-input'),
+    addSubmit: document.getElementById('wallet-add-submit'),
+    addError: document.getElementById('wallet-add-error'),
+    dialog: document.getElementById('wallet-dialog'),
+    dialogForm: document.getElementById('wallet-dialog-form'),
+    dialogName: document.getElementById('wallet-dialog-name'),
+    dialogError: document.getElementById('wallet-dialog-error'),
+    dialogSave: document.getElementById('wallet-dialog-save'),
+    dialogCancel: document.getElementById('wallet-dialog-cancel'),
+  },
+  getApi: () => api,
+  onChanged: (next) => setWallets(next),
 });
 const billsPanel = createBillsPanel({
   doc: document,
@@ -482,10 +513,43 @@ function setCategories(next) {
   els.categoriesOpen.disabled = categories.length === 0;
 }
 
+// ผู้ใช้กระเป๋าเดียวไม่เห็นตัวกรองและป้ายกระเป๋า หน้าจอจึงเหมือนก่อนมีกระเป๋า
+function setWallets(next) {
+  const labelsBefore = hasSeveralWallets(wallets);
+  const namesBefore = new Map(wallets.map((wallet) => [wallet.id, wallet.name]));
+  const selected = els.filterWallet.value;
+  wallets = next;
+  els.filterWallet.replaceChildren(
+    new Option('ทุกกระเป๋า', ''),
+    ...sortWallets(wallets).map((wallet) => new Option(wallet.name, wallet.id))
+  );
+  // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
+  els.filterWallet.value = selected;
+  if (els.filterWallet.value !== selected) els.filterWallet.value = '';
+  els.filterWallet.hidden = !hasSeveralWallets(wallets);
+  if (els.filterWallet.hidden) els.filterWallet.value = '';
+  // เปลี่ยนชื่อต้องโหลดรายการใหม่ เพราะ walletName ในแถวมาจาก server
+  if (wallets.some((wallet) => namesBefore.has(wallet.id) && namesBefore.get(wallet.id) !== wallet.name)) {
+    loadMonth();
+    return;
+  }
+  // วาดแถวใหม่เฉพาะเมื่อป้ายหรือตัวกรองเปลี่ยน ไม่งั้นแถวที่ถือ focus อยู่ถูกถอดทิ้ง
+  const changed = labelsBefore !== hasSeveralWallets(wallets) || selected !== els.filterWallet.value;
+  if (changed && lastTransactions.length > 0) renderList();
+}
+
 // รายการเก่าอาจอยู่ในหมวดที่ซ่อนแล้ว ต้องใส่หมวดนั้นกลับเข้าตัวเลือก ไม่งั้น select ว่างแล้วบันทึกไม่ได้
 function showCategoryOptions(select, keepId) {
   fillGroupedSelect(select, groupCategoryOptions(categories, { keepId }));
   select.value = keepId ?? '';
+}
+
+// เลือกกระเป๋าได้เมื่อมีมากกว่าหนึ่งตัวเลือก และรู้กระเป๋าเดิมของรายการ ไม่งั้นบันทึกแล้วย้ายกระเป๋าโดยไม่ตั้งใจ
+function showWalletOptions(item) {
+  const options = walletOptions(wallets, item.walletId);
+  els.editWallet.replaceChildren(...options.map((wallet) => new Option(wallet.name, wallet.id)));
+  els.editWallet.value = item.walletId ?? '';
+  els.editWalletRow.hidden = options.length < 2 || els.editWallet.value !== item.walletId;
 }
 
 const SWIPE_REVEAL_WIDTH = 88;
@@ -568,6 +632,7 @@ async function deleteBySwipe(item, button) {
     pendingListFocus = null;
     profileStale = true;
     loadProfile();
+    walletsPanel.load();
   } else {
     button.disabled = false;
   }
@@ -617,6 +682,12 @@ function renderRow(item) {
     note.className = 'row-note';
     note.textContent = item.note;
     text.append(note);
+  }
+  if (hasSeveralWallets(wallets) && item.walletName) {
+    const wallet = document.createElement('span');
+    wallet.className = 'row-wallet';
+    wallet.textContent = item.walletName;
+    text.append(wallet);
   }
   const amount = document.createElement('span');
   amount.className = 'amount';
@@ -727,7 +798,12 @@ function render({ transactions, summary, truncated }, { animate = false } = {}) 
 }
 
 function currentFilter() {
-  return { query: els.search.value, categoryId: els.filterCategory.value, type: els.filterType.value };
+  return {
+    query: els.search.value,
+    categoryId: els.filterCategory.value,
+    type: els.filterType.value,
+    walletId: els.filterWallet.value,
+  };
 }
 
 // ไม่แตะ class enter: การกรองต้องไม่เล่นแอนิเมชันเข้าฉากแถวซ้ำ
@@ -1055,15 +1131,23 @@ async function ensureCategories() {
   return categories.length > 0;
 }
 
+// โหลดไม่สำเร็จตอนเปิดหน้า ลองอีกครั้งตอนเปิดตัวแก้ไข ไม่งั้นช่องกระเป๋าหายไปเงียบๆ
+async function ensureWallets() {
+  if (!walletsPanel.isLoaded()) await walletsPanel.load();
+  return walletsPanel.isLoaded();
+}
+
 async function openEditor(item) {
   editing = item;
   els.amount.value = String(item.amount);
   els.date.value = item.occurredOn;
   els.note.value = item.note || '';
+  showWalletOptions(item);
   els.error.hidden = true;
   els.saveButton.disabled = categories.length === 0;
   els.editor.showModal();
-  const loaded = await ensureCategories();
+  const walletsWereLoaded = walletsPanel.isLoaded();
+  const [loaded, walletsLoaded] = await Promise.all([ensureCategories(), ensureWallets()]);
   // ผู้ใช้อาจปิดหรือเปิดแถวอื่นระหว่างรอ จึงห้ามแตะ editor ของ open ที่เก่าแล้ว
   if (editing !== item || !els.editor.open) return;
   if (!loaded) {
@@ -1073,6 +1157,13 @@ async function openEditor(item) {
   }
   showCategoryOptions(els.category, item.categoryId);
   els.saveButton.disabled = busy;
+  if (!walletsLoaded) {
+    // ยังบันทึกช่องอื่นได้ เพราะไม่ส่ง walletId server จึงไม่แตะกระเป๋าเดิม
+    els.error.textContent = 'โหลดกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง';
+    els.error.hidden = false;
+  } else if (!walletsWereLoaded) {
+    showWalletOptions(item);
+  }
 }
 
 function setBusy(isBusy, kind) {
@@ -1113,6 +1204,7 @@ async function runEdit(action, kind) {
     pendingListFocus = null;
     profileStale = true;
     loadProfile();
+    walletsPanel.load();
     return;
   }
   if (failure.closeAndReload) {
@@ -1122,6 +1214,7 @@ async function runEdit(action, kind) {
     pendingListFocus = null;
     profileStale = true;
     loadProfile();
+    walletsPanel.load();
     setBanner(failure.message);
     return;
   }
@@ -1131,15 +1224,15 @@ async function runEdit(action, kind) {
 
 els.form.addEventListener('submit', (event) => {
   event.preventDefault();
-  runEdit(() =>
-    api.updateTransaction(editing.id, {
-      amount: Number(els.amount.value),
-      categoryId: els.category.value,
-      occurredOn: els.date.value,
-      note: els.note.value,
-    }),
-    'save'
-  );
+  const body = {
+    amount: Number(els.amount.value),
+    categoryId: els.category.value,
+    occurredOn: els.date.value,
+    note: els.note.value,
+  };
+  // ส่ง walletId เฉพาะเมื่อผู้ใช้เห็นช่องกระเป๋า ไม่ส่ง = server ไม่แตะกระเป๋าเดิม
+  if (!els.editWalletRow.hidden) body.walletId = els.editWallet.value;
+  runEdit(() => api.updateTransaction(editing.id, body), 'save');
 });
 
 // ใช้ dialog ของเราเองแทน confirm ของเบราว์เซอร์ เพื่อแสดงรายละเอียดรายการที่จะลบ
@@ -1172,13 +1265,14 @@ function refilter() {
   els.list.classList.remove('enter');
   renderList();
 }
-for (const control of [els.search, els.filterType, els.filterCategory]) {
+for (const control of [els.search, els.filterType, els.filterCategory, els.filterWallet]) {
   control.addEventListener('input', refilter);
 }
 els.filterClear.addEventListener('click', () => {
   els.search.value = '';
   els.filterType.value = '';
   els.filterCategory.value = '';
+  els.filterWallet.value = '';
   refilter();
   els.search.focus();
 });
@@ -1562,6 +1656,8 @@ const tabController = createTabController({
       refreshProfileOnEntry();
       // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
       friendsPanel.refresh();
+      // ยอดแยกกระเป๋าเปลี่ยนตามรายการที่บันทึกในแชต จึงโหลดใหม่ทุกครั้งที่เข้าแท็บ
+      walletsPanel.load();
       settingsPanel.ensureLoaded();
     }
   },
@@ -1636,7 +1732,7 @@ async function loadAll() {
   els.recurring.hidden = false;
   els.profileError.hidden = true;
   profileLoading.set(true);
-  await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile()]);
+  await Promise.all([loadMonth({ reset: true }), loadRecurring(), loadProfile(), walletsPanel.load()]);
   initialLoadDone = true;
 }
 
@@ -1649,6 +1745,23 @@ function applyLinkedCategory({ category, query, type }) {
   } else if (!query) {
     els.search.value = category;
   }
+  refilter();
+}
+
+// ช่องค้นหาไม่ค้นชื่อกระเป๋า จึงเลือกได้แค่ในตัวกรองกระเป๋า ซึ่งมีเฉพาะผู้ใช้หลายกระเป๋า ชื่อที่ไม่มีแล้วข้ามไป
+function applyLinkedWallet({ wallet }) {
+  if (!wallet) return;
+  if (!walletsPanel.isLoaded()) {
+    // ข้อความโหลดข้อมูลไม่สำเร็จพร้อมปุ่มลองใหม่สำคัญกว่า ห้ามเขียนทับ
+    if (loadError) return;
+    // จำนวนรายการจึงอาจไม่ตรงกับการ์ด ต้องบอกผู้ใช้
+    setBanner('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
+    return;
+  }
+  if (els.filterWallet.hidden) return;
+  const match = wallets.find((item) => item.name === wallet);
+  if (!match) return;
+  els.filterWallet.value = match.id;
   refilter();
 }
 
@@ -1704,7 +1817,11 @@ async function boot() {
       tabController.select('list');
     } else if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
-    if (listFilter) applyLinkedCategory(listFilter);
+    if (listFilter) {
+      applyLinkedCategory(listFilter);
+      // ตัวเลือกกระเป๋ามีหลัง walletsPanel.load() ใน loadAll เสร็จเท่านั้น จึงเลือกหลัง loadAll เหมือนหมวด
+      applyLinkedWallet(listFilter);
+    }
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
     if (tabController.current === 'profile') {
       friendsPanel.ensureLoaded();

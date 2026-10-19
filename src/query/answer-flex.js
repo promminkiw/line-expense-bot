@@ -15,7 +15,10 @@ function typeRows(type, rows) {
 function buildTotalsFlex(question, rows, { listUrl } = {}) {
   const body = [];
   if (question.keyword) body.push(row('คำค้น', `"${question.keyword}"`));
-  body.push(row('หมวด', question.category || 'ทุกหมวด'), { type: 'separator', margin: 'md' });
+  body.push(row('หมวด', question.category || 'ทุกหมวด'));
+  // ผู้ใช้กระเป๋าเดียวได้ wallet ว่างเสมอ การ์ดจึงเหมือนเดิม
+  if (question.wallet) body.push(row('กระเป๋า', question.wallet));
+  body.push({ type: 'separator', margin: 'md' });
   const types = question.type === 'both' ? ['income', 'expense'] : [question.type];
   types.forEach((type, index) => {
     if (index > 0) body.push({ type: 'separator', margin: 'md' });

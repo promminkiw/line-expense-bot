@@ -74,6 +74,7 @@ describe('parseQuestion result', () => {
       keyword: 'กาแฟ',
       from: '2026-10-01',
       to: '2026-10-18',
+      wallet: '',
     });
   });
 
@@ -131,5 +132,43 @@ describe('parseQuestion result', () => {
     const { parseQuestion } = parserFor(answer(), options);
 
     await expect(parseQuestion('เท่าไหร่', NAMES)).rejects.toBeInstanceOf(ParseError);
+  });
+});
+
+describe('parseQuestion with wallets', () => {
+  const WALLETS = ['เงินสด', 'บัตรเครดิต'];
+
+  it('builds a schema with a wallet enum only when wallet names are given', () => {
+    expect(buildQuestionSchema(NAMES).properties.wallet).toBeUndefined();
+
+    const schema = buildQuestionSchema(NAMES, WALLETS);
+    expect(schema.properties.wallet.enum).toEqual(['เงินสด', 'บัตรเครดิต', '']);
+    expect(schema.required).toEqual(['is_question', 'type', 'category', 'keyword', 'from', 'to', 'wallet']);
+  });
+
+  it('sends the wallet names in the prompt and the schema', async () => {
+    const { client, parseQuestion } = parserFor(answer({ wallet: 'บัตรเครดิต' }));
+
+    await parseQuestion('เดือนนี้รูดบัตรไปเท่าไหร่', NAMES, WALLETS);
+
+    const params = client.messages.create.mock.calls[0][0];
+    expect(params.system).toContain('- Wallets: เงินสด, บัตรเครดิต');
+    expect(params.output_config.format.schema).toEqual(buildQuestionSchema(NAMES, WALLETS));
+  });
+
+  it('does not mention wallets without wallet names', async () => {
+    const { client, parseQuestion } = parserFor(answer());
+
+    await parseQuestion('เดือนนี้กินกาแฟไปเท่าไหร่', NAMES);
+
+    expect(client.messages.create.mock.calls[0][0].system).not.toContain('Wallets');
+  });
+
+  it('returns a wallet from the list and drops an unknown one', async () => {
+    const known = parserFor(answer({ wallet: 'บัตรเครดิต' }));
+    const unknown = parserFor(answer({ wallet: 'กสิกร' }));
+
+    expect((await known.parseQuestion('เท่าไหร่', NAMES, WALLETS)).wallet).toBe('บัตรเครดิต');
+    expect((await unknown.parseQuestion('เท่าไหร่', NAMES, WALLETS)).wallet).toBe('');
   });
 });

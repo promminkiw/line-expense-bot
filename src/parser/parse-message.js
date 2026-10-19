@@ -14,8 +14,21 @@ const OVERALL_TIMEOUT_MS = 30000;
 const MAX_AMOUNT = 10000000;
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เองทุก object
-function buildParseSchema(categories) {
+function buildParseSchema(categories, wallets = []) {
   const names = [...new Set([...categories.expense, ...categories.income])];
+  const properties = {
+    type: { type: 'string', enum: ['expense', 'income'] },
+    category: { type: 'string', enum: names },
+    amount: { type: 'number' },
+    date: { type: 'string' },
+    note: { type: 'string' },
+  };
+  const required = ['type', 'category', 'amount', 'date', 'note'];
+  // ใส่ field กระเป๋าเฉพาะผู้ใช้หลายกระเป๋า schema ของผู้ใช้กระเป๋าเดียวจึงเหมือนเดิม
+  if (wallets.length > 0) {
+    properties.wallet = { type: 'string', enum: [...new Set(wallets), ''] };
+    required.push('wallet');
+  }
   return {
     type: 'object',
     properties: {
@@ -23,18 +36,7 @@ function buildParseSchema(categories) {
       question: { type: 'string' },
       items: {
         type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            type: { type: 'string', enum: ['expense', 'income'] },
-            category: { type: 'string', enum: names },
-            amount: { type: 'number' },
-            date: { type: 'string' },
-            note: { type: 'string' },
-          },
-          required: ['type', 'category', 'amount', 'date', 'note'],
-          additionalProperties: false,
-        },
+        items: { type: 'object', properties, required, additionalProperties: false },
       },
     },
     required: ['needs_clarification', 'question', 'items'],
@@ -52,7 +54,14 @@ class ParseError extends Error {
   }
 }
 
-function buildSystemPrompt(today, categories) {
+function buildSystemPrompt(today, categories, wallets = []) {
+  const walletRules =
+    wallets.length > 0
+      ? [
+          `- Wallets: ${wallets.join(', ')}`,
+          '- wallet is the wallet from the list that the user paid with or received money into, only when the message names it, e.g. "รูดบัตร" or "บัตรเครดิต". Otherwise "".',
+        ]
+      : [];
   return [
     'You extract income and expense entries from a Thai user message for a personal finance bot.',
     `Today is ${today} (Asia/Bangkok).`,
@@ -65,6 +74,7 @@ function buildSystemPrompt(today, categories) {
     `- Expense categories: ${categories.expense.join(', ')}`,
     `- Income categories: ${categories.income.join(', ')}`,
     '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
+    ...walletRules,
     '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
     '- Never ask about the date in question. A missing date always means today.',
     '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
@@ -85,17 +95,20 @@ function hasValidShape(data) {
   );
 }
 
-function normalizeItem(item, today, categories) {
-  return {
+function normalizeItem(item, today, categories, wallets) {
+  const normalized = {
     type: item.type,
     category: normalizeCategory(item.type, item.category, categories),
     amount: item.amount,
     date: isValidCalendarDate(item.date) ? item.date : today,
     note: item.note,
   };
+  // ชื่อที่ไม่อยู่ในรายการหรือว่าง คือกระเป๋าตั้งต้น
+  if (wallets.length > 0) normalized.wallet = wallets.includes(item.wallet) ? item.wallet : '';
+  return normalized;
 }
 
-function toParseResult(data, today, categories) {
+function toParseResult(data, today, categories, wallets = []) {
   if (data.needs_clarification === true) {
     return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
   }
@@ -115,14 +128,15 @@ function toParseResult(data, today, categories) {
     return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
   }
 
-  return { status: 'ok', items: data.items.map((item) => normalizeItem(item, today, categories)) };
+  return { status: 'ok', items: data.items.map((item) => normalizeItem(item, today, categories, wallets)) };
 }
 
 function createMessageParser({ client, model, now = () => new Date() }) {
-  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES) {
+  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = []) {
     const today = toBangkokDateString(now());
-    // ใช้ schema ที่สร้างไว้แล้วเมื่อเป็นหมวดเริ่มต้น ไม่ต้องสร้างใหม่ทุกข้อความ
-    const schema = categories === TEXT_CATEGORIES ? PARSE_SCHEMA : buildParseSchema(categories);
+    // ใช้ schema ที่สร้างไว้แล้วเมื่อเป็นหมวดเริ่มต้นและไม่มีกระเป๋า ไม่ต้องสร้างใหม่ทุกข้อความ
+    const schema =
+      categories === TEXT_CATEGORIES && wallets.length === 0 ? PARSE_SCHEMA : buildParseSchema(categories, wallets);
     const messages = [
       ...history.map((turn) => ({ role: turn.role, content: turn.text })),
       { role: 'user', content: text },
@@ -132,7 +146,7 @@ function createMessageParser({ client, model, now = () => new Date() }) {
         model,
         // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
         max_tokens: 2048,
-        system: buildSystemPrompt(today, categories),
+        system: buildSystemPrompt(today, categories, wallets),
         messages,
         output_config: withLowEffort(model, { format: { type: 'json_schema', schema } }),
       },
@@ -163,7 +177,7 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     if (!hasValidShape(data)) {
       throw new ParseError('Claude response does not match the expected shape');
     }
-    return toParseResult(data, today, categories);
+    return toParseResult(data, today, categories, wallets);
   };
 }
 

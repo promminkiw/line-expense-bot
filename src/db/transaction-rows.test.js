@@ -11,6 +11,25 @@ function item(overrides = {}) {
 }
 
 describe('toTransactionRows', () => {
+  it('sets wallet_id from the wallet name when wallet ids are given, null for cash or none', () => {
+    const rows = toTransactionRows({
+      items: [item({ wallet: 'บัตรเครดิต' }), item({ wallet: 'เงินสด' }), item({ wallet: '' })],
+      categoryIds: CATEGORY_IDS,
+      userId: 'user-1',
+      webhookEventId: 'ev1',
+      walletIds: new Map([['บัตรเครดิต', 'w-card']]),
+    });
+
+    expect(rows.map((row) => row.wallet_id)).toEqual(['w-card', null, null]);
+  });
+
+  // ผู้ใช้กระเป๋าเดียวและสลิปไม่ส่ง walletIds แถวจึงไม่มี wallet_id และ DB ใส่ null (กระเป๋าตั้งต้น) ให้
+  it('leaves wallet_id out when no wallet ids are given', () => {
+    const rows = toTransactionRows({ items: [item({ wallet: 'บัตรเครดิต' })], categoryIds: CATEGORY_IDS, userId: 'user-1', webhookEventId: 'ev1' });
+
+    expect(rows[0]).not.toHaveProperty('wallet_id');
+  });
+
   it('maps items to transaction rows linked to the event', () => {
     const rows = toTransactionRows({
       items: [item()],

@@ -1,5 +1,6 @@
 const { formatAmount, formatSavedReply, formatSlipConfirmReply } = require('./format-reply');
 const { formatBudgetAlerts, describeBudgetAlert, BUDGET_CHECK_FAILED_NOTICE } = require('../budget/alerts');
+const { WALLETS_UNREADABLE_NOTICE } = require('../wallets/wallets');
 const { capAltText, ALT_TEXT_MAX } = require('../utils/alt-text');
 const { shortDate } = require('../utils/date');
 
@@ -8,7 +9,7 @@ const STRIP_COLORS = { warn: '#FFF4D6', over: '#FDECEA', notice: '#F2F2F2' };
 
 // editUrl ต้องเป็นสตริงเท่านั้น กันค่าอื่น (เช่น index จาก Array.map) หลุดเข้ามาเป็น uri
 function itemRow(item, editUrl) {
-  const sub = item.note ? `${shortDate(item.date)} · ${item.note}` : shortDate(item.date);
+  const sub = [shortDate(item.date), item.note, item.wallet].filter(Boolean).join(' · ');
   const sign = item.type === 'income' ? '+' : '-';
   return {
     type: 'box',
@@ -82,7 +83,7 @@ function withFooterButtons(message, buttons) {
   return message;
 }
 
-function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, buttons, editUrls } = {}) {
+function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletReadFailed = false, buttons, editUrls } = {}) {
   // ใช้ลิงก์เมื่อมีครบทุกแถวเท่านั้น กันลิงก์ไปผิดรายการเมื่อจำนวนไม่ตรงกัน
   const links = Array.isArray(editUrls) && editUrls.length === items.length ? editUrls : null;
   const body = [
@@ -94,9 +95,13 @@ function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, buttons
   if (budgetCheckFailed) {
     body.push(strip(STRIP_COLORS.notice, [{ type: 'text', text: BUDGET_CHECK_FAILED_NOTICE, size: 'sm', wrap: true }]));
   }
+  if (walletReadFailed) {
+    body.push(strip(STRIP_COLORS.notice, [{ type: 'text', text: WALLETS_UNREADABLE_NOTICE, size: 'sm', wrap: true }]));
+  }
   const altParts = [formatSavedReply(items)];
   if (alerts.length > 0) altParts.push(formatBudgetAlerts(alerts));
   if (budgetCheckFailed) altParts.push(BUDGET_CHECK_FAILED_NOTICE);
+  if (walletReadFailed) altParts.push(WALLETS_UNREADABLE_NOTICE);
 
   return withFooterButtons(
     {
