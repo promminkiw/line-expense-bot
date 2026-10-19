@@ -62,6 +62,7 @@ module.exports = {
   findOpenGoal,
   formatSavingReply,
   formatGoalNotFoundReply,
+  goalPercent,
   SAVING_AMOUNT_REPLY,
   GOAL_GONE_REPLY,
 };

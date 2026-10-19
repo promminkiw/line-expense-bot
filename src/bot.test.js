@@ -726,14 +726,23 @@ describe('bot saving command', () => {
       occurredOn: '2026-09-29',
       lineEventId: 'ev1',
     });
-    expect(deps.replyText).toHaveBeenCalledWith(
-      'r1',
-      'ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000 / 50,000 บาท (12%)',
-      UNDO_SAVING_QUICK_REPLY
-    );
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(deps.replyFlex.mock.calls[0][0]).toBe('r1');
+    expect(flex.altText).toBe('ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000 / 50,000 บาท (12%)');
+    expect(flex.contents.footer.contents.map((button) => button.action)).toEqual([UNDO_SAVING_QUICK_REPLY[0].action]);
+    expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.parseMessage).not.toHaveBeenCalled();
     expect(deps.parseQuestion).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('links the saving card to the goals tab when the LIFF URL is set', async () => {
+    const { deps, bot } = setup({ liffUrl: 'https://liff.line.me/liff-1' });
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
+
+    const footer = deps.replyFlex.mock.calls[0][1].contents.footer;
+    expect(footer.contents[0].action).toEqual({ type: 'uri', label: 'ดูเป้าในเว็บ', uri: 'https://liff.line.me/liff-1?tab=goals' });
   });
 
   it('ignores a redelivered saving message', async () => {
