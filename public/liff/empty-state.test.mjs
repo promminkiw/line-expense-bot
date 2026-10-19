@@ -4,9 +4,9 @@ import { createEmptyState } from './empty-state.mjs';
 
 describe('createEmptyState', () => {
   it.each([
-    ['list', 'empty-list', 'ยังไม่มีรายการในเดือนนี้'],
+    ['list', 'empty-list', 'ยังไม่มีรายการในเดือนที่เลือก'],
     ['search', 'empty-search', 'ไม่พบรายการที่ค้นหา'],
-    ['summary', 'empty-chart', 'ยังไม่มีข้อมูลสรุปในเดือนนี้'],
+    ['summary', 'empty-chart', 'ยังไม่มีข้อมูลสรุปในเดือนที่เลือก'],
     ['recurring', 'empty-recurring', 'ยังไม่มีรายการประจำ'],
   ])('builds the %s state with its illustration and title', (kind, symbol, title) => {
     const el = createEmptyState(document, kind);

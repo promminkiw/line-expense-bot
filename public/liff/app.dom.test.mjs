@@ -257,11 +257,21 @@ describe('index.html static invariants', () => {
 
   it('explains what each balance counts', () => {
     expect(doc.querySelector('#totals .stat.balance .stat-label').textContent.trim()).toBe('คงเหลือ');
-    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับ - รายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับหักรายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('#totals .stat.balance .stat-note .nowrap').textContent).toBe('ของเดือนที่เลือก');
     expect(doc.querySelector('.balance-card .stat-label').textContent.trim()).toBe('ยอดสะสมทั้งหมด');
     const goalHints = [...doc.querySelectorAll('#goals .goals-hint')].map((hint) => hint.textContent.trim());
     expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
     expect(doc.getElementById('truncated').textContent).not.toContain('เดือนนี้');
+  });
+
+  it('names the delete action in the categories hint and avoids the minus sign in balance notes', () => {
+    expect(doc.querySelector('#panel-budgets .categories-entry-hint').textContent.trim()).toBe('เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด');
+    expect(doc.querySelector('.balance-note').textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
+    );
+    expect(doc.querySelector('.wallets-hint').textContent).toContain('= รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น');
+    expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
   });
 
   it('has a disabled recurring entry button that uses the repeat icon', () => {
@@ -782,10 +792,10 @@ describe('LIFF page for an empty month', () => {
     expect(byId('filters').hidden).toBe(true);
     expect(document.querySelectorAll('#list .row')).toHaveLength(0);
     expect(document.querySelector('#list .skeleton')).toBeNull();
-    expect(document.querySelector('#list .empty-title').textContent).toBe('ยังไม่มีรายการในเดือนนี้');
-    expect(byId('status').textContent).toBe('ยังไม่มีรายการในเดือนนี้');
+    expect(document.querySelector('#list .empty-title').textContent).toBe('ยังไม่มีรายการในเดือนที่เลือก');
+    expect(byId('status').textContent).toBe('ยังไม่มีรายการในเดือนที่เลือก');
     expect(byId('summary-empty').hidden).toBe(false);
-    expect(byId('summary-empty').querySelector('.empty-title').textContent).toBe('ยังไม่มีข้อมูลสรุปในเดือนนี้');
+    expect(byId('summary-empty').querySelector('.empty-title').textContent).toBe('ยังไม่มีข้อมูลสรุปในเดือนที่เลือก');
     expect(byId('chart').hidden).toBe(true);
     expect(byId('stat-balance').textContent).toBe('0 บาท');
   });

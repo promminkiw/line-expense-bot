@@ -3,7 +3,7 @@ import { createSvgIcon } from './icons.mjs';
 const EMPTY_STATES = {
   list: {
     symbol: 'empty-list',
-    title: 'ยังไม่มีรายการในเดือนนี้',
+    title: 'ยังไม่มีรายการในเดือนที่เลือก',
     hint: 'พิมพ์ในแชตได้เลย เช่น "กินข้าว 60" บอทจะบันทึกให้',
   },
   search: {
@@ -13,7 +13,7 @@ const EMPTY_STATES = {
   },
   summary: {
     symbol: 'empty-chart',
-    title: 'ยังไม่มีข้อมูลสรุปในเดือนนี้',
+    title: 'ยังไม่มีข้อมูลสรุปในเดือนที่เลือก',
     hint: 'เมื่อมีรายการแล้ว กราฟตามหมวดจะแสดงที่นี่',
   },
   recurring: {

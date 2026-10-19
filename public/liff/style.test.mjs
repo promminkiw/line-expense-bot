@@ -217,6 +217,10 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('main#app.sub-page')).toMatch(/padding-bottom:\s*calc\(16px \+ env\(safe-area-inset-bottom\)\)/);
   });
 
+  it('gives the header back and home controls a pressed state', () => {
+    expect(declarations('.bar-home:active, .bar-back:active')).toMatch(/background:\s*rgba\(255, 255, 255, 0\.18\)/);
+  });
+
   it('keeps the paid checkbox on the same row as the member amount', () => {
     expect(declarations('.bill-member')).toMatch(/grid-template-columns:[^;]*auto auto auto/);
     expect(declarations('.bill-member-paid')).not.toMatch(/grid-column:\s*1\s*\/\s*-1/);

@@ -736,7 +736,7 @@ function renderChart({ animate = false } = {}) {
   const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
-    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนนี้' : 'ยังไม่มีรายรับในเดือนนี้';
+    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนที่เลือก' : 'ยังไม่มีรายรับในเดือนที่เลือก';
     els.chartEmpty.hidden = false;
     return;
   }
@@ -830,7 +830,7 @@ function renderList() {
   if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
   if (lastTransactions.length === 0) {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
-    setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
+    setStatus('ยังไม่มีรายการในเดือนที่เลือก', { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
     applyPendingListFocus();
     return;
