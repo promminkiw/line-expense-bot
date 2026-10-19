@@ -3423,6 +3423,53 @@ describe('LIFF bills tab', () => {
     delete Element.prototype.scrollIntoView;
   });
 
+  const noFriendsRoute = (method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined);
+
+  async function leaveToAddFriend() {
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-date').value = '2026-10-10';
+    byId('bill-form-category').value = 'c-trip';
+    Element.prototype.scrollIntoView = vi.fn();
+    byId('bill-form-go-profile').click();
+    delete Element.prototype.scrollIntoView;
+    byId('bill-new').click();
+    await settle();
+  }
+
+  it('keeps what was typed when the user leaves to add a friend and opens the form again', async () => {
+    await openForm(noFriendsRoute);
+    await leaveToAddFriend();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-title').value).toBe('เนื้อย่าง');
+    expect(byId('bill-form-total').value).toBe('1000');
+    expect(byId('bill-form-date').value).toBe('2026-10-10');
+    expect(byId('bill-form-category').value).toBe('c-trip');
+  });
+
+  it('restores the typed values only once', async () => {
+    await openForm(noFriendsRoute);
+    await leaveToAddFriend();
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-title').value).toBe('');
+    expect(byId('bill-form-total').value).toBe('');
+    expect(byId('bill-form-date').value).toBe('2026-10-15');
+  });
+
+  it('does not remember values when the form is closed with cancel', async () => {
+    await openForm(noFriendsRoute);
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-title').value).toBe('');
+  });
+
   it('after a network failure it warns to check the list and reloads bills', async () => {
     const calls = await openForm((method, path) => (method === 'POST' && path === '/api/bills' ? new Error('network down') : undefined));
     fillValidForm();
