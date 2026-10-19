@@ -263,6 +263,13 @@ describe('index.html static invariants', () => {
     expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
   });
 
+  it('lists the main chat commands in the profile tips and points to the full help', () => {
+    const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
+    expect(tips).toHaveLength(6);
+    expect(tips.some((tip) => tip.includes('เดือนนี้กินกาแฟไปเท่าไหร่'))).toBe(true);
+    expect(tips.at(-1)).toContain('"ช่วยเหลือ"');
+  });
+
   // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
   it.each([
     ['edit-form', 'cancel-button', 'delete-button'],
