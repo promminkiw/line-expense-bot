@@ -349,6 +349,25 @@
       <section id="goals" class="goals" aria-labelledby="goals-title">
         <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
         <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
+        <p id="goals-status" class="goals-status" role="status" aria-live="polite"></p>
+        <p id="goals-loading" class="sr-only" role="status" hidden>กำลังโหลดเป้าออม...</p>
+        <ul id="goals-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <div id="goals-error" class="budgets-error" hidden>
+          <p id="goals-error-text" role="alert"></p>
+          <button type="button" id="goals-retry">ลองใหม่</button>
+        </div>
+        <div id="goals-body" hidden>
+          <ul id="goal-rows" class="goal-rows"></ul>
+          <p id="goals-empty" class="goals-empty" hidden>ยังไม่มีเป้าออม กดปุ่มด้านล่างเพื่อสร้างเป้าแรก</p>
+          <details id="goals-closed" class="goals-closed" hidden>
+            <summary id="goals-closed-count"></summary>
+            <ul id="goal-closed-rows" class="goal-rows"></ul>
+          </details>
+        </div>
+        <button type="button" id="goal-add" class="categories-open goal-add" disabled><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#icon-plus"></use>
+          </svg>สร้างเป้าใหม่</button>
       </section>
     </div>
     <div id="panel-bills" class="panel" hidden>
@@ -712,6 +731,32 @@
       <button type="button" id="recurring-confirm-cancel" autofocus>ยกเลิก</button>
       <button type="button" id="recurring-confirm-ok" class="danger-solid">ลบ</button>
     </div>
+  </dialog>
+  <dialog id="goal-editor" aria-labelledby="goal-editor-title">
+    <form id="goal-editor-form">
+      <h2 id="goal-editor-title" tabindex="-1"></h2>
+      <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+          aria-hidden="true" focusable="false">
+          <use href="#icon-close"></use>
+        </svg></button>
+      <label>ชื่อเป้า
+        <input id="goal-editor-name" type="text" maxlength="30" required>
+      </label>
+      <label>ยอดเป้า (บาท)
+        <input id="goal-editor-target" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>อยากถึงเป้าภายในวันที่ (ไม่บังคับ)
+        <input id="goal-editor-date" type="date">
+      </label>
+      <label id="goal-editor-closed-row" class="check" hidden>
+        <input id="goal-editor-closed" type="checkbox"> ปิดเป้านี้ (ไม่รับยอดออมเพิ่ม และไม่ขึ้นในแชต)
+      </label>
+      <p id="goal-editor-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="goal-editor-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="submit" id="goal-editor-save" class="primary">บันทึก</button>
+      </div>
+    </form>
   </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>

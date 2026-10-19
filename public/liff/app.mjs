@@ -36,6 +36,7 @@ import { createSettingsPanel } from './settings-panel.mjs';
 import { createCategoriesPanel } from './categories-panel.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
 import { createBillForm } from './bill-form.mjs';
+import { createGoalsPanel } from './goals-panel.mjs';
 import { createBannerSetter } from './banner.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories.mjs';
@@ -1488,6 +1489,39 @@ els.recurringRetry.addEventListener('click', () => {
   loadRecurring();
 });
 
+const goalsPanel = createGoalsPanel({
+  doc: document,
+  els: {
+    title: document.getElementById('goals-title'),
+    status: document.getElementById('goals-status'),
+    loadingText: document.getElementById('goals-loading'),
+    skeleton: document.getElementById('goals-skeleton'),
+    error: document.getElementById('goals-error'),
+    errorText: document.getElementById('goals-error-text'),
+    retry: document.getElementById('goals-retry'),
+    body: document.getElementById('goals-body'),
+    rows: document.getElementById('goal-rows'),
+    empty: document.getElementById('goals-empty'),
+    closed: document.getElementById('goals-closed'),
+    closedCount: document.getElementById('goals-closed-count'),
+    closedRows: document.getElementById('goal-closed-rows'),
+    add: document.getElementById('goal-add'),
+    editor: document.getElementById('goal-editor'),
+    editorForm: document.getElementById('goal-editor-form'),
+    editorTitle: document.getElementById('goal-editor-title'),
+    editorClose: document.getElementById('goal-editor-close'),
+    editorName: document.getElementById('goal-editor-name'),
+    editorTarget: document.getElementById('goal-editor-target'),
+    editorDate: document.getElementById('goal-editor-date'),
+    editorClosedRow: document.getElementById('goal-editor-closed-row'),
+    editorClosed: document.getElementById('goal-editor-closed'),
+    editorBusy: document.getElementById('goal-editor-busy'),
+    editorError: document.getElementById('goal-editor-error'),
+    editorSave: document.getElementById('goal-editor-save'),
+  },
+  getApi: () => api,
+});
+
 const tabController = createTabController({
   doc: document,
   nav: document.getElementById('bottom-nav'),
@@ -1504,6 +1538,8 @@ const tabController = createTabController({
       playBars(window, els.trendBars);
     }
     if (id === 'budgets') playBars(window, els.budgetRows);
+    // ผู้ใช้อาจออมผ่านแชตระหว่างที่หน้าเว็บเปิดอยู่ จึงโหลดใหม่ทุกครั้งที่เข้าแท็บ
+    if (id === 'goals') goalsPanel.refresh();
     if (id === 'profile') {
       refreshProfileOnEntry();
       // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
