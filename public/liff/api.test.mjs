@@ -166,6 +166,19 @@ describe('createApi', () => {
     expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual(['/api/trend?month=2026-09', '/api/profile']);
   });
 
+  it('reads and saves the notification settings', async () => {
+    const fetchImpl = fakeFetch(200, { weeklySummary: true });
+    const api = setup(fetchImpl);
+
+    expect(await api.getSettings()).toEqual({ weeklySummary: true });
+    await api.updateSettings({ weeklySummary: true });
+
+    expect(fetchImpl.mock.calls.map(([url, options]) => [url, options.method ?? 'GET', options.body])).toEqual([
+      ['/api/settings', 'GET', undefined],
+      ['/api/settings', 'PATCH', JSON.stringify({ weeklySummary: true })],
+    ]);
+  });
+
   it('reads, looks up, adds and removes friends and renews the code', async () => {
     const fetchImpl = fakeFetch(200, {});
     const api = setup(fetchImpl);
