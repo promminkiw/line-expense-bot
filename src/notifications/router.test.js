@@ -10,6 +10,7 @@ function deps(overrides = {}) {
   return {
     cronSecret: 's3cret',
     runWeeklySummary: vi.fn().mockResolvedValue(COUNTS),
+    runDailyReminder: vi.fn().mockResolvedValue(COUNTS),
     logger: { error: vi.fn() },
     ...overrides,
   };
@@ -43,6 +44,10 @@ describe('createNotificationsRouter', () => {
 
   it('refuses to build without the weekly job', () => {
     expect(() => createNotificationsRouter(deps({ runWeeklySummary: undefined }))).toThrow('runWeeklySummary');
+  });
+
+  it('refuses to build without the daily reminder job', () => {
+    expect(() => createNotificationsRouter(deps({ runDailyReminder: undefined }))).toThrow('runDailyReminder');
   });
 });
 
@@ -105,5 +110,57 @@ describe('POST /internal/notifications/weekly', () => {
     const res = await fetch(`${base}/notifications/weekly`, { headers: { Authorization: 'Bearer s3cret' } });
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /internal/notifications/daily-reminder', () => {
+  it('runs only the daily reminder and returns the counts when the bearer secret matches', async () => {
+    const options = deps();
+    const base = await start(options);
+
+    const res = await post(base, '/notifications/daily-reminder', 's3cret');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(COUNTS);
+    expect(options.runDailyReminder).toHaveBeenCalledTimes(1);
+    expect(options.runWeeklySummary).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 with the counts when a reservation failed', async () => {
+    const counts = { eligible: 1, sent: 0, skipped: 0, failed: 1, pushFailed: 0 };
+    const base = await start(deps({ runDailyReminder: vi.fn().mockResolvedValue(counts) }));
+
+    const res = await post(base, '/notifications/daily-reminder', 's3cret');
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(counts);
+  });
+
+  it('returns 200 with the counts when only pushes failed', async () => {
+    const counts = { eligible: 2, sent: 1, skipped: 0, failed: 0, pushFailed: 1 };
+    const base = await start(deps({ runDailyReminder: vi.fn().mockResolvedValue(counts) }));
+
+    const res = await post(base, '/notifications/daily-reminder', 's3cret');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(counts);
+  });
+
+  it('returns 401 and does not run for a wrong secret', async () => {
+    const options = deps();
+    const base = await start(options);
+
+    expect((await post(base, '/notifications/daily-reminder', 'wrong')).status).toBe(401);
+    expect(options.runDailyReminder).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 and logs only the reason when the job throws', async () => {
+    const options = deps({ runDailyReminder: vi.fn().mockRejectedValue(new Error('db down')) });
+    const base = await start(options);
+
+    const res = await post(base, '/notifications/daily-reminder', 's3cret');
+
+    expect(res.status).toBe(500);
+    expect(options.logger.error).toHaveBeenCalledWith('Daily reminder run failed', { reason: 'db down' });
   });
 });

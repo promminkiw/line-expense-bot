@@ -118,7 +118,7 @@ describe('createSettingsPanel', () => {
     await flush();
     expect(box.disabled).toBe(false);
     expect(box.checked).toBe(true);
-    expect(byId('notify-status').textContent).toBe('บันทึกแล้ว');
+    expect(byId('notify-status').textContent).toBe('บันทึก ส่งสรุปทุกวันอาทิตย์ แล้ว');
   });
 
   // ผลของการบันทึกสวิตช์หนึ่งมาถึงตอนอีกสวิตช์กำลังบันทึกอยู่ ต้องไม่ทับค่าที่ผู้ใช้เพิ่งกด
@@ -157,7 +157,31 @@ describe('createSettingsPanel', () => {
 
     expect(box.checked).toBe(false);
     expect(box.disabled).toBe(false);
-    expect(byId('notify-status').textContent).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('notify-status').textContent).toBe('บันทึก ส่งสรุปทุกวันอาทิตย์ ไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+
+  // สถานะมีบรรทัดเดียว ข้อความต้องบอกว่าเป็นของสวิตช์ไหน ไม่งั้นผลของตัวหนึ่งดูเป็นผลของอีกตัว
+  it('names the switch in the status when one save fails and another succeeds', async () => {
+    const api = {
+      getSettings: vi.fn().mockResolvedValue({ weeklySummary: false, dailyReminder: false }),
+      updateSettings: vi.fn((body) =>
+        'weeklySummary' in body ? Promise.reject(new ApiError(500)) : Promise.resolve({ weeklySummary: false, dailyReminder: true }),
+      ),
+    };
+    const panel = setup(api, { second: true });
+    await panel.ensureLoaded();
+    const weekly = byId('notify-weekly-summary');
+    const daily = byId('notify-second');
+
+    toggle(weekly, true);
+    await flush();
+    expect(byId('notify-status').textContent).toBe('บันทึก ส่งสรุปทุกวันอาทิตย์ ไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(weekly.checked).toBe(false);
+
+    toggle(daily, true);
+    await flush();
+    expect(byId('notify-status').textContent).toBe('บันทึก เตือนถ้าวันนี้ยังไม่ได้จด แล้ว');
+    expect(daily.checked).toBe(true);
   });
 
   it('asks to reopen from LINE when saving needs a new login', async () => {

@@ -805,6 +805,12 @@ function createRepository(supabase) {
     return data.length > 0;
   }
 
+  async function listUsersToRemind(day) {
+    const { data, error } = await supabase.rpc('users_to_remind', { p_day: day });
+    throwIfError('listUsersToRemind', error);
+    return data.map((row) => ({ userId: row.user_id, lineUserId: row.line_user_id }));
+  }
+
   return {
     listTransactions,
     listAllTransactions,
@@ -826,6 +832,7 @@ function createRepository(supabase) {
     applyRecurringRule,
     listWeeklySummaryUsers,
     reserveNotification,
+    listUsersToRemind,
     summarizeTransactions,
     queryTotals,
     getLifetimeTotals,

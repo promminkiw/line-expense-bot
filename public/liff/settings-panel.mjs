@@ -2,8 +2,10 @@ import { ApiError } from './api.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 
 const LOAD_FAILED_MESSAGE = 'โหลดการตั้งค่าไม่สำเร็จ';
-const SAVE_FAILED_MESSAGE = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
-const SAVED_MESSAGE = 'บันทึกแล้ว';
+// สถานะมีบรรทัดเดียวใช้ร่วมกันทุกสวิตช์ จึงต้องบอกชื่อสวิตช์ในข้อความ
+const SWITCH_NAMES = { weeklySummary: 'ส่งสรุปทุกวันอาทิตย์', dailyReminder: 'เตือนถ้าวันนี้ยังไม่ได้จด' };
+const savedMessage = (field) => `บันทึก ${SWITCH_NAMES[field]} แล้ว`;
+const saveFailedMessage = (field) => `บันทึก ${SWITCH_NAMES[field]} ไม่สำเร็จ ลองใหม่อีกครั้ง`;
 
 const isLoginRequired = (err) => err instanceof ApiError && err.status === 401;
 
@@ -61,11 +63,11 @@ export function createSettingsPanel({ els, getApi }) {
       const saved = await getApi().updateSettings({ [field]: wanted });
       // ตั้งเฉพาะสวิตช์ที่บันทึก สวิตช์อื่นอาจกำลังบันทึกอยู่และผลนี้ยังไม่รู้ค่าที่ผู้ใช้เพิ่งกด
       input.checked = saved[field] === true;
-      els.status.textContent = SAVED_MESSAGE;
+      els.status.textContent = savedMessage(field);
     } catch (err) {
       // ถือว่า server ยังไม่เปลี่ยน ถ้าที่จริงเปลี่ยนแล้ว เปิดหน้าใหม่จะเห็นค่าจริง
       input.checked = !wanted;
-      els.status.textContent = isLoginRequired(err) ? LOGIN_REQUIRED_MESSAGE : SAVE_FAILED_MESSAGE;
+      els.status.textContent = isLoginRequired(err) ? LOGIN_REQUIRED_MESSAGE : saveFailedMessage(field);
     } finally {
       input.disabled = false;
     }
