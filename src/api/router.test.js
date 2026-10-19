@@ -60,8 +60,10 @@ function setup(overrides = {}) {
       ]),
       getLifetimeTotals: vi.fn().mockResolvedValue({ income: 25000.1, expense: 60.2, entryCount: 3, firstDate: '2026-08-03' }),
       getDisplayName: vi.fn().mockResolvedValue('สมชาย'),
-      getNotificationSettings: vi.fn().mockResolvedValue({ weeklySummary: false }),
-      updateNotificationSettings: vi.fn().mockImplementation(async (userId, changes) => ({ weeklySummary: false, ...changes })),
+      getNotificationSettings: vi.fn().mockResolvedValue({ weeklySummary: false, dailyReminder: false }),
+      updateNotificationSettings: vi
+        .fn()
+        .mockImplementation(async (userId, changes) => ({ weeklySummary: false, dailyReminder: false, ...changes })),
     },
     allowExport: vi.fn().mockReturnValue(true),
     friendsRouter: express.Router(),
@@ -1308,7 +1310,7 @@ describe('notification settings API', () => {
     const res = await call(base, '/settings');
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ weeklySummary: false });
+    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: false });
     expect(deps.repository.getNotificationSettings).toHaveBeenCalledWith('user-1');
   });
 
@@ -1319,8 +1321,19 @@ describe('notification settings API', () => {
     const res = await call(base, '/settings', { method: 'PATCH', body: { weeklySummary: true, isAdmin: true } });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ weeklySummary: true });
+    expect(await res.json()).toEqual({ weeklySummary: true, dailyReminder: false });
     expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { weeklySummary: true });
+  });
+
+  it('saves the daily reminder switch', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/settings', { method: 'PATCH', body: { dailyReminder: true } });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: true });
+    expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { dailyReminder: true });
   });
 
   it.each([

@@ -192,4 +192,16 @@ describe('validateSettingsUpdate', () => {
   it('refuses a switch that is not a boolean', () => {
     expect(validateSettingsUpdate({ weeklySummary: 'true' })).toEqual({ ok: false, error: 'Invalid weeklySummary' });
   });
+
+  it('keeps the daily reminder switch together with the weekly one', () => {
+    expect(validateSettingsUpdate({ dailyReminder: true })).toEqual({ ok: true, value: { dailyReminder: true } });
+    expect(validateSettingsUpdate({ weeklySummary: false, dailyReminder: true })).toEqual({
+      ok: true,
+      value: { weeklySummary: false, dailyReminder: true },
+    });
+  });
+
+  it('refuses a daily reminder switch that is not a boolean', () => {
+    expect(validateSettingsUpdate({ dailyReminder: 1 })).toEqual({ ok: false, error: 'Invalid dailyReminder' });
+  });
 });

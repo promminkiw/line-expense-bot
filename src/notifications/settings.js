@@ -1,5 +1,5 @@
 // ชื่อ field ของ API คู่กับคอลัมน์ใน users เพิ่มสวิตช์ใหม่ที่นี่ที่เดียว validate repository และ API จะรู้จักเอง
-const NOTIFICATION_SETTINGS = { weeklySummary: 'weekly_summary_enabled' };
+const NOTIFICATION_SETTINGS = { weeklySummary: 'weekly_summary_enabled', dailyReminder: 'daily_reminder_enabled' };
 const SETTINGS_COLUMNS = Object.values(NOTIFICATION_SETTINGS).join(', ');
 
 function toNotificationSettings(row) {

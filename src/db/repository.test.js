@@ -1440,20 +1440,20 @@ describe('repository notification settings', () => {
   it('reads the switches of this user', async () => {
     const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
 
-    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: true });
+    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: true, dailyReminder: false });
     expect(calls).toEqual([['from', 'users'], ['select', SETTINGS_COLUMNS], ['eq', 'id', 'user-1'], ['maybeSingle']]);
   });
 
   it('treats a missing user row as everything off', async () => {
     const { supabase } = fakeSupabase({ data: null, error: null });
 
-    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: false });
+    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: false, dailyReminder: false });
   });
 
   it('updates only the given switches of this user and returns the saved values', async () => {
     const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
 
-    expect(await createRepository(supabase).updateNotificationSettings('user-1', { weeklySummary: true })).toEqual({ weeklySummary: true });
+    expect(await createRepository(supabase).updateNotificationSettings('user-1', { weeklySummary: true })).toEqual({ weeklySummary: true, dailyReminder: false });
     expect(calls).toEqual([
       ['from', 'users'],
       ['update', { weekly_summary_enabled: true }],
@@ -1469,6 +1469,16 @@ describe('repository notification settings', () => {
 
     await expect(repository.getNotificationSettings('user-1')).rejects.toThrow('Database getNotificationSettings failed: boom');
     await expect(repository.updateNotificationSettings('user-1', { weeklySummary: true })).rejects.toBeInstanceOf(DatabaseError);
+  });
+
+  it('saves the daily reminder switch to its own column', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: false, daily_reminder_enabled: true }, error: null });
+
+    expect(await createRepository(supabase).updateNotificationSettings('user-1', { dailyReminder: true })).toEqual({
+      weeklySummary: false,
+      dailyReminder: true,
+    });
+    expect(calls[1]).toEqual(['update', { daily_reminder_enabled: true }]);
   });
 });
 
