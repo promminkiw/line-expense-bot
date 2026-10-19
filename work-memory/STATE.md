@@ -1,11 +1,11 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: เตือนลืมจดเสร็จบน branch)
+Updated: 2026-10-19 (ล่าสุด: เป้าหมายการออมเสร็จบน branch)
 Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว; งานที่เหลือคือ roadmap ข (หมวดของผู้ใช้เอง แล้วถามยอดด้วยภาษาธรรมชาติ) และ ticket/backlog เล็ก
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` roadmap ข: สรุปรายสัปดาห์ + เตือนลืมจด merge เข้า main ในเครื่องแล้ว (debe0ea) Falcon ผ่านทั้งคู่ ยังไม่ push; กำลังทำ feat/savings-goals แล้วต่อ feat/wallets (แผน 2026-10-19-*.md; คำตอบผู้ใช้อยู่ในหัวข้อ คำถามถึงผู้ใช้ ของแต่ละแผน); ผู้ใช้ตัดสิน: ครบ 4 ฟีเจอร์แล้วผู้ใช้รัน SQL 021-024 ทีเดียว แล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00) + Browser/LINE check
+- [ ] `next` roadmap ข: สรุปรายสัปดาห์ + เตือนลืมจด merge เข้า main ในเครื่องแล้ว (debe0ea) Falcon ผ่านทั้งคู่ ยังไม่ push; เป้าหมายการออม (แผน 2026-10-19-savings-goals.md Task 1-11) เสร็จบน branch feat/savings-goals ยังไม่ merge/push แล้วต่อ feat/wallets (แผน 2026-10-19-*.md; คำตอบผู้ใช้อยู่ในหัวข้อ คำถามถึงผู้ใช้ ของแต่ละแผน); ผู้ใช้ตัดสิน: ครบ 4 ฟีเจอร์แล้วผู้ใช้รัน SQL 021-024 ทีเดียว (ออมคือ 023) แล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00) + Browser/LINE check รวมของออม: LINE check Task 6 (ออม ในแชต, ปุ่มยกเลิก, ออมสินตอนไม่มีเป้า) + Browser check Task 8-10 (แถบล่าง 6 แท็บบนจอเล็ก, สร้าง/ปิดเป้า, ออมเพิ่ม/ลบประวัติ)
 - [ ] `next` LINE check การ์ดถามยอด: merge+push แล้ว (18ee475) รอผู้ใช้ลอง (การ์ด, ปุ่ม ดูรายการในเว็บ เปิดเดือนนั้นพร้อมตัวกรองหมวด/คำค้น/ประเภท); worktree C:\GithubPrommin\line-expense-bot-flex ยังไม่ลบ (ต้องถามก่อนลบ); Minor M1-M5 ของ Falcon ถามยอดยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
