@@ -4,12 +4,20 @@ import { describeWalletError, sortWallets, walletRowView } from './wallets-forma
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
 
+const rowSelector = (walletId, control) => `.wallet-row[data-wallet-id="${walletId}"] ${control}`;
+
 // ส่วนกระเป๋าในแท็บโปรไฟล์: ยอดแยกกระเป๋า เพิ่ม เปลี่ยนชื่อ และซ่อน (ลบไม่ได้ในเฟสนี้)
 export function createWalletsPanel({ doc, els, getApi, onChanged }) {
   let wallets = [];
   let loaded = false;
   let busy = false;
   let renaming = null;
+  // เพิ่มกระเป๋าไม่ได้จนกว่าจะโหลดรายการครั้งแรกเสร็จ
+  const setAddEnabled = (enabled) => {
+    els.addInput.disabled = !enabled;
+    els.addSubmit.disabled = !enabled;
+  };
+  setAddEnabled(false);
   // โหลดซ้อนกันได้ (เข้าแท็บพร้อมแก้รายการ) ผลที่เก่ากว่าต้องไม่ทับผลล่าสุด
   let latestLoad = 0;
 
@@ -72,7 +80,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
   }
 
   // ไม่ throw เพื่อให้ loadAll และการสลับแท็บไม่ล้มเพราะกระเป๋า
-  async function load() {
+  async function load(focusSelector) {
     const api = getApi();
     if (!api) return;
     const loadId = ++latestLoad;
@@ -86,6 +94,9 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
       loaded = true;
       els.loadingText.hidden = true;
       els.rows.replaceChildren(...sortWallets(wallets).map(renderRow));
+      setAddEnabled(true);
+      // แถวถูกสร้างใหม่ ปุ่มที่กดอยู่หายไป จึงคืน focus ให้ปุ่มเดิมในแถวใหม่
+      if (focusSelector) els.rows.querySelector(focusSelector)?.focus();
       onChanged(wallets);
     } catch (err) {
       if (loadId === latestLoad) showLoadError(err);
@@ -133,11 +144,12 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     els.dialogSave.disabled = true;
     els.dialogCancel.disabled = true;
     try {
-      await getApi().updateWallet(renaming.id, { name });
+      const walletId = renaming.id;
+      await getApi().updateWallet(walletId, { name });
       renaming = null;
       els.dialog.close();
       els.status.textContent = `เปลี่ยนชื่อเป็น ${name} แล้ว`;
-      await load();
+      await load(rowSelector(walletId, '.wallet-rename'));
     } catch (err) {
       els.dialogError.textContent = describeWalletError(statusOf(err), errorOf(err));
       els.dialogError.hidden = false;
@@ -156,7 +168,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     try {
       await getApi().updateWallet(wallet.id, { hidden: !wallet.hidden });
       els.status.textContent = wallet.hidden ? `เลิกซ่อนกระเป๋า ${wallet.name} แล้ว` : `ซ่อนกระเป๋า ${wallet.name} แล้ว`;
-      await load();
+      await load(rowSelector(wallet.id, '.wallet-toggle'));
     } catch (err) {
       els.status.textContent = describeWalletError(statusOf(err), errorOf(err));
       button.disabled = false;

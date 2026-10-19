@@ -4472,4 +4472,39 @@ describe('LIFF wallets section', () => {
     await settle();
     expect(calls.filter((call) => call === 'GET /api/wallets')).toHaveLength(2);
   });
+
+  it('keeps focus on the same wallet row after hiding it', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    stubFetch((method) => (method === 'PATCH' ? { wallet: {} } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-toggle').click();
+    await settle();
+
+    expect(document.activeElement).toBe(rowOf('w-card').querySelector('.wallet-toggle'));
+  });
+
+  it('keeps focus on the rename button after saving a new name', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    stubFetch((method) => (method === 'PATCH' ? { wallet: {} } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-rename').click();
+    byId('wallet-dialog-name').value = 'บัตรกรุงศรี';
+    submit('wallet-dialog-form');
+    await settle();
+
+    expect(document.activeElement).toBe(rowOf('w-card').querySelector('.wallet-rename'));
+  });
+
+  it('shows a visible loading message and disables adding while wallets first load', async () => {
+    const liff = await boot({ holdInit: true });
+    const loading = byId('wallets-loading');
+    expect(loading.classList.contains('sr-only')).toBe(false);
+    expect(byId('wallet-add-input').disabled).toBe(true);
+    expect(byId('wallet-add-submit').disabled).toBe(true);
+    liff.releaseInit?.();
+    await settle();
+
+    expect(byId('wallet-add-input').disabled).toBe(false);
+    expect(byId('wallet-add-submit').disabled).toBe(false);
+  });
 });
