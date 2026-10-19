@@ -28,7 +28,7 @@ LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชา
 
 2\. สรุปผล: พิมพ์ "สรุปวันนี้/สัปดาห์นี้/เดือนนี้" หรือกด Rich Menu คำนวณยอดด้วย SQL (ห้ามให้ Claude คิดเลข) แล้วให้ Claude เขียนคำอธิบายสั้นๆ ส่งเป็น Flex Message
 
-3\. เว็บ LIFF: แท็บล่าง 6 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บจัดการงบ เปิดหน้าหมวดของฉัน (ไม่อยู่ในแถบเมนูล่าง มีปุ่มย้อนกลับ); รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท และส่วนเพื่อน: รหัสเพื่อนของตัวเอง ส่งลิงก์ชวน/QR เพิ่มเพื่อนด้วยรหัส รายชื่อเพื่อน ลบเพื่อน เปลี่ยนรหัส และส่วนการแจ้งเตือน (สวิตช์ส่งสรุปทุกวันอาทิตย์) (แท็บโปรไฟล์ไม่มีส่วนหมวดแล้ว); หารบิล = สร้างบิลแล้วหารกับเพื่อน ดูและตอบบิล), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
+3\. เว็บ LIFF: แท็บล่าง 6 แท็บ (รายการ ค้นหา/กรองตามคำ ประเภท หมวด; สรุป กราฟตามหมวด กราฟแนวโน้ม 6 เดือนพร้อมเทียบเดือนก่อน Export CSV; จัดการงบ ตั้งงบต่อหมวดต่อเดือน และปุ่ม เพิ่มหมวดของฉัน ล่างสุดของแท็บจัดการงบ เปิดหน้าหมวดของฉัน (ไม่อยู่ในแถบเมนูล่าง มีปุ่มย้อนกลับ); รอบเดือน = จัดการรายการประจำ; โปรไฟล์ ยอดเงินคงเหลือสะสม = รายรับ - รายจ่ายทุกรายการที่บันทึกในบอท และส่วนเพื่อน: รหัสเพื่อนของตัวเอง ส่งลิงก์ชวน/QR เพิ่มเพื่อนด้วยรหัส รายชื่อเพื่อน ลบเพื่อน เปลี่ยนรหัส และส่วนการแจ้งเตือน (สวิตช์ส่งสรุปทุกวันอาทิตย์ และเตือนถ้าวันนี้ยังไม่ได้จด) (แท็บโปรไฟล์ไม่มีส่วนหมวดแล้ว); หารบิล = สร้างบิลแล้วหารกับเพื่อน ดูและตอบบิล), แก้/ลบรายการ, ไอคอน SVG และสีประจำหมวด (ธีมสว่างอย่างเดียว ไม่มี dark mode), skeleton loading และ empty state
 
 API ที่เพิ่มสำหรับหน้า LIFF: `GET /api/trend?month=` (6 เดือนสิ้นสุดเดือนที่เลือก) และ `GET /api/profile` (ชื่อ ยอดสะสม ยอดคงเหลือ จำนวนรายการ วันที่รายการแรก) ใช้ SQL `010_profile_and_trend.sql`
 
@@ -52,6 +52,8 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 11\. สรุปรายสัปดาห์: ผู้ใช้เปิดสวิตช์ "ส่งสรุปทุกวันอาทิตย์" ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด เพราะ push นับโควตา LINE OA; API `GET /api/settings` คืน `{ weeklySummary }`, `PATCH /api/settings` รับ boolean เฉพาะ field ที่รู้จัก field อื่นตัดทิ้ง) งาน cron `POST /internal/notifications/weekly` ทุกวันอาทิตย์ 19:00 ส่งการ์ดสรุปช่วง `week` (วันจันทร์ถึงวันที่รัน) ด้วย `buildSummary` + `buildSummaryFlex` เดิม ไม่เรียก Claude เขียนคอมเมนต์ สัปดาห์ที่ไม่มีรายการไม่ส่ง กันส่งซ้ำด้วยการจองแถวใน `notification_log` (kind `weekly_summary`, period = วันจันทร์ของสัปดาห์) ก่อน push ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น อ่านยอดหรือจองไม่สำเร็จนับใน failed ส่วน push พังนับใน pushFailed (เก็บการจองไว้ ไม่ลองซ้ำ) ตอบ `{ eligible, sent, skipped, failed, pushFailed }` และ 500 เฉพาะเมื่อ failed > 0 (แบบเดียวกับรายการประจำ) เมื่อผู้ใช้ unfollow บอท server ปิด weekly\_summary\_enabled และ daily\_reminder\_enabled ของคนนั้นโดยไม่ตอบข้อความ
 
+12\. เตือนลืมจด: ผู้ใช้เปิดสวิตช์ "เตือนถ้าวันนี้ยังไม่ได้จด" ในแท็บโปรไฟล์ (ค่าตั้งต้นปิด; API settings คืนและรับ `dailyReminder` เพิ่มจาก `weeklySummary`) งาน cron `POST /internal/notifications/daily-reminder` ทุกวัน 21:00 หาคนที่ต้องเตือนด้วย SQL function `users_to_remind(p_day)` (`022_daily_reminder.sql`: เปิดสวิตช์ และไม่มี transactions ที่ source เป็น text, slip หรือ bill และ created_at อยู่ในวันนั้นตามเวลา Asia/Bangkok รายการประจำไม่นับ) จองแถวใน `notification_log` (kind `daily_reminder`, period = วันนั้น) ก่อน push ข้อความ `วันนี้ยังไม่ได้จดรายการเลย ใช้อะไรไปบ้าง พิมพ์มาได้เลย เช่น "กินข้าว 60"` ไม่มีปุ่ม ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น จองไม่สำเร็จนับใน failed ส่วน push พังนับใน pushFailed (เก็บการจองไว้ ไม่ลองซ้ำ) ตอบ `{ eligible, sent, skipped, failed, pushFailed }` และ 500 เฉพาะเมื่อ failed > 0; ผู้ใช้ที่ unfollow ถูกปิดสวิตช์นี้ด้วย (ข้อ 11)
+
 
 
 \## Database (Supabase)
@@ -74,7 +76,7 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 \- bill\_members: bill\_id, user\_id, share, status (pending/confirmed/declined), paid, notified, transaction\_id, responded\_at, created\_at (primary key คู่ bill\_id+user\_id; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `013_bills.sql` (index ของ FK ไปยัง transactions และ categories อยู่ใน `014_bill_indexes.sql`; `015_bill_invariants.sql` ให้ create_bill ปฏิเสธหมวดที่ไม่ใช่รายจ่าย บิลที่ไม่มีสมาชิก และยอดที่รวมไม่เท่ายอดบิล และให้ตาราง bills ตรวจ owner_share <= total)
 
-\- notification\_log: user\_id, kind (weekly\_summary/daily\_reminder), period (YYYY-MM-DD), created\_at (primary key user\_id+kind+period; จองก่อน push กันส่งซ้ำ; ลบ user แล้วลบแถวตามด้วย cascade; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `021_notification_settings.sql`
+\- notification\_log: user\_id, kind (weekly\_summary/daily\_reminder), period (YYYY-MM-DD), created\_at (primary key user\_id+kind+period; จองก่อน push กันส่งซ้ำ; ลบ user แล้วลบแถวตามด้วย cascade; เปิด RLS ไม่มี policy ใช้ผ่าน service role เท่านั้น) ใช้ SQL `021_notification_settings.sql`; function users\_to\_remind ใน `022_daily_reminder.sql` อ่าน users.daily\_reminder\_enabled กับ transactions.source/created\_at
 
 \- ทุกตารางมี user\_id (bills ใช้ owner\_id, bill\_members ใช้ bill\_id+user\_id), เปิด RLS ทุกตาราง
 
@@ -102,9 +104,9 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 
 \- แพ็กเกจฟรีจะ "หลับ" ทำให้ข้อความแรกช้า
 
-\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ และยาวอย่างน้อย 32 ตัวอักษร สัญญาของสรุปรายสัปดาห์คือ `POST /internal/notifications/weekly` header เดียวกัน ทุกวันอาทิตย์ 19:00 (Asia/Bangkok) ตอบ JSON { eligible, sent, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่ออ่านหรือจองของใครไม่สำเร็จ (push พังอย่างเดียวยังตอบ 200)
+\- รายการประจำและแจ้งเตือน: ใช้ตัวกระตุ้นภายนอก (เช่น cron-job.org หรือ Supabase pg\_cron) เรียก endpoint ที่มี secret token ป้องกัน; สัญญาของรายการประจำคือ `POST /internal/recurring/run` พร้อม header `Authorization: Bearer <CRON_SECRET>` (B ตัวใหญ่ เว้นวรรคเดียว) วันละครั้ง ตอบ JSON { due, created, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่อมีกฎใดทำไม่สำเร็จ และต้องมี CRON\_SECRET ตั้งแต่เริ่มระบบ และยาวอย่างน้อย 32 ตัวอักษร สัญญาของสรุปรายสัปดาห์คือ `POST /internal/notifications/weekly` header เดียวกัน ทุกวันอาทิตย์ 19:00 (Asia/Bangkok) ตอบ JSON { eligible, sent, skipped, failed, pushFailed }, 401 เมื่อ token ผิด, 500 เมื่ออ่านหรือจองของใครไม่สำเร็จ (push พังอย่างเดียวยังตอบ 200) สัญญาของเตือนลืมจดคือ `POST /internal/notifications/daily-reminder` header เดียวกัน ทุกวัน 21:00 (Asia/Bangkok) ตอบ JSON แบบเดียวกับสรุปรายสัปดาห์
 
-\- Push message นับโควตาของแพ็กเกจ LINE OA ต้องเช็กจำกัดต่อเดือน (รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ สรุปรายสัปดาห์ใช้ไม่เกิน 1 ครั้งต่อคนต่อสัปดาห์ เฉพาะคนที่เปิดสวิตช์)
+\- Push message นับโควตาของแพ็กเกจ LINE OA ต้องเช็กจำกัดต่อเดือน (รายการประจำที่บันทึกแล้วใช้ push 1 ครั้งต่อรายการ สรุปรายสัปดาห์ใช้ไม่เกิน 1 ครั้งต่อคนต่อสัปดาห์ เตือนลืมจดใช้ไม่เกิน 1 ครั้งต่อคนต่อวัน เฉพาะคนที่เปิดสวิตช์)
 
 
 
@@ -139,6 +141,8 @@ API หารบิล (หลัง ID token ทุกเส้น): `GET /api/
 14\. ถามยอดด้วยภาษาธรรมชาติ (roadmap ทิศทาง ข ข้อ 2: docs/superpowers/plans/2026-10-19-ask-totals.md)
 
 15\. สรุปรายสัปดาห์ (roadmap ทิศทาง ข ข้อ 3: docs/superpowers/plans/2026-10-19-weekly-summary.md)
+
+16\. เตือนลืมจด (roadmap ทิศทาง ข ข้อ 4: docs/superpowers/plans/2026-10-19-daily-reminder.md)
 
 
 

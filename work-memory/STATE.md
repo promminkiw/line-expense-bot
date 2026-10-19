@@ -1,11 +1,11 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: ถามยอด merge+push แล้ว)
+Updated: 2026-10-19 (ล่าสุด: เตือนลืมจดเสร็จบน branch)
 Goal: โปรเจกต์ครบ SPEC ขั้นที่ 1-10 และ deploy บน Render แล้ว; งานที่เหลือคือ roadmap ข (หมวดของผู้ใช้เอง แล้วถามยอดด้วยภาษาธรรมชาติ) และ ticket/backlog เล็ก
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` สรุปรายสัปดาห์ (แผน docs/superpowers/plans/2026-10-19-weekly-summary.md) Task 1-10 เสร็จ Falcon ผ่าน merge เข้า main ในเครื่องแล้ว (3e7fb90) ยังไม่ push: รัน `supabase/021_notification_settings.sql` ก่อน push, เพิ่มงาน cron-job.org weekly อาทิตย์ 19:00 Asia/Bangkok, Browser check Task 8, LINE check Task 10; ถัดไป เตือนลืมจด แล้วออม กระเป๋า (แผน 2026-10-19-{daily-reminder,savings-goals,wallets}.md; คำตอบผู้ใช้อยู่ในหัวข้อ คำถามถึงผู้ใช้ ของแต่ละแผน) กำลังทำ feat/daily-reminder; ผู้ใช้ตัดสิน (2026-10-19): ทำครบ 4 ฟีเจอร์ (merge ในเครื่อง) แล้วผู้ใช้รัน SQL 021-024 ทีเดียว จากนั้นค่อย push ครั้งเดียว
+- [ ] `next` เตือนลืมจด (แผน docs/superpowers/plans/2026-10-19-daily-reminder.md) Task 1-7 เสร็จบน branch feat/daily-reminder ยังไม่ merge/push: รัน `supabase/022_daily_reminder.sql` ก่อน push, เพิ่มงาน cron-job.org daily-reminder ทุกวัน 21:00 Asia/Bangkok, Browser check Task 6, LINE check Task 7; สรุปรายสัปดาห์ merge ในเครื่องแล้ว (3e7fb90) ยังไม่ push: รัน `021_notification_settings.sql` ก่อน push, เพิ่มงาน cron-job.org weekly อาทิตย์ 19:00, Browser check Task 8, LINE check Task 10; ถัดไป ออม แล้วกระเป๋า (แผน 2026-10-19-{savings-goals,wallets}.md); ผู้ใช้ตัดสิน (2026-10-19): ทำครบ 4 ฟีเจอร์ (merge ในเครื่อง) แล้วผู้ใช้รัน SQL 021-024 ทีเดียว จากนั้นค่อย push ครั้งเดียว
 - [ ] `next` LINE check การ์ดถามยอด: merge+push แล้ว (18ee475) รอผู้ใช้ลอง (การ์ด, ปุ่ม ดูรายการในเว็บ เปิดเดือนนั้นพร้อมตัวกรองหมวด/คำค้น/ประเภท); worktree C:\GithubPrommin\line-expense-bot-flex ยังไม่ลบ (ต้องถามก่อนลบ); Minor M1-M5 ของ Falcon ถามยอดยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
