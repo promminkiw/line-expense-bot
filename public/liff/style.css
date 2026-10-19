@@ -86,6 +86,9 @@ dialog input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .recurring-more p { margin: 0 0 8px; }
 .recurring-loading { margin: 12px 0 0; color: var(--muted); }
 .recurring-rows { list-style: none; margin: 4px 0 0; padding: 0; }
+.goals { margin: 12px 16px 0; padding: 20px; background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.goals h2 { margin: 0; font-size: 20px; font-weight: 800; line-height: 1.3; }
+.goals-hint { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 /* แบบ R2 ปฏิทินฉีก: วันที่ตัวใหญ่ซ้าย ชื่อกับบรรทัดรองกลาง ยอดขวา แทนประโยคยาว */
 .recurring-button { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; width: 100%; min-height: 44px; margin: 0; padding: 10px 0; border: none; border-bottom: 1px solid var(--brand-soft); background: none; font: inherit; font-size: 14px; color: inherit; text-align: left; cursor: pointer; }
 .recurring-cal { grid-row: 1 / 3; overflow: hidden; border-radius: 12px; background: var(--surface); box-shadow: 0 0 0 1.5px var(--border); text-align: center; }
@@ -141,8 +144,9 @@ main#app { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 /* แถบล่างแบบ D1 ที่ผู้ใช้เลือก: แถบขาวเรียบแบบแอปธนาคาร แท็บที่เลือกบอกด้วยขีดบน สีน้ำเงิน และตัวหนา ไม่ใช่สีอย่างเดียว */
 .bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; background: var(--surface); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
-.nav-button { position: relative; flex: 1; min-width: 0; min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 2px; border: none; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.nav-button { position: relative; flex: 1; min-width: 0; min-height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 0; border: none; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .nav-button .icon { width: 26px; height: 26px; stroke-width: 2.4; }
+.nav-button span { white-space: nowrap; }
 .nav-button[aria-current="page"] { color: var(--primary); font-weight: 800; }
 .nav-button[aria-current="page"] .icon { fill: var(--brand-soft); stroke-width: 2.6; }
 .nav-button[aria-current="page"]::after { content: ""; position: absolute; top: 0; width: 28px; height: 4px; border-radius: 0 0 4px 4px; background: var(--primary); }

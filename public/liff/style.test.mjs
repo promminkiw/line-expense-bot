@@ -220,6 +220,12 @@ describe('style.css Thai line breaks', () => {
   it('makes the bottom nav 68px tall', () => {
     expect(declarations('.nav-button')).toMatch(/min-height:\s*68px/);
   });
+
+  // วัดจริง 2026-10-19: 6 แท็บที่จอ 320px "รอบเดือน" กว้าง 51.3px แต่ปุ่มเหลือ 49px ถ้ามี padding ข้าง และห้ามย่อตัวอักษรต่ำกว่า 13px
+  it('keeps every tab label on one line without side padding', () => {
+    expect(declarations('.nav-button')).toMatch(/padding:\s*8px 0;/);
+    expect(declarations('.nav-button span')).toMatch(/white-space:\s*nowrap/);
+  });
 });
 
 describe('style.css bill form spacing', () => {

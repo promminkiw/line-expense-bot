@@ -20,10 +20,15 @@ function setup() {
 }
 
 describe('TABS', () => {
-  it('has the five tabs in order, without bills which has its own page', () => {
-    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'profile']);
-    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
+  it('has the six tabs in order, without bills which has its own page', () => {
+    expect(TABS.map((tab) => tab.id)).toEqual(['list', 'summary', 'budgets', 'recurring', 'goals', 'profile']);
+    expect(TABS.map((tab) => tab.label)).toEqual(['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
     expect(DEFAULT_TAB).toBe('list');
+  });
+
+  // ชื่อแท็บสั้นลงให้ 6 แท็บพอดีจอ 320px แต่หัวหน้ายังบอกเต็มว่าแท็บนี้ทำอะไร
+  it('keeps the full page title of the budgets tab', () => {
+    expect(TABS.find((tab) => tab.id === 'budgets').title).toBe('จัดการงบประมาณ');
   });
 
   it('falls back to the list tab for an unknown id', () => {
@@ -64,6 +69,9 @@ describe('createTabController', () => {
     expect(ctx.monthEl.hidden).toBe(true);
 
     ctx.controller.select('profile');
+    expect(ctx.monthEl.hidden).toBe(true);
+
+    ctx.controller.select('goals');
     expect(ctx.monthEl.hidden).toBe(true);
 
     ctx.controller.select('list');
