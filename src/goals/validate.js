@@ -1,5 +1,4 @@
-const { isValidAmount, hasInvisibleCharacter } = require('../api/validate');
-const { isValidCalendarDate } = require('../utils/date');
+const { isValidAmount, hasInvisibleCharacter, isValidAppDate } = require('../api/validate');
 
 // ตรงกับ check char_length ของตาราง savings_goals ซึ่งนับเป็นตัวอักษร
 const MAX_GOAL_NAME_LENGTH = 30;
@@ -21,7 +20,7 @@ function checkName(value) {
 }
 
 function checkTargetDate(value) {
-  return value === null || isValidCalendarDate(value);
+  return value === null || isValidAppDate(value);
 }
 
 function validateGoalCreate(body) {
@@ -61,7 +60,7 @@ function validateGoalUpdate(body) {
 function validateContribution(body) {
   if (!isObject(body)) return fail('Invalid body');
   if (!isValidAmount(body.amount)) return fail('Invalid amount');
-  if (!isValidCalendarDate(body.occurredOn)) return fail('Invalid date');
+  if (!isValidAppDate(body.occurredOn)) return fail('Invalid date');
   return { ok: true, value: { amount: body.amount, occurredOn: body.occurredOn } };
 }
 

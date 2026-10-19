@@ -68,6 +68,15 @@ describe('validateTransactionUpdate', () => {
     }
   });
 
+  // Postgres ไม่มีปี 0 และปีไกลๆ เป็นการพิมพ์ผิด ใช้ช่วงเดียวกับ parseMonth ไม่งั้น DB ตอบ error เป็น 500
+  it('rejects years outside 2000 to 2100 and keeps the edges', () => {
+    expect(validateTransactionUpdate({ ...VALID, occurredOn: '2000-01-01' }).ok).toBe(true);
+    expect(validateTransactionUpdate({ ...VALID, occurredOn: '2100-12-31' }).ok).toBe(true);
+    for (const occurredOn of ['0000-01-01', '1999-12-31', '2101-01-01']) {
+      expect(validateTransactionUpdate({ ...VALID, occurredOn })).toEqual({ ok: false, error: 'Invalid date' });
+    }
+  });
+
   it('rejects notes that are not strings or longer than 200 characters', () => {
     expect(validateTransactionUpdate({ ...VALID, note: 5 })).toEqual({ ok: false, error: 'Invalid note' });
     expect(validateTransactionUpdate({ ...VALID, note: 'ก'.repeat(201) })).toEqual({ ok: false, error: 'Invalid note' });
