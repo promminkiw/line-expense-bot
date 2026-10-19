@@ -27,6 +27,7 @@ const MIGRATIONS = [
   '019_delete_category.sql',
   '020_query_totals.sql',
   '021_notification_settings.sql',
+  '022_daily_reminder.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -969,6 +970,80 @@ describe('021_notification_settings.sql', () => {
   });
 });
 
+describe('users_to_remind', () => {
+  // วันที่ 2026-10-19 ตามเวลาไทยเริ่มที่ 2026-10-18T17:00:00Z และจบก่อน 2026-10-19T17:00:00Z
+  async function addEntry(userId, categoryId, source, createdAt) {
+    await db.query(
+      "insert into transactions (user_id, category_id, type, amount, occurred_on, source, created_at) values ($1, $2, 'expense', 50, '2026-10-19', $3, $4)",
+      [userId, categoryId, source, createdAt],
+    );
+  }
+
+  async function enable(userId) {
+    await db.query('update users set daily_reminder_enabled = true where id = $1', [userId]);
+  }
+
+  const remind = (day = '2026-10-19') => rows('select * from users_to_remind($1)', [day]);
+
+  it('lists users who turned the reminder on and wrote nothing today', async () => {
+    const quiet = await createUser('U1');
+    await enable(quiet);
+    await createUser('U2');
+
+    expect(await remind()).toEqual([{ user_id: quiet, line_user_id: 'U1' }]);
+  });
+
+  it('leaves out a user who typed or sent a slip today in Bangkok time', async () => {
+    const typed = await createUser('U1');
+    const slip = await createUser('U2');
+    await enable(typed);
+    await enable(slip);
+    const food = await createCategory(typed, 'อาหาร', 'expense');
+    const receipt = await createCategory(slip, 'ใบเสร็จ/สลิปโอนเงิน', 'expense');
+    await addEntry(typed, food, 'text', '2026-10-18T17:00:00Z');
+    await addEntry(slip, receipt, 'slip', '2026-10-19T16:59:59Z');
+
+    expect(await remind()).toEqual([]);
+  });
+
+  // บิลเกิดจากผู้ใช้สร้างหรือยืนยันเอง จึงนับว่าจดแล้ว (ผู้ใช้ตัดสิน 2026-10-19)
+  it('leaves out a user whose bill entry was saved today', async () => {
+    const user = await createUser('U1');
+    await enable(user);
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addEntry(user, food, 'bill', '2026-10-19T03:00:00Z');
+
+    expect(await remind()).toEqual([]);
+  });
+
+  // รายการประจำไม่นับว่าจดเอง และวันตัดตามเวลาไทยไม่ใช่ UTC
+  it('still reminds when the only entries today came from recurring rules, or fall outside the Bangkok day', async () => {
+    const user = await createUser('U1');
+    await enable(user);
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addEntry(user, food, 'recurring', '2026-10-19T02:00:00Z');
+    await addEntry(user, food, 'bill', '2026-10-18T16:59:59Z');
+    await addEntry(user, food, 'text', '2026-10-18T16:59:59Z');
+    await addEntry(user, food, 'text', '2026-10-19T17:00:00Z');
+
+    expect(await remind()).toEqual([{ user_id: user, line_user_id: 'U1' }]);
+  });
+
+  it('does not let another user entries hide a quiet user', async () => {
+    const quiet = await createUser('U1');
+    const busy = await createUser('U2');
+    await enable(quiet);
+    const busyFood = await createCategory(busy, 'อาหาร', 'expense');
+    await addEntry(busy, busyFood, 'text', '2026-10-19T05:00:00Z');
+
+    expect(await remind()).toEqual([{ user_id: quiet, line_user_id: 'U1' }]);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('022_daily_reminder.sql'))).resolves.toBeDefined();
+  });
+});
+
 describe('function permissions', () => {
   const calls = [
     ['summarize_transactions', "select * from summarize_transactions(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
@@ -982,6 +1057,7 @@ describe('function permissions', () => {
     ['cancel_bill', 'select cancel_bill(gen_random_uuid(), gen_random_uuid())'],
     ['delete_category', 'select delete_category(gen_random_uuid(), gen_random_uuid())'],
     ['query_totals', "select * from query_totals(gen_random_uuid(), '2026-10-01', '2026-10-31', 'both', '', '')"],
+    ['users_to_remind', "select * from users_to_remind('2026-10-19')"],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว
