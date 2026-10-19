@@ -11,6 +11,17 @@ const ROWS = [
   { type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 },
 ];
 
+// LINE ปฏิเสธการ์ดที่มี text ว่าง จึงเดินทั้งโครงสร้างหา component ชนิด text ที่ไม่มีข้อความ
+function emptyTexts(node, found = []) {
+  if (Array.isArray(node)) {
+    node.forEach((child) => emptyTexts(child, found));
+  } else if (node && typeof node === 'object') {
+    if (node.type === 'text' && (typeof node.text !== 'string' || node.text.trim() === '')) found.push(node);
+    Object.values(node).forEach((child) => emptyTexts(child, found));
+  }
+  return found;
+}
+
 function setup(users = [{ userId: 'user-1', lineUserId: 'U1' }]) {
   const repository = {
     listWeeklySummaryUsers: vi.fn().mockResolvedValue(users),
@@ -34,10 +45,34 @@ describe('createWeeklySummaryRunner', () => {
     expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(buildSummary(ROWS, LABEL), ''));
     const flex = pushFlex.mock.calls[0][1];
     expect(flex.altText).toBe('สรุปสัปดาห์นี้ (12/10 - 18/10): รายรับ 25,000 บาท รายจ่าย 160 บาท');
-    // คอมเมนต์เป็นข้อความเดียวในการ์ดที่ wrap
     expect(JSON.stringify(flex)).not.toContain('"wrap":true');
+    expect(emptyTexts(flex)).toEqual([]);
     expect(repository.reserveNotification.mock.invocationCallOrder[0]).toBeLessThan(pushFlex.mock.invocationCallOrder[0]);
     expect(result).toEqual({ eligible: 1, sent: 1, skipped: 0, failed: 0, pushFailed: 0 });
+  });
+
+  it.each([
+    ['an income-only week', [{ type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 }]],
+    ['an expense-only week', [{ type: 'expense', category: 'อาหาร', total: 160, entryCount: 3 }]],
+  ])('pushes a card without empty text components for %s', async (name, rows) => {
+    const { repository, pushFlex, run } = setup();
+    repository.summarizeTransactions.mockResolvedValue(rows);
+
+    await run();
+
+    expect(pushFlex).toHaveBeenCalledTimes(1);
+    expect(emptyTexts(pushFlex.mock.calls[0][1])).toEqual([]);
+  });
+
+  it('on a Wednesday summarizes Monday to that day and reserves the Monday period', async () => {
+    const { repository, pushFlex } = setup();
+    const run = createWeeklySummaryRunner({ repository, pushFlex, now: () => new Date('2026-10-21T05:00:00Z'), logger: { error: vi.fn() } });
+
+    await run();
+
+    expect(repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-10-19', '2026-10-21');
+    expect(repository.reserveNotification).toHaveBeenCalledWith({ userId: 'user-1', kind: WEEKLY_SUMMARY_KIND, period: '2026-10-19' });
+    expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(buildSummary(ROWS, 'สัปดาห์นี้ (19/10 - 21/10)'), ''));
   });
 
   it('skips a week without entries without reserving or pushing', async () => {
