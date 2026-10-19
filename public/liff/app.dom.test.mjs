@@ -285,6 +285,8 @@ describe('index.html static invariants', () => {
     expect(categories.hasAttribute('disabled')).toBe(true);
     expect(categories.querySelector('.menu-row-title').textContent).toBe('จัดการหมวดหมู่');
     expect(categories.querySelector('.menu-row-sub').textContent).toBe('เพิ่ม แก้ไข ซ่อน และลบหมวด');
+    expect(recurring.textContent.replace(/\s+/g, ' ')).toContain('รายการประจำ รายรับรายจ่ายที่เกิดทุกเดือน');
+    expect(categories.textContent.replace(/\s+/g, ' ')).toContain('จัดการหมวดหมู่ เพิ่ม แก้ไข ซ่อน และลบหมวด');
   });
 
   it('points every menu row icon at a symbol that exists in the sprite', () => {

@@ -226,6 +226,8 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('.menu-row')).toMatch(/width:\s*100%/);
     expect(declarations('.menu-row-icon')).toMatch(/width:\s*40px/);
     expect(declarations('.menu-row:disabled')).toMatch(/cursor:\s*not-allowed/);
+    expect(declarations('.menu-row:disabled')).not.toMatch(/opacity/);
+    expect(declarations('.menu-row:disabled .menu-row-icon')).toMatch(/opacity:\s*0\.5/);
   });
 
   it('keeps the paid checkbox on the same row as the member amount', () => {
