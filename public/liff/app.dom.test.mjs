@@ -3665,6 +3665,17 @@ describe('LIFF categories page', () => {
     expect(document.activeElement).toBe(byId('categories-open'));
   });
 
+  it('marks the app as a sub page while open and keeps the back label for the budgets tab', async () => {
+    await openPage();
+
+    expect(byId('app').classList.contains('sub-page')).toBe(true);
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปจัดการงบ');
+
+    byId('page-back').click();
+
+    expect(byId('app').classList.contains('sub-page')).toBe(false);
+  });
+
   it('shows the visible tiles of the selected type, a locked system tile and the add tile last', async () => {
     await openPage();
 

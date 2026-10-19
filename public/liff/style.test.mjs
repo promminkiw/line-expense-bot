@@ -212,6 +212,11 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('main#app.bills-page .bar-mascot')).toMatch(/display:\s*none/);
   });
 
+  it('hides the bar mascot and keeps room for the safe area on every sub page', () => {
+    expect(declarations('main#app.sub-page .bar-mascot')).toMatch(/display:\s*none/);
+    expect(declarations('main#app.sub-page')).toMatch(/padding-bottom:\s*calc\(16px \+ env\(safe-area-inset-bottom\)\)/);
+  });
+
   it('keeps the paid checkbox on the same row as the member amount', () => {
     expect(declarations('.bill-member')).toMatch(/grid-template-columns:[^;]*auto auto auto/);
     expect(declarations('.bill-member-paid')).not.toMatch(/grid-column:\s*1\s*\/\s*-1/);
