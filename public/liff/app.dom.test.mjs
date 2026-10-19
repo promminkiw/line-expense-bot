@@ -4146,6 +4146,19 @@ describe('LIFF recurring page under the me tab', () => {
     expect(byId('panel-profile').hidden).toBe(true);
     expect(byId('panel-categories').hidden).toBe(true);
   });
+
+  it('keeps the entry button usable and opens the page when the recurring list fails to load', async () => {
+    await boot({ overrides: { '/api/recurring': { status: 500 } } });
+    clickTab('profile');
+
+    expect(byId('recurring-error').hidden).toBe(false);
+    expect(byId('recurring-open').disabled).toBe(false);
+
+    byId('recurring-open').click();
+
+    expect(byId('panel-recurring').hidden).toBe(false);
+    expect(byId('recurring-error').hidden).toBe(false);
+  });
 });
 
 describe('LIFF bill form with a hidden category', () => {
