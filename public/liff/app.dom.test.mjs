@@ -261,6 +261,7 @@ describe('index.html static invariants', () => {
     expect(doc.querySelector('.balance-card .stat-label').textContent.trim()).toBe('ยอดสะสมทั้งหมด');
     const goalHints = [...doc.querySelectorAll('#goals .goals-hint')].map((hint) => hint.textContent.trim());
     expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
+    expect(doc.getElementById('truncated').textContent).not.toContain('เดือนนี้');
   });
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
