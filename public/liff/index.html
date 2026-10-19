@@ -216,6 +216,10 @@
             aria-hidden="true" focusable="false">
             <use href="#icon-back"></use>
           </svg></button>
+        <a id="bills-home" class="bar-home" href="./" hidden><svg class="icon" aria-hidden="true"
+            focusable="false">
+            <use href="#icon-back"></use>
+          </svg>หน้าหลัก</a>
         <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
         <h1 id="page-title">รายการของฉัน</h1>
         <input type="month" id="month" aria-label="เลือกเดือน">
@@ -228,8 +232,8 @@
     <div id="panel-list" class="panel">
       <ul id="list-head-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="totals" class="stat-cards" hidden>
-        <div class="stat balance"><span class="stat-label">คงเหลือเดือนนี้</span><span id="stat-balance"
-            class="stat-value"></span></div>
+        <div class="stat balance"><span class="stat-label">คงเหลือ</span><span id="stat-balance"
+            class="stat-value"></span><span class="stat-note">รายรับ - รายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
         <div class="stat-sub">
           <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income"
               class="stat-value"></span></div>
@@ -237,7 +241,7 @@
               class="stat-value"></span></div>
         </div>
       </div>
-      <p id="truncated" class="notice" hidden>เดือนนี้มีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ
+      <p id="truncated" class="notice" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ
         ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
       <div id="filters" class="filters" hidden>
         <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
@@ -305,7 +309,7 @@
         <button type="button" id="categories-open" class="categories-open" disabled><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-categories"></use>
-          </svg>เพิ่มหมวดของฉัน</button>
+          </svg>จัดการหมวดหมู่</button>
         <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน หรือซ่อนหมวด</p>
       </div>
     </div>
@@ -350,6 +354,7 @@
       <section id="goals" class="goals" aria-labelledby="goals-title">
         <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
         <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
+        <p class="goals-hint">ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน</p>
         <p id="goals-status" class="goals-status" role="status" aria-live="polite"></p>
         <p id="goals-loading" class="sr-only" role="status" hidden>กำลังโหลดเป้าออม...</p>
         <ul id="goals-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
@@ -441,7 +446,7 @@
           </div>
         </div>
         <div class="balance-card">
-          <span class="stat-label">ยอดเงินคงเหลือ</span>
+          <span class="stat-label">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
           <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
             ไม่ใช่ยอดเงินในบัญชีจริง</span>
@@ -462,7 +467,9 @@
             <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
             <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
             <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
+            <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
             <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+            <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
           </ul>
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
@@ -506,6 +513,7 @@
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
         <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
+        <a id="friends-bills-link" class="friends-bills-link" href="./?tab=bills">ไปหารบิลกับเพื่อน</a>
         <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
         <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="friends-error" class="budgets-error" hidden>

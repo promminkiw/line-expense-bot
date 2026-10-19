@@ -251,6 +251,26 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('tab-user')).toBe(true);
   });
 
+  it('names the categories entry for everything the page can do', () => {
+    expect(doc.getElementById('categories-open').textContent.trim()).toBe('จัดการหมวดหมู่');
+  });
+
+  it('explains what each balance counts', () => {
+    expect(doc.querySelector('#totals .stat.balance .stat-label').textContent.trim()).toBe('คงเหลือ');
+    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับ - รายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('.balance-card .stat-label').textContent.trim()).toBe('ยอดสะสมทั้งหมด');
+    const goalHints = [...doc.querySelectorAll('#goals .goals-hint')].map((hint) => hint.textContent.trim());
+    expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
+    expect(doc.getElementById('truncated').textContent).not.toContain('เดือนนี้');
+  });
+
+  it('lists the main chat commands in the profile tips and points to the full help', () => {
+    const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
+    expect(tips).toHaveLength(6);
+    expect(tips.some((tip) => tip.includes('เดือนนี้กินกาแฟไปเท่าไหร่'))).toBe(true);
+    expect(tips.at(-1)).toContain('"ช่วยเหลือ"');
+  });
+
   // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
   it.each([
     ['edit-form', 'cancel-button', 'delete-button'],
@@ -378,6 +398,7 @@ describe('index.html static invariants', () => {
       'wallet-dialog-error',
       'panel-categories',
       'page-back',
+      'bills-home',
       'category-hidden-toggle',
       'category-hidden-tiles',
       'friend-qr',
@@ -2094,6 +2115,25 @@ describe('LIFF friends section guards and failure paths', () => {
   });
 });
 
+describe('LIFF links between the main page and the bills page', () => {
+  it('hides the home link on the main page and links the friends section to the bills page', async () => {
+    await boot();
+
+    expect(byId('bills-home').hidden).toBe(true);
+    const link = byId('friends-bills-link');
+    expect(link.hidden).toBe(false);
+    expect(link.getAttribute('href')).toBe('./?tab=bills');
+    expect(byId('friends').contains(link)).toBe(true);
+  });
+
+  it('shows the home link when a bill card opens the bills page', async () => {
+    await boot({ search: '?bill=0b1c2d3e-4f50-4617-8899-aabbccddeeff' });
+
+    expect(byId('bills-home').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(true);
+  });
+});
+
 describe('LIFF notification settings', () => {
   it('does not ask for the settings before the profile tab opens', async () => {
     const liff = await boot();
@@ -2267,6 +2307,16 @@ describe('LIFF bills tab', () => {
     const paidBoxes = [...ownedCard().querySelectorAll('.bill-member-paid input')];
     expect(paidBoxes.map((box) => box.getAttribute('aria-label'))).toEqual(['บี คืนแล้ว', 'ซี คืนแล้ว']);
     expect(ownedCard().querySelector('.bill-share-link').getAttribute('aria-label')).toBe('ส่งลิงก์บิล เนื้อย่าง');
+  });
+
+  it('shows a link back to the main page and hides the link to itself', async () => {
+    await openBills();
+
+    const home = byId('bills-home');
+    expect(home.hidden).toBe(false);
+    expect(home.getAttribute('href')).toBe('./');
+    expect(home.textContent.trim()).toBe('หน้าหลัก');
+    expect(byId('friends-bills-link').hidden).toBe(true);
   });
 
   it('puts decline on the left of confirm', async () => {
@@ -3391,6 +3441,53 @@ describe('LIFF bills tab', () => {
     expect(byId('panel-bills').hidden).toBe(false);
     expect(scrollIntoView.mock.contexts[0]).toBe(byId('friends'));
     delete Element.prototype.scrollIntoView;
+  });
+
+  const noFriendsRoute = (method, path) => (path === '/api/friends' ? { code: 'ABCD2345', friends: [] } : undefined);
+
+  async function leaveToAddFriend() {
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-date').value = '2026-10-10';
+    byId('bill-form-category').value = 'c-trip';
+    Element.prototype.scrollIntoView = vi.fn();
+    byId('bill-form-go-profile').click();
+    delete Element.prototype.scrollIntoView;
+    byId('bill-new').click();
+    await settle();
+  }
+
+  it('keeps what was typed when the user leaves to add a friend and opens the form again', async () => {
+    await openForm(noFriendsRoute);
+    await leaveToAddFriend();
+
+    expect(byId('bill-form-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('bill-form-title').value).toBe('เนื้อย่าง');
+    expect(byId('bill-form-total').value).toBe('1000');
+    expect(byId('bill-form-date').value).toBe('2026-10-10');
+    expect(byId('bill-form-category').value).toBe('c-trip');
+  });
+
+  it('restores the typed values only once', async () => {
+    await openForm(noFriendsRoute);
+    await leaveToAddFriend();
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-title').value).toBe('');
+    expect(byId('bill-form-total').value).toBe('');
+    expect(byId('bill-form-date').value).toBe('2026-10-15');
+  });
+
+  it('does not remember values when the form is closed with cancel', async () => {
+    await openForm(noFriendsRoute);
+    byId('bill-form-title').value = 'เนื้อย่าง';
+    byId('bill-form-cancel').click();
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-title').value).toBe('');
   });
 
   it('after a network failure it warns to check the list and reloads bills', async () => {

@@ -213,6 +213,7 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 .stat-cards .stat.balance .stat-value { font-size: clamp(18px, min(12cqw, calc(100cqw / (var(--amount-chars, 10) * 0.56))), 32px); white-space: nowrap; color: var(--primary); }
 /* ใช้เกินรายรับต้องเห็นชัด สีเดียวกับยอดสะสมติดลบในหน้าโปรไฟล์ */
 .stat-cards .stat.balance .stat-value.negative { color: var(--danger); }
+.stat-cards .stat.balance .stat-note { font-size: 13px; color: var(--muted); }
 .stat-cards .stat-sub { grid-column: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; margin-top: 10px; }
 .stat-cards .stat-sub .stat { container-type: inline-size; padding: 8px 10px; border-radius: 14px; }
 .stat-cards .stat-sub .stat-label { font-size: 13px; }
@@ -316,6 +317,8 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px s
 .friends h2 { margin: 0; font-size: 20px; font-weight: 800; line-height: 1.3; }
 #friend-status { overflow-wrap: anywhere; }
 .friends-hint { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.friends-bills-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--primary); font-weight: 700; }
+.friends-bills-link:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
 .friend-code-card { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; padding: 16px; background: var(--brand-soft); border-radius: 20px; }
 .friend-code-card .stat-label { color: var(--muted); }
 .friend-code { font-size: 28px; font-weight: 800; letter-spacing: 2px; color: var(--brand-dark); font-variant-numeric: tabular-nums; }
@@ -455,6 +458,8 @@ main#app.bills-page .bar h1 { flex: 0 1 auto; margin: 0 -16px 0 auto; padding: 6
 .categories-open:active { background: var(--brand-soft); }
 .categories-entry-hint { margin: 8px 0 0; text-align: center; font-size: 13px; color: var(--muted); }
 .bar-back { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; margin-left: -8px; padding: 0; border: none; border-radius: 50%; background: none; color: var(--on-primary); cursor: pointer; }
+.bar-home { display: inline-flex; align-items: center; gap: 4px; flex: none; min-height: 44px; margin-left: -8px; padding: 0 12px 0 4px; border-radius: 9999px; color: var(--on-primary); font-size: 15px; font-weight: 700; text-decoration: none; }
+.bar-home .icon { width: 24px; height: 24px; }
 main#app.categories-page .bar-mascot { display: none; }
 main#app.categories-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .category-segment { display: flex; margin: 16px 16px 0; padding: 4px; border-radius: var(--radius-pill); background: var(--track); }

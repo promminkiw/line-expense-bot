@@ -43,6 +43,8 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   let touched = false;
   // เพิ่มทุกครั้งที่เปิดฟอร์ม ผลของคำขอรอบเก่าจะได้ไม่ไปทับฟอร์มรอบใหม่
   let openToken = 0;
+  // ค่าที่กรอกไว้ก่อนออกไปเพิ่มเพื่อน เปิดฟอร์มรอบถัดไปจะได้ไม่ต้องกรอกใหม่ ใช้ได้ครั้งเดียว
+  let draft = null;
 
   const amountOf = (input) => (input.value === '' ? NaN : Number(input.value));
   const picked = () => [...els.members.querySelectorAll('.bill-form-member')].filter((row) => row.querySelector('input[type="checkbox"]').checked);
@@ -258,6 +260,14 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     showReceiptState('');
     els.date.value = currentDate(new Date());
     fillCategories();
+    if (draft) {
+      els.title.value = draft.title;
+      els.total.value = draft.total;
+      els.date.value = draft.date;
+      // หมวดที่ถูกซ่อนระหว่างนั้นไม่อยู่ในตัวเลือกแล้ว จึงคงหมวดตั้งต้นไว้
+      if ([...els.category.options].some((option) => option.value === draft.categoryId)) els.category.value = draft.categoryId;
+      draft = null;
+    }
     categoriesState = getCategories().length > 0 ? 'ready' : 'loading';
     showCategoriesState();
     friends = [];
@@ -332,6 +342,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   els.friendsRetry.addEventListener('click', loadFriends);
   els.categoriesRetry.addEventListener('click', loadCategories);
   els.goProfile.addEventListener('click', () => {
+    draft = { title: els.title.value, total: els.total.value, date: els.date.value, categoryId: els.category.value };
     els.dialog.close();
     onOpenFriends();
   });
