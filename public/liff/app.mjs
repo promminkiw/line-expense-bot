@@ -516,9 +516,9 @@ function setCategories(next) {
 // ผู้ใช้กระเป๋าเดียวไม่เห็นตัวกรองและป้ายกระเป๋า หน้าจอจึงเหมือนก่อนมีกระเป๋า
 function setWallets(next) {
   const labelsBefore = hasSeveralWallets(wallets);
-  const filterBefore = els.filterWallet.value;
-  wallets = next;
+  const namesBefore = new Map(wallets.map((wallet) => [wallet.id, wallet.name]));
   const selected = els.filterWallet.value;
+  wallets = next;
   els.filterWallet.replaceChildren(
     new Option('ทุกกระเป๋า', ''),
     ...sortWallets(wallets).map((wallet) => new Option(wallet.name, wallet.id))
@@ -528,9 +528,13 @@ function setWallets(next) {
   if (els.filterWallet.value !== selected) els.filterWallet.value = '';
   els.filterWallet.hidden = !hasSeveralWallets(wallets);
   if (els.filterWallet.hidden) els.filterWallet.value = '';
+  // เปลี่ยนชื่อต้องโหลดรายการใหม่ เพราะ walletName ในแถวมาจาก server
+  if (wallets.some((wallet) => namesBefore.has(wallet.id) && namesBefore.get(wallet.id) !== wallet.name)) {
+    loadMonth();
+    return;
+  }
   // วาดแถวใหม่เฉพาะเมื่อป้ายหรือตัวกรองเปลี่ยน ไม่งั้นแถวที่ถือ focus อยู่ถูกถอดทิ้ง
-  // และเฉพาะเมื่อมีรายการแล้ว ไม่งั้นจะทับ skeleton หรือสถานะโหลดพลาดด้วยหน้าว่าง
-  const changed = labelsBefore !== hasSeveralWallets(wallets) || filterBefore !== els.filterWallet.value;
+  const changed = labelsBefore !== hasSeveralWallets(wallets) || selected !== els.filterWallet.value;
   if (changed && lastTransactions.length > 0) renderList();
 }
 

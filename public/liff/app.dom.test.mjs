@@ -4595,6 +4595,30 @@ describe('LIFF wallets on entries', () => {
     expect(bodies[0]).toMatchObject({ call: 'PATCH /api/transactions/t2', body: { walletId: 'w-cash' } });
   });
 
+  it('shows the new wallet name on rows after a rename', async () => {
+    await bootWith([CASH, CARD]);
+    const renamedCard = { ...CARD, name: 'บัตร KBank' };
+    const renamedMonth = {
+      ...WALLET_MONTH,
+      transactions: WALLET_MONTH.transactions.map((item) => (item.walletId === 'w-card' ? { ...item, walletName: 'บัตร KBank' } : item)),
+    };
+    const fallback = makeFetch({ '/api/wallets': { wallets: [CASH, renamedCard] }, '/api/transactions': renamedMonth });
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (options.method === 'PATCH') return makeFetch({ [path]: { wallet: {} } })(url, options);
+      return fallback(url, options);
+    });
+
+    clickTab('profile');
+    await settle();
+    document.querySelector('.wallet-row[data-wallet-id="w-card"] .wallet-rename').click();
+    byId('wallet-dialog-name').value = 'บัตร KBank';
+    byId('wallet-dialog-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(document.querySelector('#list .row[data-id="t2"] .row-wallet').textContent).toBe('บัตร KBank');
+  });
+
   it('keeps a hidden wallet only for the entry that uses it', async () => {
     await bootWith([CASH, { ...CARD, hidden: true }]);
 

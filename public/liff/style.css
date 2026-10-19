@@ -173,7 +173,7 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 .row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .row-title { font-size: 16px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
 .row-note { font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
-.row-wallet { font-size: 13px; color: var(--muted); }
+.row-wallet { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .chart-label-wrap, .budget-label-wrap { display: flex; align-items: center; gap: 8px; }
 .chart-label-wrap .cat-badge, .budget-label-wrap .cat-badge { width: 28px; height: 28px; }
 .chart-label-wrap .icon, .budget-label-wrap .icon { width: 16px; height: 16px; }
