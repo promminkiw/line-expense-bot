@@ -11,7 +11,7 @@ const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
 const { formatAmount } = require('./parser/format-reply');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
 const { looksLikeQuestion } = require('./query/parse-question');
-const { formatTotalsAnswer } = require('./query/format-answer');
+const { buildTotalsFlex } = require('./query/answer-flex');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -196,7 +196,7 @@ function createBot({
         return null;
       }
       const rows = await repository.queryTotals(userId, question);
-      return { text: formatTotalsAnswer(question, rows) };
+      return { flex: buildTotalsFlex(question, rows, { listUrl: buildTotalsListUrl(question) }) };
     } catch (err) {
       logger.error('Failed to answer totals question', { userId }, err);
       return { text: QUESTION_FAILED_REPLY };
@@ -217,6 +217,25 @@ function createBot({
       const url = new URL(liffUrl);
       url.searchParams.set('tx', String(id));
       if (ISO_DATE_PATTERN.test(date)) url.searchParams.set('d', date);
+      const text = url.toString();
+      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
+  function buildTotalsListUrl(question) {
+    if (!liffUrl) {
+      return undefined;
+    }
+    try {
+      const url = new URL(liffUrl);
+      url.searchParams.set('tab', 'list');
+      url.searchParams.set('m', question.to.slice(0, 7));
+      if (question.keyword) url.searchParams.set('q', question.keyword);
+      if (question.category) url.searchParams.set('c', question.category);
+      if (question.type !== 'both') url.searchParams.set('type', question.type);
       const text = url.toString();
       return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
     } catch {

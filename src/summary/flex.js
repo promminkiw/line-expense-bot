@@ -59,4 +59,4 @@ function buildSummaryFlex(summary, comment) {
   };
 }
 
-module.exports = { buildSummaryFlex };
+module.exports = { buildSummaryFlex, COLORS, row, baht };
