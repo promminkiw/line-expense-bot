@@ -4215,6 +4215,37 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail-amount').value).toBe('');
   });
 
+  it('does not add twice when the save button is tapped while the goals reload', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method, path) =>
+      method === 'POST' && path === '/api/goals/g-1/contributions' ? { contribution: { id: 'gc-3' }, saved: 6500 } : undefined
+    );
+    const fallback = globalThis.fetch;
+    let releaseReload;
+    const reload = new Promise((resolve) => {
+      releaseReload = resolve;
+    });
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const response = fallback(url, options);
+      if ((options.method ?? 'GET') === 'GET' && new URL(url, 'http://localhost').pathname === '/api/goals') await reload;
+      return response;
+    });
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+    expect(byId('goal-detail-save').disabled).toBe(true);
+    submitDetail();
+    await settle();
+    releaseReload();
+    await settle();
+
+    expect(calls.filter((entry) => entry.call === 'POST /api/goals/g-1/contributions')).toHaveLength(1);
+    expect(byId('goal-detail-save').disabled).toBe(false);
+    expect(byId('goal-detail-amount').value).toBe('');
+  });
+
   it('shows why adding failed and keeps the amount', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);

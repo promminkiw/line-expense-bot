@@ -279,23 +279,26 @@ export function createGoalsPanel({ doc, els, getApi }) {
   }
 
   // หลังบันทึกโหลดทั้งรายการเป้าและประวัติใหม่ เพื่อให้ยอดมาจาก SQL เสมอ
+  // busy ค้างจนโหลดใหม่เสร็จ ไม่งั้นกดซ้ำระหว่างรอจะได้รายการออมซ้ำ
   async function runDetail(request, message) {
     setDetailError('');
     els.detailStatus.textContent = '';
     setDetailBusy(true);
     try {
-      await request();
-    } catch (err) {
-      setDetailError(describeGoalError(statusOf(err), errorOf(err)));
-      return false;
+      try {
+        await request();
+      } catch (err) {
+        setDetailError(describeGoalError(statusOf(err), errorOf(err)));
+        return false;
+      }
+      els.detailStatus.textContent = message;
+      await load();
+      renderDetailHead();
+      await loadHistory();
+      return true;
     } finally {
       setDetailBusy(false);
     }
-    els.detailStatus.textContent = message;
-    await load();
-    renderDetailHead();
-    await loadHistory();
-    return true;
   }
 
   async function addContribution() {
