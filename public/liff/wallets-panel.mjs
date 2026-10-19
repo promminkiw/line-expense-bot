@@ -165,12 +165,14 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     busy = true;
     button.disabled = true;
     els.status.textContent = '';
+    els.addError.textContent = '';
     try {
       await getApi().updateWallet(wallet.id, { hidden: !wallet.hidden });
       els.status.textContent = wallet.hidden ? `เลิกซ่อนกระเป๋า ${wallet.name} แล้ว` : `ซ่อนกระเป๋า ${wallet.name} แล้ว`;
       await load(rowSelector(wallet.id, '.wallet-toggle'));
     } catch (err) {
-      els.status.textContent = describeWalletError(statusOf(err), errorOf(err));
+      // ใช้ช่อง alert เดียวกับตอนเพิ่ม เพราะ status ไม่ประกาศเป็นข้อผิดพลาด
+      els.addError.textContent = describeWalletError(statusOf(err), errorOf(err));
       button.disabled = false;
     } finally {
       busy = false;

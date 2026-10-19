@@ -4509,6 +4509,40 @@ describe('LIFF wallets section', () => {
     expect(byId('wallet-add-input').disabled).toBe(false);
     expect(byId('wallet-add-submit').disabled).toBe(false);
   });
+
+  it('keeps the loading message visible and adding disabled until the wallets arrive', async () => {
+    let release;
+    const pending = new Promise((resolve) => (release = resolve));
+    await boot({ overrides: { '/api/wallets': pending } });
+
+    expect(byId('wallets-loading').hidden).toBe(false);
+    expect(byId('wallet-add-input').disabled).toBe(true);
+    expect(byId('wallet-add-submit').disabled).toBe(true);
+
+    release(TWO_WALLETS);
+    await settle();
+
+    expect(byId('wallets-loading').hidden).toBe(true);
+    expect(byId('wallet-add-input').disabled).toBe(false);
+    expect(byId('wallet-add-submit').disabled).toBe(false);
+  });
+
+  it('shows why hiding a wallet failed as an alert', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    stubFetch((method) => (method === 'PATCH' ? { status: 500 } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-toggle').click();
+    await settle();
+
+    expect(byId('wallet-add-error').textContent).toBe('บันทึกกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('wallet-status').textContent).toBe('');
+  });
+
+  it('separates the two sentences of the wallets hint', async () => {
+    await boot();
+
+    expect(document.querySelectorAll('.wallets-hint br')).toHaveLength(1);
+  });
 });
 
 describe('LIFF wallets on entries', () => {
