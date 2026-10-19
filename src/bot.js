@@ -12,12 +12,12 @@ const { formatAmount } = require('./parser/format-reply');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
 const { looksLikeQuestion } = require('./query/parse-question');
 const { buildTotalsFlex } = require('./query/answer-flex');
+const { buildSavingFlex } = require('./goals/flex');
 const { DEFAULT_WALLET_NAME, walletChoices, walletIdsByName, walletQuestionNames } = require('./wallets/wallets');
 const {
   parseSavingCommand,
   hasOpenGoal,
   findOpenGoal,
-  formatSavingReply,
   formatGoalNotFoundReply,
   SAVING_AMOUNT_REPLY,
   GOAL_GONE_REPLY,
@@ -280,6 +280,20 @@ function createBot({
   }
 
   // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด กระเป๋า และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
+  function buildGoalsUrl() {
+    if (!liffUrl) {
+      return undefined;
+    }
+    try {
+      const url = new URL(liffUrl);
+      url.searchParams.set('tab', 'goals');
+      const text = url.toString();
+      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   function buildTotalsListUrl(question) {
     if (!liffUrl) {
       return undefined;
@@ -361,8 +375,10 @@ function createBot({
       return { text: GOAL_GONE_REPLY };
     }
     return {
-      text: formatSavingReply({ name: goal.name, amount: command.amount, saved: result.saved, target: goal.targetAmount }),
-      quickReply: buildUndoSavingQuickReply(webhookEventId),
+      flex: buildSavingFlex(
+        { name: goal.name, amount: command.amount, saved: result.saved, target: goal.targetAmount },
+        { buttons: buildUndoSavingQuickReply(webhookEventId), goalsUrl: buildGoalsUrl() }
+      ),
     };
   }
 
