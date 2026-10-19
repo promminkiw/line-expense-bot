@@ -4827,6 +4827,9 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
 
     expect(byId('filter-wallet').value).toBe('');
     expect(ids()).toEqual(['t1', 't2']);
+    // ชื่อในลิงก์อาจเป็นชื่อเก่าก่อนเปลี่ยนชื่อ จำนวนรายการจึงไม่ตรงกับการ์ด ต้องบอกผู้ใช้
+    expect(byId('banner').hidden).toBe(false);
+    expect(byId('banner').textContent).toBe('ไม่พบกระเป๋า ไม่มีกระเป๋านี้ (อาจเปลี่ยนชื่อแล้ว) รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
   });
 
   it('ignores the wallet for a user with a single wallet', async () => {
