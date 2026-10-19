@@ -309,6 +309,15 @@ describe('index.html static invariants', () => {
     expect(notify.textContent.replace(/\s+/g, ' ').trim()).toBe('การแจ้งเตือน สรุปรายสัปดาห์และเตือนลืมจด');
   });
 
+  it('has a disabled menu row for the friends page in the help group', () => {
+    const friends = doc.getElementById('friends-open');
+    expect(friends.hasAttribute('disabled')).toBe(true);
+    expect(friends.closest('.menu-group').querySelector('h2').textContent).toBe('ความช่วยเหลือและการใช้งานร่วมกัน');
+    expect(friends.querySelector('.menu-row-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(friends.querySelector('.menu-row-sub').textContent).toBe('จัดการเพื่อนและไปหารบิล');
+    expect(friends.textContent.replace(/\s+/g, ' ').trim()).toBe('เพื่อนและหารบิล จัดการเพื่อนและไปหารบิล');
+  });
+
   it('lists the main chat commands in the profile tips and points to the full help', () => {
     const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
     expect(tips).toHaveLength(6);
@@ -496,7 +505,7 @@ describe('LIFF page after a normal boot', () => {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
     expect(byId('bottom-nav').hidden).toBe(false);
-    expect(byId('panel-profile').contains(byId('friends'))).toBe(true);
+    expect(byId('panel-friends').contains(byId('friends'))).toBe(true);
   });
 
   it('initialised liff and left the shared banner hidden', () => {
@@ -4140,7 +4149,7 @@ describe('LIFF recurring page under the me tab', () => {
     expect(entry.disabled).toBe(false);
     expect(byId('panel-profile').contains(entry)).toBe(true);
     expect(byId('profile-card').nextElementSibling.contains(entry)).toBe(true);
-    expect(byId('profile-card').nextElementSibling.nextElementSibling).toBe(byId('friends'));
+    expect(byId('profile-card').nextElementSibling.querySelector('.menu-group')).not.toBeNull();
   });
 
   it('opens the recurring list as a page without the bottom nav', async () => {
@@ -4259,6 +4268,56 @@ describe('LIFF wallets and notification pages under the me tab', () => {
     expect(byId('panel-profile').hidden).toBe(false);
     expect(byId('page-title').textContent).toBe('ฉัน');
     expect(document.activeElement).toBe(byId(openId));
+  });
+});
+
+describe('LIFF friends page under the me tab', () => {
+  it('opens the friends section as a page and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    expect(byId('friends-open').disabled).toBe(false);
+
+    byId('friends-open').click();
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-friends').contains(byId('friends'))).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-friends').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('friends-open'));
+  });
+
+  it('shows the friends page itself when the app is opened from an invite link', async () => {
+    await boot({ search: '?friend=wxyz-2345' });
+    await settle();
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+
+    byId('friend-dialog-cancel').click();
+    byId('page-back').click();
+
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+  });
+
+  it('shows the friends page from the start for an invite link, before liff is ready', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345', holdInit: true });
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-list').hidden).toBe(true);
+    liff.releaseInit();
+    await settle();
   });
 });
 
@@ -4719,11 +4778,11 @@ describe('LIFF wallets section', () => {
   const rowOf = (id) => document.querySelector(`.wallet-row[data-wallet-id="${id}"]`);
   const submit = (id) => byId(id).dispatchEvent(new Event('submit', { cancelable: true }));
 
-  it('leaves only the profile card and the friends section directly in the me tab panel', async () => {
+  it('leaves only the profile card directly in the me tab panel', async () => {
     await boot();
 
     const ids = [...document.querySelectorAll('#panel-profile > section')].map((section) => section.id);
-    expect(ids).toEqual(['profile-card', 'friends']);
+    expect(ids).toEqual(['profile-card']);
   });
 
   it('shows each wallet with its balance and lets only the extra wallets be edited', async () => {

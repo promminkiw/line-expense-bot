@@ -535,41 +535,21 @@
                 </svg></button></li>
           </ul>
         </section>
+        <section class="menu-group" aria-labelledby="menu-help-title">
+          <h2 id="menu-help-title">ความช่วยเหลือและการใช้งานร่วมกัน</h2>
+          <ul class="menu-list">
+            <li><button type="button" id="friends-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-users"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">เพื่อนและหารบิล</span> <span
+                    class="menu-row-sub">จัดการเพื่อนและไปหารบิล</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+          </ul>
+        </section>
       </div>
-      <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
-        <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
-        <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
-        <a id="friends-bills-link" class="friends-bills-link" href="./?tab=bills">ไปหารบิลกับเพื่อน</a>
-        <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
-        <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
-        <div id="friends-error" class="budgets-error" hidden>
-          <p id="friends-error-text" role="alert"></p>
-          <button type="button" id="friends-retry">ลองใหม่</button>
-        </div>
-        <div id="friends-body" hidden>
-          <div class="friend-code-card">
-            <span class="stat-label">รหัสเพื่อนของฉัน</span>
-            <span id="friend-code" class="friend-code"></span>
-            <div class="friend-actions">
-              <button type="button" id="friend-share">ส่งลิงก์ชวนเพื่อน</button>
-              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr">แสดง
-                QR</button>
-              <button type="button" id="friend-code-renew">เปลี่ยนรหัส</button>
-            </div>
-            <div id="friend-qr" class="friend-qr" hidden></div>
-          </div>
-          <p id="friend-status" class="export-status" role="status" aria-live="polite"></p>
-          <form id="friend-add-form" class="friend-add" novalidate>
-            <label for="friend-code-input">เพิ่มเพื่อนด้วยรหัส</label>
-            <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters"
-              enterkeyhint="search" maxlength="12" placeholder="เช่น ABCD-2345">
-            <button type="submit" id="friend-add-submit">ค้นหา</button>
-            <p id="friend-add-error" class="error" role="alert"></p>
-          </form>
-          <ul id="friend-rows" class="friend-rows"></ul>
-          <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
-        </div>
-      </section>
     </div>
     <div id="panel-wallets" class="panel" hidden>
       <section id="wallets" class="wallets" aria-labelledby="wallets-title" hidden>
@@ -609,6 +589,42 @@
               type="checkbox" role="switch"></label>
         </div>
         <p id="notify-status" class="notify-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+    <div id="panel-friends" class="panel" hidden>
+      <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
+        <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
+        <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
+        <a id="friends-bills-link" class="friends-bills-link" href="./?tab=bills">ไปหารบิลกับเพื่อน</a>
+        <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
+        <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <div id="friends-error" class="budgets-error" hidden>
+          <p id="friends-error-text" role="alert"></p>
+          <button type="button" id="friends-retry">ลองใหม่</button>
+        </div>
+        <div id="friends-body" hidden>
+          <div class="friend-code-card">
+            <span class="stat-label">รหัสเพื่อนของฉัน</span>
+            <span id="friend-code" class="friend-code"></span>
+            <div class="friend-actions">
+              <button type="button" id="friend-share">ส่งลิงก์ชวนเพื่อน</button>
+              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr">แสดง
+                QR</button>
+              <button type="button" id="friend-code-renew">เปลี่ยนรหัส</button>
+            </div>
+            <div id="friend-qr" class="friend-qr" hidden></div>
+          </div>
+          <p id="friend-status" class="export-status" role="status" aria-live="polite"></p>
+          <form id="friend-add-form" class="friend-add" novalidate>
+            <label for="friend-code-input">เพิ่มเพื่อนด้วยรหัส</label>
+            <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters"
+              enterkeyhint="search" maxlength="12" placeholder="เช่น ABCD-2345">
+            <button type="submit" id="friend-add-submit">ค้นหา</button>
+            <p id="friend-add-error" class="error" role="alert"></p>
+          </form>
+          <ul id="friend-rows" class="friend-rows"></ul>
+          <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
+        </div>
       </section>
     </div>
   </main>

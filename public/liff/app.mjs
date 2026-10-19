@@ -142,6 +142,7 @@ const els = {
   meCategoriesOpen: document.getElementById('me-categories-open'),
   walletsOpen: document.getElementById('wallets-open'),
   notifyOpen: document.getElementById('notify-open'),
+  friendsOpen: document.getElementById('friends-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -1779,6 +1780,10 @@ const NOTIFY_PAGE = mePage('panel-notify', 'การแจ้งเตือน
 els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
 els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
 
+const FRIENDS_PAGE = mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen);
+
+els.friendsOpen.addEventListener('click', () => enterSubPage(FRIENDS_PAGE));
+
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
   setCategories((await api.listCategories()).categories);
@@ -1851,7 +1856,11 @@ async function boot() {
   const billsPage = isBillsPageLink(window.location.search);
   if (billsPage) enterBillsPage();
   // เลือกแท็บก่อนมี api จะได้ไม่เห็นแท็บรายการแวบขึ้นมา และไม่โหลดโปรไฟล์ซ้ำกับ loadAll
-  else if (parseFriendLink(window.location.search)) tabController.select('profile');
+  else if (parseFriendLink(window.location.search)) {
+    tabController.select('profile');
+    // ฟอร์มค้นหาและข้อความ error ของลิงก์ชวนอยู่ในส่วนเพื่อน จึงเปิดหน้านี้เลย
+    enterSubPage(FRIENDS_PAGE);
+  }
   try {
     const config = await (
       await fetch('/api/config', {
@@ -1870,7 +1879,7 @@ async function boot() {
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
     // ส่วนเหล่านี้โหลดตอนเข้าแท็บ ฉัน ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
-    for (const button of [els.walletsOpen, els.notifyOpen]) button.disabled = false;
+    for (const button of [els.walletsOpen, els.notifyOpen, els.friendsOpen]) button.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
@@ -1891,6 +1900,8 @@ async function boot() {
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
+      // กันกรณีอ่านลิงก์ตอนต้นพลาด ไม่งั้นกล่องยืนยันเด้งทับเมนู
+      if (!activeSubPage) enterSubPage(FRIENDS_PAGE);
       friendsPanel.openAdd(friendCode);
     }
     if (listFilter) {
