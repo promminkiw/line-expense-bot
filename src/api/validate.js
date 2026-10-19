@@ -9,6 +9,13 @@ const MAX_NOTE_LENGTH = 200;
 const MIN_YEAR = 2000;
 const MAX_YEAR = 2100;
 
+// วันที่จริงในช่วงปีเดียวกับ parseMonth Postgres ไม่มีปี 0 จึงตอบ 500 ถ้าไม่กันไว้
+function isValidAppDate(value) {
+  if (!isValidCalendarDate(value)) return false;
+  const year = Number(value.slice(0, 4));
+  return year >= MIN_YEAR && year <= MAX_YEAR;
+}
+
 function parseMonth(value) {
   const match = MONTH_PATTERN.exec(value || '');
   // จำกัดปีเพราะปีนอกช่วงนี้ทำให้ DB ตอบ 500
@@ -39,7 +46,7 @@ function validateTransactionUpdate(body) {
   if (typeof categoryId !== 'string' || categoryId.length === 0) {
     return { ok: false, error: 'Invalid category' };
   }
-  if (!isValidCalendarDate(occurredOn)) {
+  if (!isValidAppDate(occurredOn)) {
     return { ok: false, error: 'Invalid date' };
   }
   if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH) {
@@ -229,6 +236,7 @@ module.exports = {
   parseMonth,
   isValidAmount,
   hasInvisibleCharacter,
+  isValidAppDate,
   validateTransactionUpdate,
   validateRecurringRule,
   validateCategoryCreate,

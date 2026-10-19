@@ -1789,7 +1789,11 @@ function applyLinkedWallet({ wallet }) {
 function selectLinkedWallet(wallet) {
   if (els.filterWallet.hidden) return;
   const match = wallets.find((item) => item.name === wallet);
-  if (!match) return;
+  if (!match) {
+    // การ์ดเก่าอาจอ้างชื่อก่อนเปลี่ยนชื่อ จำนวนรายการที่เห็นจึงไม่ตรงกับการ์ด
+    if (!loadError) setBanner(`ไม่พบกระเป๋า ${wallet} (อาจเปลี่ยนชื่อแล้ว) รายการที่เห็นยังไม่ได้กรองตามกระเป๋า`);
+    return;
+  }
   els.filterWallet.value = match.id;
   refilter();
 }

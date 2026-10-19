@@ -29,7 +29,7 @@ describe('validateGoalCreate', () => {
     expect(validateGoalCreate({ name: 'เที่ยว', targetAmount })).toEqual({ ok: false, error: 'Invalid amount' });
   });
 
-  it.each([['2026-02-30'], [''], [20261231]])('refuses the date %j', (targetDate) => {
+  it.each([['2026-02-30'], [''], [20261231], ['0000-01-01'], ['2101-01-01']])('refuses the date %j', (targetDate) => {
     expect(validateGoalCreate({ name: 'เที่ยว', targetAmount: 1, targetDate })).toEqual({ ok: false, error: 'Invalid date' });
   });
 
@@ -71,6 +71,7 @@ describe('validateContribution', () => {
   it('refuses a bad amount, a bad date and a missing body', () => {
     expect(validateContribution({ amount: 0, occurredOn: '2026-10-19' })).toEqual({ ok: false, error: 'Invalid amount' });
     expect(validateContribution({ amount: 1, occurredOn: '19/10/2026' })).toEqual({ ok: false, error: 'Invalid date' });
+    expect(validateContribution({ amount: 1, occurredOn: '0000-01-01' })).toEqual({ ok: false, error: 'Invalid date' });
     expect(validateContribution(undefined)).toEqual({ ok: false, error: 'Invalid body' });
   });
 });
