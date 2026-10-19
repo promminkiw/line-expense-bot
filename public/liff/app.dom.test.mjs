@@ -318,6 +318,17 @@ describe('index.html static invariants', () => {
     expect(friends.textContent.replace(/\s+/g, ' ').trim()).toBe('เพื่อนและหารบิล จัดการเพื่อนและไปหารบิล');
   });
 
+  it('has an enabled usage menu row and keeps the close button outside the profile card', () => {
+    const tips = doc.getElementById('tips-open');
+    expect(tips.hasAttribute('disabled')).toBe(false);
+    expect(tips.querySelector('.menu-row-title').textContent).toBe('วิธีใช้งาน');
+    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้บอทและคำสั่งในแชต');
+    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้บอทและคำสั่งในแชต');
+    expect(doc.getElementById('panel-tips').contains(doc.querySelector('.profile-tips'))).toBe(true);
+    expect(doc.getElementById('profile-card').contains(doc.getElementById('profile-close'))).toBe(false);
+    expect(doc.getElementById('panel-profile').contains(doc.getElementById('profile-close'))).toBe(true);
+  });
+
   it('lists the main chat commands in the profile tips and points to the full help', () => {
     const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
     expect(tips).toHaveLength(6);
@@ -4318,6 +4329,36 @@ describe('LIFF friends page under the me tab', () => {
     expect(byId('panel-list').hidden).toBe(true);
     liff.releaseInit();
     await settle();
+  });
+});
+
+describe('LIFF usage page under the me tab', () => {
+  it('opens the usage tips as a page and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    expect(byId('tips-open').disabled).toBe(false);
+
+    byId('tips-open').click();
+
+    expect(byId('panel-tips').hidden).toBe(false);
+    expect(document.querySelectorAll('#panel-tips .profile-tips li')).toHaveLength(6);
+    expect(byId('page-title').textContent).toBe('วิธีใช้งาน');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-tips').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(document.activeElement).toBe(byId('tips-open'));
+  });
+
+  it('keeps the profile card without the usage tips', async () => {
+    await boot();
+    clickTab('profile');
+
+    expect(byId('profile-card').querySelector('.profile-tips')).toBeNull();
+    expect(byId('profile-card').querySelector('.balance-card')).not.toBeNull();
+    expect(byId('profile-card').querySelectorAll('.profile-stats .stat')).toHaveLength(3);
   });
 });
 

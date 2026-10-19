@@ -475,18 +475,6 @@
           <div class="stat"><span class="stat-label">จำนวนรายการ</span><span id="profile-count"
               class="stat-value"></span></div>
         </div>
-        <section class="profile-tips" aria-labelledby="tips-title">
-          <h3 id="tips-title">วิธีใช้บอท</h3>
-          <ul>
-            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
-            <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-            <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
-            <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
-            <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
-            <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
-          </ul>
-        </section>
-        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
       <div class="menu-groups">
         <section class="menu-group" aria-labelledby="menu-data-title">
@@ -547,8 +535,20 @@
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
+            <li><button type="button" id="tips-open" class="menu-row">
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-book"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">วิธีใช้งาน</span> <span
+                    class="menu-row-sub">วิธีใช้บอทและคำสั่งในแชต</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
           </ul>
         </section>
+      </div>
+      <div class="profile-close-wrap">
+        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </div>
     </div>
     <div id="panel-wallets" class="panel" hidden>
@@ -625,6 +625,19 @@
           <ul id="friend-rows" class="friend-rows"></ul>
           <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
         </div>
+      </section>
+    </div>
+    <div id="panel-tips" class="panel" hidden>
+      <section class="profile-tips" aria-labelledby="tips-title">
+        <h3 id="tips-title">วิธีใช้บอท</h3>
+        <ul>
+          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
+          <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
+          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
+          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
+          <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
+        </ul>
       </section>
     </div>
   </main>

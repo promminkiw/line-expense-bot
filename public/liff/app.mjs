@@ -143,6 +143,7 @@ const els = {
   walletsOpen: document.getElementById('wallets-open'),
   notifyOpen: document.getElementById('notify-open'),
   friendsOpen: document.getElementById('friends-open'),
+  tipsOpen: document.getElementById('tips-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -1783,6 +1784,10 @@ els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
 const FRIENDS_PAGE = mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen);
 
 els.friendsOpen.addEventListener('click', () => enterSubPage(FRIENDS_PAGE));
+
+const TIPS_PAGE = mePage('panel-tips', 'วิธีใช้งาน', els.tipsOpen);
+
+els.tipsOpen.addEventListener('click', () => enterSubPage(TIPS_PAGE));
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {

@@ -230,6 +230,11 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('.menu-row:disabled .menu-row-icon')).toMatch(/opacity:\s*0\.5/);
   });
 
+  it('keeps the margins of the sections that moved out of the profile card', () => {
+    expect(declarations('#panel-tips .profile-tips')).toMatch(/margin:\s*12px 16px 0/);
+    expect(declarations('.profile-close-wrap')).toMatch(/margin:\s*0 16px/);
+  });
+
   it('keeps the paid checkbox on the same row as the member amount', () => {
     expect(declarations('.bill-member')).toMatch(/grid-template-columns:[^;]*auto auto auto/);
     expect(declarations('.bill-member-paid')).not.toMatch(/grid-column:\s*1\s*\/\s*-1/);
