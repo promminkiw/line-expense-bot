@@ -101,6 +101,9 @@ const RESPONSES = {
     ],
   },
   '/api/profile': { displayName: 'สมชาย', income: 25000, expense: 100, balance: 24900, entryCount: 3, firstDate: '2026-08-03' },
+  '/api/wallets': {
+    wallets: [{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 100, balance: 24900, entryCount: 3 }],
+  },
   '/api/settings': { weeklySummary: false, dailyReminder: false },
 };
 
@@ -367,6 +370,10 @@ describe('index.html static invariants', () => {
       'trend-empty',
       'edit-busy',
       'friends',
+      'wallets',
+      'wallets-loading',
+      'wallets-error',
+      'wallet-dialog-error',
       'panel-categories',
       'page-back',
       'category-hidden-toggle',
@@ -4314,5 +4321,155 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail').hasAttribute('open')).toBe(false);
     expect(byId('goal-editor').hasAttribute('open')).toBe(true);
     expect(byId('goal-editor-name').value).toBe('เที่ยวญี่ปุ่น');
+  });
+});
+
+describe('LIFF wallets section', () => {
+  const TWO_WALLETS = {
+    wallets: [
+      { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 400, balance: 24600, entryCount: 2 },
+      { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 300, balance: -300, entryCount: 1 },
+    ],
+  };
+
+  // เก็บ method+path และ body ที่ส่ง แล้วตอบตาม route ถ้า route คืน undefined ใช้คำตอบตั้งต้นที่มีสองกระเป๋า
+  function stubFetch(route = () => undefined) {
+    const calls = [];
+    const bodies = [];
+    const fallback = makeFetch({ '/api/wallets': TWO_WALLETS });
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      const method = options.method ?? 'GET';
+      calls.push(`${method} ${path}`);
+      if (options.body) bodies.push({ call: `${method} ${path}`, body: JSON.parse(options.body) });
+      const override = route(method, path);
+      return override === undefined ? fallback(url, options) : makeFetch({ [path]: override })(url, options);
+    });
+    return { calls, bodies };
+  }
+
+  const rowOf = (id) => document.querySelector(`.wallet-row[data-wallet-id="${id}"]`);
+  const submit = (id) => byId(id).dispatchEvent(new Event('submit', { cancelable: true }));
+
+  // ผู้ใช้ตัดสินลำดับในแท็บโปรไฟล์: การ์ดโปรไฟล์ กระเป๋า การแจ้งเตือน (แผนสรุปรายสัปดาห์) แล้วเพื่อน
+  it('places the wallets section between the profile card and the notification section', async () => {
+    await boot();
+
+    const ids = [...document.querySelectorAll('#panel-profile > section')].map((section) => section.id);
+    expect(ids).toEqual(['profile-card', 'wallets', 'notify', 'friends']);
+  });
+
+  it('shows each wallet with its balance and lets only the extra wallets be edited', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    clickTab('profile');
+    await settle();
+
+    expect(byId('wallets').hidden).toBe(false);
+    expect(rowOf('w-cash').querySelector('.wallet-label').textContent).toBe('ตั้งต้น');
+    expect(rowOf('w-cash').querySelector('.wallet-balance').textContent).toBe('24,600 บาท');
+    expect(rowOf('w-cash').querySelector('.wallet-rename')).toBeNull();
+    expect(rowOf('w-card').querySelector('.wallet-balance').textContent).toBe('-300 บาท');
+    expect(rowOf('w-card').querySelector('.wallet-balance').classList.contains('negative')).toBe(true);
+    expect(rowOf('w-card').querySelector('.wallet-detail').textContent).toBe('รายรับ 0 บาท · รายจ่าย 300 บาท · 1 รายการ');
+    expect(rowOf('w-card').querySelector('.wallet-toggle').textContent).toBe('ซ่อน');
+  });
+
+  it('adds a wallet and reloads the list', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    const { calls, bodies } = stubFetch((method, path) =>
+      method === 'POST' && path === '/api/wallets' ? { wallet: { id: 'w-new', name: 'กสิกร', hidden: false, isDefault: false } } : undefined
+    );
+    byId('wallet-add-input').value = ' กสิกร ';
+
+    submit('wallet-add-form');
+    await settle();
+
+    expect(bodies).toEqual([{ call: 'POST /api/wallets', body: { name: 'กสิกร' } }]);
+    expect(calls).toContain('GET /api/wallets');
+    expect(byId('wallet-status').textContent).toBe('เพิ่มกระเป๋า กสิกร แล้ว');
+    expect(byId('wallet-add-input').value).toBe('');
+  });
+
+  it('asks for a name before adding', async () => {
+    await boot();
+    const { calls } = stubFetch();
+
+    submit('wallet-add-form');
+    await settle();
+
+    expect(byId('wallet-add-error').textContent).toBe('ใส่ชื่อกระเป๋าก่อน');
+    expect(calls).not.toContain('POST /api/wallets');
+  });
+
+  it('says why adding failed', async () => {
+    await boot();
+    stubFetch((method) => (method === 'POST' ? { status: 409, error: 'Duplicate name' } : undefined));
+    byId('wallet-add-input').value = 'บัตรเครดิต';
+
+    submit('wallet-add-form');
+    await settle();
+
+    expect(byId('wallet-add-error').textContent).toBe('มีกระเป๋าชื่อนี้อยู่แล้ว');
+  });
+
+  it('hides a wallet', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    const { bodies } = stubFetch((method) => (method === 'PATCH' ? { wallet: {} } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-toggle').click();
+    await settle();
+
+    expect(bodies).toEqual([{ call: 'PATCH /api/wallets/w-card', body: { hidden: true } }]);
+    expect(byId('wallet-status').textContent).toBe('ซ่อนกระเป๋า บัตรเครดิต แล้ว');
+  });
+
+  it('renames a wallet in a dialog', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    const { bodies } = stubFetch((method) => (method === 'PATCH' ? { wallet: {} } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-rename').click();
+    expect(byId('wallet-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('wallet-dialog-name').value).toBe('บัตรเครดิต');
+    byId('wallet-dialog-name').value = 'บัตรกรุงศรี';
+    submit('wallet-dialog-form');
+    await settle();
+
+    expect(bodies).toEqual([{ call: 'PATCH /api/wallets/w-card', body: { name: 'บัตรกรุงศรี' } }]);
+    expect(byId('wallet-dialog').hasAttribute('open')).toBe(false);
+    expect(byId('wallet-status').textContent).toBe('เปลี่ยนชื่อเป็น บัตรกรุงศรี แล้ว');
+  });
+
+  it('keeps the dialog open with the reason when a rename fails', async () => {
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS } });
+    stubFetch((method) => (method === 'PATCH' ? { status: 409, error: 'Duplicate name' } : undefined));
+
+    rowOf('w-card').querySelector('.wallet-rename').click();
+    submit('wallet-dialog-form');
+    await settle();
+
+    expect(byId('wallet-dialog').hasAttribute('open')).toBe(true);
+    expect(byId('wallet-dialog-error').hidden).toBe(false);
+    expect(byId('wallet-dialog-error').textContent).toBe('มีกระเป๋าชื่อนี้อยู่แล้ว');
+  });
+
+  it('keeps the page working when the wallets fail to load', async () => {
+    await boot({ overrides: { '/api/wallets': { status: 500 } } });
+
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+    expect(byId('wallets-error').hidden).toBe(false);
+    expect(byId('wallets-error-text').textContent).toBe('โหลดกระเป๋าไม่สำเร็จ');
+    expect(byId('wallets-retry').hidden).toBe(false);
+  });
+
+  it('reloads the wallet totals after an edit and on entering the profile tab', async () => {
+    await boot();
+    const { calls } = stubFetch((method) => (method === 'PATCH' ? {} : undefined));
+
+    await submitEditOfFirstRow();
+    expect(calls.filter((call) => call === 'GET /api/wallets')).toHaveLength(1);
+
+    clickTab('profile');
+    await settle();
+    expect(calls.filter((call) => call === 'GET /api/wallets')).toHaveLength(2);
   });
 });

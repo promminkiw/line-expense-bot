@@ -466,6 +466,24 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
+      <section id="wallets" class="wallets" aria-labelledby="wallets-title" hidden>
+        <h2 id="wallets-title">กระเป๋าเงิน</h2>
+        <p class="wallets-hint">ยอดของแต่ละกระเป๋า = รายรับ - รายจ่ายที่บันทึกในกระเป๋านั้น
+          รายการที่ไม่ได้ระบุกระเป๋าอยู่ใน เงินสด</p>
+        <p id="wallets-loading" class="sr-only" role="status" hidden>กำลังโหลดกระเป๋า...</p>
+        <div id="wallets-error" class="budgets-error" hidden>
+          <p id="wallets-error-text" role="alert"></p>
+          <button type="button" id="wallets-retry">ลองใหม่</button>
+        </div>
+        <ul id="wallet-rows" class="wallet-rows"></ul>
+        <p id="wallet-status" class="export-status" role="status" aria-live="polite"></p>
+        <form id="wallet-add-form" class="wallet-add" novalidate>
+          <label for="wallet-add-input">เพิ่มกระเป๋า</label>
+          <input id="wallet-add-input" type="text" autocomplete="off" maxlength="30" placeholder="เช่น บัตรเครดิต">
+          <button type="submit" id="wallet-add-submit">เพิ่ม</button>
+          <p id="wallet-add-error" class="error" role="alert"></p>
+        </form>
+      </section>
       <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
         <h2 id="notify-title">การแจ้งเตือน</h2>
         <p class="notify-hint">บอทส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
@@ -547,7 +565,20 @@
       </div>
     </form>
   </dialog>
-  <dialog id="friend-dialog" aria-labelledby="friend-dialog-title">
+  <dialog id="wallet-dialog" aria-labelledby="wallet-dialog-title">
+    <form id="wallet-dialog-form" novalidate>
+      <h2 id="wallet-dialog-title">เปลี่ยนชื่อกระเป๋า</h2>
+      <label>ชื่อกระเป๋า
+        <input id="wallet-dialog-name" type="text" maxlength="30" autocomplete="off">
+      </label>
+      <p id="wallet-dialog-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="button" id="wallet-dialog-cancel">ยกเลิก</button>
+        <button type="submit" id="wallet-dialog-save" class="primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="friend-dialog"aria-labelledby="friend-dialog-title">
     <h2 id="friend-dialog-title"></h2>
     <p id="friend-dialog-text" class="confirm-detail"></p>
     <p id="friend-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
