@@ -4277,6 +4277,52 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail-save').disabled).toBe(false);
   });
 
+  // เป้าถูกปิดจากที่อื่น (แท็บอื่นหรืออีกเครื่อง) ระหว่างเปิดรายละเอียดอยู่ ต้องโหลดใหม่ให้เห็นสถานะจริง
+  it('reloads the goals after a goal closed refusal so the detail shows it closed', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const closedGoals = { goals: RESPONSES['/api/goals'].goals.map((goal) => (goal.id === 'g-1' ? { ...goal, closed: true } : goal)) };
+    const calls = captureFetch((method, path) => {
+      if (method === 'POST') return { status: 409, error: 'Goal closed' };
+      if (method === 'GET' && path === '/api/goals') return closedGoals;
+      return undefined;
+    });
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toContain('GET /api/goals');
+    expect(byId('goal-detail-error').textContent).toBe('เป้านี้ปิดแล้ว เปิดเป้าอีกครั้งก่อนออมเพิ่ม');
+    expect(byId('goal-detail-form').hidden).toBe(true);
+    expect(byId('goal-detail-closed-note').hidden).toBe(false);
+  });
+
+  it('reloads the goals after a not found refusal', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method) => (method === 'POST' ? { status: 404, error: 'Not found' } : undefined));
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toContain('GET /api/goals');
+    expect(byId('goal-detail-error').textContent).toBe('ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่');
+  });
+
+  it('does not reload the goals for other refusals', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method) => (method === 'POST' ? { status: 400, error: 'Invalid amount' } : undefined));
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).not.toContain('GET /api/goals');
+  });
+
   it('deletes a contribution from the history and reloads', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);

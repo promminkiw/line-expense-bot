@@ -7,6 +7,7 @@ const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
 const ROW_ACTION_LABEL = 'ออมเพิ่ม';
 const CLOSED_ROW_ACTION_LABEL = 'ดูประวัติ';
+const STALE_STATUSES = new Set([404, 409]);
 
 // แท็บออม: โหลดตอนเข้าแท็บเท่านั้น และโหลดใหม่ทุกครั้งเพราะผู้ใช้อาจออมผ่านแชตระหว่างนั้น
 export function createGoalsPanel({ doc, els, getApi }) {
@@ -290,6 +291,11 @@ export function createGoalsPanel({ doc, els, getApi }) {
         await request();
       } catch (err) {
         setDetailError(describeGoalError(statusOf(err), errorOf(err)));
+        // เป้าอาจถูกปิดหรือลบจากที่อื่น โหลดใหม่ให้เห็นสถานะจริงแทนข้อมูลค้าง
+        if (STALE_STATUSES.has(statusOf(err))) {
+          await load();
+          renderDetailHead();
+        }
         return false;
       }
       els.detailStatus.textContent = message;
