@@ -21,23 +21,32 @@ function looksLikeQuestion(text) {
 }
 
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เอง
-function buildQuestionSchema(categoryNames) {
-  return {
-    type: 'object',
-    properties: {
-      is_question: { type: 'boolean' },
-      type: { type: 'string', enum: QUESTION_TYPES },
-      category: { type: 'string', enum: [...new Set(categoryNames), ''] },
-      keyword: { type: 'string' },
-      from: { type: 'string' },
-      to: { type: 'string' },
-    },
-    required: ['is_question', 'type', 'category', 'keyword', 'from', 'to'],
-    additionalProperties: false,
+function buildQuestionSchema(categoryNames, walletNames = []) {
+  const properties = {
+    is_question: { type: 'boolean' },
+    type: { type: 'string', enum: QUESTION_TYPES },
+    category: { type: 'string', enum: [...new Set(categoryNames), ''] },
+    keyword: { type: 'string' },
+    from: { type: 'string' },
+    to: { type: 'string' },
   };
+  const required = ['is_question', 'type', 'category', 'keyword', 'from', 'to'];
+  // ผู้ใช้กระเป๋าเดียวไม่ต้องกรองกระเป๋า schema และ prompt จึงเหมือนเดิม
+  if (walletNames.length > 0) {
+    properties.wallet = { type: 'string', enum: [...new Set(walletNames), ''] };
+    required.push('wallet');
+  }
+  return { type: 'object', properties, required, additionalProperties: false };
 }
 
-function buildSystemPrompt(today, categoryNames) {
+function buildSystemPrompt(today, categoryNames, walletNames = []) {
+  const walletRules =
+    walletNames.length > 0
+      ? [
+          `- Wallets: ${[...new Set(walletNames)].join(', ')}`,
+          '- wallet is a name from the wallet list only when the user names that wallet, e.g. "บัตรเครดิต". Otherwise "". When is_question is false, set wallet to "".',
+        ]
+      : [];
   return [
     'You read a Thai message sent to a personal finance bot and decide whether the user asks how much they spent or earned.',
     `Today is ${today} (Asia/Bangkok). Weeks start on Monday.`,
@@ -50,6 +59,7 @@ function buildSystemPrompt(today, categoryNames) {
     '- keyword is one specific item word to search in entry notes, e.g. "กาแฟ". Prefer keyword over category when the user names an item. Use "" when the user names no item.',
     '- from and to are YYYY-MM-DD. "วันนี้" is today. "สัปดาห์นี้" is Monday of this week to today. "เดือนนี้" is the 1st of this month to today. "เดือนที่แล้ว" is the whole previous month. When no period is given, use the 1st of this month to today.',
     '- When is_question is false, set type to "both" and category, keyword, from and to to "".',
+    ...walletRules,
   ].join('\n');
 }
 
@@ -65,7 +75,7 @@ function normalizeRange(from, to, today) {
   return days > MAX_RANGE_DAYS ? monthSoFar(today) : { from, to };
 }
 
-function toQuestion(data, today, categoryNames) {
+function toQuestion(data, today, categoryNames, walletNames) {
   if (data.is_question !== true) {
     return { isQuestion: false };
   }
@@ -76,20 +86,24 @@ function toQuestion(data, today, categoryNames) {
     category: categoryNames.includes(data.category) ? data.category : '',
     keyword,
     ...normalizeRange(data.from, data.to, today),
+    // ว่างคือไม่กรองกระเป๋า
+    wallet: walletNames.includes(data.wallet) ? data.wallet : '',
   };
 }
 
 function createQuestionParser({ client, model, now = () => new Date() }) {
-  return async function parseQuestion(text, categoryNames) {
+  return async function parseQuestion(text, categoryNames, walletNames = []) {
     const today = toBangkokDateString(now());
     const response = await client.messages.create(
       {
         model,
         // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
         max_tokens: 1024,
-        system: buildSystemPrompt(today, categoryNames),
+        system: buildSystemPrompt(today, categoryNames, walletNames),
         messages: [{ role: 'user', content: text }],
-        output_config: withLowEffort(model, { format: { type: 'json_schema', schema: buildQuestionSchema(categoryNames) } }),
+        output_config: withLowEffort(model, {
+          format: { type: 'json_schema', schema: buildQuestionSchema(categoryNames, walletNames) },
+        }),
       },
       {
         timeout: REQUEST_TIMEOUT_MS,
@@ -117,7 +131,7 @@ function createQuestionParser({ client, model, now = () => new Date() }) {
     if (!isPlainObject(data) || typeof data.is_question !== 'boolean') {
       throw new ParseError('Claude question response does not match the expected shape');
     }
-    return toQuestion(data, today, categoryNames);
+    return toQuestion(data, today, categoryNames, walletNames);
   };
 }
 

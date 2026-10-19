@@ -29,6 +29,7 @@ function describeTotal(type, rows) {
 function formatTotalsAnswer(question, rows) {
   const scope = [`ช่วง ${formatThaiRange(question.from, question.to)}`];
   if (question.category) scope.push(`หมวด ${question.category}`);
+  if (question.wallet) scope.push(`กระเป๋า ${question.wallet}`);
   if (question.keyword) scope.push(`คำว่า "${question.keyword}"`);
   const types = question.type === 'both' ? ['income', 'expense'] : [question.type];
   return `${scope.join(' ')}: ${types.map((type) => describeTotal(type, rows)).join(', ')}`;

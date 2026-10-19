@@ -36,6 +36,15 @@ describe('buildTotalsFlex', () => {
     expect(bodyTexts(flex)[0]).toEqual(['หมวด', 'อาหาร']);
   });
 
+  it('adds the wallet row after the category only when the question names a wallet', () => {
+    const withWallet = buildTotalsFlex({ ...BASE, category: 'อาหาร', wallet: 'บัตรเครดิต' }, EXPENSE_ROWS, {});
+    const withoutWallet = buildTotalsFlex({ ...BASE, wallet: '' }, EXPENSE_ROWS, {});
+
+    expect(bodyTexts(withWallet).slice(0, 3)).toEqual([['หมวด', 'อาหาร'], ['กระเป๋า', 'บัตรเครดิต'], 'separator']);
+    expect(withWallet.altText).toContain('กระเป๋า บัตรเครดิต');
+    expect(JSON.stringify(withoutWallet.contents.body)).not.toContain('กระเป๋า');
+  });
+
   it('colors the amount by type', () => {
     const expense = buildTotalsFlex(BASE, EXPENSE_ROWS, {});
     const income = buildTotalsFlex({ ...BASE, type: 'income' }, INCOME_ROWS, {});
