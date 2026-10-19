@@ -1555,6 +1555,24 @@ describe('repository.reserveNotification', () => {
   });
 });
 
+describe('repository.listUsersToRemind', () => {
+  it('calls the SQL function with the Bangkok day and maps the rows', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ user_id: 'user-1', line_user_id: 'U1' }], error: null });
+
+    expect(await createRepository(supabase).listUsersToRemind('2026-10-19')).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);
+    expect(calls).toEqual([['rpc', 'users_to_remind', { p_day: '2026-10-19' }]]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    const promise = createRepository(supabase).listUsersToRemind('2026-10-19');
+
+    await expect(promise).rejects.toBeInstanceOf(DatabaseError);
+    await expect(promise).rejects.toThrow('Database listUsersToRemind failed: boom');
+  });
+});
+
 describe('repository friend codes', () => {
   it('reads the friend code of a user, or null when the user has none yet', async () => {
     const { supabase, calls } = fakeSupabase({ data: { friend_code: 'ABCD2345' }, error: null });
