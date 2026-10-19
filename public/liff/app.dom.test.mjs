@@ -296,6 +296,19 @@ describe('index.html static invariants', () => {
     for (const id of ['icon-wallet', 'icon-bell', 'icon-users', 'icon-book']) expect(doc.getElementById(id), id).not.toBeNull();
   });
 
+  it('has disabled menu rows for the wallets and notification pages', () => {
+    const wallets = doc.getElementById('wallets-open');
+    const notify = doc.getElementById('notify-open');
+    expect(wallets.hasAttribute('disabled')).toBe(true);
+    expect(wallets.querySelector('.menu-row-title').textContent).toBe('กระเป๋าเงิน');
+    expect(wallets.querySelector('.menu-row-sub').textContent).toBe('จัดการกระเป๋าและดูยอดแยก');
+    expect(notify.hasAttribute('disabled')).toBe(true);
+    expect(notify.querySelector('.menu-row-title').textContent).toBe('การแจ้งเตือน');
+    expect(notify.querySelector('.menu-row-sub').textContent).toBe('สรุปรายสัปดาห์และเตือนลืมจด');
+    expect(wallets.textContent.replace(/\s+/g, ' ').trim()).toBe('กระเป๋าเงิน จัดการกระเป๋าและดูยอดแยก');
+    expect(notify.textContent.replace(/\s+/g, ' ').trim()).toBe('การแจ้งเตือน สรุปรายสัปดาห์และเตือนลืมจด');
+  });
+
   it('lists the main chat commands in the profile tips and points to the full help', () => {
     const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
     expect(tips).toHaveLength(6);
@@ -377,7 +390,7 @@ describe('index.html static invariants', () => {
     const box = doc.getElementById('notify-weekly-summary');
     expect(box.getAttribute('role')).toBe('switch');
     expect(box.closest('label.notify-switch').textContent).toContain('ส่งสรุปทุกวันอาทิตย์');
-    expect(doc.getElementById('notify').closest('#panel-profile')).not.toBeNull();
+    expect(doc.getElementById('notify').closest('#panel-notify')).not.toBeNull();
     expect(doc.getElementById('notify').closest('#profile-card')).toBeNull();
   });
 
@@ -4119,7 +4132,7 @@ describe('LIFF recurring page under the me tab', () => {
     byId('recurring-open').click();
   }
 
-  it('puts the entry button right after the profile card and before the wallets section', async () => {
+  it('puts the menu groups right after the profile card', async () => {
     await boot();
     clickTab('profile');
 
@@ -4127,7 +4140,7 @@ describe('LIFF recurring page under the me tab', () => {
     expect(entry.disabled).toBe(false);
     expect(byId('panel-profile').contains(entry)).toBe(true);
     expect(byId('profile-card').nextElementSibling.contains(entry)).toBe(true);
-    expect(byId('profile-card').nextElementSibling.nextElementSibling).toBe(byId('wallets'));
+    expect(byId('profile-card').nextElementSibling.nextElementSibling).toBe(byId('friends'));
   });
 
   it('opens the recurring list as a page without the bottom nav', async () => {
@@ -4218,6 +4231,34 @@ describe('LIFF categories page opened from the me tab', () => {
 
     expect(byId('panel-budgets').hidden).toBe(false);
     expect(byId('panel-profile').hidden).toBe(true);
+  });
+});
+
+describe('LIFF wallets and notification pages under the me tab', () => {
+  it.each([
+    ['wallets-open', 'panel-wallets', 'wallets', 'กระเป๋าเงิน'],
+    ['notify-open', 'panel-notify', 'notify', 'การแจ้งเตือน'],
+  ])('opens %s as a page and goes back to the me tab', async (openId, panelId, sectionId, title) => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    expect(byId(openId).disabled).toBe(false);
+
+    byId(openId).click();
+
+    expect(byId(panelId).hidden).toBe(false);
+    expect(byId(panelId).contains(byId(sectionId))).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe(title);
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId(panelId).hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId(openId));
   });
 });
 
@@ -4678,12 +4719,11 @@ describe('LIFF wallets section', () => {
   const rowOf = (id) => document.querySelector(`.wallet-row[data-wallet-id="${id}"]`);
   const submit = (id) => byId(id).dispatchEvent(new Event('submit', { cancelable: true }));
 
-  // ผู้ใช้ตัดสินลำดับในแท็บโปรไฟล์: การ์ดโปรไฟล์ กระเป๋า การแจ้งเตือน (แผนสรุปรายสัปดาห์) แล้วเพื่อน
-  it('places the wallets section between the profile card and the notification section', async () => {
+  it('leaves only the profile card and the friends section directly in the me tab panel', async () => {
     await boot();
 
     const ids = [...document.querySelectorAll('#panel-profile > section')].map((section) => section.id);
-    expect(ids).toEqual(['profile-card', 'wallets', 'notify', 'friends']);
+    expect(ids).toEqual(['profile-card', 'friends']);
   });
 
   it('shows each wallet with its balance and lets only the extra wallets be edited', async () => {

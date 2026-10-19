@@ -140,6 +140,8 @@ const els = {
   recurringAdd: document.getElementById('recurring-add'),
   recurringOpen: document.getElementById('recurring-open'),
   meCategoriesOpen: document.getElementById('me-categories-open'),
+  walletsOpen: document.getElementById('wallets-open'),
+  notifyOpen: document.getElementById('notify-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -1771,6 +1773,12 @@ const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจ
 
 els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 
+const WALLETS_PAGE = mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen);
+const NOTIFY_PAGE = mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen);
+
+els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
+els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
+
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
   setCategories((await api.listCategories()).categories);
@@ -1861,6 +1869,8 @@ async function boot() {
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
+    // ส่วนเหล่านี้โหลดตอนเข้าแท็บ ฉัน ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
+    for (const button of [els.walletsOpen, els.notifyOpen]) button.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
