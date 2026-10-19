@@ -451,9 +451,17 @@ describe('repository.queryTotals', () => {
       [
         'rpc',
         'query_totals',
-        { p_user_id: 'user-1', p_from: '2026-10-01', p_to: '2026-10-18', p_type: 'expense', p_category: '', p_keyword: 'กาแฟ' },
+        { p_user_id: 'user-1', p_from: '2026-10-01', p_to: '2026-10-18', p_type: 'expense', p_category: '', p_keyword: 'กาแฟ', p_wallet: '' },
       ],
     ]);
+  });
+
+  it('passes the wallet name of the question', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [], error: null });
+
+    await createRepository(supabase).queryTotals('user-1', { ...criteria, wallet: 'บัตรเครดิต' });
+
+    expect(calls[0][2].p_wallet).toBe('บัตรเครดิต');
   });
 
   it('returns an empty array when nothing matches', async () => {
@@ -484,13 +492,13 @@ describe('repository.listTransactions', () => {
 
     expect(result).toEqual({
       transactions: [
-        { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c1' },
+        { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c1', walletId: null },
       ],
       totalCount: 1,
     });
     expect(calls).toEqual([
       ['from', 'transactions'],
-      ['select', 'id, type, amount, note, occurred_on, category_id', { count: 'exact' }],
+      ['select', 'id, type, amount, note, occurred_on, category_id, wallet_id', { count: 'exact' }],
       ['eq', 'user_id', 'user-1'],
       ['gte', 'occurred_on', '2026-09-01'],
       ['lte', 'occurred_on', '2026-09-30'],
@@ -555,10 +563,10 @@ describe('repository.listAllTransactions', () => {
     const rows = await createRepository(supabase).listAllTransactions('user-1', '2026-09-01', '2026-09-30');
 
     expect(rows).toHaveLength(1001);
-    expect(rows[0]).toEqual({ id: 't00000', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1' });
+    expect(rows[0]).toEqual({ id: 't00000', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-01', categoryId: 'c1', walletId: null });
     expect(calls.slice(0, 7)).toEqual([
       ['from', 'transactions'],
-      ['select', 'id, type, amount, note, occurred_on, category_id, created_at'],
+      ['select', 'id, type, amount, note, occurred_on, category_id, wallet_id, created_at'],
       ['eq', 'user_id', 'user-1'],
       ['gte', 'occurred_on', '2026-09-01'],
       ['lte', 'occurred_on', '2026-09-30'],
@@ -827,6 +835,102 @@ describe('repository.updateCategory', () => {
   });
 });
 
+describe('repository wallets', () => {
+  const card = { id: 'w-card', name: 'บัตรเครดิต', hidden: false };
+
+  it('lists this user wallets and marks the default one', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'w-cash', name: 'เงินสด', hidden: false }, card], error: null });
+
+    const wallets = await createRepository(supabase).listWallets('user-1');
+
+    expect(wallets).toEqual([
+      { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true },
+      { ...card, isDefault: false },
+    ]);
+    expect(calls).toEqual([
+      ['from', 'wallets'],
+      ['select', 'id, name, hidden'],
+      ['eq', 'user_id', 'user-1'],
+      ['order', 'created_at'],
+      ['order', 'name'],
+    ]);
+  });
+
+  it('seeds the cash wallet without overwriting an existing one', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await createRepository(supabase).seedDefaultWallet('user-1');
+
+    expect(calls).toEqual([
+      ['from', 'wallets'],
+      ['upsert', { user_id: 'user-1', name: 'เงินสด' }, { onConflict: 'user_id,name', ignoreDuplicates: true }],
+    ]);
+  });
+
+  it('creates a wallet and reports a duplicate name', async () => {
+    const created = fakeSupabase({ data: card, error: null });
+    const duplicate = fakeSupabase({ data: null, error: { code: '23505', message: 'duplicate key' } });
+
+    expect(await createRepository(created.supabase).createWallet('user-1', { name: 'บัตรเครดิต' })).toEqual({
+      status: 'ok',
+      wallet: { ...card, isDefault: false },
+    });
+    expect(created.calls).toEqual([
+      ['from', 'wallets'],
+      ['insert', { user_id: 'user-1', name: 'บัตรเครดิต' }],
+      ['select', 'id, name, hidden'],
+      ['single'],
+    ]);
+    expect(await createRepository(duplicate.supabase).createWallet('user-1', { name: 'บัตรเครดิต' })).toEqual({ status: 'duplicate' });
+  });
+
+  it('updates only the given fields of this user wallet', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ ...card, hidden: true }], error: null });
+
+    const result = await createRepository(supabase).updateWallet('user-1', 'w-card', { hidden: true });
+
+    expect(result).toEqual({ status: 'ok', wallet: { ...card, hidden: true, isDefault: false } });
+    expect(calls).toEqual([
+      ['from', 'wallets'],
+      ['update', { hidden: true }],
+      ['eq', 'user_id', 'user-1'],
+      ['eq', 'id', 'w-card'],
+      ['select', 'id, name, hidden'],
+    ]);
+  });
+
+  it('reports not_found and duplicate when updating a wallet', async () => {
+    const missing = fakeSupabase({ data: [], error: null });
+    const duplicate = fakeSupabase({ data: null, error: { code: '23505', message: 'duplicate key' } });
+
+    expect(await createRepository(missing.supabase).updateWallet('user-1', 'w-x', { name: 'ก' })).toEqual({ status: 'not_found' });
+    expect(await createRepository(duplicate.supabase).updateWallet('user-1', 'w-card', { name: 'ก' })).toEqual({ status: 'duplicate' });
+  });
+
+  it('reads wallet totals from SQL and converts numbers', async () => {
+    const { supabase, calls } = fakeSupabase({
+      data: [{ wallet_id: 'w-cash', name: 'เงินสด', hidden: false, income: '25000.00', expense: '100.50', entry_count: '3' }],
+      error: null,
+    });
+
+    expect(await createRepository(supabase).getWalletTotals('user-1')).toEqual([
+      { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 100.5, entryCount: 3 },
+    ]);
+    expect(calls).toEqual([['rpc', 'wallet_totals', { p_user_id: 'user-1' }]]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+    const repository = createRepository(supabase);
+
+    await expect(repository.listWallets('user-1')).rejects.toThrow('Database listWallets failed: boom');
+    await expect(repository.seedDefaultWallet('user-1')).rejects.toThrow('Database seedDefaultWallet failed: boom');
+    await expect(repository.createWallet('user-1', { name: 'x' })).rejects.toThrow('Database createWallet failed: boom');
+    await expect(repository.updateWallet('user-1', 'w', { name: 'x' })).rejects.toThrow('Database updateWallet failed: boom');
+    await expect(repository.getWalletTotals('user-1')).rejects.toThrow('Database getWalletTotals failed: boom');
+  });
+});
+
 describe('repository.deleteCategory', () => {
   it('deletes through the rpc and returns its status', async () => {
     const { supabase, calls } = fakeSupabase({ data: 'deleted', error: null });
@@ -878,6 +982,18 @@ describe('repository.updateTransaction', () => {
       ['eq', 'id', 't1'],
       ['select', 'id'],
     ]);
+  });
+
+  it('writes wallet_id only when walletId is given, null meaning the default wallet', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 't1' }], error: null });
+    const repository = createRepository(supabase);
+
+    await repository.updateTransaction('user-1', 't1', { ...fields, walletId: 'w-card' });
+    await repository.updateTransaction('user-1', 't1', { ...fields, walletId: null });
+
+    const updates = calls.filter((call) => call[0] === 'update').map((call) => call[1]);
+    expect(updates[0].wallet_id).toBe('w-card');
+    expect(updates[1]).toHaveProperty('wallet_id', null);
   });
 
   it('returns false when no row matched', async () => {

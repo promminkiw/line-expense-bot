@@ -1,10 +1,12 @@
 const { DEFAULT_CATEGORIES } = require('../parser/categories');
 const { categoryKey } = require('./transaction-rows');
 const { lastDayOf, monthStartOf } = require('../recurring/schedule');
+const { DEFAULT_WALLET_NAME } = require('../wallets/wallets');
 const { SETTINGS_COLUMNS, toNotificationSettings, toSettingsColumns } = require('../notifications/settings');
 
-const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id';
+const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id, wallet_id';
 const CATEGORY_COLUMNS = 'id, name, type, hidden, icon';
+const WALLET_COLUMNS = 'id, name, hidden';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
 const EXPORT_PAGE_SIZE = 1000;
 const EXPORT_COLUMNS = `${TRANSACTION_COLUMNS}, created_at`;
@@ -42,11 +44,17 @@ function toTransaction(row) {
     note: row.note,
     occurredOn: row.occurred_on,
     categoryId: row.category_id,
+    // null คือกระเป๋าตั้งต้น
+    walletId: row.wallet_id ?? null,
   };
 }
 
 function toCategory(row) {
   return { id: row.id, name: row.name, type: row.type, hidden: row.hidden, icon: row.icon ?? null };
+}
+
+function toWallet(row) {
+  return { id: row.id, name: row.name, hidden: row.hidden, isDefault: row.name === DEFAULT_WALLET_NAME };
 }
 
 function toGoal(row) {
@@ -286,7 +294,7 @@ function createRepository(supabase) {
     }));
   }
 
-  async function queryTotals(userId, { from, to, type, category, keyword }) {
+  async function queryTotals(userId, { from, to, type, category, keyword, wallet }) {
     const { data, error } = await supabase.rpc('query_totals', {
       p_user_id: userId,
       p_from: from,
@@ -294,6 +302,7 @@ function createRepository(supabase) {
       p_type: type,
       p_category: category,
       p_keyword: keyword,
+      p_wallet: wallet ?? '',
     });
     throwIfError('queryTotals', error);
     return data.map((row) => ({ type: row.type, total: Number(row.total), entryCount: Number(row.entry_count) }));
@@ -766,17 +775,81 @@ function createRepository(supabase) {
     return { transactions, recurring, bills };
   }
 
+  async function listWallets(userId) {
+    const { data, error } = await supabase
+      .from('wallets')
+      .select(WALLET_COLUMNS)
+      .eq('user_id', userId)
+      .order('created_at')
+      .order('name');
+    throwIfError('listWallets', error);
+    return data.map(toWallet);
+  }
+
+  // ignoreDuplicates กันสมัครพร้อมกันหลาย event แล้วชน unique (user_id, name)
+  async function seedDefaultWallet(userId) {
+    const { error } = await supabase
+      .from('wallets')
+      .upsert({ user_id: userId, name: DEFAULT_WALLET_NAME }, { onConflict: 'user_id,name', ignoreDuplicates: true });
+    throwIfError('seedDefaultWallet', error);
+  }
+
+  // ชื่อซ้ำชน unique (user_id, name) จึงคืน duplicate ให้ API ตอบ 409
+  async function createWallet(userId, { name }) {
+    const { data, error } = await supabase
+      .from('wallets')
+      .insert({ user_id: userId, name })
+      .select(WALLET_COLUMNS)
+      .single();
+    if (error && error.code === UNIQUE_VIOLATION) {
+      return { status: 'duplicate' };
+    }
+    throwIfError('createWallet', error);
+    return { status: 'ok', wallet: toWallet(data) };
+  }
+
+  async function updateWallet(userId, id, fields) {
+    const changes = {};
+    if (fields.name !== undefined) changes.name = fields.name;
+    if (fields.hidden !== undefined) changes.hidden = fields.hidden;
+    const { data, error } = await supabase
+      .from('wallets')
+      .update(changes)
+      .eq('user_id', userId)
+      .eq('id', id)
+      .select(WALLET_COLUMNS);
+    if (error && error.code === UNIQUE_VIOLATION) {
+      return { status: 'duplicate' };
+    }
+    throwIfError('updateWallet', error);
+    return data.length > 0 ? { status: 'ok', wallet: toWallet(data[0]) } : { status: 'not_found' };
+  }
+
+  async function getWalletTotals(userId) {
+    const { data, error } = await supabase.rpc('wallet_totals', { p_user_id: userId });
+    throwIfError('getWalletTotals', error);
+    return data.map((row) => ({
+      ...toWallet({ id: row.wallet_id, name: row.name, hidden: row.hidden }),
+      income: Number(row.income),
+      expense: Number(row.expense),
+      entryCount: Number(row.entry_count),
+    }));
+  }
+
   async function updateTransaction(userId, id, fields) {
+    const changes = {
+      type: fields.type,
+      amount: fields.amount,
+      category_id: fields.categoryId,
+      occurred_on: fields.occurredOn,
+      note: fields.note,
+    };
+    // ไม่ส่ง walletId คือไม่แตะกระเป๋าเดิม หน้าเว็บรุ่นเก่าที่ยังไม่รู้จักกระเป๋าจะได้ไม่ล้างค่า
+    if (fields.walletId !== undefined) changes.wallet_id = fields.walletId;
     // select('id') ทำให้รู้ว่ามีแถวถูกแก้จริงไหม
     const { data, error } = await supabase
       .from('transactions')
-      .update({
-        type: fields.type,
-        amount: fields.amount,
-        category_id: fields.categoryId,
-        occurred_on: fields.occurredOn,
-        note: fields.note,
-      })
+      .update(changes)
       .eq('user_id', userId)
       .eq('id', id)
       .select('id');
@@ -921,6 +994,11 @@ function createRepository(supabase) {
     updateCategory,
     deleteCategory,
     countCategoryUsage,
+    listWallets,
+    seedDefaultWallet,
+    createWallet,
+    updateWallet,
+    getWalletTotals,
     updateTransaction,
     deleteTransaction,
     listRecurringRules,
