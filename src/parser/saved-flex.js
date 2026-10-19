@@ -8,7 +8,7 @@ const STRIP_COLORS = { warn: '#FFF4D6', over: '#FDECEA', notice: '#F2F2F2' };
 
 // editUrl ต้องเป็นสตริงเท่านั้น กันค่าอื่น (เช่น index จาก Array.map) หลุดเข้ามาเป็น uri
 function itemRow(item, editUrl) {
-  const sub = item.note ? `${shortDate(item.date)} · ${item.note}` : shortDate(item.date);
+  const sub = [shortDate(item.date), item.note, item.wallet].filter(Boolean).join(' · ');
   const sign = item.type === 'income' ? '+' : '-';
   return {
     type: 'box',

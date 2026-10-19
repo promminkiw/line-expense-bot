@@ -386,3 +386,53 @@ describe('parseMessage with the user categories', () => {
     expect(client.messages.create.mock.calls[0][0].output_config.format.schema).toBe(PARSE_SCHEMA);
   });
 });
+
+describe('parseMessage with wallets', () => {
+  const CATEGORIES = { expense: ['อาหาร', 'อื่นๆ'], income: ['อื่นๆ'] };
+  const WALLETS = ['เงินสด', 'บัตรเครดิต'];
+
+  it('offers the wallets in the prompt and the schema', async () => {
+    const client = fakeClient(okPayload([item({ wallet: 'บัตรเครดิต' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กาแฟ 60 รูดบัตร', [], CATEGORIES, WALLETS);
+
+    const params = client.messages.create.mock.calls[0][0];
+    const itemSchema = params.output_config.format.schema.properties.items.items;
+    expect(params.system).toContain('- Wallets: เงินสด, บัตรเครดิต');
+    expect(params.output_config.format.schema).toEqual(buildParseSchema(CATEGORIES, WALLETS));
+    expect(itemSchema.properties.wallet.enum).toEqual(['เงินสด', 'บัตรเครดิต', '']);
+    expect(itemSchema.required).toEqual(['type', 'category', 'amount', 'date', 'note', 'wallet']);
+  });
+
+  it('keeps a wallet Claude picked from the list', async () => {
+    const client = fakeClient(okPayload([item({ wallet: 'บัตรเครดิต' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('กินข้าว 60 บัตรเครดิต', [], CATEGORIES, WALLETS);
+
+    expect(result.items[0].wallet).toBe('บัตรเครดิต');
+  });
+
+  it('uses an empty wallet for a name outside the list or a missing one', async () => {
+    const client = fakeClient(okPayload([item({ wallet: 'กสิกร' }), item({ amount: 45 })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('กินข้าว 60 กาแฟ 45', [], CATEGORIES, WALLETS);
+
+    expect(result.items.map((entry) => entry.wallet)).toEqual(['', '']);
+  });
+
+  // ผู้ใช้กระเป๋าเดียวต้องได้ request เดิมทุกตัวอักษร ค่า prompt จะได้ไม่เพิ่ม
+  it('leaves the request and the items unchanged without wallets', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('กินข้าว 60', [], undefined, []);
+
+    const params = client.messages.create.mock.calls[0][0];
+    expect(params.output_config.format.schema).toBe(PARSE_SCHEMA);
+    expect(params.system).not.toContain('Wallets');
+    expect(result).toEqual({ status: 'ok', items: [item()] });
+  });
+});

@@ -22,6 +22,14 @@ function texts(flex) {
 }
 
 describe('buildSavedFlex', () => {
+  it('adds the wallet after the note when the item has one', () => {
+    const flex = buildSavedFlex([{ ...FOOD, wallet: 'บัตรเครดิต' }, SALARY]);
+
+    expect(texts(flex)).toContain('29/09 · กินข้าว · บัตรเครดิต');
+    expect(texts(flex)).toContain('01/09');
+    expect(flex.altText).toBe(formatSavedReply([{ ...FOOD, wallet: 'บัตรเครดิต' }, SALARY]));
+  });
+
   it('returns a bubble with the plain saved text as altText and the buttons in the footer', () => {
     const flex = buildSavedFlex([FOOD], { buttons: UNDO });
 
