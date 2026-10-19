@@ -82,6 +82,7 @@ function validateRecurringRule(body) {
 // prompt ของ Claude คั่นชื่อหมวดด้วยจุลภาค และตัวควบคุมทำให้ prompt เพี้ยน จึงไม่รับทั้งสองแบบ
 // ตัวควบคุม (C0, DEL, C1), ตัวคั่นบรรทัด, zero-width, bidi และ surrogate ที่ไม่มีคู่
 // ทำให้ข้อความเพี้ยนหรือทำให้ชื่อหน้าตาเหมือนชื่อที่ห้าม เช่น "เงินสด" ที่มี zero-width ต่อท้าย
+// eslint-disable-next-line no-control-regex -- ตั้งใจจับตัวควบคุมเพื่อปฏิเสธ
 const INVISIBLE_CHARACTER = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
 
 function hasInvisibleCharacter(name) {
