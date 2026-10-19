@@ -1,5 +1,6 @@
 const { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES, toTextCategories } = require('./parser/categories');
 const { categoryKey } = require('./db/transaction-rows');
+const { isDefaultWallet } = require('./wallets/wallets');
 
 // getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
 const PROFILE_TIMEOUT_MS = 3000;
@@ -49,6 +50,12 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     const displayName = await fetchDisplayName(lineUserId);
     const userId = await repository.createUser({ lineUserId, displayName });
     await repository.seedDefaultCategories(userId);
+    // กระเป๋าตั้งต้นซ่อมทีหลังได้ใน loadWallets จึงไม่ให้การสมัครล้มเพราะสร้างกระเป๋าไม่สำเร็จ
+    try {
+      await repository.seedDefaultWallet(userId);
+    } catch (err) {
+      logger.error('Failed to seed default wallet', { userId }, err);
+    }
     if (!displayName) {
       await fillNameFromToken(userId, tokenName);
     }
@@ -70,7 +77,17 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     return toTextCategories(await repository.listCategories(userId));
   }
 
-  return { ensureUser, loadCategoryIds, loadTextCategories };
+  async function loadWallets(userId) {
+    const wallets = await repository.listWallets(userId);
+    if (wallets.some((wallet) => isDefaultWallet(wallet.name))) {
+      return wallets;
+    }
+    // ผู้ใช้ที่สมัครก่อนมีกระเป๋า หรือสร้างกระเป๋าตอนสมัครไม่สำเร็จ ต้องได้เงินสดก่อนใช้
+    await repository.seedDefaultWallet(userId);
+    return repository.listWallets(userId);
+  }
+
+  return { ensureUser, loadCategoryIds, loadTextCategories, loadWallets };
 }
 
 module.exports = { createUserService };

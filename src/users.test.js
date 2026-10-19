@@ -18,6 +18,8 @@ function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedVa
     seedDefaultCategories: vi.fn().mockResolvedValue(),
     getCategoryIds: vi.fn().mockResolvedValue(ALL_DEFAULT_IDS),
     listCategories: vi.fn().mockResolvedValue([]),
+    seedDefaultWallet: vi.fn().mockResolvedValue(),
+    listWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
     ...repositoryOverrides,
   };
   const logger = { error: vi.fn() };
@@ -41,6 +43,34 @@ describe('userService.ensureUser', () => {
 
     expect(await service.ensureUser('U1')).toBe('user-1');
     expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom' });
+    expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
+  });
+
+  it('gives a new user the cash wallet after the default categories', async () => {
+    const { repository, service } = setup();
+
+    await service.ensureUser('U1');
+
+    expect(repository.seedDefaultWallet).toHaveBeenCalledWith('user-1');
+    expect(repository.seedDefaultWallet.mock.invocationCallOrder[0]).toBeGreaterThan(
+      repository.seedDefaultCategories.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not seed a wallet for an existing user', async () => {
+    const { repository, service } = setup({ findUserIdByLineId: vi.fn().mockResolvedValue('user-9') });
+
+    await service.ensureUser('U1');
+
+    expect(repository.seedDefaultWallet).not.toHaveBeenCalled();
+  });
+
+  // กระเป๋าตั้งต้นซ่อมทีหลังได้ใน loadWallets ถ้าให้ล้ม event แรกของผู้ใช้ใหม่จะได้ข้อความระบบมีปัญหา
+  it('still returns the new user when the cash wallet cannot be created', async () => {
+    const { repository, logger, service } = setup({ seedDefaultWallet: vi.fn().mockRejectedValue(new Error('db down')) });
+
+    expect(await service.ensureUser('U1')).toBe('user-1');
+    expect(logger.error).toHaveBeenCalledWith('Failed to seed default wallet', { userId: 'user-1' }, expect.any(Error));
     expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
   });
 
@@ -274,5 +304,37 @@ describe('userService.loadTextCategories', () => {
     const { service } = setup({ listCategories: vi.fn().mockRejectedValue(new Error('db down')) });
 
     await expect(service.loadTextCategories('user-1')).rejects.toThrow('db down');
+  });
+});
+
+describe('userService.loadWallets', () => {
+  const card = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false };
+
+  it('returns the wallets when the cash wallet exists', async () => {
+    const { repository, service } = setup();
+
+    expect(await service.loadWallets('user-1')).toEqual([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]);
+    expect(repository.listWallets).toHaveBeenCalledWith('user-1');
+    expect(repository.seedDefaultWallet).not.toHaveBeenCalled();
+  });
+
+  // ผู้ใช้ที่สมัครก่อนมีกระเป๋า หรือสร้างกระเป๋าตอนสมัครไม่สำเร็จ ต้องได้เงินสดก่อนใช้
+  it('seeds the cash wallet and reloads when it is missing', async () => {
+    const listWallets = vi
+      .fn()
+      .mockResolvedValueOnce([card])
+      .mockResolvedValueOnce([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }, card]);
+    const { repository, service } = setup({ listWallets });
+
+    const wallets = await service.loadWallets('user-1');
+
+    expect(repository.seedDefaultWallet).toHaveBeenCalledWith('user-1');
+    expect(wallets.map((wallet) => wallet.name)).toEqual(['เงินสด', 'บัตรเครดิต']);
+  });
+
+  it('rejects when the wallets cannot be read', async () => {
+    const { service } = setup({ listWallets: vi.fn().mockRejectedValue(new Error('db down')) });
+
+    await expect(service.loadWallets('user-1')).rejects.toThrow('db down');
   });
 });
