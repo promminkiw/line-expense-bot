@@ -29,6 +29,7 @@ const MIGRATIONS = [
   '021_notification_settings.sql',
   '022_daily_reminder.sql',
   '023_savings_goals.sql',
+  '024_wallets.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -1181,6 +1182,149 @@ describe('023_savings_goals.sql', () => {
   });
 });
 
+describe('024_wallets.sql', () => {
+  async function createWallet(userId, name) {
+    return (await one('insert into wallets (user_id, name) values ($1, $2) returning id', [userId, name])).id;
+  }
+
+  async function addToWallet(userId, categoryId, walletId, type, amount, occurredOn, note = '') {
+    await db.query(
+      'insert into transactions (user_id, category_id, wallet_id, type, amount, occurred_on, note) values ($1, $2, $3, $4, $5, $6, $7)',
+      [userId, categoryId, walletId, type, amount, occurredOn, note],
+    );
+  }
+
+  async function walletQuestion(userId, wallet, type = 'expense') {
+    const result = await rows('select * from query_totals($1, $2, $3, $4, $5, $6, $7)', [userId, '2026-10-01', '2026-10-31', type, '', '', wallet]);
+    return result.map(numbers);
+  }
+
+  it('gives every existing user the cash wallet once, even when run again', async () => {
+    const first = await createUser('U1');
+    const second = await createUser('U2');
+
+    await db.exec(readMigration('024_wallets.sql'));
+    await db.exec(readMigration('024_wallets.sql'));
+
+    const result = await rows("select user_id from wallets where name = 'เงินสด' order by user_id");
+    expect(result).toEqual([first, second].sort().map((userId) => ({ user_id: userId })));
+  });
+
+  // ไม่ backfill: รายการเก่าและรายการที่ไม่ระบุกระเป๋ามี wallet_id เป็น null
+  it('leaves wallet_id empty when an entry names no wallet', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addTransaction(user, food, 'expense', 60, '2026-10-01');
+
+    expect(await rows('select wallet_id from transactions where user_id = $1', [user])).toEqual([{ wallet_id: null }]);
+  });
+
+  it('refuses a wallet of another user on an entry', async () => {
+    const user = await createUser('U1');
+    const stranger = await createUser('U2');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    const strangerCard = await createWallet(stranger, 'บัตรเครดิต');
+
+    await db.exec('savepoint foreign_wallet');
+    await expect(addToWallet(user, food, strangerCard, 'expense', 60, '2026-10-01')).rejects.toThrow('transactions_wallet_fkey');
+    await db.exec('rollback to savepoint foreign_wallet');
+  });
+
+  it('refuses the same wallet name twice for one user but allows it for another user', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    await createWallet(user, 'บัตรเครดิต');
+    await createWallet(other, 'บัตรเครดิต');
+
+    await db.exec('savepoint same_name');
+    await expect(createWallet(user, 'บัตรเครดิต')).rejects.toThrow('wallets_user_id_name_key');
+    await db.exec('rollback to savepoint same_name');
+  });
+
+  it('refuses an empty wallet name', async () => {
+    const user = await createUser('U1');
+
+    await db.exec('savepoint empty_name');
+    await expect(createWallet(user, '')).rejects.toThrow('wallets_name_check');
+    await db.exec('rollback to savepoint empty_name');
+  });
+
+  it('totals each wallet of this user, counting entries without a wallet as cash', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    const salary = await createCategory(user, 'เงินเดือน', 'income');
+    const otherFood = await createCategory(other, 'อาหาร', 'expense');
+    const cash = await createWallet(user, 'เงินสด');
+    // PGlite เรียงแบบ C collation และ created_at เท่ากันใน transaction เดียว จึงใช้ชื่อที่ ก มาก่อน บ ทั้งสองแบบ
+    const bank = await createWallet(user, 'กสิกร');
+    const card = await createWallet(user, 'บัตรเครดิต');
+    await createWallet(other, 'เงินสด');
+    await addToWallet(user, food, null, 'expense', 60, '2026-10-01');
+    await addToWallet(user, food, cash, 'expense', 40, '2026-10-02');
+    await addToWallet(user, salary, null, 'income', 25000, '2026-10-03');
+    await addToWallet(user, food, card, 'expense', 300, '2026-10-04');
+    await addToWallet(other, otherFood, null, 'expense', 999, '2026-10-05');
+
+    const result = await rows('select * from wallet_totals($1)', [user]);
+
+    expect(result.map(numbers)).toEqual([
+      { wallet_id: cash, name: 'เงินสด', hidden: false, income: 25000, expense: 100, entry_count: 3 },
+      { wallet_id: bank, name: 'กสิกร', hidden: false, income: 0, expense: 0, entry_count: 0 },
+      { wallet_id: card, name: 'บัตรเครดิต', hidden: false, income: 0, expense: 300, entry_count: 1 },
+    ]);
+  });
+
+  it('filters a totals question by wallet name, treating entries without a wallet as cash', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    const cash = await createWallet(user, 'เงินสด');
+    const card = await createWallet(user, 'บัตรเครดิต');
+    await addToWallet(user, food, null, 'expense', 60, '2026-10-01');
+    await addToWallet(user, food, cash, 'expense', 40, '2026-10-02');
+    await addToWallet(user, food, card, 'expense', 300, '2026-10-03');
+
+    expect(await walletQuestion(user, 'เงินสด')).toEqual([{ type: 'expense', total: 100, entry_count: 2 }]);
+    expect(await walletQuestion(user, 'บัตรเครดิต')).toEqual([{ type: 'expense', total: 300, entry_count: 1 }]);
+    expect(await walletQuestion(user, '')).toEqual([{ type: 'expense', total: 400, entry_count: 3 }]);
+    expect(await walletQuestion(user, 'ไม่มีกระเป๋านี้')).toEqual([]);
+  });
+
+  // โค้ดที่ deploy อยู่ก่อน push ยังเรียกแบบ 6 พารามิเตอร์ ต้องได้ function ใหม่ตัวเดียว ไม่ใช่ overload สองตัว
+  it('keeps one query_totals that still accepts the six-argument call', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await addTransaction(user, food, 'expense', 60, '2026-10-01');
+
+    const count = await one(
+      "select count(*)::int as n from pg_proc p join pg_namespace s on s.oid = p.pronamespace where s.nspname = 'public' and p.proname = 'query_totals'"
+    );
+    const result = await rows('select * from query_totals($1, $2, $3, $4, $5, $6)', [user, '2026-10-01', '2026-10-31', 'expense', '', '']);
+
+    expect(count.n).toBe(1);
+    expect(result.map(numbers)).toEqual([{ type: 'expense', total: 60, entry_count: 1 }]);
+  });
+
+  it('records recurring entries in the default wallet', async () => {
+    const user = await createUser('U1');
+    const bill = await createCategory(user, 'ค่าบ้าน', 'expense');
+    const rule = (
+      await one(
+        "insert into recurring_rules (user_id, type, category_id, amount, note, day_of_month) values ($1, 'expense', $2, 5500, 'ค่าเช่า', 1) returning id",
+        [user, bill],
+      )
+    ).id;
+
+    await one('select apply_recurring_rule($1, $2, $3)', [rule, '2026-10-01', `recurring:${rule}:2026-10`]);
+
+    expect(await rows('select wallet_id from transactions where user_id = $1', [user])).toEqual([{ wallet_id: null }]);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('024_wallets.sql'))).resolves.toBeDefined();
+  });
+});
+
 describe('function permissions', () => {
   const calls = [
     ['summarize_transactions', "select * from summarize_transactions(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
@@ -1193,10 +1337,11 @@ describe('function permissions', () => {
     ['decline_bill_share', 'select decline_bill_share(gen_random_uuid(), gen_random_uuid())'],
     ['cancel_bill', 'select cancel_bill(gen_random_uuid(), gen_random_uuid())'],
     ['delete_category', 'select delete_category(gen_random_uuid(), gen_random_uuid())'],
-    ['query_totals', "select * from query_totals(gen_random_uuid(), '2026-10-01', '2026-10-31', 'both', '', '')"],
+    ['query_totals', "select * from query_totals(gen_random_uuid(), '2026-10-01', '2026-10-31', 'both', '', '', '')"],
     ['users_to_remind', "select * from users_to_remind('2026-10-19')"],
     ['goal_progress', 'select * from goal_progress(gen_random_uuid())'],
     ['add_goal_contribution', "select * from add_goal_contribution(gen_random_uuid(), gen_random_uuid(), 1, '2026-10-19', null)"],
+    ['wallet_totals', 'select * from wallet_totals(gen_random_uuid())'],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว
