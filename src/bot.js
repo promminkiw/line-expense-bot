@@ -12,6 +12,16 @@ const { formatAmount } = require('./parser/format-reply');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('./parser/categories');
 const { looksLikeQuestion } = require('./query/parse-question');
 const { buildTotalsFlex } = require('./query/answer-flex');
+const {
+  parseSavingCommand,
+  hasOpenGoal,
+  findOpenGoal,
+  formatSavingReply,
+  formatGoalNotFoundReply,
+  SAVING_AMOUNT_REPLY,
+  GOAL_GONE_REPLY,
+} = require('./goals/chat');
+const { toBangkokDateString } = require('./utils/date');
 
 const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
@@ -23,6 +33,8 @@ const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกิน�
 const QUESTION_FAILED_REPLY = 'ตอบคำถามยอดไม่ได้ตอนนี้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
 const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
 const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const UNDO_SAVING_DONE_REPLY = 'ยกเลิกการออมแล้ว';
+const UNDO_SAVING_NOT_FOUND_REPLY = 'ไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const BILL_REPLIES = {
   declined: 'ปฏิเสธบิลนี้แล้ว',
   cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
@@ -50,6 +62,7 @@ const SUMMARY_PERIOD_BUTTONS = [
   { label: 'เดือนนี้', text: 'สรุปเดือนนี้' },
 ];
 const UNDO_ACTION = 'undo';
+const UNDO_SAVING_ACTION = 'undo_saving';
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 // LINE จำกัดความยาว uri ของ action ที่ 1000 ตัวอักษร
 const MAX_URI_LENGTH = 1000;
@@ -85,6 +98,20 @@ function buildUndoQuickReply(webhookEventId) {
         type: 'postback',
         label: 'ยกเลิก',
         data: new URLSearchParams({ action: UNDO_ACTION, event: webhookEventId }).toString(),
+        displayText: 'ยกเลิก',
+      },
+    },
+  ];
+}
+
+function buildUndoSavingQuickReply(webhookEventId) {
+  return [
+    {
+      type: 'action',
+      action: {
+        type: 'postback',
+        label: 'ยกเลิก',
+        data: new URLSearchParams({ action: UNDO_SAVING_ACTION, event: webhookEventId }).toString(),
         displayText: 'ยกเลิก',
       },
     },
@@ -287,12 +314,48 @@ function createBot({
     return { flex: buildSummaryFlex(summary, comment) };
   }
 
+  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ handleText ทำทางเดิมต่อ เพราะคนที่ไม่ใช้เป้าอาจพิมพ์ "ออมสิน 1000" เป็นรายการ
+  async function handleSaving(command, userId, webhookEventId) {
+    const goals = await repository.listGoals(userId);
+    if (!hasOpenGoal(goals)) {
+      return null;
+    }
+    if (command.amount === null) {
+      return { text: SAVING_AMOUNT_REPLY };
+    }
+    const goal = findOpenGoal(goals, command.name);
+    if (!goal) {
+      return { text: formatGoalNotFoundReply(command.name, goals) };
+    }
+    const result = await repository.addGoalContribution(userId, goal.id, {
+      amount: command.amount,
+      occurredOn: toBangkokDateString(new Date(now())),
+      lineEventId: webhookEventId,
+    });
+    // เป้าอาจถูกปิดจากหน้าเว็บระหว่างอ่านรายชื่อเป้ากับตอนบันทึก
+    if (result.status !== 'ok') {
+      return { text: GOAL_GONE_REPLY };
+    }
+    return {
+      text: formatSavingReply({ name: goal.name, amount: command.amount, saved: result.saved, target: goal.targetAmount }),
+      quickReply: buildUndoSavingQuickReply(webhookEventId),
+    };
+  }
+
   async function handleText(event, lineUserId, deadline) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
+    }
+    // คำสั่งออมไม่เรียก Claude จึงไม่นับ rate limit และต้องมาก่อนทางบันทึกรายการ ไม่งั้นยอดออมจะกลายเป็นรายจ่าย
+    const savingCommand = parseSavingCommand(event.message.text);
+    if (savingCommand) {
+      const savingReply = await handleSaving(savingCommand, userId, event.webhookEventId);
+      if (savingReply) {
+        return savingReply;
+      }
     }
     // ปุ่มเมนูตอบข้อความคงที่ ไม่เรียก Claude จึงไม่ต้องนับ rate limit
     const fixedReply = getFixedReply(event.message.text, { liffUrl });
@@ -415,6 +478,16 @@ function createBot({
     return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
   }
 
+  async function handleUndoSaving(params, lineUserId) {
+    const webhookEventId = params.get('event');
+    if (!webhookEventId) {
+      return null;
+    }
+    const userId = await users.ensureUser(lineUserId);
+    const deleted = await repository.deleteGoalContributionsByEvent(userId, webhookEventId);
+    return { text: deleted > 0 ? UNDO_SAVING_DONE_REPLY : UNDO_SAVING_NOT_FOUND_REPLY };
+  }
+
   // ลบแถวพร้อมคืนค่าในคำสั่งเดียว ใครกดก่อนได้แถว คนกดซ้ำได้ null
   async function claimSlip(params, userId) {
     return repository.claimPendingSlip(userId, params.get('slip'), new Date(now() - SLIP_TTL_MS).toISOString());
@@ -479,6 +552,9 @@ function createBot({
     const action = params.get('action');
     if (action === UNDO_ACTION) {
       return handleUndo(params, lineUserId);
+    }
+    if (action === UNDO_SAVING_ACTION) {
+      return handleUndoSaving(params, lineUserId);
     }
     if (action === SLIP_SAVE_ACTION || action === SLIP_CANCEL_ACTION) {
       // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงไม่ส่งไปถึง DB
@@ -596,6 +672,8 @@ module.exports = {
   QUESTION_FAILED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
+  UNDO_SAVING_DONE_REPLY,
+  UNDO_SAVING_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
   NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
