@@ -208,6 +208,20 @@
     <symbol id="icon-categories" viewBox="0 0 24 24">
       <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM17 14v6M14 17h6" />
     </symbol>
+    <symbol id="icon-wallet" viewBox="0 0 24 24">
+      <rect x="3" y="6" width="18" height="13" rx="2.5" />
+      <path d="M3 10h18M16 14.5h2" />
+    </symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24">
+      <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 21h4" />
+    </symbol>
+    <symbol id="icon-users" viewBox="0 0 24 24">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5a3 3 0 0 1 0 6M18 14.5c1.8.7 3 2.5 3 4.5" />
+    </symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24">
+      <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7" />
+    </symbol>
   </svg>
   <main id="app">
     <div class="top-sticky">
@@ -461,26 +475,83 @@
           <div class="stat"><span class="stat-label">จำนวนรายการ</span><span id="profile-count"
               class="stat-value"></span></div>
         </div>
-        <section class="profile-tips" aria-labelledby="tips-title">
-          <h3 id="tips-title">วิธีใช้บอท</h3>
-          <ul>
-            <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
-            <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-            <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
-            <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
-            <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
-            <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
+      </section>
+      <div class="menu-groups">
+        <section class="menu-group" aria-labelledby="menu-data-title">
+          <h2 id="menu-data-title">การจัดการข้อมูล</h2>
+          <ul class="menu-list">
+            <li><button type="button" id="wallets-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-wallet"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">กระเป๋าเงิน</span> <span
+                    class="menu-row-sub">จัดการกระเป๋าและดูยอดแยก</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+            <li><button type="button" id="me-categories-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-categories"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">จัดการหมวดหมู่</span> <span
+                    class="menu-row-sub">เพิ่ม แก้ไข ซ่อน และลบหมวด</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
           </ul>
         </section>
-        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
-      </section>
-      <div class="categories-entry">
-        <button type="button" id="recurring-open" class="categories-open" disabled><svg class="icon"
-            aria-hidden="true" focusable="false">
-            <use href="#tab-repeat"></use>
-          </svg>รายการประจำ</button>
-        <p class="categories-entry-hint">รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง</p>
+        <section class="menu-group" aria-labelledby="menu-auto-title">
+          <h2 id="menu-auto-title">ระบบอัตโนมัติและการตั้งค่า</h2>
+          <ul class="menu-list">
+            <li><button type="button" id="recurring-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#tab-repeat"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">รายการประจำ</span> <span
+                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+            <li><button type="button" id="notify-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-bell"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">การแจ้งเตือน</span> <span
+                    class="menu-row-sub">สรุปรายสัปดาห์และเตือนลืมจด</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+          </ul>
+        </section>
+        <section class="menu-group" aria-labelledby="menu-help-title">
+          <h2 id="menu-help-title">ความช่วยเหลือและการใช้งานร่วมกัน</h2>
+          <ul class="menu-list">
+            <li><button type="button" id="friends-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-users"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">เพื่อนและหารบิล</span> <span
+                    class="menu-row-sub">จัดการเพื่อนและไปหารบิล</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+            <li><button type="button" id="tips-open" class="menu-row">
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-book"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title">วิธีใช้งาน</span> <span
+                    class="menu-row-sub">วิธีใช้บอทและคำสั่งในแชต</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+          </ul>
+        </section>
       </div>
+      <div class="profile-close-wrap">
+        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
+      </div>
+    </div>
+    <div id="panel-wallets" class="panel" hidden>
       <section id="wallets" class="wallets" aria-labelledby="wallets-title" hidden>
         <h2 id="wallets-title">กระเป๋าเงิน</h2>
         <p class="wallets-hint">ยอดของแต่ละกระเป๋า = รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น<br>
@@ -499,6 +570,8 @@
           <p id="wallet-add-error" class="error" role="alert"></p>
         </form>
       </section>
+    </div>
+    <div id="panel-notify" class="panel" hidden>
       <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
         <h2 id="notify-title">การแจ้งเตือน</h2>
         <p class="notify-hint">บอทส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
@@ -517,6 +590,8 @@
         </div>
         <p id="notify-status" class="notify-status" role="status" aria-live="polite"></p>
       </section>
+    </div>
+    <div id="panel-friends" class="panel" hidden>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
         <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
@@ -550,6 +625,19 @@
           <ul id="friend-rows" class="friend-rows"></ul>
           <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
         </div>
+      </section>
+    </div>
+    <div id="panel-tips" class="panel" hidden>
+      <section class="profile-tips" aria-labelledby="tips-title">
+        <h3 id="tips-title">วิธีใช้บอท</h3>
+        <ul>
+          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
+          <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
+          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
+          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
+          <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
+        </ul>
       </section>
     </div>
   </main>

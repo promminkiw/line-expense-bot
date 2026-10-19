@@ -274,12 +274,59 @@ describe('index.html static invariants', () => {
     expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
   });
 
-  it('has a disabled recurring entry button that uses the repeat icon', () => {
-    const button = doc.getElementById('recurring-open');
-    expect(button.hasAttribute('disabled')).toBe(true);
-    expect(button.textContent.trim()).toBe('รายการประจำ');
-    expect(button.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
-    expect(button.closest('.categories-entry').querySelector('.categories-entry-hint').textContent.trim()).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+  it('lists the me tab entries as menu rows that start disabled', () => {
+    const recurring = doc.getElementById('recurring-open');
+    expect(recurring.classList.contains('menu-row')).toBe(true);
+    expect(recurring.hasAttribute('disabled')).toBe(true);
+    expect(recurring.querySelector('.menu-row-title').textContent).toBe('รายการประจำ');
+    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+    expect(recurring.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
+    const categories = doc.getElementById('me-categories-open');
+    expect(categories.hasAttribute('disabled')).toBe(true);
+    expect(categories.querySelector('.menu-row-title').textContent).toBe('จัดการหมวดหมู่');
+    expect(categories.querySelector('.menu-row-sub').textContent).toBe('เพิ่ม แก้ไข ซ่อน และลบหมวด');
+    expect(recurring.textContent.replace(/\s+/g, ' ')).toContain('รายการประจำ รายรับรายจ่ายที่เกิดทุกเดือน');
+    expect(categories.textContent.replace(/\s+/g, ' ')).toContain('จัดการหมวดหมู่ เพิ่ม แก้ไข ซ่อน และลบหมวด');
+  });
+
+  it('points every menu row icon at a symbol that exists in the sprite', () => {
+    const hrefs = [...doc.querySelectorAll('.menu-row use')].map((use) => use.getAttribute('href'));
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const href of hrefs) expect(doc.querySelector(href), href).not.toBeNull();
+    for (const id of ['icon-wallet', 'icon-bell', 'icon-users', 'icon-book']) expect(doc.getElementById(id), id).not.toBeNull();
+  });
+
+  it('has disabled menu rows for the wallets and notification pages', () => {
+    const wallets = doc.getElementById('wallets-open');
+    const notify = doc.getElementById('notify-open');
+    expect(wallets.hasAttribute('disabled')).toBe(true);
+    expect(wallets.querySelector('.menu-row-title').textContent).toBe('กระเป๋าเงิน');
+    expect(wallets.querySelector('.menu-row-sub').textContent).toBe('จัดการกระเป๋าและดูยอดแยก');
+    expect(notify.hasAttribute('disabled')).toBe(true);
+    expect(notify.querySelector('.menu-row-title').textContent).toBe('การแจ้งเตือน');
+    expect(notify.querySelector('.menu-row-sub').textContent).toBe('สรุปรายสัปดาห์และเตือนลืมจด');
+    expect(wallets.textContent.replace(/\s+/g, ' ').trim()).toBe('กระเป๋าเงิน จัดการกระเป๋าและดูยอดแยก');
+    expect(notify.textContent.replace(/\s+/g, ' ').trim()).toBe('การแจ้งเตือน สรุปรายสัปดาห์และเตือนลืมจด');
+  });
+
+  it('has a disabled menu row for the friends page in the help group', () => {
+    const friends = doc.getElementById('friends-open');
+    expect(friends.hasAttribute('disabled')).toBe(true);
+    expect(friends.closest('.menu-group').querySelector('h2').textContent).toBe('ความช่วยเหลือและการใช้งานร่วมกัน');
+    expect(friends.querySelector('.menu-row-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(friends.querySelector('.menu-row-sub').textContent).toBe('จัดการเพื่อนและไปหารบิล');
+    expect(friends.textContent.replace(/\s+/g, ' ').trim()).toBe('เพื่อนและหารบิล จัดการเพื่อนและไปหารบิล');
+  });
+
+  it('has an enabled usage menu row and keeps the close button outside the profile card', () => {
+    const tips = doc.getElementById('tips-open');
+    expect(tips.hasAttribute('disabled')).toBe(false);
+    expect(tips.querySelector('.menu-row-title').textContent).toBe('วิธีใช้งาน');
+    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้บอทและคำสั่งในแชต');
+    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้บอทและคำสั่งในแชต');
+    expect(doc.getElementById('panel-tips').contains(doc.querySelector('.profile-tips'))).toBe(true);
+    expect(doc.getElementById('profile-card').contains(doc.getElementById('profile-close'))).toBe(false);
+    expect(doc.getElementById('panel-profile').contains(doc.getElementById('profile-close'))).toBe(true);
   });
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
@@ -363,7 +410,7 @@ describe('index.html static invariants', () => {
     const box = doc.getElementById('notify-weekly-summary');
     expect(box.getAttribute('role')).toBe('switch');
     expect(box.closest('label.notify-switch').textContent).toContain('ส่งสรุปทุกวันอาทิตย์');
-    expect(doc.getElementById('notify').closest('#panel-profile')).not.toBeNull();
+    expect(doc.getElementById('notify').closest('#panel-notify')).not.toBeNull();
     expect(doc.getElementById('notify').closest('#profile-card')).toBeNull();
   });
 
@@ -469,7 +516,7 @@ describe('LIFF page after a normal boot', () => {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
     expect(byId('bottom-nav').hidden).toBe(false);
-    expect(byId('panel-profile').contains(byId('friends'))).toBe(true);
+    expect(byId('panel-friends').contains(byId('friends'))).toBe(true);
   });
 
   it('initialised liff and left the shared banner hidden', () => {
@@ -4105,7 +4152,7 @@ describe('LIFF recurring page under the me tab', () => {
     byId('recurring-open').click();
   }
 
-  it('puts the entry button right after the profile card and before the wallets section', async () => {
+  it('puts the menu groups right after the profile card', async () => {
     await boot();
     clickTab('profile');
 
@@ -4113,7 +4160,7 @@ describe('LIFF recurring page under the me tab', () => {
     expect(entry.disabled).toBe(false);
     expect(byId('panel-profile').contains(entry)).toBe(true);
     expect(byId('profile-card').nextElementSibling.contains(entry)).toBe(true);
-    expect(byId('profile-card').nextElementSibling.nextElementSibling).toBe(byId('wallets'));
+    expect(byId('profile-card').nextElementSibling.querySelector('.menu-group')).not.toBeNull();
   });
 
   it('opens the recurring list as a page without the bottom nav', async () => {
@@ -4169,6 +4216,187 @@ describe('LIFF recurring page under the me tab', () => {
 
     expect(byId('panel-recurring').hidden).toBe(false);
     expect(byId('recurring-error').hidden).toBe(false);
+  });
+});
+
+describe('LIFF categories page opened from the me tab', () => {
+  it('opens from the me tab and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    const open = byId('me-categories-open');
+    expect(open.disabled).toBe(false);
+
+    open.click();
+
+    expect(byId('panel-categories').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('หมวดของฉัน');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-categories').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('me-categories-open'));
+  });
+
+  it('keeps the budgets tab entry going back to the budgets tab', async () => {
+    await boot();
+    clickTab('budgets');
+    byId('categories-open').click();
+
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปจัดการงบ');
+
+    byId('page-back').click();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+  });
+});
+
+describe('LIFF wallets and notification pages under the me tab', () => {
+  it.each([
+    ['wallets-open', 'panel-wallets', 'wallets', 'กระเป๋าเงิน'],
+    ['notify-open', 'panel-notify', 'notify', 'การแจ้งเตือน'],
+  ])('opens %s as a page and goes back to the me tab', async (openId, panelId, sectionId, title) => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    expect(byId(openId).disabled).toBe(false);
+
+    byId(openId).click();
+
+    expect(byId(panelId).hidden).toBe(false);
+    expect(byId(panelId).contains(byId(sectionId))).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe(title);
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId(panelId).hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId(openId));
+  });
+
+  it.each([
+    ['wallets-open', ['wallets']],
+    ['notify-open', ['notify', 'notify-body']],
+    ['friends-open', ['friends', 'friends-body']],
+  ])('loads the page on entry when the me tab was opened before liff was ready and the first load failed (%s)', async (openId, visibleIds) => {
+    const liff = await boot({ holdInit: true, overrides: { '/api/categories': { status: 500 } } });
+    clickTab('profile');
+    liff.releaseInit();
+    await settle();
+    routeFetch(() => undefined);
+
+    byId(openId).click();
+    await settle();
+
+    for (const id of visibleIds) expect(byId(id).hidden).toBe(false);
+  });
+});
+
+describe('LIFF friends page under the me tab', () => {
+  it('opens the friends section as a page and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    expect(byId('friends-open').disabled).toBe(false);
+
+    byId('friends-open').click();
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-friends').contains(byId('friends'))).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-friends').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('friends-open'));
+  });
+
+  it('shows the friends page itself when the app is opened from an invite link', async () => {
+    await boot({ search: '?friend=wxyz-2345' });
+    await settle();
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
+    expect(byId('friend-dialog').hasAttribute('open')).toBe(true);
+
+    byId('friend-dialog-cancel').click();
+    byId('page-back').click();
+
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('profile');
+  });
+
+  it('shows the friends page from the start for an invite link, before liff is ready', async () => {
+    const liff = await boot({ search: '?friend=WXYZ2345', holdInit: true });
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(byId('panel-list').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('เพื่อนและหารบิล');
+    liff.releaseInit();
+    await settle();
+  });
+});
+
+describe('LIFF usage page under the me tab', () => {
+  it('keeps the usage page alone when a tab link finishes booting after the row was tapped', async () => {
+    const liff = await boot({ holdInit: true, search: '?tab=summary' });
+    clickTab('profile');
+    byId('tips-open').click();
+    liff.releaseInit();
+    await settle();
+
+    expect(byId('panel-tips').hidden).toBe(false);
+    expect(byId('panel-summary').hidden).toBe(true);
+    expect(byId('panel-list').hidden).toBe(true);
+  });
+
+  it('keeps both category rows disabled when there are no categories', async () => {
+    await boot({ overrides: { '/api/categories': { categories: [] } } });
+
+    expect(byId('me-categories-open').disabled).toBe(true);
+    expect(byId('categories-open').disabled).toBe(true);
+  });
+
+  it('opens the usage tips as a page and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    expect(byId('tips-open').disabled).toBe(false);
+
+    byId('tips-open').click();
+
+    expect(byId('panel-tips').hidden).toBe(false);
+    expect(document.querySelectorAll('#panel-tips .profile-tips li')).toHaveLength(6);
+    expect(byId('page-title').textContent).toBe('วิธีใช้งาน');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-tips').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(document.activeElement).toBe(byId('tips-open'));
+  });
+
+  it('keeps the profile card without the usage tips', async () => {
+    await boot();
+    clickTab('profile');
+
+    expect(byId('profile-card').querySelector('.profile-tips')).toBeNull();
+    expect(byId('profile-card').querySelector('.balance-card')).not.toBeNull();
+    expect(byId('profile-card').querySelectorAll('.profile-stats .stat')).toHaveLength(3);
   });
 });
 
@@ -4629,12 +4857,11 @@ describe('LIFF wallets section', () => {
   const rowOf = (id) => document.querySelector(`.wallet-row[data-wallet-id="${id}"]`);
   const submit = (id) => byId(id).dispatchEvent(new Event('submit', { cancelable: true }));
 
-  // ผู้ใช้ตัดสินลำดับในแท็บโปรไฟล์: การ์ดโปรไฟล์ กระเป๋า การแจ้งเตือน (แผนสรุปรายสัปดาห์) แล้วเพื่อน
-  it('places the wallets section between the profile card and the notification section', async () => {
+  it('leaves only the profile card directly in the me tab panel', async () => {
     await boot();
 
     const ids = [...document.querySelectorAll('#panel-profile > section')].map((section) => section.id);
-    expect(ids).toEqual(['profile-card', 'wallets', 'notify', 'friends']);
+    expect(ids).toEqual(['profile-card']);
   });
 
   it('shows each wallet with its balance and lets only the extra wallets be edited', async () => {

@@ -139,6 +139,11 @@ const els = {
   recurringRetry: document.getElementById('recurring-retry'),
   recurringAdd: document.getElementById('recurring-add'),
   recurringOpen: document.getElementById('recurring-open'),
+  meCategoriesOpen: document.getElementById('me-categories-open'),
+  walletsOpen: document.getElementById('wallets-open'),
+  notifyOpen: document.getElementById('notify-open'),
+  friendsOpen: document.getElementById('friends-open'),
+  tipsOpen: document.getElementById('tips-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -512,6 +517,7 @@ function setCategories(next) {
   categoriesPanel.render();
   // ยังโหลดหมวดไม่ได้ หน้าหมวดจะว่างเปล่า จึงยังไม่ให้เข้า
   els.categoriesOpen.disabled = categories.length === 0;
+  els.meCategoriesOpen.disabled = categories.length === 0;
 }
 
 // ผู้ใช้กระเป๋าเดียวไม่เห็นตัวกรองและป้ายกระเป๋า หน้าจอจึงเหมือนก่อนมีกระเป๋า
@@ -1748,24 +1754,46 @@ const CATEGORIES_PAGE = {
   render: () => categoriesPanel.render(),
 };
 
-function enterCategoriesPage() {
+function enterCategoriesPage(page) {
   // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
   document.getElementById('category-status').textContent = '';
-  enterSubPage(CATEGORIES_PAGE);
+  enterSubPage(page);
 }
 
-els.categoriesOpen.addEventListener('click', enterCategoriesPage);
+// หน้าย่อยที่เปิดจากเมนูในแท็บ ฉัน กลับมาแท็บเดียวกัน
+function mePage(panelId, title, returnFocus) {
+  return { panelId, title, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus };
+}
+
+const ME_CATEGORIES_PAGE = { ...CATEGORIES_PAGE, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus: els.meCategoriesOpen };
+
+els.categoriesOpen.addEventListener('click', () => enterCategoriesPage(CATEGORIES_PAGE));
+els.meCategoriesOpen.addEventListener('click', () => enterCategoriesPage(ME_CATEGORIES_PAGE));
 els.pageBack.addEventListener('click', leaveSubPage);
 
-const RECURRING_PAGE = {
-  panelId: 'panel-recurring',
-  title: 'รายการประจำ',
-  backLabel: 'กลับไปหน้าฉัน',
-  ownerTab: 'profile',
-  returnFocus: els.recurringOpen,
-};
+const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจำ', els.recurringOpen);
 
 els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
+
+// เปิดแท็บ ฉัน ก่อน liff พร้อม หรือ loadAll ล้ม ส่วนเหล่านี้ยังไม่เคยโหลด จึงโหลดตอนเข้าหน้าถ้ายังไม่มีข้อมูล
+const WALLETS_PAGE = {
+  ...mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen),
+  render: () => {
+    if (!walletsPanel.isLoaded()) walletsPanel.load();
+  },
+};
+const NOTIFY_PAGE = { ...mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen), render: () => settingsPanel.ensureLoaded() };
+
+els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
+els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
+
+const FRIENDS_PAGE = { ...mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen), render: () => friendsPanel.ensureLoaded() };
+
+els.friendsOpen.addEventListener('click', () => enterSubPage(FRIENDS_PAGE));
+
+const TIPS_PAGE = mePage('panel-tips', 'วิธีใช้งาน', els.tipsOpen);
+
+els.tipsOpen.addEventListener('click', () => enterSubPage(TIPS_PAGE));
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
@@ -1839,7 +1867,11 @@ async function boot() {
   const billsPage = isBillsPageLink(window.location.search);
   if (billsPage) enterBillsPage();
   // เลือกแท็บก่อนมี api จะได้ไม่เห็นแท็บรายการแวบขึ้นมา และไม่โหลดโปรไฟล์ซ้ำกับ loadAll
-  else if (parseFriendLink(window.location.search)) tabController.select('profile');
+  else if (parseFriendLink(window.location.search)) {
+    tabController.select('profile');
+    // ฟอร์มค้นหาและข้อความ error ของลิงก์ชวนอยู่ในส่วนเพื่อน จึงเปิดหน้านี้เลย
+    enterSubPage(FRIENDS_PAGE);
+  }
   try {
     const config = await (
       await fetch('/api/config', {
@@ -1857,6 +1889,8 @@ async function boot() {
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
+    // ส่วนเหล่านี้โหลดตอนเข้าแท็บหรือหน้าย่อย ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
+    for (const button of [els.walletsOpen, els.notifyOpen, els.friendsOpen]) button.disabled = false;
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
@@ -1877,14 +1911,17 @@ async function boot() {
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
+      // กันกรณีอ่านลิงก์ตอนต้นพลาด ไม่งั้นกล่องยืนยันเด้งทับเมนู
+      if (!activeSubPage) enterSubPage(FRIENDS_PAGE);
       friendsPanel.openAdd(friendCode);
     }
     if (listFilter) {
       // ตั้งตัวกรองก่อน loadAll เพื่อให้ render ครั้งแรกกรองให้เลย
       els.search.value = listFilter.query;
       els.filterType.value = listFilter.type;
-      tabController.select('list');
-    } else if (tabId && !link && !friendCode) tabController.select(tabId);
+      // ผู้ใช้เปิดหน้าย่อยไปแล้วระหว่างรอ liff จึงไม่สลับแท็บทับหน้านั้น
+      if (!activeSubPage) tabController.select('list');
+    } else if (tabId && !link && !friendCode && !activeSubPage) tabController.select(tabId);
     pendingListFilter = listFilter;
     await loadAll();
     applyPendingListFilter();

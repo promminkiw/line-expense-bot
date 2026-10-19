@@ -221,6 +221,20 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('.bar-home:active, .bar-back:active')).toMatch(/background:\s*rgba\(255, 255, 255, 0\.18\)/);
   });
 
+  it('styles the me tab menu rows as full-width tap targets', () => {
+    expect(declarations('.menu-row')).toMatch(/min-height:\s*64px/);
+    expect(declarations('.menu-row')).toMatch(/width:\s*100%/);
+    expect(declarations('.menu-row-icon')).toMatch(/width:\s*40px/);
+    expect(declarations('.menu-row:disabled')).toMatch(/cursor:\s*not-allowed/);
+    expect(declarations('.menu-row:disabled')).not.toMatch(/opacity/);
+    expect(declarations('.menu-row:disabled .menu-row-icon')).toMatch(/opacity:\s*0\.5/);
+  });
+
+  it('keeps the margins of the sections that moved out of the profile card', () => {
+    expect(declarations('#panel-tips .profile-tips')).toMatch(/margin:\s*12px 16px 0/);
+    expect(declarations('.profile-close-wrap')).toMatch(/margin:\s*0 16px/);
+  });
+
   it('keeps the paid checkbox on the same row as the member amount', () => {
     expect(declarations('.bill-member')).toMatch(/grid-template-columns:[^;]*auto auto auto/);
     expect(declarations('.bill-member-paid')).not.toMatch(/grid-column:\s*1\s*\/\s*-1/);
