@@ -1,5 +1,5 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: ยืนยันลบประวัติออม + ย่อ README/SPEC merge แล้วรอ push, รอเช็ก cron)
+Updated: 2026-10-19 (ล่าสุด: push งานลดขนาดเอกสารแล้ว เหลือเช็ก cron 20 และ 25 ต.ค.)
 Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (สรุปรายสัปดาห์, เตือนลืมจด, เป้าหมายการออม, กระเป๋าเงิน) ให้ผ่านการตรวจแล้วขึ้น main; หมวดของผู้ใช้เองและถามยอดเสร็จและ push แล้ว
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
@@ -16,7 +16,7 @@ Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (�
 
 ## Next
 - [x] LINE check การ์ดถามยอด, หมวดของผู้ใช้เอง ข้อ 7, ลบหมวด, ไอคอนหมวด ผ่านครบ (Chrome+ผู้ใช้ในแชต 2026-10-19); Minor M1-M5 ของ reviewer ถามยอดหาบันทึกต้นฉบับไม่เจอ
-- [ ] merge ใน main ยังไม่ push: ยืนยันในแถวก่อนลบประวัติออม (5effc22), README/SPEC ย่อแบบ STATE (42KB->14KB, 47KB->19KB); ผู้ใช้ต้องสั่ง push
+- [x] push แล้ว 2026-10-19: ยืนยันในแถวก่อนลบประวัติออม, README/SPEC ย่อ, แผนเสร็จแล้วย้ายไป plans/archive/ (+ .ignore), Learned ย้ายไป LEARNED.md; รอผู้ใช้ลองปุ่ม ยืนยันลบ ในแท็บออม
 - [ ] ไม่ทำ (ตัดสินแล้ว): อ่านหมวด 2 ครั้ง (loadCategoryIds มีโค้ดซ่อมหมวดระบบ), เทสต์เล็กใน wa-deferred-minors, normalize ชื่อเป้า NFC
 - [ ] ตกค้างจาก 2026-10-12 ผู้ใช้ตัดสินไม่ทำ: รูปเพื่อนในรายชื่อ, สำเนา UUID_PATTERN ใน LIFF, ลำดับล็อก cancel_bill, push tag design-v1 (ข้อความเต็มดู archive)
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
@@ -32,30 +32,4 @@ Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (�
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
 ## Learned
-- LINE edit event (messageEdited, ออก 2026-08-12) ส่งมาเฉพาะ group chat ไม่มีในแชท 1:1; unsend event ในเอกสาร developer บอกว่ามีในแชท 1:1 แต่แอป LINE ในไทยไม่มีเมนูยกเลิกข้อความในแชทกับ official account (ลองจริง 2026-10-18) และในไทยยกเลิกข้อความได้แค่ภายใน 1 ชั่วโมง
-- PostgREST: embed users จาก bills ต้องใส่ hint (owner:users!bills_owner_id_fkey) เพราะ bill_members ที่มี PK (bill_id, user_id) ทำให้เกิดเส้น many-to-many อีกเส้น ไม่ใส่จะได้ PGRST201; เทสต์ fakeSupabase จับไม่ได้
-- งานที่เขียนข้อมูลแล้วตอบช้า (สร้างบิล) ต้องถือว่า status 0 และ 5xx เป็น "ไม่ทราบผล" ไม่ใช่ "ลองใหม่" เพราะ RPC อาจ commit แล้วทั้งที่ client timeout
-- Chrome tab ที่ automation เปิดอยู่ในสถานะ hidden ทำให้ requestAnimationFrame หยุด แท่งกราฟค้าง 0% และตัวเลข count-up ว่าง ต้อง screenshot ก่อนวัดขนาด; resize_window ใช้ไม่ได้ ใช้ iframe กว้าง 390px แทน
-- PGlite (เทสต์ SQL): ต้องสร้าง role anon/authenticated/service_role เอง และ service_role ต้อง bypassrls + grant ตารางถึงจะเหมือน Supabase; เรียงข้อความแบบ C collation ชื่อไทยที่ขึ้นต้นด้วยสระหน้า (เ แ โ) ลำดับต่างจาก Supabase; เริ่ม DB ราว 3 วินาที
-- กฎที่มีแค่ใน SQL (แถว null ใหม่กว่ายกเลิกงบเก่า, ขอบเดือน, แยกผู้ใช้) เทสต์ JS พิสูจน์ไม่ได้เพราะ fakeSupabase คืนแถวสำเร็จรูป -> ต้องมี manual check/SQL check ใน Task 7 เสมอ
-- การเตือนแบบตอนข้ามเส้น (edge-triggered) ไม่เก็บสถานะ ถ้าเช็กพังตอนข้ามเส้นคำเตือนหายถาวร -> ต้องบอกผู้ใช้เมื่อเช็กพัง ไม่ใช่เงียบ
-- เทสต์ขอบ (>= กับ >) ต้องพิสูจน์ด้วยการ mutate เงื่อนไขชั่วคราวแล้วเห็นเทสต์แดง; สถานะ M ของ public/liff/format.mjs ที่เห็นใน git status เป็นแค่ line ending (diff ว่าง)
-- Express 5 (router 2.2.0) ตอบ HEAD ด้วย handler ของ GET และ decodeParam ที่พังโยน URIError (status 400) ที่มีค่า param ใน message -> route ที่มีผลข้างเคียงต้องกัน HEAD และห้าม log error นี้ถ้า param เป็นความลับ
-- gate-default.sh เป็น no-op ในโปรเจกต์นี้ (ใช้ npx vitest run กับไฟล์ของ task แทน) และไม่พิมพ์อะไรเมื่อผ่าน ต้องรัน vitest กับไฟล์ของ task แยกเพื่อยืนยันว่ามีเทสต์รันจริง
-- แผน SDD ควรมี step สุดท้าย "อัปเดต work-memory/STATE.md" เพราะ subagent ไม่แตะ STATE เอง (final review จับได้ทั้งขั้นที่ 4 และ 5)
-- Anthropic SDK: sleep ระหว่าง retry หยุดได้ด้วย signal จึงใช้ AbortSignal.timeout คุมเวลารวมได้จริง; stop_reason max_tokens/refusal อาจมี text บางส่วนมาด้วย ต้องเช็คก่อนใช้
-- supabase.rpc ใช้ POST จึงไม่ถูก postgrest retry อัตโนมัติ
-- SUPABASE_URL ต้องเป็น `https://<ref>.supabase.co` เท่านั้น ถ้ามี `/rest/v1/` ต่อท้าย supabase-js จะได้ status 200 แต่ count เป็น null โดยไม่มี error
-- `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
-- ใน vitest ถ้าเทสต์ `import` class แต่โค้ด `require` module เดียวกัน จะได้คนละ instance ทำให้ `instanceof` เป็น false -> เทสต์ต้องโหลดด้วย `createRequire(import.meta.url)` (router.test.js)
-- Express router ที่ต่อหลัง `express.json()` ข้างนอกจะไม่ได้รับ error ของ body-parser -> ถ้าต้องการให้ API ตอบ JSON เสมอ ต้อง parse ใน router เอง
-- LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
-- `express.raw` ต้องอยู่ก่อน LINE middleware ถึงจะจำกัดขนาด body ได้ (SDK ใช้ Buffer จาก req.body)
-- SDK default timeout 600 วินาทีนานเกินไปสำหรับ reply token ของ LINE; Anthropic SDK ทำตาม retry-after โดยไม่มีเพดาน ต้องใส่ `signal: AbortSignal.timeout(...)`
-- postgrest-js retry GET/HEAD เองเมื่อเจอ TimeoutError (ข้ามเฉพาะ AbortError) และรอ Retry-After ของ 503 โดยไม่มีเพดาน -> ปิดได้ด้วย `db: { retry: false }`
-- structured outputs ผ่าน messages.create ต้องเขียน additionalProperties: false เอง
-- subagent ใส่ Co-Authored-By/Claude-Session ตามชื่อ model และ session ของตัวเอง ไม่ใช่ตามที่แผนเขียน เว้นแต่ข้อความ dispatch ให้บรรทัดตรงตัว
-- Supabase free tier อาจ pause project ถ้าไม่มีการใช้งานหลายวัน ระหว่างนั้นทุกข้อความจะได้ข้อความระบบมีปัญหา (จาก final review ยังไม่ได้ตรวจกับเอกสาร)
-- global `[hidden]{display:none!important}` จำเป็น เพราะ display ของ component (เช่น grid) ชนะ attribute hidden; element ที่ JS สลับโหลด/error ต้องเริ่มด้วย `hidden`
-- LIFF ต้องล็อกอิน LINE จึงใช้ Playwright ทดสอบอัตโนมัติไม่ได้: ตรวจ UI ด้วยมือในแอป LINE + DOM smoke test ด้วย jsdom (`public/liff/app.dom.test.mjs` ใช้ fake `liff`/`fetch`); jsdom ไม่มี `matchMedia`/`showModal` ต้อง stub
-- error โหลดข้อมูลแสดงใน #banner ที่อยู่นอก panel ซึ่งถูกซ่อนตามแท็บ และต้องเป็น sticky loadError ที่แสดงซ้ำเมื่อสลับแท็บ (ไม่ใช่ล้างทุกครั้ง) ไม่งั้นแท็บอื่นว่างเปล่าไม่มีข้อความ; ข้อความชั่วคราว (เช่น 404 ตอนแก้) ยังล้างเมื่อสลับแท็บ
+ย้ายไป `work-memory/LEARNED.md` (หัวข้อ: LINE และ LIFF, Supabase และ Postgres, Express, Claude SDK, การออกแบบ, เทสต์, เครื่องมือและ workflow) เปิดอ่านเฉพาะหัวข้อที่เกี่ยวกับงาน
