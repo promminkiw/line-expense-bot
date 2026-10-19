@@ -233,7 +233,7 @@
       <ul id="list-head-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="totals" class="stat-cards" hidden>
         <div class="stat balance"><span class="stat-label">คงเหลือ</span><span id="stat-balance"
-            class="stat-value"></span><span class="stat-note">รายรับ - รายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
+            class="stat-value"></span><span class="stat-note">รายรับหักรายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
         <div class="stat-sub">
           <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income"
               class="stat-value"></span></div>
@@ -310,7 +310,7 @@
             aria-hidden="true" focusable="false">
             <use href="#icon-categories"></use>
           </svg>จัดการหมวดหมู่</button>
-        <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน หรือซ่อนหมวด</p>
+        <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด</p>
       </div>
     </div>
     <div id="panel-categories" class="panel" hidden>
@@ -448,7 +448,7 @@
         <div class="balance-card">
           <span class="stat-label">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
-          <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
+          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
             ไม่ใช่ยอดเงินในบัญชีจริง</span>
           <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ
             ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
@@ -474,9 +474,16 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
+      <div class="categories-entry">
+        <button type="button" id="recurring-open" class="categories-open" disabled><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#tab-repeat"></use>
+          </svg>รายการประจำ</button>
+        <p class="categories-entry-hint">รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง</p>
+      </div>
       <section id="wallets" class="wallets" aria-labelledby="wallets-title" hidden>
         <h2 id="wallets-title">กระเป๋าเงิน</h2>
-        <p class="wallets-hint">ยอดของแต่ละกระเป๋า = รายรับ - รายจ่ายที่บันทึกในกระเป๋านั้น<br>
+        <p class="wallets-hint">ยอดของแต่ละกระเป๋า = รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น<br>
           รายการที่ไม่ได้ระบุกระเป๋าอยู่ใน เงินสด</p>
         <p id="wallets-loading" class="notify-loading" role="status" hidden>กำลังโหลดกระเป๋า...</p>
         <div id="wallets-error" class="budgets-error" hidden>

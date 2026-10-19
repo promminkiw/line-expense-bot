@@ -460,8 +460,9 @@ main#app.bills-page .bar h1 { flex: 0 1 auto; margin: 0 -16px 0 auto; padding: 6
 .bar-back { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; margin-left: -8px; padding: 0; border: none; border-radius: 50%; background: none; color: var(--on-primary); cursor: pointer; }
 .bar-home { display: inline-flex; align-items: center; gap: 4px; flex: none; min-height: 44px; margin-left: -8px; padding: 0 12px 0 4px; border-radius: 9999px; color: var(--on-primary); font-size: 15px; font-weight: 700; text-decoration: none; }
 .bar-home .icon { width: 24px; height: 24px; }
-main#app.categories-page .bar-mascot { display: none; }
-main#app.categories-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+.bar-home:active, .bar-back:active { background: rgba(255, 255, 255, 0.18); }
+main#app.sub-page .bar-mascot { display: none; }
+main#app.sub-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .category-segment { display: flex; margin: 16px 16px 0; padding: 4px; border-radius: var(--radius-pill); background: var(--track); }
 .category-segment button { flex: 1; min-height: var(--tap); border: none; border-radius: var(--radius-pill); background: transparent; color: var(--muted); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 .category-segment button[aria-pressed="true"] { background: var(--surface); color: var(--primary); font-weight: 800; box-shadow: var(--shadow-card); }

@@ -257,11 +257,29 @@ describe('index.html static invariants', () => {
 
   it('explains what each balance counts', () => {
     expect(doc.querySelector('#totals .stat.balance .stat-label').textContent.trim()).toBe('คงเหลือ');
-    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับ - รายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับหักรายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('#totals .stat.balance .stat-note .nowrap').textContent).toBe('ของเดือนที่เลือก');
     expect(doc.querySelector('.balance-card .stat-label').textContent.trim()).toBe('ยอดสะสมทั้งหมด');
     const goalHints = [...doc.querySelectorAll('#goals .goals-hint')].map((hint) => hint.textContent.trim());
     expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
     expect(doc.getElementById('truncated').textContent).not.toContain('เดือนนี้');
+  });
+
+  it('names the delete action in the categories hint and avoids the minus sign in balance notes', () => {
+    expect(doc.querySelector('#panel-budgets .categories-entry-hint').textContent.trim()).toBe('เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด');
+    expect(doc.querySelector('.balance-note').textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
+    );
+    expect(doc.querySelector('.wallets-hint').textContent).toContain('= รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น');
+    expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
+  });
+
+  it('has a disabled recurring entry button that uses the repeat icon', () => {
+    const button = doc.getElementById('recurring-open');
+    expect(button.hasAttribute('disabled')).toBe(true);
+    expect(button.textContent.trim()).toBe('รายการประจำ');
+    expect(button.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
+    expect(button.closest('.categories-entry').querySelector('.categories-entry-hint').textContent.trim()).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
   });
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
@@ -437,10 +455,10 @@ describe('LIFF page after a normal boot', () => {
     liff = await boot();
   });
 
-  it('renders the six bottom tabs with the list tab selected', () => {
+  it('renders the five bottom tabs with the list tab selected', () => {
     const buttons = [...document.querySelectorAll('#bottom-nav button')];
 
-    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'งบ', 'ออม', 'ฉัน']);
     expect(document.querySelectorAll('#bottom-nav [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('#bottom-nav [aria-current="page"]').textContent).toBe('รายการ');
     expect(byId('page-title').textContent).toBe('รายการของฉัน');
@@ -633,9 +651,8 @@ describe('LIFF page after a normal boot', () => {
       list: { title: 'รายการของฉัน', month: false },
       summary: { title: 'สรุปรายเดือน', month: false },
       budgets: { title: 'จัดการงบประมาณ', month: false },
-      recurring: { title: 'รายการประจำ', month: true },
       goals: { title: 'เป้าหมายการออม', month: true },
-      profile: { title: 'โปรไฟล์', month: true },
+      profile: { title: 'ฉัน', month: true },
     };
 
     for (const [id, { title, month }] of Object.entries(expected)) {
@@ -646,6 +663,7 @@ describe('LIFF page after a normal boot', () => {
       for (const other of Object.keys(expected)) {
         expect(byId(`panel-${other}`).hidden).toBe(other !== id);
       }
+      expect(byId('panel-recurring').hidden).toBe(true);
     }
   });
 
@@ -775,10 +793,10 @@ describe('LIFF page for an empty month', () => {
     expect(byId('filters').hidden).toBe(true);
     expect(document.querySelectorAll('#list .row')).toHaveLength(0);
     expect(document.querySelector('#list .skeleton')).toBeNull();
-    expect(document.querySelector('#list .empty-title').textContent).toBe('ยังไม่มีรายการในเดือนนี้');
-    expect(byId('status').textContent).toBe('ยังไม่มีรายการในเดือนนี้');
+    expect(document.querySelector('#list .empty-title').textContent).toBe('ยังไม่มีรายการในเดือนที่เลือก');
+    expect(byId('status').textContent).toBe('ยังไม่มีรายการในเดือนที่เลือก');
     expect(byId('summary-empty').hidden).toBe(false);
-    expect(byId('summary-empty').querySelector('.empty-title').textContent).toBe('ยังไม่มีข้อมูลสรุปในเดือนนี้');
+    expect(byId('summary-empty').querySelector('.empty-title').textContent).toBe('ยังไม่มีข้อมูลสรุปในเดือนที่เลือก');
     expect(byId('chart').hidden).toBe(true);
     expect(byId('stat-balance').textContent).toBe('0 บาท');
   });
@@ -946,7 +964,7 @@ describe('LIFF page when loading fails', () => {
   it('shows the boot load error on every tab after a boot failure', async () => {
     await boot({ overrides: { '/api/categories': new TypeError('network down') } });
 
-    for (const id of ['list', 'summary', 'budgets', 'recurring', 'profile', 'list']) {
+    for (const id of ['list', 'summary', 'budgets', 'profile', 'list']) {
       clickTab(id);
       expect(byId('banner').hidden, id).toBe(false);
       expect(byId('banner').textContent, id).toBe('โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -3665,6 +3683,17 @@ describe('LIFF categories page', () => {
     expect(document.activeElement).toBe(byId('categories-open'));
   });
 
+  it('marks the app as a sub page while open and keeps the back label for the budgets tab', async () => {
+    await openPage();
+
+    expect(byId('app').classList.contains('sub-page')).toBe(true);
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปจัดการงบ');
+
+    byId('page-back').click();
+
+    expect(byId('app').classList.contains('sub-page')).toBe(false);
+  });
+
   it('shows the visible tiles of the selected type, a locked system tile and the add tile last', async () => {
     await openPage();
 
@@ -4066,6 +4095,80 @@ describe('LIFF categories page', () => {
 
     expect(byId('categories-manager')).toBeNull();
     expect(byId('category-dialog')).toBeNull();
+  });
+});
+
+describe('LIFF recurring page under the me tab', () => {
+  async function openRecurring() {
+    await boot();
+    clickTab('profile');
+    byId('recurring-open').click();
+  }
+
+  it('puts the entry button right after the profile card and before the wallets section', async () => {
+    await boot();
+    clickTab('profile');
+
+    const entry = byId('recurring-open');
+    expect(entry.disabled).toBe(false);
+    expect(byId('panel-profile').contains(entry)).toBe(true);
+    expect(byId('profile-card').nextElementSibling.contains(entry)).toBe(true);
+    expect(byId('profile-card').nextElementSibling.nextElementSibling).toBe(byId('wallets'));
+  });
+
+  it('opens the recurring list as a page without the bottom nav', async () => {
+    await openRecurring();
+
+    expect(byId('panel-recurring').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('รายการประจำ');
+    expect(byId('month').hidden).toBe(true);
+    expect(byId('page-back').hidden).toBe(false);
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+    expect(document.activeElement).toBe(byId('page-back'));
+    expect(byId('recurring-add').disabled).toBe(false);
+  });
+
+  it('goes back to the me tab and returns focus to the entry button', async () => {
+    await openRecurring();
+
+    byId('page-back').click();
+
+    expect(byId('panel-recurring').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(byId('page-back').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('recurring-open'));
+  });
+
+  it('still goes back to the budgets tab from the categories page after visiting the recurring page', async () => {
+    await openRecurring();
+    byId('page-back').click();
+    clickTab('budgets');
+    byId('categories-open').click();
+
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปจัดการงบ');
+
+    byId('page-back').click();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
+    expect(byId('panel-categories').hidden).toBe(true);
+  });
+
+  it('keeps the entry button usable and opens the page when the recurring list fails to load', async () => {
+    await boot({ overrides: { '/api/recurring': { status: 500 } } });
+    clickTab('profile');
+
+    expect(byId('recurring-error').hidden).toBe(false);
+    expect(byId('recurring-open').disabled).toBe(false);
+
+    byId('recurring-open').click();
+
+    expect(byId('panel-recurring').hidden).toBe(false);
+    expect(byId('recurring-error').hidden).toBe(false);
   });
 });
 

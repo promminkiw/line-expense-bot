@@ -212,6 +212,15 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('main#app.bills-page .bar-mascot')).toMatch(/display:\s*none/);
   });
 
+  it('hides the bar mascot and keeps room for the safe area on every sub page', () => {
+    expect(declarations('main#app.sub-page .bar-mascot')).toMatch(/display:\s*none/);
+    expect(declarations('main#app.sub-page')).toMatch(/padding-bottom:\s*calc\(16px \+ env\(safe-area-inset-bottom\)\)/);
+  });
+
+  it('gives the header back and home controls a pressed state', () => {
+    expect(declarations('.bar-home:active, .bar-back:active')).toMatch(/background:\s*rgba\(255, 255, 255, 0\.18\)/);
+  });
+
   it('keeps the paid checkbox on the same row as the member amount', () => {
     expect(declarations('.bill-member')).toMatch(/grid-template-columns:[^;]*auto auto auto/);
     expect(declarations('.bill-member-paid')).not.toMatch(/grid-column:\s*1\s*\/\s*-1/);
@@ -221,7 +230,7 @@ describe('style.css Thai line breaks', () => {
     expect(declarations('.nav-button')).toMatch(/min-height:\s*68px/);
   });
 
-  // วัดจริง 2026-10-19: 6 แท็บที่จอ 320px "รอบเดือน" กว้าง 51.3px แต่ปุ่มเหลือ 49px ถ้ามี padding ข้าง และห้ามย่อตัวอักษรต่ำกว่า 13px
+  // วัดจริง 2026-10-19 ตอนมี 6 แท็บที่จอ 320px: "รอบเดือน" กว้าง 51.3px แต่ปุ่มเหลือ 49px ถ้ามี padding ข้าง (5 แท็บยังไม่ได้วัดซ้ำ) และห้ามย่อตัวอักษรต่ำกว่า 13px
   it('keeps every tab label on one line without side padding', () => {
     expect(declarations('.nav-button')).toMatch(/padding:\s*8px 0;/);
     expect(declarations('.nav-button span')).toMatch(/white-space:\s*nowrap/);

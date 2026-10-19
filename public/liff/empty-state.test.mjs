@@ -4,9 +4,9 @@ import { createEmptyState } from './empty-state.mjs';
 
 describe('createEmptyState', () => {
   it.each([
-    ['list', 'empty-list', 'ยังไม่มีรายการในเดือนนี้'],
+    ['list', 'empty-list', 'ยังไม่มีรายการในเดือนที่เลือก'],
     ['search', 'empty-search', 'ไม่พบรายการที่ค้นหา'],
-    ['summary', 'empty-chart', 'ยังไม่มีข้อมูลสรุปในเดือนนี้'],
+    ['summary', 'empty-chart', 'ยังไม่มีข้อมูลสรุปในเดือนที่เลือก'],
     ['recurring', 'empty-recurring', 'ยังไม่มีรายการประจำ'],
   ])('builds the %s state with its illustration and title', (kind, symbol, title) => {
     const el = createEmptyState(document, kind);
@@ -16,6 +16,12 @@ describe('createEmptyState', () => {
     expect(el.querySelector('use').getAttribute('href')).toBe(`#${symbol}`);
     expect(el.querySelector('.empty-title').textContent).toBe(title);
     expect(el.querySelector('.empty-hint').textContent.length).toBeGreaterThan(0);
+  });
+
+  it('says the recurring hint covers income and expenses', () => {
+    const hint = createEmptyState(document, 'recurring').querySelector('.empty-hint').textContent;
+
+    expect(hint).toBe('เพิ่มรายรับรายจ่ายที่เกิดทุกเดือน เช่น ค่าเน็ต เงินเดือน แล้วบอทจะบันทึกให้เอง');
   });
 
   it('can use another tag so it can live inside a list', () => {

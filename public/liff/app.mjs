@@ -138,6 +138,7 @@ const els = {
   recurringErrorText: document.getElementById('recurring-error-text'),
   recurringRetry: document.getElementById('recurring-retry'),
   recurringAdd: document.getElementById('recurring-add'),
+  recurringOpen: document.getElementById('recurring-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -735,7 +736,7 @@ function renderChart({ animate = false } = {}) {
   const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
-    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนนี้' : 'ยังไม่มีรายรับในเดือนนี้';
+    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนที่เลือก' : 'ยังไม่มีรายรับในเดือนที่เลือก';
     els.chartEmpty.hidden = false;
     return;
   }
@@ -829,7 +830,7 @@ function renderList() {
   if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
   if (lastTransactions.length === 0) {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
-    setStatus('ยังไม่มีรายการในเดือนนี้', { loading: true });
+    setStatus('ยังไม่มีรายการในเดือนที่เลือก', { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
     applyPendingListFocus();
     return;
@@ -1399,6 +1400,7 @@ function renderRecurring(rules, focusRuleId = null) {
   recurringLoading.set(false);
   els.recurringError.hidden = true;
   els.recurringAdd.disabled = false;
+  els.recurringOpen.disabled = false;
   els.recurring.hidden = false;
   els.recurringEmpty.hidden = rules.length > 0;
   for (const row of recurringRows(rules, categories)) {
@@ -1445,6 +1447,7 @@ function showRecurringError(err) {
   recurringLoading.set(false);
   els.recurringEmpty.hidden = true;
   els.recurringAdd.disabled = false;
+  els.recurringOpen.disabled = false;
   els.recurring.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.recurringErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดรายการประจำไม่สำเร็จ';
@@ -1705,34 +1708,64 @@ function refreshAfterCategoryChange() {
   loadRecurring();
 }
 
-// หมวดของฉันเป็นหน้าย่อยของแท็บงบ ไม่อยู่ในแถบเมนูล่าง จึงซ่อนเมนูและมีปุ่มย้อนกลับแทน
-function enterCategoriesPage() {
-  document.getElementById('app').classList.add('categories-page');
+// หน้าย่อย (หมวดของฉัน รายการประจำ) ไม่อยู่ในแถบเมนูล่าง จึงซ่อนเมนูและมีปุ่มย้อนกลับพากลับแท็บเจ้าของหน้า
+let activeSubPage = null;
+
+function enterSubPage(page) {
+  activeSubPage = page;
+  document.getElementById('app').classList.add('sub-page');
   els.bottomNav.hidden = true;
-  for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== 'panel-categories';
-  document.getElementById('page-title').textContent = 'หมวดของฉัน';
-  // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
-  document.getElementById('category-status').textContent = '';
+  for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== page.panelId;
+  document.getElementById('page-title').textContent = page.title;
   els.month.hidden = true;
+  els.pageBack.setAttribute('aria-label', page.backLabel);
   els.pageBack.hidden = false;
   showStickyLoadError();
   window.scrollTo(0, 0);
-  categoriesPanel.render();
+  page.render?.();
   els.pageBack.focus();
 }
 
-function leaveCategoriesPage() {
-  document.getElementById('app').classList.remove('categories-page');
+function leaveSubPage() {
+  const page = activeSubPage;
+  if (!page) return;
+  activeSubPage = null;
+  document.getElementById('app').classList.remove('sub-page');
   els.bottomNav.hidden = false;
   els.pageBack.hidden = true;
-  document.getElementById('panel-categories').hidden = true;
-  // controller ยังจำว่าอยู่แท็บงบ จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
-  tabController.select('budgets', { force: true });
-  els.categoriesOpen.focus();
+  document.getElementById(page.panelId).hidden = true;
+  // controller ยังจำว่าอยู่แท็บเจ้าของหน้า จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
+  tabController.select(page.ownerTab, { force: true });
+  page.returnFocus.focus();
+}
+
+const CATEGORIES_PAGE = {
+  panelId: 'panel-categories',
+  title: 'หมวดของฉัน',
+  backLabel: 'กลับไปจัดการงบ',
+  ownerTab: 'budgets',
+  returnFocus: els.categoriesOpen,
+  render: () => categoriesPanel.render(),
+};
+
+function enterCategoriesPage() {
+  // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
+  document.getElementById('category-status').textContent = '';
+  enterSubPage(CATEGORIES_PAGE);
 }
 
 els.categoriesOpen.addEventListener('click', enterCategoriesPage);
-els.pageBack.addEventListener('click', leaveCategoriesPage);
+els.pageBack.addEventListener('click', leaveSubPage);
+
+const RECURRING_PAGE = {
+  panelId: 'panel-recurring',
+  title: 'รายการประจำ',
+  backLabel: 'กลับไปหน้าฉัน',
+  ownerTab: 'profile',
+  returnFocus: els.recurringOpen,
+};
+
+els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
