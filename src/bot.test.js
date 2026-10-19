@@ -1053,6 +1053,22 @@ describe('bot text categories', () => {
     expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, []);
   });
 
+  // อ่านหมวดและกระเป๋าไปพร้อมกับบริบทแชต ไม่ต้องรอทีละอย่างก่อนเรียก Claude
+  it('starts loading the categories and wallets without waiting for the chat history', async () => {
+    const { deps, bot } = setup();
+    let releaseHistory;
+    deps.repository.getPendingClarification.mockReturnValue(new Promise((resolve) => (releaseHistory = resolve)));
+
+    const handled = bot.handleEvent(textEvent('อาหารแมว 300'));
+    await vi.waitFor(() => expect(deps.repository.getPendingClarification).toHaveBeenCalled());
+
+    expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
+    releaseHistory(null);
+    await handled;
+    expect(deps.parseMessage).toHaveBeenCalled();
+  });
+
   // หมวดเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ยังบันทึกด้วยหมวดเริ่มต้นได้ ดีกว่าตอบว่าระบบมีปัญหา
   it('falls back to the default categories and still saves when loading them fails', async () => {
     const { deps, bot } = setup();

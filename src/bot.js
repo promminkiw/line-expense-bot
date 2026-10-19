@@ -417,6 +417,8 @@ function createBot({
     if (summaryCommand) {
       return handleSummary(summaryCommand, userId);
     }
+    // อ่านไปพร้อมกับบริบทแชต สองตัวนี้ไม่ throw เพราะจับ error แล้วใช้ค่าสำรองเอง
+    const catalogue = Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
     const { messages: history, loadFailed } = await loadHistory(userId);
     // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม จึงไม่ตีความเป็นคำถามยอด
     if (history.length === 0 && looksLikeQuestion(event.message.text)) {
@@ -425,7 +427,7 @@ function createBot({
         return answer;
       }
     }
-    const [textCategories, { wallets, failed: walletsFailed }] = await Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
+    const [textCategories, { wallets, failed: walletsFailed }] = await catalogue;
     const choices = walletChoices(wallets);
     const result = await parseMessage(event.message.text, history, textCategories, choices);
     if (result.status === 'clarify') {
