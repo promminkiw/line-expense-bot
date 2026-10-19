@@ -26,6 +26,7 @@ const MIGRATIONS = [
   '018_category_icon.sql',
   '019_delete_category.sql',
   '020_query_totals.sql',
+  '021_notification_settings.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -899,6 +900,72 @@ describe('019_delete_category.sql', () => {
 
   it('can run again without failing', async () => {
     await expect(db.exec(readMigration('019_delete_category.sql'))).resolves.toBeDefined();
+  });
+});
+
+describe('021_notification_settings.sql', () => {
+  it('adds both notification switches to users, off by default', async () => {
+    const user = await createUser('U1');
+
+    expect(await one('select weekly_summary_enabled, daily_reminder_enabled from users where id = $1', [user])).toEqual({
+      weekly_summary_enabled: false,
+      daily_reminder_enabled: false,
+    });
+  });
+
+  it('refuses a null switch', async () => {
+    const user = await createUser('U1');
+
+    for (const column of ['weekly_summary_enabled', 'daily_reminder_enabled']) {
+      await db.exec('savepoint null_switch');
+      await expect(db.query(`update users set ${column} = null where id = $1`, [user])).rejects.toThrow(column);
+      await db.exec('rollback to savepoint null_switch');
+    }
+  });
+
+  // งาน cron จองด้วย insert on conflict do nothing ถ้าไม่ได้แถวกลับมาแปลว่าเคยส่งแล้ว
+  it('keeps one log row per user, kind and period', async () => {
+    const user = await createUser('U1');
+    const reserve = (kind, period) =>
+      rows('insert into notification_log (user_id, kind, period) values ($1, $2, $3) on conflict do nothing returning user_id', [
+        user,
+        kind,
+        period,
+      ]);
+
+    expect(await reserve('weekly_summary', '2026-10-12')).toHaveLength(1);
+    expect(await reserve('weekly_summary', '2026-10-12')).toHaveLength(0);
+    expect(await reserve('weekly_summary', '2026-10-19')).toHaveLength(1);
+    expect(await reserve('daily_reminder', '2026-10-12')).toHaveLength(1);
+  });
+
+  it('refuses an unknown kind and a period that is not a date', async () => {
+    const user = await createUser('U1');
+
+    for (const [kind, period] of [
+      ['monthly', '2026-10-01'],
+      ['weekly_summary', 'last week'],
+    ]) {
+      await db.exec('savepoint bad_log');
+      await expect(db.query('insert into notification_log (user_id, kind, period) values ($1, $2, $3)', [user, kind, period])).rejects.toThrow(
+        'check constraint',
+      );
+      await db.exec('rollback to savepoint bad_log');
+    }
+  });
+
+  it('removes the log rows of a deleted user and keeps row level security on', async () => {
+    const user = await createUser('U1');
+    await db.query("insert into notification_log (user_id, kind, period) values ($1, 'weekly_summary', '2026-10-12')", [user]);
+
+    await db.query('delete from users where id = $1', [user]);
+
+    expect(Number((await one('select count(*) from notification_log')).count)).toBe(0);
+    expect((await one("select relrowsecurity from pg_class where oid = 'public.notification_log'::regclass")).relrowsecurity).toBe(true);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('021_notification_settings.sql'))).resolves.toBeDefined();
   });
 });
 
