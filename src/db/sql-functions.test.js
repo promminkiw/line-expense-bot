@@ -28,6 +28,7 @@ const MIGRATIONS = [
   '020_query_totals.sql',
   '021_notification_settings.sql',
   '022_daily_reminder.sql',
+  '023_savings_goals.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -1044,6 +1045,142 @@ describe('users_to_remind', () => {
   });
 });
 
+describe('023_savings_goals.sql', () => {
+  async function createGoal(userId, name, target = 1000, { closed = false, createdAt = '2026-10-01T00:00:00Z', targetDate = null } = {}) {
+    return (
+      await one(
+        'insert into savings_goals (user_id, name, target_amount, target_date, closed, created_at) values ($1, $2, $3, $4, $5, $6) returning id',
+        [userId, name, target, targetDate, closed, createdAt],
+      )
+    ).id;
+  }
+
+  async function contribute(goalId, userId, amount, occurredOn = '2026-10-10') {
+    await db.query('insert into goal_contributions (goal_id, user_id, amount, occurred_on) values ($1, $2, $3, $4)', [goalId, userId, amount, occurredOn]);
+  }
+
+  async function progress(userId) {
+    const result = await rows(
+      'select id, name, target_amount, target_date::text as target_date, closed, saved, contribution_count from goal_progress($1)',
+      [userId],
+    );
+    return result.map(numbers);
+  }
+
+  it('totals each goal of this user, open goals first in the order they were made', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    const trip = await createGoal(user, 'เที่ยวญี่ปุ่น', 50000, { createdAt: '2026-10-02T00:00:00Z', targetDate: '2026-12-31' });
+    const phone = await createGoal(user, 'มือถือ', 30000, { closed: true, createdAt: '2026-09-01T00:00:00Z' });
+    const fund = await createGoal(user, 'กองทุนฉุกเฉิน', 10000, { createdAt: '2026-10-01T00:00:00Z' });
+    const otherGoal = await createGoal(other, 'เที่ยวญี่ปุ่น', 1000);
+    await contribute(trip, user, 1000);
+    await contribute(trip, user, 5000.5);
+    await contribute(phone, user, 30000);
+    await contribute(otherGoal, other, 999);
+
+    expect(await progress(user)).toEqual([
+      { id: fund, name: 'กองทุนฉุกเฉิน', target_amount: 10000, target_date: null, closed: false, saved: 0, contribution_count: 0 },
+      { id: trip, name: 'เที่ยวญี่ปุ่น', target_amount: 50000, target_date: '2026-12-31', closed: false, saved: 6000.5, contribution_count: 2 },
+      { id: phone, name: 'มือถือ', target_amount: 30000, target_date: null, closed: true, saved: 30000, contribution_count: 1 },
+    ]);
+  });
+
+  // แชตหาเป้าจากชื่อแบบไม่สนตัวพิมพ์ ชื่อที่ต่างกันแค่ตัวพิมพ์จึงต้องชนกัน
+  it('does not let one user have two goals with the same name ignoring letter case', async () => {
+    const user = await createUser('U1');
+    const other = await createUser('U2');
+    await createGoal(user, 'Japan');
+    await createGoal(other, 'Japan');
+
+    await expect(createGoal(user, 'japan')).rejects.toThrow('duplicate key');
+  });
+
+  it('refuses a bad name, an amount outside 0-10,000,000 and a contribution to a goal of another user', async () => {
+    const user = await createUser('U1');
+    const stranger = await createUser('U2');
+    const goal = await createGoal(user, 'เที่ยว');
+    const insertGoal = 'insert into savings_goals (user_id, name, target_amount) values ($1, $2, $3)';
+    const insertContribution = "insert into goal_contributions (goal_id, user_id, amount, occurred_on) values ($1, $2, $3, '2026-10-10')";
+    const bad = [
+      [insertGoal, [user, '', 1000], 'check constraint'],
+      [insertGoal, [user, 'ก'.repeat(31), 1000], 'check constraint'],
+      [insertGoal, [user, 'ศูนย์', 0], 'check constraint'],
+      [insertGoal, [user, 'เกิน', 10000000.01], 'check constraint'],
+      [insertContribution, [goal, user, 0], 'check constraint'],
+      [insertContribution, [goal, user, 10000000.01], 'check constraint'],
+      [insertContribution, [goal, stranger, 100], 'foreign key'],
+    ];
+
+    for (const [sql, params, message] of bad) {
+      await db.exec('savepoint bad_row');
+      await expect(db.query(sql, params)).rejects.toThrow(message);
+      await db.exec('rollback to savepoint bad_row');
+    }
+  });
+
+  it('adds a contribution with its chat event and returns the new saved total', async () => {
+    const user = await createUser('U1');
+    const goal = await createGoal(user, 'เที่ยว', 5000);
+    await contribute(goal, user, 1000);
+    await db.query('insert into line_events (webhook_event_id, user_id) values ($1, $2)', ['ev-1', user]);
+
+    const result = numbers(await one('select * from add_goal_contribution($1, $2, $3, $4, $5)', [user, goal, 250.5, '2026-10-19', 'ev-1']));
+
+    expect(result.status).toBe('ok');
+    expect(result.saved).toBe(1250.5);
+    const saved = await rows('select amount, occurred_on::text as occurred_on, line_event_id from goal_contributions where id = $1', [
+      result.contribution_id,
+    ]);
+    expect(saved.map(numbers)).toEqual([{ amount: 250.5, occurred_on: '2026-10-19', line_event_id: 'ev-1' }]);
+  });
+
+  it('answers not_found for a goal of another user and closed for a closed goal, adding nothing', async () => {
+    const user = await createUser('U1');
+    const stranger = await createUser('U2');
+    const goal = await createGoal(user, 'เที่ยว');
+    const closed = await createGoal(user, 'มือถือ', 1000, { closed: true });
+
+    expect(await one('select * from add_goal_contribution($1, $2, 100, $3, null)', [stranger, goal, '2026-10-19'])).toEqual({
+      status: 'not_found',
+      contribution_id: null,
+      saved: null,
+    });
+    expect(await one('select * from add_goal_contribution($1, $2, 100, $3, null)', [user, closed, '2026-10-19'])).toEqual({
+      status: 'closed',
+      contribution_id: null,
+      saved: null,
+    });
+    expect(Number((await one('select count(*) from goal_contributions')).count)).toBe(0);
+  });
+
+  it('removes the goals and contributions of a deleted user', async () => {
+    const user = await createUser('U1');
+    const goal = await createGoal(user, 'เที่ยว');
+    await contribute(goal, user, 100);
+
+    await db.query('delete from users where id = $1', [user]);
+
+    expect(Number((await one('select count(*) from savings_goals')).count)).toBe(0);
+    expect(Number((await one('select count(*) from goal_contributions')).count)).toBe(0);
+  });
+
+  it('turns on row level security for both tables', async () => {
+    const result = await rows(
+      "select relname, relrowsecurity from pg_class where oid in ('public.savings_goals'::regclass, 'public.goal_contributions'::regclass) order by relname",
+    );
+
+    expect(result).toEqual([
+      { relname: 'goal_contributions', relrowsecurity: true },
+      { relname: 'savings_goals', relrowsecurity: true },
+    ]);
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('023_savings_goals.sql'))).resolves.toBeDefined();
+  });
+});
+
 describe('function permissions', () => {
   const calls = [
     ['summarize_transactions', "select * from summarize_transactions(gen_random_uuid(), '2026-09-01', '2026-09-30')"],
@@ -1058,6 +1195,8 @@ describe('function permissions', () => {
     ['delete_category', 'select delete_category(gen_random_uuid(), gen_random_uuid())'],
     ['query_totals', "select * from query_totals(gen_random_uuid(), '2026-10-01', '2026-10-31', 'both', '', '')"],
     ['users_to_remind', "select * from users_to_remind('2026-10-19')"],
+    ['goal_progress', 'select * from goal_progress(gen_random_uuid())'],
+    ['add_goal_contribution', "select * from add_goal_contribution(gen_random_uuid(), gen_random_uuid(), 1, '2026-10-19', null)"],
   ];
 
   // anon key ของ Supabase เรียก function ได้ถ้าลืม revoke จึงต้องปิดไว้ทุกตัว

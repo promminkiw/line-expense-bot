@@ -17,9 +17,12 @@ import {
   REPLY_DEADLINE_MS,
   BILL_REPLIES,
   QUESTION_FAILED_REPLY,
+  UNDO_SAVING_DONE_REPLY,
+  UNDO_SAVING_NOT_FOUND_REPLY,
 } from './bot.js';
 import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
 import { TEXT_CATEGORIES } from './parser/categories.js';
+import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from './goals/chat.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
@@ -119,6 +122,12 @@ function setup(overrides = {}) {
         { id: 'cat-income-other', name: 'อื่นๆ', type: 'income', hidden: false },
       ]),
       queryTotals: vi.fn().mockResolvedValue([{ type: 'expense', total: 450, entryCount: 6 }]),
+      listGoals: vi.fn().mockResolvedValue([
+        { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: null, closed: false, saved: 5000, contributionCount: 1 },
+        { id: 'g-2', name: 'มือถือ', targetAmount: 30000, targetDate: null, closed: true, saved: 30000, contributionCount: 3 },
+      ]),
+      addGoalContribution: vi.fn().mockResolvedValue({ status: 'ok', contributionId: 'gc-1', saved: 6000 }),
+      deleteGoalContributionsByEvent: vi.fn().mockResolvedValue(1),
       savePendingSlip: vi.fn().mockResolvedValue(SLIP_ID),
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
@@ -693,6 +702,175 @@ describe('bot undo postback', () => {
     await bot.handleEvent(postbackEvent('action=other'));
 
     expect(deps.repository.deleteTransactionsByEvent).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot saving command', () => {
+  const UNDO_SAVING_QUICK_REPLY = [
+    {
+      type: 'action',
+      action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo_saving&event=ev1', displayText: 'ยกเลิก' },
+    },
+  ];
+
+  it('adds the amount to the open goal named in the message without calling Claude', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1,000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', {
+      amount: 1000,
+      occurredOn: '2026-09-29',
+      lineEventId: 'ev1',
+    });
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      'ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000 / 50,000 บาท (12%)',
+      UNDO_SAVING_QUICK_REPLY
+    );
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.parseQuestion).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('ignores a redelivered saving message', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('answers even when the user is rate limited because it costs no Claude call', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalled();
+    expect(deps.allowRequest).not.toHaveBeenCalled();
+  });
+
+  it('lists the open goals when the name is not found, skipping closed goals', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม มือถือ 100'));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      'ไม่พบเป้า "มือถือ"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000',
+      undefined
+    );
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+  });
+
+  it('asks for a valid amount when the user has an open goal', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 0'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  // ผู้ใช้ตัดสิน 2026-10-19: คนที่ไม่มีเป้าเปิดอยู่ ข้อความอย่าง "ออมสิน 1000" ต้องเป็นรายการตามเดิม
+  it('records the message as an entry when the user has no open goal', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([
+      { id: 'g-2', name: 'มือถือ', targetAmount: 30000, targetDate: null, closed: true, saved: 30000, contributionCount: 3 },
+    ]);
+
+    await bot.handleEvent(textEvent('ออมสิน 1000'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES);
+    expect(deps.repository.insertTransactions).toHaveBeenCalled();
+  });
+
+  it('leaves even a bad saving amount to the normal flow when the user has no goals', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออม ทริป 0'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.replyText).not.toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES);
+  });
+
+  it('counts the rate limit once the message falls through to the normal flow', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออมสิน 1000'));
+
+    expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
+    expect(deps.allowRequest).toHaveBeenCalledWith('U1');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', RATE_LIMITED_REPLY, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  // เป้าอาจถูกปิดจากหน้าเว็บระหว่างอ่านรายชื่อกับตอนบันทึก
+  it('says the goal is gone when SQL refuses the contribution', async () => {
+    const { deps, bot } = setup();
+    deps.repository.addGoalContribution.mockResolvedValue({ status: 'closed', contributionId: null, saved: null });
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', GOAL_GONE_REPLY, undefined);
+  });
+
+  it('replies with the system error and records nothing when the goals cannot be read', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('leaves other messages to the parser', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.repository.listGoals).not.toHaveBeenCalled();
+    expect(deps.parseMessage).toHaveBeenCalled();
+  });
+});
+
+describe('bot undo saving postback', () => {
+  it('deletes the contribution of that event for this user and confirms', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo_saving&event=ev1'));
+
+    expect(deps.repository.deleteGoalContributionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
+    expect(deps.repository.deleteTransactionsByEvent).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_SAVING_DONE_REPLY, undefined);
+  });
+
+  it('tells the user when nothing was deleted', async () => {
+    const { deps, bot } = setup();
+    deps.repository.deleteGoalContributionsByEvent.mockResolvedValue(0);
+
+    await bot.handleEvent(postbackEvent('action=undo_saving&event=ev1'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_SAVING_NOT_FOUND_REPLY, undefined);
+  });
+
+  it('ignores the postback without an event id', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo_saving'));
+
+    expect(deps.repository.deleteGoalContributionsByEvent).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 });

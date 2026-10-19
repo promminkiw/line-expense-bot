@@ -56,6 +56,7 @@ function createApiRouter({
   allowExport,
   friendsRouter,
   billsRouter,
+  goalsRouter,
 }) {
   // ไม่มี default เพราะถ้าลืมส่ง limit จะหายเงียบๆ
   if (typeof allowExport !== 'function') {
@@ -66,6 +67,9 @@ function createApiRouter({
   }
   if (typeof billsRouter !== 'function') {
     throw new TypeError('createApiRouter requires billsRouter');
+  }
+  if (typeof goalsRouter !== 'function') {
+    throw new TypeError('createApiRouter requires goalsRouter');
   }
   const router = express.Router();
 
@@ -97,6 +101,7 @@ function createApiRouter({
 
   router.use('/friends', friendsRouter);
   router.use('/bills', billsRouter);
+  router.use('/goals', goalsRouter);
 
   router.get('/categories', async (req, res) => {
     const categories = await repository.listCategories(req.userId);

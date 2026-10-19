@@ -89,6 +89,11 @@
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
     </symbol>
+    <symbol id="tab-goal" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 12h.01" />
+    </symbol>
     <symbol id="empty-list" viewBox="0 0 64 64">
       <rect x="14" y="10" width="36" height="46" rx="4" />
       <path d="M24 10V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2" />
@@ -338,6 +343,31 @@
           <button type="button" id="recurring-retry">ลองใหม่</button>
         </div>
         <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
+      </section>
+    </div>
+    <div id="panel-goals" class="panel" hidden>
+      <section id="goals" class="goals" aria-labelledby="goals-title">
+        <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
+        <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
+        <p id="goals-status" class="goals-status" role="status" aria-live="polite"></p>
+        <p id="goals-loading" class="sr-only" role="status" hidden>กำลังโหลดเป้าออม...</p>
+        <ul id="goals-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
+        <div id="goals-error" class="budgets-error" hidden>
+          <p id="goals-error-text" role="alert"></p>
+          <button type="button" id="goals-retry">ลองใหม่</button>
+        </div>
+        <div id="goals-body" hidden>
+          <ul id="goal-rows" class="goal-rows"></ul>
+          <p id="goals-empty" class="goals-empty" hidden>ยังไม่มีเป้าออม กดปุ่มด้านล่างเพื่อสร้างเป้าแรก</p>
+          <details id="goals-closed" class="goals-closed" hidden>
+            <summary id="goals-closed-count"></summary>
+            <ul id="goal-closed-rows" class="goal-rows"></ul>
+          </details>
+        </div>
+        <button type="button" id="goal-add" class="categories-open goal-add" disabled><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#icon-plus"></use>
+          </svg>สร้างเป้าใหม่</button>
       </section>
     </div>
     <div id="panel-bills" class="panel" hidden>
@@ -701,6 +731,62 @@
       <button type="button" id="recurring-confirm-cancel" autofocus>ยกเลิก</button>
       <button type="button" id="recurring-confirm-ok" class="danger-solid">ลบ</button>
     </div>
+  </dialog>
+  <dialog id="goal-editor" aria-labelledby="goal-editor-title">
+    <form id="goal-editor-form">
+      <h2 id="goal-editor-title" tabindex="-1"></h2>
+      <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+          aria-hidden="true" focusable="false">
+          <use href="#icon-close"></use>
+        </svg></button>
+      <label>ชื่อเป้า
+        <input id="goal-editor-name" type="text" maxlength="30" required>
+      </label>
+      <label>ยอดเป้า (บาท)
+        <input id="goal-editor-target" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>อยากถึงเป้าภายในวันที่ (ไม่บังคับ)
+        <input id="goal-editor-date" type="date">
+      </label>
+      <label id="goal-editor-closed-row" class="check" hidden>
+        <input id="goal-editor-closed" type="checkbox"> ปิดเป้านี้ (ไม่รับยอดออมเพิ่ม และไม่ขึ้นในแชต)
+      </label>
+      <p id="goal-editor-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="goal-editor-error" class="error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="submit" id="goal-editor-save" class="primary">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="goal-detail" aria-labelledby="goal-detail-title">
+    <h2 id="goal-detail-title" tabindex="-1"></h2>
+    <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+        aria-hidden="true" focusable="false">
+        <use href="#icon-close"></use>
+      </svg></button>
+    <p id="goal-detail-progress" class="confirm-detail"></p>
+    <button type="button" id="goal-detail-edit" class="goal-detail-edit">แก้เป้า</button>
+    <p id="goal-detail-closed-note" class="confirm-detail" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
+    <form id="goal-detail-form">
+      <label>ออมเพิ่ม (บาท)
+        <input id="goal-detail-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+      </label>
+      <label>วันที่
+        <input id="goal-detail-date" type="date" required>
+      </label>
+      <div class="actions">
+        <button type="submit" id="goal-detail-save" class="primary">ออมเพิ่ม</button>
+      </div>
+    </form>
+    <p id="goal-detail-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+    <p id="goal-detail-status" class="goals-status" role="status" aria-live="polite"></p>
+    <p id="goal-detail-error" class="error" role="alert" hidden></p>
+    <h3 class="goal-history-title">ประวัติการออม</h3>
+    <p id="goal-history-loading" class="confirm-detail" role="status" hidden>กำลังโหลดประวัติ...</p>
+    <p id="goal-history-error" class="error" role="alert" hidden></p>
+    <ul id="goal-history" class="friend-rows"></ul>
+    <p id="goal-history-empty" class="confirm-detail" hidden>ยังไม่มีรายการออม</p>
+    <p id="goal-history-limit" class="confirm-detail" hidden>แสดง 100 รายการล่าสุด</p>
   </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>

@@ -44,6 +44,20 @@ const RESPONSES = {
     ],
   },
   '/api/recurring': { rules: [] },
+  '/api/goals': {
+    goals: [
+      { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: '2026-12-31', closed: false, saved: 6000, contributionCount: 2 },
+      { id: 'g-2', name: 'กองทุนฉุกเฉิน', targetAmount: 10000, targetDate: null, closed: false, saved: 12000, contributionCount: 3 },
+      { id: 'g-3', name: 'มือถือใหม่', targetAmount: 30000, targetDate: null, closed: true, saved: 30000, contributionCount: 5 },
+    ],
+  },
+  '/api/goals/g-1/contributions': {
+    contributions: [
+      { id: 'gc-2', amount: 1000, occurredOn: '2026-10-14' },
+      { id: 'gc-1', amount: 5000, occurredOn: '2026-10-01' },
+    ],
+  },
+  '/api/goals/g-3/contributions': { contributions: [] },
   '/api/bills': {
     owned: [
       {
@@ -363,6 +377,22 @@ describe('index.html static invariants', () => {
       'bills-error',
       'bills-skeleton',
       'bill-dialog-busy',
+      'goals-loading',
+      'goals-skeleton',
+      'goals-error',
+      'goals-body',
+      'goals-empty',
+      'goals-closed',
+      'goal-editor-closed-row',
+      'goal-editor-busy',
+      'goal-editor-error',
+      'goal-detail-closed-note',
+      'goal-detail-busy',
+      'goal-detail-error',
+      'goal-history-loading',
+      'goal-history-error',
+      'goal-history-empty',
+      'goal-history-limit',
     ];
 
     const visible = ids.filter((id) => !doc.getElementById(id).hasAttribute('hidden'));
@@ -377,17 +407,17 @@ describe('LIFF page after a normal boot', () => {
     liff = await boot();
   });
 
-  it('renders the five bottom tabs with the list tab selected', () => {
+  it('renders the six bottom tabs with the list tab selected', () => {
     const buttons = [...document.querySelectorAll('#bottom-nav button')];
 
-    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'จัดการงบ', 'รอบเดือน', 'โปรไฟล์']);
+    expect(buttons.map((button) => button.textContent)).toEqual(['รายการ', 'สรุป', 'งบ', 'รอบเดือน', 'ออม', 'โปรไฟล์']);
     expect(document.querySelectorAll('#bottom-nav [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('#bottom-nav [aria-current="page"]').textContent).toBe('รายการ');
     expect(byId('page-title').textContent).toBe('รายการของฉัน');
     expect(byId('month').hidden).toBe(false);
     expect(byId('month').value).toBe('2026-10');
     expect(byId('panel-list').hidden).toBe(false);
-    for (const id of ['summary', 'budgets', 'recurring', 'bills', 'profile']) {
+    for (const id of ['summary', 'budgets', 'recurring', 'goals', 'bills', 'profile']) {
       expect(byId(`panel-${id}`).hidden).toBe(true);
     }
     expect(byId('bottom-nav').hidden).toBe(false);
@@ -574,6 +604,7 @@ describe('LIFF page after a normal boot', () => {
       summary: { title: 'สรุปรายเดือน', month: false },
       budgets: { title: 'จัดการงบประมาณ', month: false },
       recurring: { title: 'รายการประจำ', month: true },
+      goals: { title: 'เป้าหมายการออม', month: true },
       profile: { title: 'โปรไฟล์', month: true },
     };
 
@@ -3969,5 +4000,319 @@ describe('LIFF category icons on rows', () => {
     const salary = [...document.querySelectorAll('#list .row')].find((item) => item.textContent.includes('เงินเดือน'));
     expect(salary.querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-salary');
     expect(salary.querySelector('.cat-badge').classList.contains('cat-tone-income')).toBe(true);
+  });
+});
+
+describe('LIFF goals tab', () => {
+  const rowsOf = (id = 'goal-rows') => [...byId(id).querySelectorAll('.goal-row')];
+  const namesOf = (id) => rowsOf(id).map((row) => row.querySelector('.budget-label').textContent);
+  const submitEditor = () => byId('goal-editor-form').dispatchEvent(new Event('submit', { cancelable: true }));
+  const openGoalEditor = async (index) => {
+    rowsOf()[index].querySelector('button').click();
+    await settle();
+    byId('goal-detail-edit').click();
+  };
+
+  // เก็บ body ที่ส่งไว้ตรวจ route คืน override แบบเดียวกับ makeFetch หรือ undefined เพื่อใช้ค่าเริ่มต้น
+  function captureFetch(route = () => undefined) {
+    const calls = [];
+    const fallback = makeFetch({});
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      const method = options.method ?? 'GET';
+      calls.push({ call: `${method} ${path}`, body: options.body ? JSON.parse(options.body) : undefined });
+      const override = route(method, path);
+      return override === undefined ? fallback(url, options) : makeFetch({ [path]: override })(url, options);
+    });
+    return calls;
+  }
+
+  async function openTab(options) {
+    const liff = await boot(options);
+    clickTab('goals');
+    await settle();
+    return liff;
+  }
+
+  it('loads the goals only when the tab opens and shows the open goals with their progress', async () => {
+    const liff = await boot();
+    expect(liff.fetched).not.toContain('/api/goals');
+
+    clickTab('goals');
+    await settle();
+
+    expect(liff.fetched).toContain('/api/goals');
+    const rows = rowsOf();
+    expect(namesOf()).toEqual(['เที่ยวญี่ปุ่น', 'กองทุนฉุกเฉิน']);
+    expect(rows[0].querySelector('.budget-value').textContent).toBe('ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)');
+    expect(rows[0].querySelector('.budget-fill').dataset.width).toBe('12');
+    expect(rows[0].querySelector('.goal-date').textContent).toBe('อยากถึงเป้า 31 ธ.ค. 2569');
+    expect(rows[1].classList.contains('reached')).toBe(true);
+    expect(rows[1].querySelector('.budget-fill').dataset.width).toBe('100');
+    expect(rows[1].querySelector('.goal-date')).toBeNull();
+    expect(byId('goals-closed').hidden).toBe(false);
+    expect(byId('goals-closed-count').textContent).toBe('ปิดแล้ว 1 เป้า');
+    expect(namesOf('goal-closed-rows')).toEqual(['มือถือใหม่']);
+    expect(byId('goals-empty').hidden).toBe(true);
+    expect(byId('goal-add').disabled).toBe(false);
+  });
+
+  it('shows the empty note when there are no goals', async () => {
+    await openTab({ overrides: { '/api/goals': { goals: [] } } });
+
+    expect(rowsOf()).toHaveLength(0);
+    expect(byId('goals-empty').hidden).toBe(false);
+    expect(byId('goals-closed').hidden).toBe(true);
+  });
+
+  it('shows an error with retry when the goals fail to load, and the retry loads them', async () => {
+    await openTab({ overrides: { '/api/goals': { status: 500 } } });
+
+    expect(byId('goals-error').hidden).toBe(false);
+    expect(byId('goals-error-text').textContent).toBe('โหลดเป้าออมไม่สำเร็จ');
+    expect(byId('goals-retry').hidden).toBe(false);
+    expect(byId('goals-body').hidden).toBe(true);
+
+    captureFetch();
+    byId('goals-retry').click();
+    await settle();
+
+    expect(byId('goals-error').hidden).toBe(true);
+    expect(rowsOf()).toHaveLength(2);
+  });
+
+  it('asks to reopen from LINE without a retry on a 401', async () => {
+    await openTab({ overrides: { '/api/goals': { status: 401 } } });
+
+    expect(byId('goals-error-text').textContent).toBe('กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง');
+    expect(byId('goals-retry').hidden).toBe(true);
+  });
+
+  // ผู้ใช้อาจออมผ่านแชตระหว่างที่หน้าเว็บเปิดอยู่
+  it('reloads the goals every time the tab opens again', async () => {
+    await openTab();
+    const calls = captureFetch();
+
+    clickTab('list');
+    clickTab('goals');
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toEqual(['GET /api/goals']);
+  });
+
+  it('creates a goal without a date and reloads the list', async () => {
+    await openTab();
+    const calls = captureFetch((method, path) => (method === 'POST' && path === '/api/goals' ? { goal: { id: 'g-9' } } : undefined));
+
+    byId('goal-add').click();
+    expect(byId('goal-editor').hasAttribute('open')).toBe(true);
+    expect(byId('goal-editor-title').textContent).toBe('สร้างเป้าใหม่');
+    expect(byId('goal-editor-closed-row').hidden).toBe(true);
+    byId('goal-editor-name').value = '  คอนโด  ';
+    byId('goal-editor-target').value = '1500000';
+    submitEditor();
+    await settle();
+
+    expect(calls).toEqual([
+      { call: 'POST /api/goals', body: { name: 'คอนโด', targetAmount: 1500000, targetDate: null } },
+      { call: 'GET /api/goals', body: undefined },
+    ]);
+    expect(byId('goal-editor').hasAttribute('open')).toBe(false);
+    expect(byId('goals-status').textContent).toBe('สร้างเป้า คอนโด แล้ว');
+  });
+
+  it('keeps the editor open with the reason when the name is taken', async () => {
+    await openTab();
+    captureFetch((method) => (method === 'POST' ? { status: 409, error: 'Duplicate name' } : undefined));
+
+    byId('goal-add').click();
+    byId('goal-editor-name').value = 'เที่ยวญี่ปุ่น';
+    byId('goal-editor-target').value = '1000';
+    submitEditor();
+    await settle();
+
+    expect(byId('goal-editor').hasAttribute('open')).toBe(true);
+    expect(byId('goal-editor-error').hidden).toBe(false);
+    expect(byId('goal-editor-error').textContent).toBe('มีเป้าชื่อนี้อยู่แล้ว');
+    expect(byId('goal-editor-save').disabled).toBe(false);
+  });
+
+  it('fills the editor with the goal and sends only the changed field when closing it', async () => {
+    await openTab();
+    const calls = captureFetch((method) => (method === 'PATCH' ? { goal: { id: 'g-1' } } : undefined));
+
+    await openGoalEditor(0);
+    expect(byId('goal-editor-title').textContent).toBe('แก้เป้า');
+    expect(byId('goal-editor-name').value).toBe('เที่ยวญี่ปุ่น');
+    expect(byId('goal-editor-target').value).toBe('50000');
+    expect(byId('goal-editor-date').value).toBe('2026-12-31');
+    expect(byId('goal-editor-closed-row').hidden).toBe(false);
+    byId('goal-editor-closed').checked = true;
+    submitEditor();
+    await settle();
+
+    expect(calls.find((entry) => entry.call.startsWith('PATCH'))).toEqual({ call: 'PATCH /api/goals/g-1', body: { closed: true } });
+    expect(byId('goals-status').textContent).toBe('ปิดเป้า เที่ยวญี่ปุ่น แล้ว');
+  });
+
+  it('closes the editor without a request when nothing changed', async () => {
+    await openTab();
+    const calls = captureFetch();
+
+    await openGoalEditor(0);
+    submitEditor();
+    await settle();
+
+    expect(calls.filter((entry) => entry.call.startsWith('PATCH'))).toEqual([]);
+    expect(byId('goal-editor').hasAttribute('open')).toBe(false);
+  });
+
+  const openDetailOf = async (id, index) => {
+    rowsOf(id)[index].querySelector('button').click();
+    await settle();
+  };
+  const historyTexts = () => [...byId('goal-history').querySelectorAll('li > span')].map((el) => el.textContent);
+  const submitDetail = () => byId('goal-detail-form').dispatchEvent(new Event('submit', { cancelable: true }));
+
+  it('labels each goal row with the save action', async () => {
+    await openTab();
+
+    expect(rowsOf()[0].querySelector('.budget-edit').textContent).toBe('ออมเพิ่ม');
+  });
+
+  it('opens the goal detail with its progress, today as the date and the history', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+
+    expect(byId('goal-detail').hasAttribute('open')).toBe(true);
+    expect(byId('goal-detail-title').textContent).toBe('เที่ยวญี่ปุ่น');
+    expect(byId('goal-detail-progress').textContent).toBe('ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)');
+    expect(byId('goal-detail-date').value).toBe('2026-10-15');
+    expect(byId('goal-detail-form').hidden).toBe(false);
+    expect(historyTexts()).toEqual(['14 ต.ค. 2569 · 1,000 บาท', '1 ต.ค. 2569 · 5,000 บาท']);
+    expect(byId('goal-history-empty').hidden).toBe(true);
+    expect(byId('goal-history-limit').hidden).toBe(true);
+  });
+
+  it('adds a contribution and refreshes the goal and its history', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method, path) =>
+      method === 'POST' && path === '/api/goals/g-1/contributions' ? { contribution: { id: 'gc-3' }, saved: 6500 } : undefined
+    );
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toEqual([
+      'POST /api/goals/g-1/contributions',
+      'GET /api/goals',
+      'GET /api/goals/g-1/contributions',
+    ]);
+    expect(calls[0].body).toEqual({ amount: 500, occurredOn: '2026-10-15' });
+    expect(byId('goal-detail-status').textContent).toBe('ออมเพิ่ม 500 บาท แล้ว');
+    expect(byId('goal-detail-amount').value).toBe('');
+  });
+
+  it('does not add twice when the save button is tapped while the goals reload', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method, path) =>
+      method === 'POST' && path === '/api/goals/g-1/contributions' ? { contribution: { id: 'gc-3' }, saved: 6500 } : undefined
+    );
+    const fallback = globalThis.fetch;
+    let releaseReload;
+    const reload = new Promise((resolve) => {
+      releaseReload = resolve;
+    });
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const response = fallback(url, options);
+      if ((options.method ?? 'GET') === 'GET' && new URL(url, 'http://localhost').pathname === '/api/goals') await reload;
+      return response;
+    });
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+    expect(byId('goal-detail-save').disabled).toBe(true);
+    submitDetail();
+    await settle();
+    releaseReload();
+    await settle();
+
+    expect(calls.filter((entry) => entry.call === 'POST /api/goals/g-1/contributions')).toHaveLength(1);
+    expect(byId('goal-detail-save').disabled).toBe(false);
+    expect(byId('goal-detail-amount').value).toBe('');
+  });
+
+  it('shows why adding failed and keeps the amount', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    captureFetch((method) => (method === 'POST' ? { status: 409, error: 'Goal closed' } : undefined));
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(byId('goal-detail-error').hidden).toBe(false);
+    expect(byId('goal-detail-error').textContent).toBe('เป้านี้ปิดแล้ว เปิดเป้าอีกครั้งก่อนออมเพิ่ม');
+    expect(byId('goal-detail-amount').value).toBe('500');
+    expect(byId('goal-detail-save').disabled).toBe(false);
+  });
+
+  it('deletes a contribution from the history and reloads', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method) => (method === 'DELETE' ? {} : undefined));
+
+    const remove = byId('goal-history').querySelector('.friend-remove');
+    expect(remove.getAttribute('aria-label')).toBe('ลบรายการออม 1,000 บาท วันที่ 14 ต.ค. 2569');
+    remove.click();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toEqual([
+      'DELETE /api/goals/g-1/contributions/gc-2',
+      'GET /api/goals',
+      'GET /api/goals/g-1/contributions',
+    ]);
+    expect(byId('goal-detail-status').textContent).toBe('ลบรายการออมแล้ว');
+  });
+
+  it('hides the add form of a closed goal and explains how to reopen it', async () => {
+    await openTab();
+    await openDetailOf('goal-closed-rows', 0);
+
+    expect(byId('goal-detail-title').textContent).toBe('มือถือใหม่');
+    expect(byId('goal-detail-form').hidden).toBe(true);
+    expect(byId('goal-detail-closed-note').hidden).toBe(false);
+    expect(byId('goal-history-empty').hidden).toBe(false);
+  });
+
+  it('says only the latest entries are shown when the goal has more', async () => {
+    const goals = RESPONSES['/api/goals'].goals.map((goal) => (goal.id === 'g-1' ? { ...goal, contributionCount: 150 } : goal));
+    await openTab({ overrides: { '/api/goals': { goals } } });
+    await openDetailOf('goal-rows', 0);
+
+    expect(byId('goal-history-limit').hidden).toBe(false);
+  });
+
+  it('shows a history load failure inside the detail', async () => {
+    await openTab({ overrides: { '/api/goals/g-1/contributions': { status: 500 } } });
+    await openDetailOf('goal-rows', 0);
+
+    expect(byId('goal-history-error').hidden).toBe(false);
+    expect(byId('goal-history-error').textContent).toBe('โหลดประวัติการออมไม่สำเร็จ');
+  });
+
+  it('opens the goal editor from the detail', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+
+    byId('goal-detail-edit').click();
+
+    expect(byId('goal-detail').hasAttribute('open')).toBe(false);
+    expect(byId('goal-editor').hasAttribute('open')).toBe(true);
+    expect(byId('goal-editor-name').value).toBe('เที่ยวญี่ปุ่น');
   });
 });

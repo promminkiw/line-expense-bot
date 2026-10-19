@@ -209,6 +209,7 @@ describe('/api', () => {
       allowExport: vi.fn().mockReturnValue(true),
       friendsRouter: express.Router(),
       billsRouter: express.Router(),
+      goalsRouter: express.Router(),
       liffId: 'liff-123',
       logger: { error: vi.fn() },
     });
