@@ -4189,6 +4189,13 @@ describe('LIFF goals tab', () => {
     expect(rowsOf()[0].querySelector('.budget-edit').textContent).toBe('ออมเพิ่ม');
   });
 
+  // เป้าที่ปิดแล้วออมเพิ่มไม่ได้ แถวจึงชวนดูประวัติแทน
+  it('labels a closed goal row with viewing its history', async () => {
+    await openTab();
+
+    expect(rowsOf('goal-closed-rows')[0].querySelector('.budget-edit').textContent).toBe('ดูประวัติ');
+  });
+
   it('opens the goal detail with its progress, today as the date and the history', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);

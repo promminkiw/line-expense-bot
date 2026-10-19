@@ -6,6 +6,7 @@ import { splitGoals, goalRow, contributionRows, describeGoalError } from './goal
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
 const ROW_ACTION_LABEL = 'ออมเพิ่ม';
+const CLOSED_ROW_ACTION_LABEL = 'ดูประวัติ';
 
 // แท็บออม: โหลดตอนเข้าแท็บเท่านั้น และโหลดใหม่ทุกครั้งเพราะผู้ใช้อาจออมผ่านแชตระหว่างนั้น
 export function createGoalsPanel({ doc, els, getApi }) {
@@ -38,7 +39,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     name.textContent = row.name;
     const action = doc.createElement('span');
     action.className = 'budget-edit';
-    action.textContent = ROW_ACTION_LABEL;
+    action.textContent = row.closed ? CLOSED_ROW_ACTION_LABEL : ROW_ACTION_LABEL;
     const value = doc.createElement('span');
     value.className = 'budget-value';
     value.textContent = row.text;
