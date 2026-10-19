@@ -53,3 +53,22 @@ export function isBillsPageLink(search) {
   if (parseFriendLink(search)) return false;
   return Boolean(parseBillLink(search) || parseTabLink(search, ['bills']));
 }
+
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const SEARCH_MAX_LENGTH = 50;
+// ตรงกับ MAX_CATEGORY_NAME_LENGTH ฝั่ง server
+const CATEGORY_NAME_MAX_LENGTH = 30;
+
+// ลิงก์จากการ์ดตอบยอดคือ ?tab=list&m=<เดือน>&q=<คำค้นในโน้ต>&c=<ชื่อหมวด>&type=<ประเภท> ค่าที่ไม่ถูกต้องถูกข้ามเป็นค่าว่าง
+export function parseListLink(search) {
+  const params = readLinkParams(search);
+  const month = params.get('m');
+  const type = params.get('type');
+  const link = {
+    month: month && MONTH_PATTERN.test(month) ? month : '',
+    query: (params.get('q') || '').trim().slice(0, SEARCH_MAX_LENGTH),
+    category: (params.get('c') || '').trim().slice(0, CATEGORY_NAME_MAX_LENGTH),
+    type: type === 'expense' || type === 'income' ? type : '',
+  };
+  return link.month || link.query || link.category || link.type ? link : null;
+}

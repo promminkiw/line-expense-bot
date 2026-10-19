@@ -924,6 +924,102 @@ describe('LIFF page when loading fails', () => {
 });
 
 
+describe('LIFF page opened from a totals answer card', () => {
+  const noteOf = () => [...document.querySelectorAll('#list .row .row-note')].map((el) => el.textContent);
+
+  it('opens the list on the linked month with the search box and type filter filled', async () => {
+    await boot({ search: `?tab=list&m=2026-09&q=${encodeURIComponent('bts')}&type=expense` });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(byId('search').value).toBe('bts');
+    expect(byId('filter-type').value).toBe('expense');
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+    expect(noteOf()).toEqual(['BTS']);
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(window.location.search).toBe('');
+  });
+
+  describe('with a category in the link', () => {
+    const categories = [...CATEGORIES, { id: 'c-other-in', name: 'อื่นๆ', type: 'income' }, { id: 'c-other-out', name: 'อื่นๆ', type: 'expense' }];
+    const transactions = [
+      { id: 'a1', type: 'expense', amount: 60, note: 'กาแฟเช้า', occurredOn: '2026-10-02', categoryId: 'c-food', categoryName: 'อาหาร' },
+      { id: 'a2', type: 'expense', amount: 40, note: 'ข้าว', occurredOn: '2026-10-02', categoryId: 'c-food', categoryName: 'อาหาร' },
+      { id: 'a3', type: 'expense', amount: 30, note: 'กาแฟ BTS', occurredOn: '2026-10-01', categoryId: 'c-trip', categoryName: 'เดินทาง' },
+      { id: 'a4', type: 'expense', amount: 99, note: 'ซื้ออาหารแมว', occurredOn: '2026-10-01', categoryId: 'c-trip', categoryName: 'เดินทาง' },
+    ];
+    const overrides = { '/api/categories': { categories }, '/api/transactions': { transactions, summary: [], truncated: false } };
+    const ids = () => [...document.querySelectorAll('#list .row')].map((el) => el.dataset.id);
+
+    it('counts only entries of that category whose note matches the keyword', async () => {
+      await boot({ overrides, search: `?tab=list&c=${encodeURIComponent('อาหาร')}&q=${encodeURIComponent('กาแฟ')}&type=expense` });
+      await settle();
+
+      expect(byId('filter-category').value).toBe('c-food');
+      expect(byId('search').value).toBe('กาแฟ');
+      expect(ids()).toEqual(['a1']);
+      expect(byId('filter-status').textContent).toBe('พบ 1 จาก 4 รายการ');
+    });
+
+    it('filters by the category alone when there is no keyword', async () => {
+      await boot({ overrides, search: `?tab=list&c=${encodeURIComponent('อาหาร')}&type=expense` });
+      await settle();
+
+      expect(byId('search').value).toBe('');
+      expect(ids()).toEqual(['a1', 'a2']);
+    });
+
+    it('puts the name in the search box when it exists in both types and the type is open', async () => {
+      await boot({ overrides, search: `?tab=list&c=${encodeURIComponent('อื่นๆ')}` });
+      await settle();
+
+      expect(byId('filter-category').value).toBe('');
+      expect(byId('search').value).toBe('อื่นๆ');
+    });
+
+    it('picks the category of the linked type when the name exists in both types', async () => {
+      await boot({ overrides, search: `?tab=list&c=${encodeURIComponent('อื่นๆ')}&type=income` });
+      await settle();
+
+      expect(byId('filter-category').value).toBe('c-other-in');
+      expect(byId('search').value).toBe('');
+    });
+
+    it('puts the name in the search box when no category has it', async () => {
+      await boot({ overrides, search: `?tab=list&c=${encodeURIComponent('ไม่มีหมวดนี้')}&type=expense` });
+      await settle();
+
+      expect(byId('filter-category').value).toBe('');
+      expect(byId('search').value).toBe('ไม่มีหมวดนี้');
+    });
+  });
+
+  it('opens the list tab even when the link carries no tab', async () => {
+    await boot({ search: '?m=2026-10&type=income' });
+    await settle();
+
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(1);
+  });
+
+  it('ignores invalid parts and shows the normal list', async () => {
+    await boot({ search: '?tab=list&m=2026-13&type=all' });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('search').value).toBe('');
+    expect(document.querySelectorAll('#list .row')).toHaveLength(3);
+  });
+
+  it('keeps the edit link in charge when both are present', async () => {
+    await boot({ search: '?tx=t2&d=2026-10-01&m=2026-09&q=zzz' });
+
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('search').value).toBe('');
+    expect(byId('editor').open).toBe(true);
+  });
+});
+
 describe('LIFF page opened from a card link', () => {
   it('opens only the friend dialog when the link has both an entry and a friend code', async () => {
     await boot({ search: '?tx=t2&d=2026-10-01&friend=WXYZ2345' });
