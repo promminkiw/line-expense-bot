@@ -406,3 +406,22 @@ describe('style.css notification switches', () => {
     expect(declarations('.notify-settings')).toMatch(/box-shadow:\s*var\(--shadow-card\)/);
   });
 });
+
+describe('style.css list filters', () => {
+  // คอลัมน์ 1fr ขยายตามตัวเลือกที่ยาวที่สุดของ select ทำให้ทั้งแถวล้นจอแคบ
+  it('keeps the two filter columns inside the screen width', () => {
+    expect(declarations('.filters')).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  });
+
+  it('lets filter selects shrink and cut long option text', () => {
+    const rule = declarations('.filters select');
+
+    expect(rule).toMatch(/min-width:\s*0/);
+    expect(rule).toMatch(/width:\s*100%/);
+    expect(rule).toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it('gives the wallet filter a full row', () => {
+    expect(declarations('#filter-wallet')).toMatch(/grid-column:\s*1\s*\/\s*-1/);
+  });
+});
