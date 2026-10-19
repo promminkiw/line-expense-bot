@@ -1,12 +1,12 @@
 # STATE
-Updated: 2026-10-19 (ล่าสุด: กระเป๋าเงินเสร็จบน branch feat/wallets)
+Updated: 2026-10-19 (ล่าสุด: กระเป๋าเงิน merge เข้า main ในเครื่องแล้ว ครบ 4 ฟีเจอร์ รอผู้ใช้รัน SQL และ push)
 Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (สรุปรายสัปดาห์, เตือนลืมจด, เป้าหมายการออม, กระเป๋าเงิน) ให้ผ่านการตรวจแล้วขึ้น main; หมวดของผู้ใช้เองและถามยอดเสร็จและ push แล้ว
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## Next
-- [ ] `next` กระเป๋าเงิน (แผน docs/superpowers/plans/2026-10-19-wallets.md) เสร็จบน branch feat/wallets รวมรอบแก้จาก final review แล้ว ยังไม่ merge/push: ผู้ใช้รัน `supabase/024_wallets.sql` ก่อน push (ห้ามรัน 020 ซ้ำหลัง 024) แล้วทำ LINE check Task 7 และ 12 กับ Browser check Task 10-11 (รวมชื่อกระเป๋ายาวบนจอ 320px)
-- [ ] `next` roadmap ข: ฟีเจอร์ 3-5 merge เข้า main ในเครื่องแล้ว (debe0ea, 784949b) กระเป๋าเงินยังอยู่บน branch; ผู้ใช้ตัดสินให้รัน SQL 021-024 ทีเดียวแล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00) + LINE/Browser check ของออม (ดูแผน 2026-10-19-savings-goals.md)
+- [ ] `next` ผู้ใช้: ฟีเจอร์ 3-6 merge เข้า main ในเครื่องครบแล้ว (debe0ea, 784949b, 2df2f8d) ยังไม่ push: รัน SQL 021-024 ใน Supabase ทีเดียว (ห้ามรัน 020 ซ้ำหลัง 024) แล้ว push ครั้งเดียว + เพิ่ม cron-job.org 2 งาน (weekly อาทิตย์ 19:00, daily-reminder ทุกวัน 21:00)
+- [ ] `next` LINE/Browser check หลัง push: ออม (แผน savings-goals Task 6, 8-10), กระเป๋า (แผน wallets Task 7, 10-12 รวมชื่อยาวจอ 320px และการ์ดบอก "อ่านกระเป๋าไม่ได้")
 - [ ] `next` LINE check การ์ดถามยอด: merge+push แล้ว (18ee475) รอผู้ใช้ลอง (การ์ด, ปุ่ม ดูรายการในเว็บ เปิดเดือนนั้นพร้อมตัวกรองหมวด/คำค้น/ประเภท); worktree C:\GithubPrommin\line-expense-bot-flex ยังไม่ลบ (ต้องถามก่อนลบ); Minor M1-M5 ของ reviewer ถามยอดยังไม่ทำ
 - [ ] `next` Browser check ในแอป LINE ของการลบหมวด (Task 4 ของแผน 2026-10-19-delete-category.md): merge+push แล้ว (bfc5dd1) ผู้ใช้รัน 019 แล้ว รอผู้ใช้ลอง
 - [ ] Browser check ในแอป LINE ของไอคอนหมวด (Task 8 ของแผน 2026-10-18-category-icons.md) และหมวดของผู้ใช้เอง (Task 9 ของแผน 2026-10-18-custom-categories.md): merge+push แล้ว รอผู้ใช้ลอง
