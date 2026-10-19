@@ -232,8 +232,8 @@
     <div id="panel-list" class="panel">
       <ul id="list-head-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="totals" class="stat-cards" hidden>
-        <div class="stat balance"><span class="stat-label">คงเหลือเดือนนี้</span><span id="stat-balance"
-            class="stat-value"></span></div>
+        <div class="stat balance"><span class="stat-label">คงเหลือ</span><span id="stat-balance"
+            class="stat-value"></span><span class="stat-note">รายรับ - รายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
         <div class="stat-sub">
           <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income"
               class="stat-value"></span></div>
@@ -354,6 +354,7 @@
       <section id="goals" class="goals" aria-labelledby="goals-title">
         <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
         <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
+        <p class="goals-hint">ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน</p>
         <p id="goals-status" class="goals-status" role="status" aria-live="polite"></p>
         <p id="goals-loading" class="sr-only" role="status" hidden>กำลังโหลดเป้าออม...</p>
         <ul id="goals-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
@@ -445,7 +446,7 @@
           </div>
         </div>
         <div class="balance-card">
-          <span class="stat-label">ยอดเงินคงเหลือ</span>
+          <span class="stat-label">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
           <span class="balance-note">รายรับ - รายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
             ไม่ใช่ยอดเงินในบัญชีจริง</span>

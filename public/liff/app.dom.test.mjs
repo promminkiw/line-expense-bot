@@ -255,6 +255,14 @@ describe('index.html static invariants', () => {
     expect(doc.getElementById('categories-open').textContent.trim()).toBe('จัดการหมวดหมู่');
   });
 
+  it('explains what each balance counts', () => {
+    expect(doc.querySelector('#totals .stat.balance .stat-label').textContent.trim()).toBe('คงเหลือ');
+    expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับ - รายจ่าย ของเดือนที่เลือก');
+    expect(doc.querySelector('.balance-card .stat-label').textContent.trim()).toBe('ยอดสะสมทั้งหมด');
+    const goalHints = [...doc.querySelectorAll('#goals .goals-hint')].map((hint) => hint.textContent.trim());
+    expect(goalHints).toContain('ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน');
+  });
+
   // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
   it.each([
     ['edit-form', 'cancel-button', 'delete-button'],
