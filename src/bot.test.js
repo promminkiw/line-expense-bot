@@ -1120,6 +1120,20 @@ describe('bot totals questions', () => {
       expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({ tab: 'list', m: '2026-09', c: 'อาหาร' });
     });
 
+    it('sends the wallet name when the question names a wallet', async () => {
+      const { deps, bot } = setup({ liffUrl: LIFF_URL });
+      deps.parseQuestion.mockResolvedValue({ ...QUESTION, keyword: '', wallet: 'บัตรเครดิต' });
+
+      await bot.handleEvent(textEvent('เดือนนี้รูดบัตรเครดิตไปเท่าไหร่'));
+
+      expect(Object.fromEntries(new URL(buttonUri(deps)).searchParams)).toEqual({
+        tab: 'list',
+        m: '2026-10',
+        w: 'บัตรเครดิต',
+        type: 'expense',
+      });
+    });
+
     it('has no button without a LIFF url', async () => {
       const { deps, bot } = setup();
       deps.parseQuestion.mockResolvedValue(QUESTION);

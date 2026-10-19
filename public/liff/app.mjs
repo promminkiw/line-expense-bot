@@ -1734,6 +1734,15 @@ function applyLinkedCategory({ category, query, type }) {
   refilter();
 }
 
+// ช่องค้นหาไม่ค้นชื่อกระเป๋า จึงเลือกได้แค่ในตัวกรองกระเป๋า ซึ่งมีเฉพาะผู้ใช้หลายกระเป๋า ชื่อที่ไม่มีแล้วข้ามไป
+function applyLinkedWallet({ wallet }) {
+  if (!wallet || els.filterWallet.hidden) return;
+  const match = wallets.find((item) => item.name === wallet);
+  if (!match) return;
+  els.filterWallet.value = match.id;
+  refilter();
+}
+
 async function boot() {
   // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
   const billsPage = isBillsPageLink(window.location.search);
@@ -1786,7 +1795,11 @@ async function boot() {
       tabController.select('list');
     } else if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
-    if (listFilter) applyLinkedCategory(listFilter);
+    if (listFilter) {
+      applyLinkedCategory(listFilter);
+      // ตัวเลือกกระเป๋ามีหลัง walletsPanel.load() ใน loadAll เสร็จเท่านั้น จึงเลือกหลัง loadAll เหมือนหมวด
+      applyLinkedWallet(listFilter);
+    }
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
     if (tabController.current === 'profile') {
       friendsPanel.ensureLoaded();

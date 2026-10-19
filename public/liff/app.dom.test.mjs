@@ -4630,3 +4630,42 @@ describe('LIFF wallets on entries', () => {
     expect(byId('edit-wallet-row').hidden).toBe(true);
   });
 });
+
+describe('LIFF page opened from a totals card that names a wallet', () => {
+  const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 60, balance: 24940, entryCount: 2 };
+  const CARD = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 40, balance: -40, entryCount: 1 };
+  const transactions = TRANSACTIONS.map((item) =>
+    item.id === 't2' ? { ...item, walletId: 'w-card', walletName: 'บัตรเครดิต' } : { ...item, walletId: 'w-cash', walletName: 'เงินสด' }
+  );
+  const month = { ...RESPONSES['/api/transactions'], transactions };
+  const ids = () => [...document.querySelectorAll('#list .row')].map((el) => el.dataset.id);
+  const link = (wallet) => `?tab=list&m=2026-10&w=${encodeURIComponent(wallet)}&type=expense`;
+
+  // การ์ดนับรายจ่ายของบัตรเครดิตเดือน ต.ค. ได้ 1 รายการ (t2) หน้าเว็บต้องแสดงจำนวนเดียวกัน
+  it('selects the linked wallet so the list shows the entries the card counted', async () => {
+    await boot({ overrides: { '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': month }, search: link('บัตรเครดิต') });
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('w-card');
+    expect(ids()).toEqual(['t2']);
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(byId('filter-clear').hidden).toBe(false);
+  });
+
+  it('ignores a wallet name the user does not have', async () => {
+    await boot({ overrides: { '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': month }, search: link('ไม่มีกระเป๋านี้') });
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('');
+    expect(ids()).toEqual(['t1', 't2']);
+  });
+
+  it('ignores the wallet for a user with a single wallet', async () => {
+    await boot({ overrides: { '/api/wallets': { wallets: [CASH] }, '/api/transactions': month }, search: link('เงินสด') });
+    await settle();
+
+    expect(byId('filter-wallet').hidden).toBe(true);
+    expect(byId('filter-wallet').value).toBe('');
+    expect(ids()).toEqual(['t1', 't2']);
+  });
+});
