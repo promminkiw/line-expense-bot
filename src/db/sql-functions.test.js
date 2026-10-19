@@ -1276,6 +1276,28 @@ describe('024_wallets.sql', () => {
     ]);
   });
 
+  // ซ่อนกระเป๋าแค่ไม่ให้เลือกตอนจดใหม่ ยอดและคำถามยอดของรายการเก่าในกระเป๋านั้นต้องยังนับ
+  it('keeps the totals of a hidden wallet in wallet_totals and totals questions', async () => {
+    const user = await createUser('U1');
+    const food = await createCategory(user, 'อาหาร', 'expense');
+    await createWallet(user, 'เงินสด');
+    const card = await createWallet(user, 'บัตรเครดิต');
+    await addToWallet(user, food, card, 'expense', 300, '2026-10-04');
+    await db.query('update wallets set hidden = true where id = $1', [card]);
+
+    const totals = (await rows('select * from wallet_totals($1)', [user])).map(numbers);
+
+    expect(totals.find((row) => row.wallet_id === card)).toEqual({
+      wallet_id: card,
+      name: 'บัตรเครดิต',
+      hidden: true,
+      income: 0,
+      expense: 300,
+      entry_count: 1,
+    });
+    expect(await walletQuestion(user, 'บัตรเครดิต')).toEqual([{ type: 'expense', total: 300, entry_count: 1 }]);
+  });
+
   it('filters a totals question by wallet name, treating entries without a wallet as cash', async () => {
     const user = await createUser('U1');
     const food = await createCategory(user, 'อาหาร', 'expense');
