@@ -4189,6 +4189,13 @@ describe('LIFF goals tab', () => {
     expect(rowsOf()[0].querySelector('.budget-edit').textContent).toBe('ออมเพิ่ม');
   });
 
+  // เป้าที่ปิดแล้วออมเพิ่มไม่ได้ แถวจึงชวนดูประวัติแทน
+  it('labels a closed goal row with viewing its history', async () => {
+    await openTab();
+
+    expect(rowsOf('goal-closed-rows')[0].querySelector('.budget-edit').textContent).toBe('ดูประวัติ');
+  });
+
   it('opens the goal detail with its progress, today as the date and the history', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);
@@ -4268,6 +4275,52 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail-error').textContent).toBe('เป้านี้ปิดแล้ว เปิดเป้าอีกครั้งก่อนออมเพิ่ม');
     expect(byId('goal-detail-amount').value).toBe('500');
     expect(byId('goal-detail-save').disabled).toBe(false);
+  });
+
+  // เป้าถูกปิดจากที่อื่น (แท็บอื่นหรืออีกเครื่อง) ระหว่างเปิดรายละเอียดอยู่ ต้องโหลดใหม่ให้เห็นสถานะจริง
+  it('reloads the goals after a goal closed refusal so the detail shows it closed', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const closedGoals = { goals: RESPONSES['/api/goals'].goals.map((goal) => (goal.id === 'g-1' ? { ...goal, closed: true } : goal)) };
+    const calls = captureFetch((method, path) => {
+      if (method === 'POST') return { status: 409, error: 'Goal closed' };
+      if (method === 'GET' && path === '/api/goals') return closedGoals;
+      return undefined;
+    });
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toContain('GET /api/goals');
+    expect(byId('goal-detail-error').textContent).toBe('เป้านี้ปิดแล้ว เปิดเป้าอีกครั้งก่อนออมเพิ่ม');
+    expect(byId('goal-detail-form').hidden).toBe(true);
+    expect(byId('goal-detail-closed-note').hidden).toBe(false);
+  });
+
+  it('reloads the goals after a not found refusal', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method) => (method === 'POST' ? { status: 404, error: 'Not found' } : undefined));
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).toContain('GET /api/goals');
+    expect(byId('goal-detail-error').textContent).toBe('ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่');
+  });
+
+  it('does not reload the goals for other refusals', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method) => (method === 'POST' ? { status: 400, error: 'Invalid amount' } : undefined));
+
+    byId('goal-detail-amount').value = '500';
+    submitDetail();
+    await settle();
+
+    expect(calls.map((entry) => entry.call)).not.toContain('GET /api/goals');
   });
 
   it('deletes a contribution from the history and reloads', async () => {
@@ -4699,6 +4752,19 @@ describe('LIFF wallets on entries', () => {
     expect(byId('banner').textContent).toContain('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
   });
 
+  it('selects the linked wallet and clears the notice once the wallets load later', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': WALLET_MONTH };
+    await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
+    await settle();
+    stubFetch({ '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': WALLET_MONTH });
+
+    byId('wallets-retry').click();
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('w-card');
+    expect(byId('banner').hidden).toBe(true);
+  });
+
   it('keeps the load error and its retry button when a linked wallet page fails to load at all', async () => {
     const failing = { '/api/wallets': { status: 500 }, '/api/transactions': { status: 500 } };
     await boot({ overrides: failing, search: `?tab=list&m=2026-10&w=${encodeURIComponent('บัตรเครดิต')}&type=expense` });
@@ -4739,6 +4805,20 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
     expect(ids()).toEqual(['t2']);
     expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
     expect(byId('filter-clear').hidden).toBe(false);
+  });
+
+  // โหลดรอบแรกพังแล้วกดลองใหม่ ต้องยังกรองตามลิงก์ ไม่งั้นจำนวนรายการไม่ตรงกับการ์ด
+  it('applies the linked wallet after a retry when the first load failed', async () => {
+    const failing = { '/api/wallets': { status: 500 }, '/api/transactions': { status: 500 } };
+    await boot({ overrides: failing, search: link('บัตรเครดิต') });
+    await settle();
+    vi.stubGlobal('fetch', makeFetch({ '/api/wallets': { wallets: [CASH, CARD] }, '/api/transactions': month }));
+
+    byId('banner-retry').click();
+    await settle();
+
+    expect(byId('filter-wallet').value).toBe('w-card');
+    expect(ids()).toEqual(['t2']);
   });
 
   it('ignores a wallet name the user does not have', async () => {

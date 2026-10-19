@@ -777,6 +777,25 @@ describe('bot saving command', () => {
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
   });
 
+  it('asks for the goal name instead of saving an expense when the name is missing', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม 1000'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ใส่ชื่อเป้าด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น', undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('records "ออม 1000" as an entry for a user with no open goal', async () => {
+    const { deps, bot } = setup();
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('ออม 1000'));
+
+    expect(deps.parseMessage).toHaveBeenCalled();
+  });
+
   it('asks for a valid amount when the user has an open goal', async () => {
     const { deps, bot } = setup();
 
@@ -1032,6 +1051,22 @@ describe('bot text categories', () => {
 
     expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
     expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, []);
+  });
+
+  // อ่านหมวดและกระเป๋าไปพร้อมกับบริบทแชต ไม่ต้องรอทีละอย่างก่อนเรียก Claude
+  it('starts loading the categories and wallets without waiting for the chat history', async () => {
+    const { deps, bot } = setup();
+    let releaseHistory;
+    deps.repository.getPendingClarification.mockReturnValue(new Promise((resolve) => (releaseHistory = resolve)));
+
+    const handled = bot.handleEvent(textEvent('อาหารแมว 300'));
+    await vi.waitFor(() => expect(deps.repository.getPendingClarification).toHaveBeenCalled());
+
+    expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
+    releaseHistory(null);
+    await handled;
+    expect(deps.parseMessage).toHaveBeenCalled();
   });
 
   // หมวดเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ยังบันทึกด้วยหมวดเริ่มต้นได้ ดีกว่าตอบว่าระบบมีปัญหา

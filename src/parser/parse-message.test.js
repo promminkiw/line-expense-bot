@@ -405,6 +405,27 @@ describe('parseMessage with wallets', () => {
     expect(itemSchema.required).toEqual(['type', 'category', 'amount', 'date', 'note', 'wallet']);
   });
 
+  // ลองกับ Claude จริง "กาแฟ 60 รูดบัตรเครดิต" ได้หมวด อื่นๆ บางครั้งเมื่อมีกระเป๋าในข้อความ
+  it('tells Claude to pick the category from what was bought, not from the wallet words', async () => {
+    const client = fakeClient(okPayload([item({ wallet: 'บัตรเครดิต' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กาแฟ 60 รูดบัตรเครดิต', [], CATEGORIES, WALLETS);
+
+    expect(client.messages.create.mock.calls[0][0].system).toContain(
+      '- Wallet words never change the category. Pick the category from what was bought or received, e.g. "กาแฟ 60 รูดบัตรเครดิต" is อาหาร.'
+    );
+  });
+
+  it('leaves the wallet category rule out for a user with one wallet', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('กาแฟ 60', [], CATEGORIES, []);
+
+    expect(client.messages.create.mock.calls[0][0].system).not.toContain('Wallet words');
+  });
+
   it('keeps a wallet Claude picked from the list', async () => {
     const client = fakeClient(okPayload([item({ wallet: 'บัตรเครดิต' })]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });

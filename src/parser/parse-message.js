@@ -60,6 +60,7 @@ function buildSystemPrompt(today, categories, wallets = []) {
       ? [
           `- Wallets: ${wallets.join(', ')}`,
           '- wallet is the wallet from the list that the user paid with or received money into, only when the message names it, e.g. "รูดบัตร" or "บัตรเครดิต". Otherwise "".',
+          '- Wallet words never change the category. Pick the category from what was bought or received, e.g. "กาแฟ 60 รูดบัตรเครดิต" is อาหาร.',
         ]
       : [];
   return [

@@ -1,4 +1,4 @@
-const { isValidAmount } = require('../api/validate');
+const { isValidAmount, hasInvisibleCharacter } = require('../api/validate');
 const { isValidCalendarDate } = require('../utils/date');
 
 // ตรงกับ check char_length ของตาราง savings_goals ซึ่งนับเป็นตัวอักษร
@@ -12,16 +12,11 @@ function isObject(body) {
   return Boolean(body) && typeof body === 'object';
 }
 
-// ชื่อเป้าไปอยู่ในข้อความตอบของแชต ตัวควบคุมทำให้ข้อความเพี้ยน
-function hasControlCharacter(name) {
-  return [...name].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
-}
-
 function checkName(value) {
   if (typeof value !== 'string') return fail('Invalid name');
   const name = value.trim();
   const length = Array.from(name).length;
-  if (length < 1 || length > MAX_GOAL_NAME_LENGTH || hasControlCharacter(name)) return fail('Invalid name');
+  if (length < 1 || length > MAX_GOAL_NAME_LENGTH || hasInvisibleCharacter(name)) return fail('Invalid name');
   return { ok: true, value: name };
 }
 

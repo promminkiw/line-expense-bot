@@ -528,6 +528,12 @@ function setWallets(next) {
   if (els.filterWallet.value !== selected) els.filterWallet.value = '';
   els.filterWallet.hidden = !hasSeveralWallets(wallets);
   if (els.filterWallet.hidden) els.filterWallet.value = '';
+  if (pendingLinkedWallet) {
+    const wallet = pendingLinkedWallet;
+    pendingLinkedWallet = null;
+    if (els.banner.textContent === WALLET_LINK_UNFILTERED) setBanner('');
+    selectLinkedWallet(wallet);
+  }
   // เปลี่ยนชื่อต้องโหลดรายการใหม่ เพราะ walletName ในแถวมาจาก server
   if (wallets.some((wallet) => namesBefore.has(wallet.id) && namesBefore.get(wallet.id) !== wallet.name)) {
     loadMonth();
@@ -1566,6 +1572,8 @@ els.bannerRetry.addEventListener('click', async () => {
   }
   if (initialLoadDone) {
     loadMonth({ reset: true });
+    // กระเป๋าที่โหลดไม่ได้ทำให้ตัวกรองและลิงก์กระเป๋าหายไป จึงลองโหลดใหม่ด้วย
+    if (!walletsPanel.isLoaded()) walletsPanel.load();
     return;
   }
   // boot ล้มก่อนโหลดหมวดและรายการประจำเสร็จ โหลดแค่เดือนจะทิ้งแท็บอื่นว่าง จึงเริ่มโหลดทุกอย่างใหม่
@@ -1573,6 +1581,7 @@ els.bannerRetry.addEventListener('click', async () => {
   setBanner('');
   try {
     await loadAll();
+    applyPendingListFilter();
   } catch (err) {
     showLoadError(err);
   }
@@ -1736,6 +1745,20 @@ async function loadAll() {
   initialLoadDone = true;
 }
 
+// ลิงก์จากการ์ดตอบยอดที่ยังไม่ได้เลือกตัวกรอง เก็บไว้ให้ปุ่มลองใหม่ใช้ต่อเมื่อโหลดรอบแรกไม่สำเร็จ
+let pendingListFilter = null;
+let pendingLinkedWallet = null;
+const WALLET_LINK_UNFILTERED = 'โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า';
+
+function applyPendingListFilter() {
+  if (!pendingListFilter) return;
+  const listFilter = pendingListFilter;
+  pendingListFilter = null;
+  applyLinkedCategory(listFilter);
+  // ตัวเลือกกระเป๋ามีหลัง walletsPanel.load() ใน loadAll เสร็จเท่านั้น จึงเลือกหลัง loadAll เหมือนหมวด
+  applyLinkedWallet(listFilter);
+}
+
 // SQL จับคู่หมวดตามชื่อตรงๆ แต่ช่องค้นหาค้นทั้งชื่อหมวดและโน้ต จึงเลือกหมวดจริงแทนการใส่ชื่อในช่องค้นหา
 function applyLinkedCategory({ category, query, type }) {
   if (!category) return;
@@ -1752,12 +1775,18 @@ function applyLinkedCategory({ category, query, type }) {
 function applyLinkedWallet({ wallet }) {
   if (!wallet) return;
   if (!walletsPanel.isLoaded()) {
+    // เลือกให้ทีหลังเมื่อโหลดกระเป๋าสำเร็จ (ปุ่มลองใหม่ ตัวแก้ไข หรือส่วนกระเป๋าในโปรไฟล์)
+    pendingLinkedWallet = wallet;
     // ข้อความโหลดข้อมูลไม่สำเร็จพร้อมปุ่มลองใหม่สำคัญกว่า ห้ามเขียนทับ
     if (loadError) return;
     // จำนวนรายการจึงอาจไม่ตรงกับการ์ด ต้องบอกผู้ใช้
-    setBanner('โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า');
+    setBanner(WALLET_LINK_UNFILTERED);
     return;
   }
+  selectLinkedWallet(wallet);
+}
+
+function selectLinkedWallet(wallet) {
   if (els.filterWallet.hidden) return;
   const match = wallets.find((item) => item.name === wallet);
   if (!match) return;
@@ -1816,12 +1845,9 @@ async function boot() {
       els.filterType.value = listFilter.type;
       tabController.select('list');
     } else if (tabId && !link && !friendCode) tabController.select(tabId);
+    pendingListFilter = listFilter;
     await loadAll();
-    if (listFilter) {
-      applyLinkedCategory(listFilter);
-      // ตัวเลือกกระเป๋ามีหลัง walletsPanel.load() ใน loadAll เสร็จเท่านั้น จึงเลือกหลัง loadAll เหมือนหมวด
-      applyLinkedWallet(listFilter);
-    }
+    applyPendingListFilter();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
     if (tabController.current === 'profile') {
       friendsPanel.ensureLoaded();
