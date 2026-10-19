@@ -74,3 +74,11 @@ describe('validateContribution', () => {
     expect(validateContribution(undefined)).toEqual({ ok: false, error: 'Invalid body' });
   });
 });
+
+describe('goal names with invisible characters', () => {
+  // ชื่อเป้าไปอยู่ในข้อความตอบของแชต และแชตหาเป้าจากชื่อที่พิมพ์
+  it.each(['\u0085', '\u200b', '\u2060', '\ufeff', '\u202e', '\u2066', '\u2028', '\ud800'])('refuses %j', (char) => {
+    expect(validateGoalCreate({ name: `บ้าน${char}ริมทะเล`, targetAmount: 1 })).toEqual({ ok: false, error: 'Invalid name' });
+    expect(validateGoalUpdate({ name: `บ้าน${char}ริมทะเล` })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+});

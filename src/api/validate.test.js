@@ -252,3 +252,28 @@ describe('validateWalletUpdate', () => {
     expect(validateWalletUpdate({ name: 'เงินสด' })).toEqual({ ok: false, error: 'Reserved name' });
   });
 });
+
+// อักขระมองไม่เห็นทำให้ชื่อหน้าตาเหมือนชื่อที่ห้าม เช่น "เงินสด" ที่มี zero-width ต่อท้าย
+const INVISIBLE_CHARACTERS = ['\u0085', '\u009f', '\u200b', '\u200d', '\u2060', '\ufeff', '\u200e', '\u202e', '\u2066', '\u061c', '\u2028', '\u2029', '\ud800'];
+
+describe('invisible characters in names', () => {
+  it.each(INVISIBLE_CHARACTERS)('refuses a category name with %j', (char) => {
+    expect(validateCategoryCreate({ type: 'expense', name: `แมว${char}หมา` })).toEqual({ ok: false, error: 'Invalid name' });
+    expect(validateCategoryUpdate({ name: `แมว${char}หมา` })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+
+  it.each(INVISIBLE_CHARACTERS)('refuses a wallet name with %j', (char) => {
+    expect(validateWalletCreate({ name: `เงิน${char}สด` })).toEqual({ ok: false, error: 'Invalid name' });
+    expect(validateWalletUpdate({ name: `บัตร${char}เครดิต` })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+
+  it('refuses a fullwidth comma like the plain comma', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'แมว\uff0cหมา' })).toEqual({ ok: false, error: 'Invalid name' });
+    expect(validateWalletCreate({ name: 'a\uff0cb' })).toEqual({ ok: false, error: 'Invalid name' });
+  });
+
+  it('still accepts Thai names with tone marks and emoji', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'ค่าน้ำมัน ⛽' }).ok).toBe(true);
+    expect(validateWalletCreate({ name: 'กระเป๋าตังค์ 👛' }).ok).toBe(true);
+  });
+});
