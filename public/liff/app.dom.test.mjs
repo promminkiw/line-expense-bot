@@ -87,6 +87,7 @@ const RESPONSES = {
     ],
   },
   '/api/profile': { displayName: 'สมชาย', income: 25000, expense: 100, balance: 24900, entryCount: 3, firstDate: '2026-08-03' },
+  '/api/settings': { weeklySummary: false },
 };
 
 const EMPTY_MONTH = { transactions: [], summary: [], truncated: false };
@@ -298,6 +299,17 @@ describe('index.html static invariants', () => {
     const heading = doc.getElementById(editor.getAttribute('aria-labelledby'));
 
     expect(heading.textContent).toBe('แก้ไขรายการ');
+  });
+
+  it('starts the notification section hidden and gives each switch a visible label', () => {
+    for (const id of ['notify', 'notify-loading', 'notify-error', 'notify-body']) {
+      expect(doc.getElementById(id).hasAttribute('hidden'), id).toBe(true);
+    }
+    const box = doc.getElementById('notify-weekly-summary');
+    expect(box.getAttribute('role')).toBe('switch');
+    expect(box.closest('label.notify-switch').textContent).toContain('ส่งสรุปทุกวันอาทิตย์');
+    expect(doc.getElementById('notify').closest('#panel-profile')).not.toBeNull();
+    expect(doc.getElementById('notify').closest('#profile-card')).toBeNull();
   });
 
   it('starts every JS-controlled loading and error element hidden', () => {
@@ -2030,6 +2042,82 @@ describe('LIFF friends section guards and failure paths', () => {
     await settle();
 
     expect(byId('friend-qr').innerHTML).not.toBe(before);
+  });
+});
+
+describe('LIFF notification settings', () => {
+  it('does not ask for the settings before the profile tab opens', async () => {
+    const liff = await boot();
+
+    expect(liff.fetched).not.toContain('/api/settings');
+    expect(byId('notify').hidden).toBe(true);
+  });
+
+  it('loads the switches when the profile tab opens', async () => {
+    const liff = await boot();
+
+    clickTab('profile');
+    await settle();
+
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
+    expect(byId('notify').hidden).toBe(false);
+    expect(byId('notify-body').hidden).toBe(false);
+    expect(byId('notify-weekly-summary').checked).toBe(false);
+  });
+
+  it('loads the switches after boot when a link opens the profile tab', async () => {
+    const liff = await boot({ search: '?tab=profile' });
+    await settle();
+
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
+    expect(byId('notify-body').hidden).toBe(false);
+  });
+
+  it('saves the weekly summary switch', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const calls = routeFetch((method, path) => (method === 'PATCH' && path === '/api/settings' ? { weeklySummary: true } : undefined));
+    const box = byId('notify-weekly-summary');
+
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(calls).toContain('PATCH /api/settings');
+    expect(box.checked).toBe(true);
+    expect(byId('notify-status').textContent).toBe('บันทึกแล้ว');
+  });
+
+  it('puts the switch back when saving fails', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    routeFetch((method, path) => (method === 'PATCH' && path === '/api/settings' ? { status: 500 } : undefined));
+    const box = byId('notify-weekly-summary');
+
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(box.checked).toBe(false);
+    expect(byId('notify-status').textContent).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+
+  it('shows a retry when the settings fail to load, and loads them from it', async () => {
+    await boot({ overrides: { '/api/settings': { status: 500 } } });
+    clickTab('profile');
+    await settle();
+
+    expect(byId('notify-error').hidden).toBe(false);
+    expect(byId('notify-error-text').textContent).toBe('โหลดการตั้งค่าไม่สำเร็จ');
+
+    routeFetch(() => undefined);
+    byId('notify-retry').click();
+    await settle();
+
+    expect(byId('notify-error').hidden).toBe(true);
+    expect(byId('notify-body').hidden).toBe(false);
   });
 });
 

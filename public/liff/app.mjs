@@ -32,6 +32,7 @@ import {
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
 import { createFriendsPanel } from './friends-panel.mjs';
+import { createSettingsPanel } from './settings-panel.mjs';
 import { createCategoriesPanel } from './categories-panel.mjs';
 import { createBillsPanel } from './bills-panel.mjs';
 import { createBillForm } from './bill-form.mjs';
@@ -235,6 +236,19 @@ const friendsPanel = createFriendsPanel({
   liff,
   getLiffId: () => liffId,
   clipboard: navigator.clipboard,
+});
+const settingsPanel = createSettingsPanel({
+  els: {
+    section: document.getElementById('notify'),
+    loadingText: document.getElementById('notify-loading'),
+    error: document.getElementById('notify-error'),
+    errorText: document.getElementById('notify-error-text'),
+    retry: document.getElementById('notify-retry'),
+    body: document.getElementById('notify-body'),
+    status: document.getElementById('notify-status'),
+    switches: { weeklySummary: document.getElementById('notify-weekly-summary') },
+  },
+  getApi: () => api,
 });
 const categoriesPanel = createCategoriesPanel({
   doc: document,
@@ -1491,6 +1505,7 @@ const tabController = createTabController({
       refreshProfileOnEntry();
       // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
       friendsPanel.refresh();
+      settingsPanel.ensureLoaded();
     }
   },
 });
@@ -1633,8 +1648,11 @@ async function boot() {
     } else if (tabId && !link && !friendCode) tabController.select(tabId);
     await loadAll();
     if (listFilter) applyLinkedCategory(listFilter);
-    // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนตอนนี้
-    if (tabController.current === 'profile') friendsPanel.ensureLoaded();
+    // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
+    if (tabController.current === 'profile') {
+      friendsPanel.ensureLoaded();
+      settingsPanel.ensureLoaded();
+    }
     // ลิงก์ชวนเปิด dialog ของตัวเองแล้ว ไม่เปิดตัวแก้ไขรายการซ้อน
     if (link && !friendCode) openLinkedTransaction(link);
   } catch (err) {

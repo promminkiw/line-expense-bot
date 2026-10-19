@@ -385,3 +385,18 @@ describe('style.css balance card style k', () => {
     expect(declarations('.stat-cards .stat-sub.long')).toMatch(/grid-template-columns:\s*1fr/);
   });
 });
+
+describe('style.css notification switches', () => {
+  // ใช้หน้าตาเดียวกับสวิตช์ซ่อนหมวด ไม่ใช่ checkbox สี่เหลี่ยมของ browser
+  it('draws the notification checkbox as a pill switch', () => {
+    const rule = declarations('.notify-switch input[type="checkbox"]');
+
+    expect(rule).toMatch(/(?:^|;)\s*appearance:\s*none/);
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-pill\)/);
+    expect(declarations('.notify-switch input[type="checkbox"]:checked')).toMatch(/background:\s*var\(--primary\)/);
+  });
+
+  it('gives the notification card the same frame as the friends card', () => {
+    expect(declarations('.notify-settings')).toMatch(/box-shadow:\s*var\(--shadow-card\)/);
+  });
+});

@@ -436,6 +436,21 @@
         </section>
         <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
       </section>
+      <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
+        <h2 id="notify-title">การแจ้งเตือน</h2>
+        <p class="notify-hint">บอทส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
+        <p id="notify-loading" class="notify-loading" role="status" hidden>กำลังโหลดการตั้งค่า...</p>
+        <div id="notify-error" class="budgets-error" hidden>
+          <p id="notify-error-text" role="alert"></p>
+          <button type="button" id="notify-retry">ลองใหม่</button>
+        </div>
+        <div id="notify-body" class="notify-body" hidden>
+          <label class="notify-switch"><span class="notify-switch-text"><span>ส่งสรุปทุกวันอาทิตย์</span><small>การ์ดสรุปสัปดาห์
+                จันทร์-อาทิตย์ ส่งเวลา 19:00 สัปดาห์ที่ไม่มีรายการจะไม่ส่ง</small></span><input id="notify-weekly-summary"
+              type="checkbox" role="switch"></label>
+        </div>
+        <p id="notify-status" class="notify-status" role="status" aria-live="polite"></p>
+      </section>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
         <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
         <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
