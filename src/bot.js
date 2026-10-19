@@ -119,10 +119,11 @@ function buildUndoSavingQuickReply(webhookEventId) {
   ];
 }
 
-function buildSavedReply(items, budget, webhookEventId, editUrls) {
+function buildSavedReply(items, budget, webhookEventId, editUrls, { walletReadFailed = false } = {}) {
   return buildSavedFlex(items, {
     alerts: budget.alerts,
     budgetCheckFailed: budget.failed,
+    walletReadFailed,
     buttons: buildUndoQuickReply(webhookEventId),
     editUrls,
   });
@@ -224,10 +225,10 @@ function createBot({
   // กระเป๋าเป็นตัวช่วยเลือก ถ้าโหลดไม่ได้ทุกรายการลงกระเป๋าตั้งต้น ยังบันทึกได้
   async function loadTextWallets(userId) {
     try {
-      return await users.loadWallets(userId);
+      return { wallets: await users.loadWallets(userId), failed: false };
     } catch (err) {
       logger.error('Failed to load wallets', { userId }, err);
-      return [];
+      return { wallets: [], failed: true };
     }
   }
 
@@ -404,7 +405,7 @@ function createBot({
         return answer;
       }
     }
-    const [textCategories, wallets] = await Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
+    const [textCategories, { wallets, failed: walletsFailed }] = await Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
     const choices = walletChoices(wallets);
     const result = await parseMessage(event.message.text, history, textCategories, choices);
     if (result.status === 'clarify') {
@@ -440,7 +441,7 @@ function createBot({
       await forgetConversation(userId);
     }
     const budget = await checkBudgets(userId, rows);
-    return { flex: buildSavedReply(items, budget, event.webhookEventId, buildEditUrls(rows, ids)) };
+    return { flex: buildSavedReply(items, budget, event.webhookEventId, buildEditUrls(rows, ids), { walletReadFailed: walletsFailed }) };
   }
 
   // ล้างของหมดอายุเป็นแค่การดูแลตาราง ถ้าพังยังอ่านสลิปต่อได้

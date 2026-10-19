@@ -1305,6 +1305,16 @@ describe('bot wallets', () => {
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to load wallets', { userId: 'user-1' }, expect.any(Error));
     expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+    expect(deps.replyFlex.mock.calls[0][1].altText).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+  });
+
+  it('adds no wallet notice when the wallets load', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).not.toContain('อ่านกระเป๋าไม่ได้');
   });
 
   it('gives the question parser every wallet name, hidden ones included', async () => {

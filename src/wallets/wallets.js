@@ -6,6 +6,9 @@ const MAX_VISIBLE_WALLETS = 10;
 // กระเป๋าที่ซ่อนก็ยังถูกอ่านทุกครั้งที่ถามยอด
 const MAX_TOTAL_WALLETS = 20;
 
+// ขึ้นบนการ์ดบันทึกเมื่ออ่านกระเป๋าไม่ได้และรายการไปอยู่ในกระเป๋าตั้งต้น
+const WALLETS_UNREADABLE_NOTICE = 'อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+
 function isDefaultWallet(name) {
   return name === DEFAULT_WALLET_NAME;
 }
@@ -35,6 +38,7 @@ module.exports = {
   MAX_WALLET_NAME_LENGTH,
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
+  WALLETS_UNREADABLE_NOTICE,
   isDefaultWallet,
   walletChoices,
   walletQuestionNames,

@@ -112,6 +112,17 @@ describe('buildSavedFlex', () => {
     expect(flex.altText.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
   });
 
+  it('shows a notice strip when the wallets could not be read', () => {
+    const flex = buildSavedFlex([FOOD], { walletReadFailed: true });
+    const notice = 'อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+
+    expect(texts(flex)).toContain(notice);
+    expect(flex.altText.endsWith(`
+
+${notice}`)).toBe(true);
+    expect(texts(buildSavedFlex([FOOD]))).not.toContain(notice);
+  });
+
   it('keeps altText within the LINE limit even for a long receipt', () => {
     const items = Array.from({ length: 20 }, (_, index) => ({ ...FOOD, note: `รายการสินค้าชื่อยาวมากลำดับที่ ${index}` }));
     const flex = buildSavedFlex(items);
