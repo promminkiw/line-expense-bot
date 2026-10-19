@@ -139,6 +139,7 @@ const els = {
   recurringRetry: document.getElementById('recurring-retry'),
   recurringAdd: document.getElementById('recurring-add'),
   recurringOpen: document.getElementById('recurring-open'),
+  meCategoriesOpen: document.getElementById('me-categories-open'),
   recurringEditor: document.getElementById('recurring-editor'),
   recurringForm: document.getElementById('recurring-form'),
   recurringEditorTitle: document.getElementById('recurring-editor-title'),
@@ -512,6 +513,7 @@ function setCategories(next) {
   categoriesPanel.render();
   // ยังโหลดหมวดไม่ได้ หน้าหมวดจะว่างเปล่า จึงยังไม่ให้เข้า
   els.categoriesOpen.disabled = categories.length === 0;
+  els.meCategoriesOpen.disabled = categories.length === 0;
 }
 
 // ผู้ใช้กระเป๋าเดียวไม่เห็นตัวกรองและป้ายกระเป๋า หน้าจอจึงเหมือนก่อนมีกระเป๋า
@@ -1748,22 +1750,24 @@ const CATEGORIES_PAGE = {
   render: () => categoriesPanel.render(),
 };
 
-function enterCategoriesPage() {
+function enterCategoriesPage(page) {
   // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
   document.getElementById('category-status').textContent = '';
-  enterSubPage(CATEGORIES_PAGE);
+  enterSubPage(page);
 }
 
-els.categoriesOpen.addEventListener('click', enterCategoriesPage);
+// หน้าย่อยที่เปิดจากเมนูในแท็บ ฉัน กลับมาแท็บเดียวกัน
+function mePage(panelId, title, returnFocus) {
+  return { panelId, title, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus };
+}
+
+const ME_CATEGORIES_PAGE = { ...CATEGORIES_PAGE, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus: els.meCategoriesOpen };
+
+els.categoriesOpen.addEventListener('click', () => enterCategoriesPage(CATEGORIES_PAGE));
+els.meCategoriesOpen.addEventListener('click', () => enterCategoriesPage(ME_CATEGORIES_PAGE));
 els.pageBack.addEventListener('click', leaveSubPage);
 
-const RECURRING_PAGE = {
-  panelId: 'panel-recurring',
-  title: 'รายการประจำ',
-  backLabel: 'กลับไปหน้าฉัน',
-  ownerTab: 'profile',
-  returnFocus: els.recurringOpen,
-};
+const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจำ', els.recurringOpen);
 
 els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 

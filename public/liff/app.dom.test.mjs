@@ -274,12 +274,24 @@ describe('index.html static invariants', () => {
     expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
   });
 
-  it('has a disabled recurring entry button that uses the repeat icon', () => {
-    const button = doc.getElementById('recurring-open');
-    expect(button.hasAttribute('disabled')).toBe(true);
-    expect(button.textContent.trim()).toBe('รายการประจำ');
-    expect(button.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
-    expect(button.closest('.categories-entry').querySelector('.categories-entry-hint').textContent.trim()).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+  it('lists the me tab entries as menu rows that start disabled', () => {
+    const recurring = doc.getElementById('recurring-open');
+    expect(recurring.classList.contains('menu-row')).toBe(true);
+    expect(recurring.hasAttribute('disabled')).toBe(true);
+    expect(recurring.querySelector('.menu-row-title').textContent).toBe('รายการประจำ');
+    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+    expect(recurring.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
+    const categories = doc.getElementById('me-categories-open');
+    expect(categories.hasAttribute('disabled')).toBe(true);
+    expect(categories.querySelector('.menu-row-title').textContent).toBe('จัดการหมวดหมู่');
+    expect(categories.querySelector('.menu-row-sub').textContent).toBe('เพิ่ม แก้ไข ซ่อน และลบหมวด');
+  });
+
+  it('points every menu row icon at a symbol that exists in the sprite', () => {
+    const hrefs = [...doc.querySelectorAll('.menu-row use')].map((use) => use.getAttribute('href'));
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const href of hrefs) expect(doc.querySelector(href), href).not.toBeNull();
+    for (const id of ['icon-wallet', 'icon-bell', 'icon-users', 'icon-book']) expect(doc.getElementById(id), id).not.toBeNull();
   });
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
@@ -4169,6 +4181,41 @@ describe('LIFF recurring page under the me tab', () => {
 
     expect(byId('panel-recurring').hidden).toBe(false);
     expect(byId('recurring-error').hidden).toBe(false);
+  });
+});
+
+describe('LIFF categories page opened from the me tab', () => {
+  it('opens from the me tab and goes back to the me tab', async () => {
+    await boot();
+    clickTab('profile');
+    const open = byId('me-categories-open');
+    expect(open.disabled).toBe(false);
+
+    open.click();
+
+    expect(byId('panel-categories').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('หมวดของฉัน');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
+
+    byId('page-back').click();
+
+    expect(byId('panel-categories').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('me-categories-open'));
+  });
+
+  it('keeps the budgets tab entry going back to the budgets tab', async () => {
+    await boot();
+    clickTab('budgets');
+    byId('categories-open').click();
+
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปจัดการงบ');
+
+    byId('page-back').click();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('panel-profile').hidden).toBe(true);
   });
 });
 
