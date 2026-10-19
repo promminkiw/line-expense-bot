@@ -1,6 +1,7 @@
 import { inspect } from 'node:util';
 import { describe, it, expect, vi } from 'vitest';
 import { createRepository, DatabaseError } from './repository.js';
+import { SETTINGS_COLUMNS } from '../notifications/settings.js';
 
 // จำลอง query builder ของ supabase-js: ทุก method คืนตัวเอง และ await ได้ผล result
 // ส่งผลเพิ่มได้ ใช้กับ repository method ที่ await หลายครั้ง ครั้งที่เกินใช้ผลสุดท้าย
@@ -1432,6 +1433,93 @@ describe('repository.getDisplayName', () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 
     await expect(createRepository(supabase).getDisplayName('user-1')).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository notification settings', () => {
+  it('reads the switches of this user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
+
+    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: true });
+    expect(calls).toEqual([['from', 'users'], ['select', SETTINGS_COLUMNS], ['eq', 'id', 'user-1'], ['maybeSingle']]);
+  });
+
+  it('treats a missing user row as everything off', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: false });
+  });
+
+  it('updates only the given switches of this user and returns the saved values', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
+
+    expect(await createRepository(supabase).updateNotificationSettings('user-1', { weeklySummary: true })).toEqual({ weeklySummary: true });
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['update', { weekly_summary_enabled: true }],
+      ['eq', 'id', 'user-1'],
+      ['select', SETTINGS_COLUMNS],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('throws DatabaseError when reading or saving fails', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+    const repository = createRepository(supabase);
+
+    await expect(repository.getNotificationSettings('user-1')).rejects.toThrow('Database getNotificationSettings failed: boom');
+    await expect(repository.updateNotificationSettings('user-1', { weeklySummary: true })).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.listWeeklySummaryUsers', () => {
+  it('lists only users who turned the weekly summary on', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
+
+    expect(await createRepository(supabase).listWeeklySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['select', 'id, line_user_id'],
+      ['eq', 'weekly_summary_enabled', true],
+      ['order', 'id'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).listWeeklySummaryUsers()).rejects.toThrow('Database listWeeklySummaryUsers failed: boom');
+  });
+});
+
+describe('repository.reserveNotification', () => {
+  const reservation = { userId: 'user-1', kind: 'weekly_summary', period: '2026-10-12' };
+
+  it('returns true when the log row was inserted', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ user_id: 'user-1' }], error: null });
+
+    expect(await createRepository(supabase).reserveNotification(reservation)).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'notification_log'],
+      [
+        'upsert',
+        { user_id: 'user-1', kind: 'weekly_summary', period: '2026-10-12' },
+        { onConflict: 'user_id,kind,period', ignoreDuplicates: true },
+      ],
+      ['select', 'user_id'],
+    ]);
+  });
+
+  it('returns false when this notification was already reserved', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
+
+    expect(await createRepository(supabase).reserveNotification(reservation)).toBe(false);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createRepository(supabase).reserveNotification(reservation)).rejects.toThrow('Database reserveNotification failed: boom');
   });
 });
 
