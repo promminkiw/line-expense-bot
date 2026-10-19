@@ -30,6 +30,7 @@ const { createFriendsRouter } = require('./src/friends/router');
 const { createBillService } = require('./src/bills/service');
 const { createBillsRouter } = require('./src/bills/router');
 const { createReceiptReader } = require('./src/bills/receipt');
+const { createGoalsRouter } = require('./src/goals/router');
 
 const RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 const EXPORT_RATE_LIMIT = { limit: 5, windowMs: 60 * 1000 };
@@ -117,6 +118,7 @@ const apiRouter = createApiRouter({
     readReceipt: createReceiptReader({ parseSlip }),
     allowReceiptRead: createRateLimiter(RECEIPT_READ_RATE_LIMIT),
   }),
+  goalsRouter: createGoalsRouter({ repository }),
 });
 const recurringRouter = createRecurringRouter({
   cronSecret: config.cronSecret,
