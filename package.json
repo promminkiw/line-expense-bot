@@ -17,7 +17,7 @@
     "@anthropic-ai/sdk": "^0.133.0",
     "@line/bot-sdk": "^11.2.0",
     "@supabase/supabase-js": "^2.117.2",
-    "dotenv": "^18.0.4",
+    "dotenv": "^18.0.8",
     "express": "^5.2.1",
     "sharp": "^0.35.5"
   },
