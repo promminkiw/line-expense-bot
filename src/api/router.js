@@ -123,7 +123,7 @@ function createApiRouter({
         // log เฉพาะเหตุผลที่ LINE ปฏิเสธ ไม่ log token
         if (readBearerToken(req)) {
           // ip/ips ใช้ตรวจว่า trust proxy ตรงกับจำนวน proxy ของ Render (ไม่ใช่ข้อมูลลับ)
-          logger.error('API auth rejected', { path: req.path, reason: err.message, ip: req.ip, ips: req.ips });
+          logger.error('API auth rejected', { path: req.path, reason: err.message, ip: req.ip, ips: req.ips, xff: req.get('x-forwarded-for') });
         }
         res.status(401).json({ error: 'Unauthorized' });
         return;
