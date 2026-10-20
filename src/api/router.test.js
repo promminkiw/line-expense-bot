@@ -199,6 +199,8 @@ describe('authentication', () => {
     expect(deps.logger.error).toHaveBeenCalledWith('API auth rejected', {
       path: '/categories',
       reason: 'bad token',
+      ip: expect.stringContaining('127.0.0.1'),
+      ips: [],
     });
     expect(JSON.stringify(deps.logger.error.mock.calls)).not.toContain('Bearer');
   });
