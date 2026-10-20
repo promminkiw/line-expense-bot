@@ -93,6 +93,7 @@ function setup(overrides = {}) {
         .mockImplementation(async (userId, changes) => ({ weeklySummary: false, dailyReminder: false, ...changes })),
     },
     allowExport: vi.fn().mockReturnValue(true),
+    authFailures: { isBlocked: vi.fn().mockReturnValue(false), recordFailure: vi.fn() },
     friendsRouter: express.Router(),
     billsRouter: express.Router(),
     goalsRouter: express.Router(),
@@ -111,6 +112,13 @@ describe('createApiRouter', () => {
     const { allowExport, ...deps } = setup();
 
     expect(() => createApiRouter(deps)).toThrow('allowExport');
+  });
+
+  it('refuses to build without the auth failure limiter', () => {
+    // eslint-disable-next-line no-unused-vars
+    const { authFailures, ...deps } = setup();
+
+    expect(() => createApiRouter(deps)).toThrow('authFailures');
   });
 
   it('refuses to build without the friends router', () => {
@@ -213,6 +221,43 @@ describe('authentication', () => {
     expect(res.status).toBe(401);
     expect(deps.repository.listCategories).not.toHaveBeenCalled();
   });
+  it('records a failure against the client ip when LINE rejects the token', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/categories', { token: 'bad' });
+
+    expect(deps.authFailures.recordFailure).toHaveBeenCalledWith(expect.stringContaining('127.0.0.1'));
+  });
+
+  it('does not record a failure for a valid token', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await call(base, '/categories');
+
+    expect(deps.authFailures.recordFailure).not.toHaveBeenCalled();
+  });
+
+  it('returns 429 without calling LINE when the client ip has too many failures', async () => {
+    const deps = setup({ authFailures: { isBlocked: vi.fn().mockReturnValue(true), recordFailure: vi.fn() } });
+    const base = await start(deps);
+
+    const res = await call(base, '/categories');
+
+    expect(res.status).toBe(429);
+    expect(deps.verifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it('still serves /config while the client ip is blocked', async () => {
+    const deps = setup({ authFailures: { isBlocked: vi.fn().mockReturnValue(true), recordFailure: vi.fn() } });
+    const base = await start(deps);
+
+    const res = await call(base, '/config', { token: null });
+
+    expect(res.status).toBe(200);
+  });
+
 
   it('returns 500 and logs when verification fails for another reason', async () => {
     const deps = setup({ verifyIdToken: vi.fn().mockRejectedValue(new TypeError('fetch failed')) });

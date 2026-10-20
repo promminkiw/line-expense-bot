@@ -10,7 +10,7 @@ const { createMessageParser } = require('./src/parser/parse-message');
 const { createQuestionParser } = require('./src/query/parse-question');
 const { createRepository } = require('./src/db/repository');
 const { createUserService } = require('./src/users');
-const { createRateLimiter } = require('./src/rate-limit');
+const { createRateLimiter, createFailureLimiter } = require('./src/rate-limit');
 const { createFetchWithTimeout } = require('./src/db/fetch-with-timeout');
 const { createSummaryCommenter } = require('./src/summary/comment');
 const { createImageDownloader } = require('./src/slip/download-image');
@@ -42,6 +42,8 @@ const FRIEND_CODE_RENEW_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 const BILL_CREATE_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 // อ่านรูปใบเสร็จเสียค่า Claude ทุกครั้ง
 const RECEIPT_READ_RATE_LIMIT = { limit: 20, windowMs: 60 * 60 * 1000 };
+// token ผิดเกินนี้ต่อ IP ใน 1 นาที จะถูกปฏิเสธโดยไม่เรียก LINE
+const AUTH_FAILURE_LIMIT = { limit: 30, windowMs: 60 * 1000 };
 const SUPABASE_TIMEOUT_MS = 5000;
 
 const config = loadConfig(process.env);
@@ -107,6 +109,7 @@ const apiRouter = createApiRouter({
   repository,
   liffId: config.liffId,
   allowExport: createRateLimiter(EXPORT_RATE_LIMIT),
+  authFailures: createFailureLimiter(AUTH_FAILURE_LIMIT),
   friendsRouter: createFriendsRouter({
     friends: createFriendService({ repository }),
     allowFriendLookup: createRateLimiter(FRIEND_LOOKUP_RATE_LIMIT),
