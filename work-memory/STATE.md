@@ -32,12 +32,11 @@ Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (�
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
+- [x] ปิดจุดอ่อนจากการตรวจ cyber (2026-10-20, branch fix/security-hardening ยังไม่ commit): header ความปลอดภัยใน src/app.js, limiter นับ token ผิดต่อ IP (30/นาที ตอบ 429 ก่อนเรียก LINE) ใน rate-limit.js+api/router.js, ล้าง key เก่าใน limiter, dependabot + npm audit ใน CI; ไล่ตรวจ repository.js ไม่เจอจุดรั่ว; npm test 2162/2162 lint ผ่าน; ผู้ใช้ต้องเปิด LIFF ใน LINE เช็กว่าหน้าไม่พัง และเช็กว่า IP ใน log ไม่ใช่ IP ของ proxy
 - [x] กระเป๋าเงิน เฟส 1 roadmap ข ข้อ 6 (2026-10-19, branch feat/wallets ยังไม่ merge): migration 024, API /api/wallets, Claude เลือกกระเป๋า, ตัวกรอง/ตัวแก้ในเว็บ, ถามยอดกรองกระเป๋า; ส่วนกระเป๋าในโปรไฟล์โชว์ notify-loading และปิดฟอร์มเพิ่มจนโหลดครั้งแรกเสร็จ (ผู้ใช้ตัดสิน ไม่ตามแผน); npm test 2036/2036 lint ผ่าน (หลังรอบแก้ final review)
 - [x] เป้าหมายการออม roadmap ข (2026-10-19, merge 784949b ในเครื่อง): reviewer I1 กดออมซ้ำระหว่างโหลดใหม่ได้ยอดซ้ำ แก้ใน 2b95e25 (เทสต์แดงก่อนแก้); npm test 1903/1903 lint ผ่าน; Minor M1-M3 M5-M8 ยังไม่ทำ (ตัดชื่อใน ไม่พบเป้า, normalize ชื่อ, 409/404 ไม่โหลดใหม่, ลบประวัติไม่ยืนยัน, "ออม 1000" ไปเป็นรายจ่าย, aria-label งบ, soft cap 20 เป้า/ปี 0000)
 - [x] ถามยอดด้วยภาษาธรรมชาติ roadmap ข ข้อ 2 (2026-10-19, merge 95734a1 push แล้ว): ผู้ใช้รัน 020 ก่อน push; npm test 1609/1609 lint ผ่าน; ลอง API จริง schema 100 หมวด+"" ผ่าน; ถัดไปตาม roadmap คือข้อ 3 สรุปรายสัปดาห์ (migration 021)
 - [x] ยอดยาวในการ์ด K (2026-10-19, branch fix/million-amount-wrap): ยอดเกิน 12 ตัวอักษรเรียงรายรับ/รายจ่ายแนวตั้ง, ยอดคงเหลือย่อตาม --amount-chars; ตรวจ headless Chrome จอ 320/360/390/430 ไม่ล้น; roadmap-b อัปเดตสถานะและเลข migration 020-024
-- [x] PUT /api/budgets/:categoryId รับ id ตัวพิมพ์ใหญ่ (2026-10-19, branch fix/budget-uuid-case): เทสต์ใหม่แดง 404 ก่อนแก้; npm test 1552/1552 lint ผ่าน
-
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 

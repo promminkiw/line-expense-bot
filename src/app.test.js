@@ -43,6 +43,36 @@ describe('GET /health', () => {
   });
 });
 
+describe('security headers', () => {
+  it('sends hardening headers on every response', async () => {
+    const baseUrl = await start(vi.fn());
+    const res = await fetch(`${baseUrl}/health`);
+
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(res.headers.get('strict-transport-security')).toContain('max-age=');
+    expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(res.headers.get('content-security-policy')).toContain("object-src 'none'");
+    expect(res.headers.get('content-security-policy')).toContain("base-uri 'self'");
+  });
+
+  it('also covers the static LIFF page and error responses', async () => {
+    const baseUrl = await start(vi.fn());
+    const page = await fetch(`${baseUrl}/liff/index.html`);
+    const missing = await fetch(`${baseUrl}/nope`);
+
+    expect(page.headers.get('x-frame-options')).toBe('DENY');
+    expect(missing.headers.get('x-frame-options')).toBe('DENY');
+  });
+
+  it('does not advertise the framework', async () => {
+    const baseUrl = await start(vi.fn());
+    const res = await fetch(`${baseUrl}/health`);
+
+    expect(res.headers.get('x-powered-by')).toBeNull();
+  });
+});
+
 describe('POST /webhook', () => {
   it('returns 200 and passes events to handleEvents when signature is valid', async () => {
     const handleEvents = vi.fn().mockResolvedValue();
@@ -207,6 +237,7 @@ describe('/api', () => {
       users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
       allowExport: vi.fn().mockReturnValue(true),
+      authFailures: { isBlocked: vi.fn().mockReturnValue(false), recordFailure: vi.fn() },
       friendsRouter: express.Router(),
       billsRouter: express.Router(),
       goalsRouter: express.Router(),
