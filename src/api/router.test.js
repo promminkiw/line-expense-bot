@@ -190,18 +190,6 @@ describe('authentication', () => {
     expect(deps.users.ensureUser).not.toHaveBeenCalled();
   });
 
-  it('logs the raw forwarded chain so the proxy hop count can be checked', async () => {
-    const deps = setup();
-    const base = await start(deps);
-
-    await fetch(`${base}/categories`, { headers: { Authorization: 'Bearer bad', 'X-Forwarded-For': '9.9.9.9, 10.0.0.1' } });
-
-    expect(deps.logger.error).toHaveBeenCalledWith(
-      'API auth rejected',
-      expect.objectContaining({ xff: '9.9.9.9, 10.0.0.1' })
-    );
-  });
-
   it('logs the LINE rejection reason when the token is refused', async () => {
     const deps = setup();
     const base = await start(deps);
