@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import crypto from 'node:crypto';
 import express from 'express';
+import { createRequire } from 'node:module';
 import { createApp } from './app.js';
 import { createApiRouter } from './api/router.js';
 import { createExportRouter } from './export/router.js';
@@ -230,10 +231,13 @@ describe('GET /liff/', () => {
   });
 });
 
+// ต้องใช้ instance เดียวกับที่ router require ไม่งั้น instanceof AuthError ไม่ตรงกัน
+const { AuthError } = createRequire(import.meta.url)('./api/verify-id-token.js');
+
 describe('/api', () => {
-  function buildApiRouter() {
+  function buildApiRouter({ logger = { error: vi.fn() }, verifyIdToken = vi.fn().mockResolvedValue({ lineUserId: 'U1', name: null }) } = {}) {
     return createApiRouter({
-      verifyIdToken: vi.fn().mockResolvedValue({ lineUserId: 'U1', name: null }),
+      verifyIdToken,
       users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
       repository: { listCategories: vi.fn().mockResolvedValue([]) },
       allowExport: vi.fn().mockReturnValue(true),
@@ -242,9 +246,22 @@ describe('/api', () => {
       billsRouter: express.Router(),
       goalsRouter: express.Router(),
       liffId: 'liff-123',
-      logger: { error: vi.fn() },
+      logger,
     });
   }
+
+  // Render อยู่หลัง 3 ชั้น (Render, Cloudflare และ socket) ตามที่วัดจาก X-Forwarded-For จริง
+  it('resolves the client ip behind the Render and Cloudflare proxies, ignoring a spoofed entry', async () => {
+    const logger = { error: vi.fn() };
+    const verifyIdToken = vi.fn().mockRejectedValue(new AuthError('bad'));
+    const baseUrl = await start(vi.fn(), { error: vi.fn() }, buildApiRouter({ logger, verifyIdToken }));
+
+    await fetch(`${baseUrl}/api/categories`, {
+      headers: { Authorization: 'Bearer bad', 'X-Forwarded-For': '1.2.3.4,110.168.249.174, 172.68.241.32, 10.24.6.28' },
+    });
+
+    expect(logger.error).toHaveBeenCalledWith('API auth rejected', expect.objectContaining({ ip: '110.168.249.174' }));
+  });
 
   it('mounts the API router under /api', async () => {
     const baseUrl = await start(vi.fn(), { error: vi.fn() }, buildApiRouter());

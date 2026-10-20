@@ -6,6 +6,8 @@ const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
 // CSP จำกัดเฉพาะส่วนที่ไม่กระทบ LIFF SDK: กัน iframe ฝังหน้า, base tag และ plugin
 const CSP = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+// วัดจาก X-Forwarded-For จริงบน Render: ผู้ใช้, Cloudflare, Render; ค่าน้อยกว่านี้ได้ IP ภายใน ค่ามากกว่านี้ถูกปลอม IP ได้
+const TRUSTED_PROXY_HOPS = 3;
 const HSTS = 'max-age=15552000';
 
 function setSecurityHeaders(req, res, next) {
@@ -21,8 +23,7 @@ function setSecurityHeaders(req, res, next) {
 function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recurringRouter, notificationsRouter, logger = console }) {
   const app = express();
   app.disable('x-powered-by');
-  // Render อยู่หลัง proxy 1 ชั้น ไม่ตั้งแล้ว req.ip จะเป็น IP ของ proxy ทุก request
-  app.set('trust proxy', 1);
+  app.set('trust proxy', TRUSTED_PROXY_HOPS);
   app.use(setSecurityHeaders);
 
   app.get('/health', (req, res) => {
