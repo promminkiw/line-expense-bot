@@ -267,6 +267,25 @@ dialog.budget-confirm[open] { animation: pop-in 0.26s cubic-bezier(0.34, 1.56, 0
 @keyframes sheet-spring { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+/* animation ของลูกเริ่มเมื่อ panel เปลี่ยนจาก hidden เป็นแสดง จึงเล่นทุกครั้งที่เข้าแท็บโดยไม่ต้องใช้ JS */
+.panel:not([hidden]) .budget-bar-fill { transform-origin: bottom; animation: grow-y 0.6s ease-out; }
+.panel:not([hidden]) .budget-bar-over { animation: fade-in 0.3s ease-out 0.5s backwards; }
+.panel:not([hidden]) .budget-calm-fill { transform-origin: left; animation: grow-x 0.6s ease-out; }
+.panel:not([hidden]) .goals-hero-fill { transform-origin: left; animation: grow-x 0.7s ease-out; }
+.panel:not([hidden]) .goal-row { animation: panel-in 0.28s ease-out 0.25s backwards; }
+.panel:not([hidden]) .goal-row:nth-child(2) { animation-delay: 0.37s; }
+.panel:not([hidden]) .goal-row:nth-child(3) { animation-delay: 0.49s; }
+.panel:not([hidden]) .goal-row:nth-child(n+4) { animation-delay: 0.61s; }
+.panel:not([hidden]) .goal-fill { transform-origin: left; animation: grow-x 0.6s ease-out 0.35s backwards; }
+.panel:not([hidden]) .profile-avatar { animation: avatar-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+.panel:not([hidden]) .profile-name, .panel:not([hidden]) .profile-since { animation: fade-in 0.25s ease-out 0.15s backwards; }
+.panel:not([hidden]) .balance-card, .panel:not([hidden]) .profile-stats { animation: fade-in 0.3s ease-out 0.25s backwards; }
+.panel:not([hidden]) .menu-group { animation: fade-in 0.3s ease-out 0.35s backwards; }
+.panel:not([hidden]) .menu-group:nth-child(2) { animation-delay: 0.47s; }
+.panel:not([hidden]) .menu-group:nth-child(3) { animation-delay: 0.59s; }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
+@keyframes avatar-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
 /*MOTION-END*/
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

@@ -582,3 +582,28 @@ describe('style.css motion polish: nav, list and dialogs', () => {
     expect(css).toContain('@keyframes pop-in');
   });
 });
+
+describe('style.css motion polish: budgets, goals and profile', () => {
+  it('grows budget bars from the bottom and calm bars from the left when the panel shows', () => {
+    expect(declarations('.panel:not([hidden]) .budget-bar-fill')).toMatch(/transform-origin:\s*bottom;[^}]*animation:\s*grow-y/);
+    expect(declarations('.panel:not([hidden]) .budget-calm-fill')).toMatch(/transform-origin:\s*left;[^}]*animation:\s*grow-x/);
+    expect(declarations('.panel:not([hidden]) .budget-bar-over')).toMatch(/animation:\s*fade-in/);
+    expect(css).toContain('@keyframes grow-x');
+    expect(css).toContain('@keyframes grow-y');
+  });
+
+  it('fills the goals hero bar first and brings the goal cards in after it', () => {
+    expect(declarations('.panel:not([hidden]) .goals-hero-fill')).toMatch(/animation:\s*grow-x/);
+    expect(declarations('.panel:not([hidden]) .goal-row')).toMatch(/animation:\s*panel-in[^;]*backwards/);
+    expect(declarations('.panel:not([hidden]) .goal-row:nth-child(2)')).toMatch(/animation-delay:/);
+    expect(declarations('.panel:not([hidden]) .goal-fill')).toMatch(/animation:\s*grow-x/);
+  });
+
+  it('pops the profile avatar and then fades the cards and menu groups in', () => {
+    expect(declarations('.panel:not([hidden]) .profile-avatar')).toMatch(/animation:\s*avatar-pop/);
+    expect(declarations('.panel:not([hidden]) .profile-name, .panel:not([hidden]) .profile-since')).toMatch(/animation:\s*fade-in/);
+    expect(declarations('.panel:not([hidden]) .balance-card, .panel:not([hidden]) .profile-stats')).toMatch(/animation:\s*fade-in/);
+    expect(declarations('.panel:not([hidden]) .menu-group')).toMatch(/animation:\s*fade-in/);
+    expect(css).toContain('@keyframes avatar-pop');
+  });
+});
