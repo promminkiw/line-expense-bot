@@ -555,3 +555,30 @@ describe('style.css goals tab', () => {
     expect(declarations('.goals')).toBeNull();
   });
 });
+
+describe('style.css motion polish: nav, list and dialogs', () => {
+  it('bounces the icon of the current tab', () => {
+    expect(declarations('.nav-button[aria-current="page"] .icon')).toMatch(/animation:\s*nav-bounce/);
+    expect(css).toContain('@keyframes nav-bounce');
+  });
+
+  it('slides list rows in from the right with a capped stagger', () => {
+    expect(css).toMatch(/@keyframes row-in\s*\{\s*from\s*\{[^}]*translateX\(26px\)/);
+    expect(declarations('.list.enter .row')).toMatch(/min\(var\(--i, 0\), 8\)/);
+  });
+
+  it('clips the list horizontally while rows slide in so the page cannot scroll sideways', () => {
+    expect(declarations('.list.enter')).toMatch(/overflow-x:\s*clip/);
+  });
+
+  it('springs bottom dialogs in and fades the backdrop', () => {
+    expect(declarations('dialog[open]')).toMatch(/animation:\s*sheet-spring/);
+    expect(declarations('dialog[open]::backdrop')).toMatch(/animation:\s*fade-in/);
+    expect(css).toContain('@keyframes sheet-spring');
+  });
+
+  it('pops the centered confirm dialog instead of sliding it from the bottom', () => {
+    expect(declarations('dialog.budget-confirm[open]')).toMatch(/animation:\s*pop-in/);
+    expect(css).toContain('@keyframes pop-in');
+  });
+});
