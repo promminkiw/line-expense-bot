@@ -479,6 +479,7 @@ main#app.bills-page .bar h1 { flex: 0 1 auto; margin: 0 -16px 0 auto; padding: 6
 .bar-home .icon { width: 24px; height: 24px; }
 .bar-home:active, .bar-back:active { background: rgba(255, 255, 255, 0.18); }
 main#app.sub-page .bar-mascot { display: none; }
+main#app.sub-page :is(#wallets-title, #notify-title, #recurring-title, #friends-title, #tips-title) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 main#app.sub-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .category-segment { display: flex; margin: 16px 16px 0; padding: 4px; border-radius: var(--radius-pill); background: var(--track); }
 .category-segment button { flex: 1; min-height: var(--tap); border: none; border-radius: var(--radius-pill); background: transparent; color: var(--muted); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }

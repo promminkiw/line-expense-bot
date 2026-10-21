@@ -389,6 +389,15 @@ describe('style.css balance card style k', () => {
     expect(declarations('.stat-cards .stat.balance::before')).toMatch(/border-color:\s*transparent var\(--surface\)/);
   });
 
+  // หัวหน้าเขียนชื่อหน้าอยู่แล้ว h2 ของส่วนในหน้าย่อยจึงซ่อนจากสายตาแต่ยังอยู่ให้ screen reader และโฟกัส (หน้าหารบิลไม่ใช่ sub-page จึงยังเห็น)
+  it.each(['wallets', 'notify', 'recurring', 'friends', 'tips'])('hides the %s heading visually only inside a sub page', (name) => {
+    const rule = css.match(/main#app\.sub-page :is\(([^)]*)\)\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).toContain(`#${name}-title`);
+    expect(rule[2]).toMatch(/clip:\s*rect\(0 0 0 0\)/);
+    expect(rule[2]).toMatch(/position:\s*absolute/);
+  });
+
   it('prefixes the balance label with the mascot speaking', () => {
     expect(declarations('.stat-cards .stat.balance .stat-label::before')).toMatch(/content:\s*"เฮียสมัครบอกว่า "/);
   });
