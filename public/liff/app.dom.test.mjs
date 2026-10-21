@@ -358,6 +358,10 @@ describe('index.html static invariants', () => {
     expect(symbolIds.has('icon-close')).toBe(true);
   });
 
+  it('defines the search, alert and check icon symbols', () => {
+    for (const id of ['icon-search', 'icon-alert', 'icon-check']) expect(symbolIds.has(id)).toBe(true);
+  });
+
   // ผู้ใช้อยากให้ลิงก์อ่านใบเสร็จอยู่ในกรอบขาวเดียวกับช่องยอดรวม แต่ปุ่มต้องไม่อยู่ใน label
   it('puts the receipt link in the same card as the total, outside its label', () => {
     const card = doc.getElementById('bill-form-total').closest('.bill-form-card');
@@ -662,21 +666,6 @@ describe('LIFF page after a normal boot', () => {
     expect(currentBars[1].dataset.width).toBe('2');
   });
 
-  it('renders the budget rows with category badges and hides the loading state', () => {
-    const rows = document.querySelectorAll('#budget-rows .budget-row');
-
-    expect(byId('budgets').hidden).toBe(false);
-    expect(byId('budgets-loading').hidden).toBe(true);
-    expect(byId('budgets-skeleton').hidden).toBe(true);
-    expect(byId('budgets-error').hidden).toBe(true);
-    expect(rows).toHaveLength(2);
-    expect(rows[0].querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-food');
-    expect(rows[0].querySelector('.budget-label').textContent).toBe('อาหาร');
-    expect(rows[0].querySelector('.budget-fill').dataset.width).toBe('6');
-    expect(rows[1].querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-transport');
-    expect(rows[1].querySelector('.budget-fill')).toBeNull();
-  });
-
   it('shows the recurring empty state when there are no rules', () => {
     expect(byId('recurring').hidden).toBe(false);
     expect(byId('recurring-empty').hidden).toBe(false);
@@ -754,7 +743,7 @@ describe('LIFF page after a normal boot', () => {
     expect(variants('list-head-skeleton')).toEqual(['totals', 'filters']);
     expect(variants('summary-skeleton')).toEqual(['chart']);
     expect(variants('trend-skeleton')).toEqual(['trend']);
-    expect(variants('budgets-skeleton')).toEqual(['budget', 'budget', 'budget', 'budget']);
+    expect(variants('budgets-skeleton')).toEqual(['budget-hero', 'budget-chart', 'budget-list']);
     expect(variants('recurring-skeleton')).toEqual(['recurring', 'recurring', 'recurring']);
     expect(variants('profile-skeleton')).toEqual(['profile-head', 'balance', 'stats']);
   });
@@ -965,7 +954,7 @@ describe('LIFF page when loading fails', () => {
     expect(byId('filters').hidden).toBe(true);
     expect(byId('status').hidden).toBe(true);
     // the other sections load independently and still render
-    expect(document.querySelectorAll('#budget-rows .budget-row')).toHaveLength(2);
+    expect(byId('budget-hero-percent').textContent).toBe('6%');
     expect(document.querySelectorAll('#trend-bars .trend-col')).toHaveLength(6);
   });
 
@@ -4470,14 +4459,13 @@ describe('LIFF bill form with a hidden category', () => {
 describe('LIFF category icons on rows', () => {
   const WITH_ICON = { categories: [{ ...CATEGORIES[0], icon: 'coffee' }, ...CATEGORIES.slice(1)] };
 
-  it('shows the icon the user picked on list rows, the chart and the budgets', async () => {
+  it('shows the icon the user picked on list rows and the chart', async () => {
     await boot({ overrides: { '/api/categories': WITH_ICON } });
 
     const row = [...document.querySelectorAll('#list .row')].find((item) => item.textContent.includes('ข้าวมันไก่'));
     expect(row.querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
     expect(row.querySelector('.cat-badge').classList.contains('cat-tone-expense')).toBe(true);
     expect(byId('chart-rows').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
-    expect(byId('budget-rows').querySelector('.cat-badge use').getAttribute('href')).toBe('#cat-coffee');
   });
 
   it('keeps the default icon and uses the income tone for income rows', async () => {
@@ -5459,5 +5447,346 @@ describe('LIFF device back button on sub pages', () => {
 
     expect(byId('panel-friends').hidden).toBe(true);
     expect(byId('panel-profile').hidden).toBe(false);
+  });
+});
+
+const BUDGET_SAMPLE = {
+  budgets: [
+    { categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 4200 },
+    { categoryId: 'c-shop', category: 'ช้อปปิ้ง', budget: 3000, spent: 3450 },
+    { categoryId: 'c-trip', category: 'เดินทาง', budget: 2000, spent: 1900 },
+    { categoryId: 'c-fun', category: 'บันเทิง', budget: null, spent: 620 },
+    { categoryId: 'c-other', category: 'อื่นๆ', budget: null, spent: 150 },
+  ],
+};
+
+async function openBudgets(overrides = {}) {
+  await boot({ overrides: { '/api/budgets': BUDGET_SAMPLE, ...overrides } });
+  clickTab('budgets');
+  await settle();
+}
+
+describe('LIFF budgets page', () => {
+  it('shows the total used and what is left in the hero', async () => {
+    await openBudgets();
+
+    expect(byId('budget-hero-percent').textContent).toBe('86%');
+    expect(byId('budget-hero-rest').textContent).toBe('เหลือ 1,450 บาท');
+    expect(byId('budget-hero-percent').className).toContain('level-warn');
+  });
+
+  it('draws one column per risk category sorted by usage, all with the same track height', async () => {
+    await openBudgets();
+    const cols = [...byId('budget-risk-bars').querySelectorAll('.budget-col')];
+
+    expect(byId('budget-risk-title').textContent).toBe('ต้องดูแล 2 หมวด');
+    expect(cols.map((col) => col.dataset.categoryId)).toEqual(['c-shop', 'c-trip']);
+    expect(cols[0].querySelector('.budget-col-pct').textContent).toBe('115%');
+    expect(cols[0].querySelector('.budget-bar-over').style.height).toBe('19.5px');
+    expect(cols[1].querySelector('.budget-bar-over').style.height).toBe('0px');
+    expect(cols[0].querySelector('.budget-bar-fill').className).toContain('level-over');
+    expect(cols[1].querySelector('.budget-bar-fill').className).toContain('level-warn');
+    expect(cols[0].getAttribute('aria-label')).toBe('ช้อปปิ้ง 115% ของงบ เกิน 450');
+  });
+
+  it('hides the loading and error states once the budgets are drawn', async () => {
+    await openBudgets();
+
+    expect(byId('budgets').hidden).toBe(false);
+    expect(byId('budgets-loading').hidden).toBe(true);
+    expect(byId('budgets-skeleton').hidden).toBe(true);
+    expect(byId('budgets-error').hidden).toBe(true);
+    expect(byId('budget-empty').hidden).toBe(true);
+  });
+
+  it('lists the names and what is left under the columns', async () => {
+    await openBudgets();
+    const names = [...byId('budget-risk-names').querySelectorAll('.budget-col-name')];
+
+    expect(names.map((name) => name.querySelector('.budget-col-name-text').textContent)).toEqual(['ช้อปปิ้ง', 'เดินทาง']);
+    expect(names.map((name) => name.querySelector('.budget-col-diff').textContent)).toEqual(['เกิน 450', 'เหลือ 100']);
+  });
+
+  it('draws the 100 percent and 80 percent lines after the columns so they stay on top', async () => {
+    await openBudgets();
+    const children = [...byId('budget-risk-plot').children];
+    const barsIndex = children.indexOf(byId('budget-risk-bars'));
+    const lineIndex = children.findIndex((child) => child.classList.contains('budget-line-100'));
+
+    expect(barsIndex).toBeGreaterThan(-1);
+    expect(lineIndex).toBeGreaterThan(barsIndex);
+    expect(children.some((child) => child.classList.contains('budget-line-80'))).toBe(true);
+  });
+
+  it('hides the risk card when nothing needs attention', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 600 }] } });
+
+    expect(byId('budget-risk').hidden).toBe(true);
+    expect(byId('budget-calm-list').querySelectorAll('.budget-calm-item')).toHaveLength(1);
+  });
+
+  it('shows calm categories with their percent and a link to see all of them', async () => {
+    await openBudgets();
+    const items = [...byId('budget-calm-list').querySelectorAll('.budget-calm-item')];
+
+    expect(byId('budget-calm-title').textContent).toBe('ปกติ 1 หมวด');
+    expect(items.map((item) => item.textContent)).toEqual(['อาหาร70%']);
+    expect(byId('budget-all-open').textContent).toBe('ดูทั้งหมด 3 หมวด ›');
+  });
+
+  it('summarises the unset categories', async () => {
+    await openBudgets();
+
+    expect(byId('budget-unset').hidden).toBe(false);
+    expect(byId('budget-unset-text').textContent).toBe('ยังไม่ตั้งงบ 2 หมวด: บันเทิง · อื่นๆ');
+  });
+
+  it('hides the unset strip when every category has a budget', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [BUDGET_SAMPLE.budgets[0]] } });
+
+    expect(byId('budget-unset').hidden).toBe(true);
+  });
+
+  it('opens the existing budget editor when a column is tapped', async () => {
+    await openBudgets();
+
+    byId('budget-risk-bars').querySelector('.budget-col').click();
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(true);
+    expect(byId('budget-title').textContent).toBe('งบ ช้อปปิ้ง');
+  });
+
+  it('pages the risk columns six at a time', async () => {
+    const risk = Array.from({ length: 8 }, (_, index) => ({ categoryId: `r${index}`, category: `หมวด${index}`, budget: 1000, spent: 1000 + index }));
+    await openBudgets({ '/api/budgets': { budgets: risk } });
+
+    expect(byId('budget-risk-bars').querySelectorAll('.budget-col')).toHaveLength(6);
+    expect(byId('budget-risk-page').textContent).toBe('หน้า 1 จาก 2');
+    expect(byId('budget-risk-prev').disabled).toBe(true);
+
+    byId('budget-risk-next').click();
+
+    expect(byId('budget-risk-bars').querySelectorAll('.budget-col')).toHaveLength(2);
+    expect(byId('budget-risk-page').textContent).toBe('หน้า 2 จาก 2');
+    expect(byId('budget-risk-next').disabled).toBe(true);
+  });
+
+  it('shows the search button and group chips only when there are more than 14 categories', async () => {
+    const many = Array.from({ length: 15 }, (_, index) => ({ categoryId: `m${index}`, category: `หมวด${index}`, budget: 1000, spent: 100 }));
+    await openBudgets({ '/api/budgets': { budgets: many } });
+
+    expect(byId('budget-many').hidden).toBe(false);
+    expect(byId('budget-many-search').textContent).toBe('ค้นหาหมวดจาก 15 หมวด');
+
+    await openBudgets();
+
+    expect(byId('budget-many').hidden).toBe(true);
+  });
+
+  it('keeps the link to manage categories', async () => {
+    await openBudgets();
+
+    expect(byId('categories-open').disabled).toBe(false);
+  });
+});
+
+describe('LIFF budgets page states', () => {
+  it('shows the error card with a retry button when loading fails', async () => {
+    await openBudgets({ '/api/budgets': { status: 500 } });
+
+    expect(byId('budgets-error').hidden).toBe(false);
+    expect(byId('budgets-error-text').textContent).toBe('โหลดงบไม่สำเร็จ');
+    expect(byId('budgets-retry').hidden).toBe(false);
+    expect(byId('budgets').hidden).toBe(true);
+  });
+
+  it('hides the retry button when login is required', async () => {
+    await openBudgets({ '/api/budgets': { status: 401 } });
+
+    expect(byId('budgets-retry').hidden).toBe(true);
+  });
+
+  it('shows the empty state with the most spent categories first', async () => {
+    await openBudgets({
+      '/api/budgets': {
+        budgets: [
+          { categoryId: 'a', category: 'ก', budget: null, spent: 100 },
+          { categoryId: 'b', category: 'ข', budget: null, spent: 900 },
+          { categoryId: 'c', category: 'ค', budget: null, spent: 0 },
+        ],
+      },
+    });
+    const items = [...byId('budget-empty-list').querySelectorAll('.budget-empty-item')];
+
+    expect(byId('budget-empty').hidden).toBe(false);
+    expect(byId('budgets').hidden).toBe(true);
+    expect(items.map((item) => item.querySelector('.budget-empty-name').firstChild.textContent)).toEqual(['ข', 'ก']);
+  });
+
+  it('shows only the error card when a reload after saving fails from the empty state', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'b', category: 'ข', budget: null, spent: 900 }] } });
+    byId('budget-empty-list').querySelector('.budget-empty-set').click();
+    byId('budget-amount').value = '500';
+    routeFetch((method, path) => (method === 'PUT' ? {} : path === '/api/budgets' ? { status: 500 } : undefined));
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('budgets-error').hidden).toBe(false);
+    expect(byId('budget-empty').hidden).toBe(true);
+  });
+
+  it('opens the editor from an empty state row', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'b', category: 'ข', budget: null, spent: 900 }] } });
+
+    byId('budget-empty-list').querySelector('.budget-empty-set').click();
+
+    expect(byId('budget-title').textContent).toBe('งบ ข');
+  });
+
+  it('tells the user to log spending first when there is nothing to suggest', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [] } });
+
+    expect(byId('budget-empty-list').children).toHaveLength(0);
+    expect(byId('budget-empty-hint').textContent).toContain('ลองจดรายจ่ายในแชตก่อน');
+  });
+});
+
+describe('LIFF budgets all page', () => {
+  async function openAll(tabButtonId = 'budget-all-open') {
+    await openBudgets();
+    byId(tabButtonId).click();
+    await settle();
+  }
+
+  it('opens as a sub page with the back label for the budgets tab', async () => {
+    await openAll();
+
+    expect(byId('panel-budget-all').hidden).toBe(false);
+    expect(byId('panel-budgets').hidden).toBe(true);
+    expect(byId('bottom-nav').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('ดูงบทุกหมวด');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้างบ');
+  });
+
+  it('starts on the risk tab with section headers and percent as plain text', async () => {
+    await openAll();
+    const rows = [...byId('budget-all-list').querySelectorAll('.budget-all-row')];
+    const heads = [...byId('budget-all-list').querySelectorAll('.budget-all-head')].map((head) => head.textContent);
+
+    expect(heads).toEqual(['เต็มหรือเกินงบ 1 หมวด', 'ใกล้เต็ม 1 หมวด']);
+    expect(rows.map((row) => row.querySelector('.budget-all-name').textContent)).toEqual(['ช้อปปิ้ง', 'เดินทาง']);
+    expect(rows[0].querySelector('.budget-all-pct').textContent).toBe('115%');
+    expect(rows[0].querySelector('.budget-all-diff').textContent).toBe('เกิน 450');
+    expect(rows[0].querySelector('.cat-badge')).not.toBeNull();
+    expect(rows[0].querySelector('.budget-all-dot').className).toContain('level-over');
+    expect(byId('budget-all-list').querySelector('.budget-bar, .budget-track, .budget-fill')).toBeNull();
+  });
+
+  it('shows the counts on the tabs and switches between groups', async () => {
+    await openAll();
+    const tabs = [...byId('budget-all-tabs').querySelectorAll('button[data-tab]')];
+
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['ต้องดูแล 2', 'ปกติ 1', 'ไม่มีงบ 2']);
+    expect(tabs[0].getAttribute('aria-pressed')).toBe('true');
+
+    tabs[1].click();
+
+    expect(tabs[1].getAttribute('aria-pressed')).toBe('true');
+    expect([...byId('budget-all-list').querySelectorAll('.budget-all-name')].map((name) => name.textContent)).toEqual(['อาหาร']);
+  });
+
+  it('puts a set-budget button on every unset row that opens the editor', async () => {
+    await openAll();
+    byId('budget-all-tabs').querySelector('button[data-tab="unset"]').click();
+    const buttons = byId('budget-all-list').querySelectorAll('.budget-all-set');
+
+    expect(buttons).toHaveLength(2);
+
+    buttons[0].click();
+
+    expect(byId('budget-title').textContent).toBe('งบ บันเทิง');
+  });
+
+  it('filters all groups by the search text and updates the counts', async () => {
+    await openAll();
+
+    byId('budget-all-search').value = 'อาหาร';
+    byId('budget-all-search').dispatchEvent(new Event('input'));
+
+    expect([...byId('budget-all-tabs').querySelectorAll('button[data-tab]')].map((tab) => tab.textContent)).toEqual(['ต้องดูแล 0', 'ปกติ 1', 'ไม่มีงบ 0']);
+    expect(byId('budget-all-tab-empty').hidden).toBe(false);
+    expect(byId('budget-all-tab-empty').textContent).toBe('ไม่มีหมวดในกลุ่มนี้');
+  });
+
+  it('shows the not-found state only when no group matches and can clear the search', async () => {
+    await openAll();
+    byId('budget-all-search').value = 'กาแฟแก้ว';
+    byId('budget-all-search').dispatchEvent(new Event('input'));
+
+    expect(byId('budget-all-empty').hidden).toBe(false);
+    expect(byId('budget-all-empty-title').textContent).toBe('ไม่พบหมวด "กาแฟแก้ว"');
+    expect(byId('budget-all-list').hidden).toBe(true);
+
+    byId('budget-all-empty-clear').click();
+
+    expect(byId('budget-all-search').value).toBe('');
+    expect(byId('budget-all-empty').hidden).toBe(true);
+    expect(byId('budget-all-list').querySelectorAll('.budget-all-row').length).toBeGreaterThan(0);
+  });
+
+  it('sorts by name when asked', async () => {
+    await openAll();
+    byId('budget-all-tabs').querySelector('button[data-tab="unset"]').click();
+
+    byId('budget-all-sort').value = 'name';
+    byId('budget-all-sort').dispatchEvent(new Event('change'));
+
+    expect([...byId('budget-all-list').querySelectorAll('.budget-all-name')].map((name) => name.textContent)).toEqual(['บันเทิง', 'อื่นๆ']);
+  });
+
+  it('shows the month and how many categories are listed', async () => {
+    await openAll();
+
+    expect(byId('budget-all-count').textContent).toBe('10/2026 · แสดง 2 จาก 2 หมวด');
+  });
+
+  it('opens the unset tab from the strip on the main page and focuses search from the many bar', async () => {
+    await openBudgets();
+    byId('budget-unset-open').click();
+
+    expect(byId('budget-all-tabs').querySelector('button[data-tab="unset"]').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('opens the calm tab from see-all when nothing needs attention', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 600 }] } });
+
+    byId('budget-all-open').click();
+    await settle();
+
+    expect(byId('budget-all-tabs').querySelector('button[data-tab="calm"]').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('goes back to the budgets tab', async () => {
+    await openAll();
+
+    byId('page-back').click();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('panel-budget-all').hidden).toBe(true);
+    expect(document.activeElement).toBe(byId('budget-all-open'));
+  });
+
+  it('refreshes the rows after a budget is saved from this page', async () => {
+    await openAll();
+    byId('budget-all-list').querySelector('.budget-all-row').click();
+    byId('budget-amount').value = '9000';
+    routeFetch((method) => (method === 'PUT' ? {} : undefined));
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(false);
+    expect(byId('panel-budget-all').hidden).toBe(false);
   });
 });

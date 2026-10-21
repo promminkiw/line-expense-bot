@@ -85,6 +85,15 @@
     <symbol id="icon-chevron" viewBox="0 0 24 24">
       <path d="M9 6l6 6-6 6" />
     </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.3-4.3" />
+    </symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24">
+      <path d="M12 7v6M12 17h.01" />
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </symbol>
     <symbol id="tab-user" viewBox="0 0 24 24">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
@@ -307,17 +316,63 @@
       </section>
     </div>
     <div id="panel-budgets" class="panel" hidden>
-      <section id="budgets" class="budgets" aria-labelledby="budgets-title" hidden>
-        <h2 id="budgets-title">งบประมาณรายจ่าย</h2>
-        <p class="budgets-hint">แตะหมวดเพื่อตั้งหรือแก้งบ งบมีผลตั้งแต่เดือนที่เลือกเป็นต้นไป (ไม่กระทบเดือนก่อนหน้า)
-        </p>
-        <p id="budgets-loading" class="budgets-loading sr-only" role="status" hidden>กำลังโหลดงบ...</p>
-        <ul id="budgets-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
-        <ul id="budget-rows" class="budget-rows"></ul>
-        <div id="budgets-error" class="budgets-error" hidden>
-          <p id="budgets-error-text"></p>
-          <button type="button" id="budgets-retry">ลองใหม่</button>
+      <p id="budgets-loading" class="sr-only" role="status" hidden>กำลังโหลดงบ...</p>
+      <ul id="budgets-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
+      <div id="budgets-error" class="budget-error-card" hidden>
+        <p class="budget-error-title">ตอนนี้เฮียโหลดงบให้ไม่ได้</p>
+        <p id="budgets-error-text" class="budget-error-text"></p>
+        <button type="button" id="budgets-retry" class="budget-cta">ลองใหม่</button>
+      </div>
+      <section id="budgets" class="budgets-page" aria-label="งบประมาณรายจ่าย" hidden>
+        <div id="budget-hero" class="budget-hero">
+          <div class="budget-hero-bubble">
+            <p class="budget-hero-lead"><b>เฮียสมัครบอกว่า</b> ใช้งบไปแล้ว</p>
+            <p class="budget-hero-value"><span id="budget-hero-percent" class="budget-hero-percent"></span> <span id="budget-hero-rest" class="budget-hero-rest"></span></p>
+          </div>
         </div>
+        <div id="budget-many" class="budget-many" hidden>
+          <button type="button" id="budget-many-search" class="budget-many-search"></button>
+          <div id="budget-many-chips" class="budget-many-chips"></div>
+        </div>
+        <section id="budget-risk" class="budget-card" aria-labelledby="budget-risk-title" hidden>
+          <div class="budget-card-head">
+            <h2 id="budget-risk-title"></h2>
+            <span class="budget-card-note">แตะแท่งเพื่อแก้งบ</span>
+          </div>
+          <div id="budget-risk-plot" class="budget-plot">
+            <span class="budget-axis budget-axis-100">100%</span>
+            <span class="budget-axis budget-axis-80">80%</span>
+            <div id="budget-risk-bars" class="budget-bars"></div>
+            <div class="budget-line budget-line-100"></div>
+            <div class="budget-line budget-line-80"></div>
+          </div>
+          <div id="budget-risk-names" class="budget-names"></div>
+          <div id="budget-risk-pager" class="budget-pager" hidden>
+            <button type="button" id="budget-risk-prev" class="budget-pager-button" aria-label="หน้าก่อนหน้า">‹</button>
+            <div class="budget-pager-middle">
+              <span id="budget-risk-page"></span>
+              <span id="budget-risk-dots" class="budget-dots" aria-hidden="true"></span>
+            </div>
+            <button type="button" id="budget-risk-next" class="budget-pager-button" aria-label="หน้าถัดไป">›</button>
+          </div>
+        </section>
+        <section id="budget-calm" class="budget-card" aria-labelledby="budget-calm-title" hidden>
+          <div id="budget-calm-head" class="budget-card-head">
+            <h2 id="budget-calm-title"></h2>
+            <span id="budget-calm-note" class="budget-card-note"></span>
+          </div>
+          <div id="budget-calm-list" class="budget-calm-list"></div>
+          <button type="button" id="budget-all-open" class="budget-card-link"></button>
+        </section>
+        <div id="budget-unset" class="budget-unset" hidden>
+          <span id="budget-unset-text"></span>
+          <button type="button" id="budget-unset-open">ตั้งงบ</button>
+        </div>
+      </section>
+      <section id="budget-empty" class="budget-card budget-empty" aria-labelledby="budget-empty-title" hidden>
+        <h2 id="budget-empty-title">ยังไม่ได้ตั้งงบเลย</h2>
+        <p id="budget-empty-hint" class="budget-card-note"></p>
+        <ul id="budget-empty-list" class="budget-empty-list"></ul>
       </section>
       <div class="categories-entry">
         <button type="button" id="categories-open" class="categories-open" disabled><svg class="icon"
@@ -325,6 +380,41 @@
             <use href="#icon-categories"></use>
           </svg>จัดการหมวดหมู่</button>
         <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด</p>
+      </div>
+    </div>
+    <div id="panel-budget-all" class="panel" hidden>
+      <div class="budget-all-search">
+        <svg class="icon" aria-hidden="true" focusable="false">
+          <use href="#icon-search"></use>
+        </svg>
+        <input id="budget-all-search" type="search" placeholder="ค้นหาหมวด" aria-label="ค้นหาหมวด" autocomplete="off">
+        <button type="button" id="budget-all-clear" aria-label="ล้างคำค้น" hidden>
+          <svg class="icon" aria-hidden="true" focusable="false">
+            <use href="#icon-close"></use>
+          </svg>
+        </button>
+      </div>
+      <div id="budget-all-tabs" class="budget-all-tabs" role="group" aria-label="กลุ่มของหมวด">
+        <button type="button" data-tab="risk" aria-pressed="true"></button>
+        <button type="button" data-tab="calm" aria-pressed="false"></button>
+        <button type="button" data-tab="unset" aria-pressed="false"></button>
+      </div>
+      <div class="budget-all-bar">
+        <span id="budget-all-count" role="status" aria-live="polite"></span>
+        <label class="budget-all-sort">เรียง:
+          <select id="budget-all-sort" aria-label="เรียงลำดับ">
+            <option value="usage">ใช้มากสุด</option>
+            <option value="name">ชื่อ</option>
+          </select>
+        </label>
+      </div>
+      <p id="budget-all-tab-empty" class="budget-all-tab-empty" hidden>ไม่มีหมวดในกลุ่มนี้</p>
+      <div id="budget-all-list" class="budget-all-list"></div>
+      <div id="budget-all-empty" class="budget-all-empty" hidden>
+        <img class="budget-all-empty-art" src="assets/mascot.webp" alt="" width="88" height="88">
+        <h2 id="budget-all-empty-title"></h2>
+        <p>ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
+        <button type="button" id="budget-all-empty-clear" class="budget-cta">ล้างคำค้น</button>
       </div>
     </div>
     <div id="panel-categories" class="panel" hidden>

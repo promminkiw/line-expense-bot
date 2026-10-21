@@ -11,7 +11,7 @@ function declarations(selector) {
 
 describe('style.css skeleton sizes', () => {
   // jsdom ไม่มี layout จึงตรวจได้แค่ว่าทุก variant มีความสูงตายตัว ส่วนตัวเลขตรงของจริงตรวจในเบราว์เซอร์
-  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'row', 'bar', 'friends-card', 'friends-row', 'bill-switch', 'bill-card'])(
+  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'row', 'bar', 'friends-card', 'friends-row', 'bill-switch', 'bill-card', 'budget-hero', 'budget-chart', 'budget-list'])(
     'gives the %s skeleton a fixed pixel height',
     (variant) => {
       const rule = declarations(`.skeleton-${variant}`);
@@ -455,5 +455,25 @@ describe('style.css list filters', () => {
 
   it('gives the wallet filter a full row', () => {
     expect(declarations('#filter-wallet')).toMatch(/grid-column:\s*1\s*\/\s*-1/);
+  });
+});
+
+describe('style.css budget columns', () => {
+  // แท่งเป็นชิ้นเดียว ตัดมุมที่กรอบนอก ไม่ให้ส่วนสีแดงต่อทับแล้วเกิดรอยหยัก
+  it('clips the bar to one rounded shape', () => {
+    const rule = declarations('.budget-bar');
+
+    expect(rule).toMatch(/overflow:\s*hidden/);
+    expect(rule).toMatch(/border-radius:\s*9px 9px 3px 3px/);
+  });
+
+  it('draws the 100 percent line over the columns without blocking taps', () => {
+    expect(declarations('.budget-line')).toMatch(/pointer-events:\s*none/);
+    expect(declarations('.budget-line-100')).toMatch(/dashed/);
+  });
+
+  it('keeps the track a visible solid colour', () => {
+    expect(declarations('.budget-bar-track')).toMatch(/background:\s*var\(--bar-track\)/);
+    expect(declarations('.budget-bar-track')).not.toMatch(/opacity/);
   });
 });

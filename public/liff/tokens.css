@@ -26,6 +26,10 @@
   --warn: #b64400;
   --notice-bg: #fff1b8;
   --notice-text: #5c4300;
+  --danger-soft: #fdecee;
+  --danger-text: #b0000f;
+  --income-text: #14632b;
+  --warn-text: #7a3500;
   /* สีหมวดในแถบสรุปเรียงตามยอด ทุกสีต้องเห็นบนการ์ดขาวอย่างน้อย 3:1 */
   --chart-1: #1157c5;
   --chart-2: #c26a00;
@@ -34,6 +38,7 @@
   --chart-5: #7b4fe0;
   --chart-6: #007f96;
   --trend-income: #b9d0f5;
+  --bar-track: #cfdcf2;
   /* ไอคอนหมวดโทนเดียว: หมวดรายรับเป็นเขียว ที่เหลือเป็นน้ำเงินแบรนด์ ไม่แยกสีรายหมวด */
   --cat-food-fg: #1157c5;
   --cat-food-bg: #e6eefc;

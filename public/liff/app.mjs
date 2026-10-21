@@ -15,7 +15,6 @@ import {
   groupCategoryOptions,
   categoryOptionLabel,
   describeEditFailure,
-  budgetRows,
   createLatestGuard,
   profileView,
   profilePictureUrl,
@@ -48,6 +47,8 @@ import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from
 import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
 import { revealError } from './reveal.mjs';
+import { createBudgetsPanel } from './budgets-panel.mjs';
+import { createBudgetsAllPanel } from './budgets-all-panel.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
@@ -103,7 +104,44 @@ const els = {
   confirmCancel: document.getElementById('confirm-cancel'),
   confirmOk: document.getElementById('confirm-ok'),
   budgets: document.getElementById('budgets'),
-  budgetRows: document.getElementById('budget-rows'),
+  budgetHero: document.getElementById('budget-hero'),
+  budgetHeroPercent: document.getElementById('budget-hero-percent'),
+  budgetHeroRest: document.getElementById('budget-hero-rest'),
+  budgetMany: document.getElementById('budget-many'),
+  budgetManySearch: document.getElementById('budget-many-search'),
+  budgetManyChips: document.getElementById('budget-many-chips'),
+  budgetRisk: document.getElementById('budget-risk'),
+  budgetRiskTitle: document.getElementById('budget-risk-title'),
+  budgetRiskPlot: document.getElementById('budget-risk-plot'),
+  budgetRiskBars: document.getElementById('budget-risk-bars'),
+  budgetRiskNames: document.getElementById('budget-risk-names'),
+  budgetRiskPager: document.getElementById('budget-risk-pager'),
+  budgetRiskPage: document.getElementById('budget-risk-page'),
+  budgetRiskPrev: document.getElementById('budget-risk-prev'),
+  budgetRiskNext: document.getElementById('budget-risk-next'),
+  budgetRiskDots: document.getElementById('budget-risk-dots'),
+  budgetCalm: document.getElementById('budget-calm'),
+  budgetCalmHead: document.getElementById('budget-calm-head'),
+  budgetCalmTitle: document.getElementById('budget-calm-title'),
+  budgetCalmNote: document.getElementById('budget-calm-note'),
+  budgetCalmList: document.getElementById('budget-calm-list'),
+  budgetAllOpen: document.getElementById('budget-all-open'),
+  budgetAllTabs: document.getElementById('budget-all-tabs'),
+  budgetAllSearch: document.getElementById('budget-all-search'),
+  budgetAllClear: document.getElementById('budget-all-clear'),
+  budgetAllSort: document.getElementById('budget-all-sort'),
+  budgetAllCount: document.getElementById('budget-all-count'),
+  budgetAllList: document.getElementById('budget-all-list'),
+  budgetAllEmpty: document.getElementById('budget-all-empty'),
+  budgetAllEmptyTitle: document.getElementById('budget-all-empty-title'),
+  budgetAllEmptyClear: document.getElementById('budget-all-empty-clear'),
+  budgetAllTabEmpty: document.getElementById('budget-all-tab-empty'),
+  budgetUnset: document.getElementById('budget-unset'),
+  budgetUnsetText: document.getElementById('budget-unset-text'),
+  budgetUnsetOpen: document.getElementById('budget-unset-open'),
+  budgetEmpty: document.getElementById('budget-empty'),
+  budgetEmptyHint: document.getElementById('budget-empty-hint'),
+  budgetEmptyList: document.getElementById('budget-empty-list'),
   budgetsLoading: document.getElementById('budgets-loading'),
   budgetsSkeleton: document.getElementById('budgets-skeleton'),
   summarySkeleton: document.getElementById('summary-skeleton'),
@@ -202,7 +240,36 @@ let recurringBusy = false;
 let pendingRecurringFocus = null;
 const budgetsGuard = createLatestGuard();
 const recurringGuard = createLatestGuard();
-const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, count: 4, variant: 'budget' });
+const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, variants: ['budget-hero', 'budget-chart', 'budget-list'] });
+// ถูก assign ใหม่ตอนประกาศหน้าดูทั้งหมด เพราะต้องรอ enterSubPage
+let openBudgetsAll = () => {};
+const budgetsPanel = createBudgetsPanel({
+  doc: document,
+  els: {
+    section: els.budgets, hero: els.budgetHero, heroPercent: els.budgetHeroPercent, heroRest: els.budgetHeroRest,
+    many: els.budgetMany, manySearch: els.budgetManySearch, manyChips: els.budgetManyChips,
+    risk: els.budgetRisk, riskTitle: els.budgetRiskTitle, riskPlot: els.budgetRiskPlot, riskBars: els.budgetRiskBars,
+    riskNames: els.budgetRiskNames, riskPager: els.budgetRiskPager, riskPageLabel: els.budgetRiskPage,
+    riskPrev: els.budgetRiskPrev, riskNext: els.budgetRiskNext, riskDots: els.budgetRiskDots,
+    calm: els.budgetCalm, calmHead: els.budgetCalmHead, calmTitle: els.budgetCalmTitle, calmNote: els.budgetCalmNote,
+    calmList: els.budgetCalmList, calmAll: els.budgetAllOpen,
+    unset: els.budgetUnset, unsetText: els.budgetUnsetText, unsetOpen: els.budgetUnsetOpen,
+    empty: els.budgetEmpty, emptyHint: els.budgetEmptyHint, emptyList: els.budgetEmptyList,
+  },
+  onEdit: (row) => openBudgetEditor(row),
+  onOpenAll: (options) => openBudgetsAll(options),
+});
+const budgetsAllPanel = createBudgetsAllPanel({
+  doc: document,
+  els: {
+    tabs: els.budgetAllTabs, search: els.budgetAllSearch, clear: els.budgetAllClear, sort: els.budgetAllSort,
+    count: els.budgetAllCount, list: els.budgetAllList, empty: els.budgetAllEmpty, emptyTitle: els.budgetAllEmptyTitle,
+    emptyClear: els.budgetAllEmptyClear, tabEmpty: els.budgetAllTabEmpty,
+  },
+  badgeFor,
+  onEdit: (row) => openBudgetEditor(row),
+  getMonthLabel: () => formatMonthLabel(els.month.value),
+});
 const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3, variant: 'recurring' });
 const trendGuard = createLatestGuard();
 const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, variants: ['trend'] });
@@ -872,54 +939,17 @@ function renderList() {
   applyPendingListFocus();
 }
 
-function renderBudgets(budgets, focusCategoryId = null, { animate = false } = {}) {
-  els.budgetRows.replaceChildren();
+function renderBudgets(budgets, focusCategoryId = null) {
   budgetsLoading.set(false);
   els.budgetsError.hidden = true;
-  els.budgets.hidden = false;
-  for (const row of budgetRows(budgets)) {
-    const item = document.createElement('li');
-    item.className = `budget-row ${row.level}`;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'budget-button';
-    const label = document.createElement('span');
-    label.className = 'budget-label budget-label-wrap';
-    const labelText = document.createElement('span');
-    labelText.textContent = row.category;
-    // งบมีเฉพาะหมวดรายจ่าย
-    label.append(badgeFor(row.category, 'expense'), labelText);
-    const action = document.createElement('span');
-    action.className = 'budget-edit';
-    action.textContent = row.budget === null ? 'ตั้งงบ' : 'แก้งบ';
-    const value = document.createElement('span');
-    value.className = 'budget-value';
-    value.textContent = row.text;
-    button.append(label, action, value);
-    if (row.budget !== null) {
-      // ใช้ span เพราะใน button ใส่ div ไม่ได้
-      const track = document.createElement('span');
-      track.className = 'budget-track';
-      const fill = document.createElement('span');
-      fill.className = 'budget-fill';
-      fill.style.width = `${row.width}%`;
-      fill.dataset.width = String(row.width);
-      track.append(fill);
-      button.append(track);
-    }
-    button.addEventListener('click', () => openBudgetEditor(row));
-    item.append(button);
-    els.budgetRows.append(item);
-    // render ใหม่ทำให้ปุ่มเดิมหาย จึงคืน focus ให้ปุ่มของหมวดที่เพิ่งแก้
-    if (focusCategoryId === row.categoryId) button.focus();
-  }
-  if (animate && !els.panelBudgets.hidden) playBars(window, els.budgetRows);
+  budgetsPanel.render(budgets, { focusCategoryId });
+  budgetsAllPanel.setBudgets(budgets, { focusCategoryId });
 }
 
 function showBudgetsError(err) {
-  els.budgetRows.replaceChildren();
   budgetsLoading.set(false);
-  els.budgets.hidden = false;
+  els.budgets.hidden = true;
+  els.budgetEmpty.hidden = true;
   const loginRequired = err instanceof ApiError && err.status === 401;
   els.budgetsErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ';
   // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
@@ -1073,14 +1103,14 @@ function refreshProfileOnEntry() {
 }
 
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
-async function loadBudgets({ focusCategoryId = null, animate = false } = {}) {
+async function loadBudgets({ focusCategoryId = null } = {}) {
   const month = els.month.value;
   const requestId = budgetsGuard.start();
   // เดือนเดียวกันที่ถูกโหลดซ้อนกัน ผลที่ช้ากว่าและเก่ากว่าต้องไม่มาทับ
   const isCurrent = () => month === els.month.value && budgetsGuard.isCurrent(requestId);
   try {
     const { budgets } = await api.listBudgets(month);
-    if (isCurrent()) renderBudgets(budgets, focusCategoryId, { animate });
+    if (isCurrent()) renderBudgets(budgets, focusCategoryId);
   } catch (err) {
     if (isCurrent()) showBudgetsError(err);
   }
@@ -1107,10 +1137,10 @@ async function loadMonth({ reset = false } = {}) {
     els.summaryEmpty.hidden = true;
     els.summarySkeleton.hidden = false;
     // เปิดส่วนงบพร้อมข้อความโหลดไว้ก่อน รายการด้านล่างจะได้ไม่กระโดดตอนงบมาช้า
-    els.budgetRows.replaceChildren();
+    els.budgets.hidden = true;
+    els.budgetEmpty.hidden = true;
     els.budgetsError.hidden = true;
     budgetsLoading.set(true);
-    els.budgets.hidden = false;
     els.trendEmpty.hidden = true;
     els.trendBars.hidden = true;
     els.trendLegend.hidden = true;
@@ -1121,7 +1151,7 @@ async function loadMonth({ reset = false } = {}) {
     setStatus('กำลังโหลด...', { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
-  const budgetsLoaded = loadBudgets({ animate: reset });
+  const budgetsLoaded = loadBudgets();
   const trendLoaded = loadTrend({ animate: reset });
   try {
     const data = await api.listTransactions(month);
@@ -1673,7 +1703,6 @@ const tabController = createTabController({
       playBars(window, els.chartRows);
       playBars(window, els.trendBars);
     }
-    if (id === 'budgets') playBars(window, els.budgetRows);
     // ผู้ใช้อาจออมผ่านแชตระหว่างที่หน้าเว็บเปิดอยู่ จึงโหลดใหม่ทุกครั้งที่เข้าแท็บ
     if (id === 'goals') goalsPanel.refresh();
     if (id === 'profile') {
@@ -1771,6 +1800,20 @@ const CATEGORIES_PAGE = {
   ownerTab: 'budgets',
   returnFocus: els.categoriesOpen,
   render: () => categoriesPanel.render(),
+};
+
+const BUDGETS_ALL_PAGE = {
+  panelId: 'panel-budget-all',
+  title: 'ดูงบทุกหมวด',
+  backLabel: 'กลับไปหน้างบ',
+  ownerTab: 'budgets',
+  returnFocus: els.budgetAllOpen,
+};
+
+openBudgetsAll = ({ tab = 'risk', focusSearch = false } = {}) => {
+  budgetsAllPanel.show({ tab });
+  enterSubPage(BUDGETS_ALL_PAGE);
+  if (focusSearch) els.budgetAllSearch.focus();
 };
 
 function enterCategoriesPage(page) {

@@ -48,6 +48,12 @@ const TEXT_PAIRS = [
   ['income', 'income-soft'],
   ['on-primary', 'brand-dark'],
   ['warn', 'surface'],
+  ['danger-text', 'danger-soft'],
+  ['danger-text', 'surface'],
+  ['income-text', 'income-soft'],
+  ['income-text', 'surface'],
+  ['warn-text', 'notice-bg'],
+  ['warn-text', 'surface'],
   ...CATEGORY_KEYS.map((key) => [`cat-${key}-fg`, `cat-${key}-bg`]),
 ];
 
