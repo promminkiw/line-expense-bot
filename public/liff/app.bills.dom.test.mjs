@@ -286,6 +286,7 @@ describe('LIFF bills tab', () => {
     await settle();
 
     expect(byId('bills-status').textContent).toBe('ปฏิเสธบิลนี้แล้ว');
+    expect(byId('bills-status').querySelector('.success-mark')).toBeNull();
   });
 
   it('tells a friend who confirmed a cancelled bill that the expense is still recorded', async () => {
@@ -363,6 +364,7 @@ describe('LIFF bills tab', () => {
     expect(calls).toContain('POST /api/bills/b-in/confirm');
     expect(calls.filter((call) => call === 'GET /api/bills').length).toBeGreaterThanOrEqual(2);
     expect(byId('bills-status').textContent).toBe('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+    expect(byId('bills-status').querySelector('.success-mark')).not.toBeNull();
   });
 
   it('declines an incoming bill after confirming in the dialog', async () => {

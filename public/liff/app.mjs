@@ -1851,7 +1851,7 @@ const budgetBulkPanel = createBudgetBulkPanel({
   onSaved: () => loadBudgets(),
   onDone: ({ savedCount }) => {
     backFromSubPage();
-    budgetsAllPanel.setStatus(`บันทึกงบแล้ว ${savedCount} หมวด`);
+    budgetsAllPanel.setSuccess(`บันทึกงบแล้ว ${savedCount} หมวด`);
   },
 });
 

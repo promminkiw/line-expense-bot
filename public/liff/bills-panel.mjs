@@ -2,6 +2,7 @@ import { ApiError } from './api.mjs';
 import { formatBaht } from './format.mjs';
 import { createLoadingIndicator } from './skeleton.mjs';
 import { createSvgIcon } from './icons.mjs';
+import { setSuccessStatus } from './success-mark.mjs';
 import {
   MEMBER_STATUS_LABELS,
   BILL_LIST_LIMIT,
@@ -51,6 +52,11 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   // สถานะอยู่บนสุดของแท็บ ผลของการ์ดด้านล่างต้องเลื่อนให้เห็น
   function setStatus(text) {
     els.status.textContent = text;
+    if (text && typeof els.status.scrollIntoView === 'function') els.status.scrollIntoView({ block: 'nearest' });
+  }
+
+  function setSuccess(text) {
+    setSuccessStatus(els.status, text);
     if (text && typeof els.status.scrollIntoView === 'function') els.status.scrollIntoView({ block: 'nearest' });
   }
 
@@ -337,8 +343,10 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     const resultStatus = (result && result.status) || (answer === 'confirm' ? 'confirmed' : 'declined');
     const earlier = describeBillAnswer(resultStatus);
     // ใช้คำเดียวกับที่บอทตอบในแชต
+    // เครื่องหมายถูกเฉพาะตอนเพิ่งยืนยันสำเร็จ ส่วนข้อความตอบซ้ำหรือปฏิเสธเป็นข้อความธรรมดา
     if (earlier) setStatus(earlier);
-    else setStatus(answer === 'confirm' ? 'ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ' : 'ปฏิเสธบิลนี้แล้ว');
+    else if (answer === 'confirm') setSuccess('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
+    else setStatus('ปฏิเสธบิลนี้แล้ว');
     applyAnswerLocally(bill, resultStatus);
     focusCard(findCard(bill.id));
     await load({ afterAction: true });
@@ -386,7 +394,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     if (typeof liff.isApiAvailable === 'function' && liff.isApiAvailable('shareTargetPicker')) {
       try {
         const result = await liff.shareTargetPicker([{ type: 'text', text: `ยืนยันส่วนแบ่งบิล ${bill.title} ได้ที่ลิงก์นี้ ${url}` }]);
-        if (result) setStatus('ส่งลิงก์บิลแล้ว');
+        if (result) setSuccess('ส่งลิงก์บิลแล้ว');
         return;
       } catch {
         // เปิดหน้าเลือกแชตไม่ได้ ใช้การคัดลอกลิงก์แทน

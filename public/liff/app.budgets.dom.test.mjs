@@ -815,6 +815,7 @@ describe('LIFF bulk budget edit', () => {
     expect(byId('panel-budget-all').hidden).toBe(false);
     expect(byId('panel-budget-bulk').hidden).toBe(true);
     expect(byId('budget-all-status').textContent).toBe('บันทึกงบแล้ว 2 หมวด');
+    expect(byId('budget-all-status').querySelector('.success-mark')).not.toBeNull();
   });
 
   it('disables the buttons while saving', async () => {

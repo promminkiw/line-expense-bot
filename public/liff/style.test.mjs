@@ -628,3 +628,13 @@ describe('style.css motion polish: ripple', () => {
     expect(css).toContain('@keyframes ripple-out');
   });
 });
+
+describe('style.css motion polish: success mark', () => {
+  it('pops the circle and draws the check stroke', () => {
+    expect(declarations('.success-mark circle')).toMatch(/animation:\s*mark-pop/);
+    expect(declarations('.success-mark path')).toMatch(/stroke-dasharray:\s*1/);
+    expect(declarations('.success-mark path')).toMatch(/animation:\s*mark-draw/);
+    expect(css).toContain('@keyframes mark-pop');
+    expect(css).toContain('@keyframes mark-draw');
+  });
+});

@@ -1,4 +1,5 @@
 import { createSvgIcon } from './icons.mjs';
+import { setSuccessStatus } from './success-mark.mjs';
 import { describeDiff, filterBudgetRows, formatNumber, groupBudgetRows, sectionsForTab, sortBudgetRows } from './budgets-format.mjs';
 
 const TABS = [
@@ -125,5 +126,10 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
 
   els.bulk.addEventListener('click', () => onBulk({ first: state.tab === 'unset' ? 'unset' : 'risk' }));
 
-  return { setBudgets, show, setStatus: (text) => { els.status.textContent = text; } };
+  return {
+    setBudgets,
+    show,
+    setStatus: (text) => { els.status.textContent = text; },
+    setSuccess: (text) => setSuccessStatus(els.status, text),
+  };
 }
