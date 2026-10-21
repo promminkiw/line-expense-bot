@@ -10,7 +10,7 @@ describe('formatSavedReply', () => {
 
     expect(reply).toBe(
       [
-        'บันทึกแล้ว',
+        'เฮียบันทึกแล้ว',
         '- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
         '- รายรับ | เงินเดือน | 25,000 บาท | 01/09',
       ].join('\n')
@@ -62,19 +62,19 @@ describe('formatSlipConfirmReply', () => {
 
   it('shows a single item exactly as before', () => {
     expect(formatSlipConfirmReply([ITEM])).toBe(
-      `อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n${CONFIRM}`
+      `เฮียอ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n${CONFIRM}`
     );
   });
 
   it('tells the user when the date was not readable and today is used', () => {
     expect(formatSlipConfirmReply([ITEM], { dateAssumed: true })).toBe(
-      `อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nอ่านวันที่ไม่ได้ จึงใช้วันนี้\n${CONFIRM}`
+      `เฮียอ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nอ่านวันที่ไม่ได้ จึงใช้วันนี้\n${CONFIRM}`
     );
   });
 
   it('lists every item with its own price and the count in the header, without a total', () => {
     expect(formatSlipConfirmReply([MILK, TOOTHPASTE])).toBe(
-      `อ่านสลิปได้ 2 รายการ\n- รายจ่าย | อาหาร | 35 บาท | 28/09 | นมสด\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n${CONFIRM}`
+      `เฮียอ่านสลิปได้ 2 รายการ\n- รายจ่าย | อาหาร | 35 บาท | 28/09 | นมสด\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน\n${CONFIRM}`
     );
   });
 

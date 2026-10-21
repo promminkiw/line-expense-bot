@@ -1,9 +1,10 @@
 const { TEXT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 const { withLowEffort } = require('../utils/claude-effort');
+const { PERSONA_PROMPT } = require('../persona');
 
-const DEFAULT_CLARIFY_QUESTION = 'ช่วยบอกรายการและจำนวนเงินอีกครั้งได้ไหม เช่น "กินข้าว 60"';
-const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)';
+const DEFAULT_CLARIFY_QUESTION = 'บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"';
+const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)';
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
@@ -77,6 +78,7 @@ function buildSystemPrompt(today, categories, wallets = []) {
     '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
     ...walletRules,
     '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
+    `- ${PERSONA_PROMPT}`,
     '- Never ask about the date in question. A missing date always means today.',
     '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
     '- Otherwise set needs_clarification to false and question to "".',

@@ -87,7 +87,7 @@ function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletR
   // ใช้ลิงก์เมื่อมีครบทุกแถวเท่านั้น กันลิงก์ไปผิดรายการเมื่อจำนวนไม่ตรงกัน
   const links = Array.isArray(editUrls) && editUrls.length === items.length ? editUrls : null;
   const body = [
-    { type: 'text', text: 'บันทึกแล้ว', size: 'xs', color: COLORS.muted },
+    { type: 'text', text: 'เฮียบันทึกแล้ว', size: 'xs', color: COLORS.muted },
     ...items.map((item, index) => itemRow(item, links && links[index])),
   ];
   if (links && links.some(Boolean)) body.push({ ...smallText('แตะรายการเพื่อแก้ไขในเว็บ', COLORS.muted), margin: 'md' });
@@ -119,7 +119,7 @@ function smallText(text, color) {
 
 // การ์ดสรุปสลิปก่อนกดบันทึก: ข้อความ altText ยังเป็นข้อความเดิมจาก formatSlipConfirmReply
 function buildSlipConfirmFlex(items, { dateAssumed = false, buttons } = {}) {
-  const title = items.length > 1 ? `อ่านสลิปได้ ${items.length} รายการ` : 'อ่านสลิปได้';
+  const title = items.length > 1 ? `เฮียอ่านสลิปได้ ${items.length} รายการ` : 'เฮียอ่านสลิปได้';
   const body = [{ type: 'text', text: title, size: 'xs', color: COLORS.muted }, ...items.map((item) => itemRow(item))];
   if (dateAssumed) {
     body.push(strip(STRIP_COLORS.warn, [{ type: 'text', text: 'อ่านวันที่ไม่ได้ จึงใช้วันนี้', size: 'sm', wrap: true }]));

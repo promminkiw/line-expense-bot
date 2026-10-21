@@ -55,13 +55,13 @@ describe('findOpenGoal', () => {
 describe('formatSavingReply', () => {
   it('shows the amount, the saved total and the percent rounded down', () => {
     expect(formatSavingReply({ name: 'เที่ยวญี่ปุ่น', amount: 1000, saved: 6000.5, target: 50000 })).toBe(
-      'ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000.5 / 50,000 บาท (12%)'
+      'เฮียจดออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000.5 / 50,000 บาท (12%)'
     );
   });
 
   it('says the goal is reached at 100 percent or more', () => {
     expect(formatSavingReply({ name: 'มือถือ', amount: 500, saved: 30500, target: 30000 })).toBe(
-      'ออมเข้าเป้า มือถือ 500 บาทแล้ว\nยอดสะสม 30,500 / 30,000 บาท (101%)\nถึงเป้าแล้ว ปิดเป้าได้ในหน้าเว็บ แท็บ ออม'
+      'เฮียจดออมเข้าเป้า มือถือ 500 บาทแล้ว\nยอดสะสม 30,500 / 30,000 บาท (101%)\nถึงเป้าแล้ว ปิดเป้าได้ในหน้าเว็บ แท็บ ออม'
     );
   });
 });
@@ -69,19 +69,19 @@ describe('formatSavingReply', () => {
 describe('formatGoalNotFoundReply', () => {
   it('lists only the open goals with an example', () => {
     expect(formatGoalNotFoundReply('คอนโด', GOALS)).toBe(
-      'ไม่พบเป้า "คอนโด"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000'
+      'เฮียไม่พบเป้า "คอนโด"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000'
     );
   });
 
   // ผู้ใช้พิมพ์อะไรมาก็ได้ ชื่อยาวเกินชื่อเป้าที่ยาวที่สุดจึงตัดไม่ให้ข้อความตอบยาวเกิน
   it('cuts a typed name longer than 30 characters', () => {
-    expect(formatGoalNotFoundReply('ก'.repeat(40), GOALS).split('\n')[0]).toBe(`ไม่พบเป้า "${'ก'.repeat(30)}…"`);
+    expect(formatGoalNotFoundReply('ก'.repeat(40), GOALS).split('\n')[0]).toBe(`เฮียไม่พบเป้า "${'ก'.repeat(30)}…"`);
   });
 });
 
 describe('formatGoalNameMissingReply', () => {
   it('asks for the goal name and lists the open goals', () => {
-    expect(formatGoalNameMissingReply(GOALS)).toBe('ใส่ชื่อเป้าด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip');
+    expect(formatGoalNameMissingReply(GOALS)).toBe('ใส่ชื่อเป้าให้เฮียด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น, Japan Trip');
   });
 });
 

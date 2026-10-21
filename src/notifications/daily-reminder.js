@@ -1,7 +1,7 @@
 const { toBangkokDateString } = require('../utils/date');
 
 const DAILY_REMINDER_KIND = 'daily_reminder';
-const DAILY_REMINDER_TEXT = 'วันนี้ยังไม่ได้จดรายการเลย ใช้อะไรไปบ้าง พิมพ์มาได้เลย เช่น "กินข้าว 60"';
+const DAILY_REMINDER_TEXT = 'วันนี้เฮียยังไม่เห็นรายการเลย ใช้อะไรไปบ้าง บอกเฮียได้เลย เช่น "กินข้าว 60"';
 
 function createDailyReminderRunner({ repository, pushText, now = () => new Date(), logger = console }) {
   return async function run() {

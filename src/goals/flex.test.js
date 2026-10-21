@@ -33,9 +33,9 @@ describe('buildSavingFlex', () => {
     const message = buildSavingFlex(saving, { buttons: [UNDO_BUTTON], goalsUrl: GOALS_URL });
 
     expect(message.type).toBe('flex');
-    expect(message.altText).toBe('ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000.5 / 50,000 บาท (12%)');
+    expect(message.altText).toBe('เฮียจดออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000.5 / 50,000 บาท (12%)');
     expect(texts(message.contents.body)).toEqual([
-      'ออมเข้าเป้าแล้ว',
+      'เฮียจดออมเข้าเป้าแล้ว',
       'เที่ยวญี่ปุ่น',
       '+1,000 บาท',
       'ยอดสะสม 6,000.5 / 50,000 บาท (12%)',

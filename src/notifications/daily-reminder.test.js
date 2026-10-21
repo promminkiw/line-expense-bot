@@ -17,7 +17,7 @@ function setup(users = [{ userId: 'user-1', lineUserId: 'U1' }]) {
 
 describe('createDailyReminderRunner', () => {
   it('uses the agreed reminder text', () => {
-    expect(DAILY_REMINDER_TEXT).toBe('วันนี้ยังไม่ได้จดรายการเลย ใช้อะไรไปบ้าง พิมพ์มาได้เลย เช่น "กินข้าว 60"');
+    expect(DAILY_REMINDER_TEXT).toBe('วันนี้เฮียยังไม่เห็นรายการเลย ใช้อะไรไปบ้าง บอกเฮียได้เลย เช่น "กินข้าว 60"');
   });
 
   it('asks for users to remind today in Bangkok time, reserves the day and pushes the text without buttons', async () => {

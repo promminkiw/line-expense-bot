@@ -316,7 +316,7 @@ describe('billService.respondFromWeb', () => {
     expect(repository.getLineUserIds).toHaveBeenCalledWith([F1]);
     expect(pushText).toHaveBeenCalledWith(
       'U-F1',
-      'ยืนยันบิล เนื้อย่าง ในเว็บแล้ว บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก'
+      'ยืนยันบิล เนื้อย่าง ในเว็บแล้ว เฮียบันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก'
     );
   });
 

@@ -7,7 +7,7 @@ const MAX_VISIBLE_WALLETS = 10;
 const MAX_TOTAL_WALLETS = 20;
 
 // ขึ้นบนการ์ดบันทึกเมื่ออ่านกระเป๋าไม่ได้และรายการไปอยู่ในกระเป๋าตั้งต้น
-const WALLETS_UNREADABLE_NOTICE = 'อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+const WALLETS_UNREADABLE_NOTICE = 'เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
 
 function isDefaultWallet(name) {
   return name === DEFAULT_WALLET_NAME;

@@ -46,7 +46,7 @@ function footer(buttons, goalsUrl) {
 function buildSavingFlex({ name, amount, saved, target }, { buttons, goalsUrl } = {}) {
   const percent = goalPercent(saved, target);
   const body = [
-    { type: 'text', text: 'ออมเข้าเป้าแล้ว', size: 'xs', color: COLORS.muted },
+    { type: 'text', text: 'เฮียจดออมเข้าเป้าแล้ว', size: 'xs', color: COLORS.muted },
     {
       type: 'box',
       layout: 'horizontal',

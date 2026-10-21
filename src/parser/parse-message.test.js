@@ -116,6 +116,16 @@ describe('parseMessage request', () => {
     expect(system).toContain('Never ask about the date');
   });
 
+  it('asks Claude to write the clarification question as เฮีย', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('ซื้อของ');
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('"เฮีย"');
+  });
+
   it('passes request timeout and retry limit so fallback reply fits the reply token window', async () => {
     const client = fakeClient(okPayload([item()]));
     const parse = createMessageParser({ client, model: 'm', now: NOW });
@@ -188,7 +198,7 @@ describe('parseMessage result', () => {
 
   it('uses the agreed wording for the amount limit message', () => {
     expect(AMOUNT_TOO_LARGE_QUESTION).toBe(
-      'จำนวนเงินเกินเพดานที่กำหนด (ไม่เกิน 10,000,000 บาทต่อรายการ)'
+      'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)'
     );
   });
 

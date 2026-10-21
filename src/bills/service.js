@@ -8,7 +8,7 @@ const { formatAmount } = require('../parser/format-reply');
 // ข้อความที่ส่งเข้าแชตเมื่อตอบบิลในเว็บ เพราะการ์ดบิลเดิมในแชตแก้ไม่ได้
 function buildWebAnswerText(result) {
   if (result.status === 'confirmed') {
-    return `ยืนยันบิล ${result.title} ในเว็บแล้ว บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
+    return `ยืนยันบิล ${result.title} ในเว็บแล้ว เฮียบันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
   }
   if (result.status === 'declined') {
     return `ปฏิเสธบิล ${result.title} ในเว็บแล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;

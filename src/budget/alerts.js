@@ -42,7 +42,7 @@ function findBudgetAlerts(rows, statusByMonth) {
   return alerts;
 }
 
-const BUDGET_CHECK_FAILED_NOTICE = 'เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
+const BUDGET_CHECK_FAILED_NOTICE = 'เฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
 
 function alertParts(alert) {
   const [year, month] = alert.month.split('-');

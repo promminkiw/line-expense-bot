@@ -1,11 +1,13 @@
 const { formatAmount } = require('../parser/format-reply');
 const { withLowEffort } = require('../utils/claude-effort');
+const { PERSONA_PROMPT } = require('../persona');
 
 // คำอธิบายเป็นส่วนเสริม ให้เวลาสั้นกว่าตอนแยกรายการเพื่อให้การ์ดยังตอบทันเวลา
 const COMMENT_TIMEOUT_MS = 15000;
 
 const SYSTEM_PROMPT = [
   'You write a short, friendly comment in Thai about a personal spending summary.',
+  PERSONA_PROMPT,
   'Write at most two short sentences.',
   'Do not calculate anything and do not state any number that is not given.',
   'Do not use emoji.',

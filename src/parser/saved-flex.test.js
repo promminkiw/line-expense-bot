@@ -54,7 +54,7 @@ describe('buildSavedFlex', () => {
   it('shows the category, a signed amount, then date and note on one small line', () => {
     const flex = buildSavedFlex([FOOD]);
 
-    expect(texts(flex)).toEqual(['บันทึกแล้ว', 'อาหาร', '29/09 · กินข้าว', '-60 บาท']);
+    expect(texts(flex)).toEqual(['เฮียบันทึกแล้ว', 'อาหาร', '29/09 · กินข้าว', '-60 บาท']);
   });
 
   it('colors expenses red and incomes green and drops the separator when there is no note', () => {
@@ -108,13 +108,13 @@ describe('buildSavedFlex', () => {
   it('shows a notice strip when the budget check failed', () => {
     const flex = buildSavedFlex([FOOD], { budgetCheckFailed: true });
 
-    expect(texts(flex)).toContain('เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ');
-    expect(flex.altText.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
+    expect(texts(flex)).toContain('เฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ');
+    expect(flex.altText.endsWith('\n\nเฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
   });
 
   it('shows a notice strip when the wallets could not be read', () => {
     const flex = buildSavedFlex([FOOD], { walletReadFailed: true });
-    const notice = 'อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+    const notice = 'เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
 
     expect(texts(flex)).toContain(notice);
     expect(flex.altText.endsWith(`
@@ -194,10 +194,10 @@ describe('buildSlipConfirmFlex', () => {
   });
 
   it('titles the card by how many items were read and ends with the confirm hint', () => {
-    expect(texts(buildSlipConfirmFlex([MILK]))[0]).toBe('อ่านสลิปได้');
+    expect(texts(buildSlipConfirmFlex([MILK]))[0]).toBe('เฮียอ่านสลิปได้');
     const many = texts(buildSlipConfirmFlex([MILK, TOOTHPASTE]));
 
-    expect(many[0]).toBe('อ่านสลิปได้ 2 รายการ');
+    expect(many[0]).toBe('เฮียอ่านสลิปได้ 2 รายการ');
     expect(many[many.length - 1]).toBe('กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)');
   });
 

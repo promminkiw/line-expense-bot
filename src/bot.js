@@ -25,32 +25,32 @@ const {
 } = require('./goals/chat');
 const { toBangkokDateString } = require('./utils/date');
 
-const SYSTEM_ERROR_REPLY = 'ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง';
+const SYSTEM_ERROR_REPLY = 'เฮียขออภัย ระบบมีปัญหา ส่งข้อความไม่สำเร็จ รบกวนมาใช้บริการใหม่ภายหลัง';
 const SLOW_PROCESSING_REPLY =
-  'ระบบตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
+  'เฮียตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
 // LINE ไม่ระบุอายุของ reply token ที่แน่นอน ตอบก่อนราว 1 นาทีที่มักใช้ได้ ผู้ใช้จะได้ไม่เงียบหาย
 const REPLY_DEADLINE_MS = 50000;
 const DEADLINE_PASSED = Symbol('deadline passed');
-const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป รอสักครู่แล้วลองใหม่อีกครั้ง';
-const QUESTION_FAILED_REPLY = 'ตอบคำถามยอดไม่ได้ตอนนี้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
-const UNDO_DONE_REPLY = 'ยกเลิกรายการแล้ว';
-const UNDO_NOT_FOUND_REPLY = 'ไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
-const UNDO_SAVING_DONE_REPLY = 'ยกเลิกการออมแล้ว';
-const UNDO_SAVING_NOT_FOUND_REPLY = 'ไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป เฮียตามไม่ทัน รอสักครู่แล้วลองใหม่อีกครั้ง';
+const QUESTION_FAILED_REPLY = 'ตอนนี้เฮียตอบคำถามยอดไม่ได้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
+const UNDO_DONE_REPLY = 'เฮียยกเลิกรายการให้แล้ว';
+const UNDO_NOT_FOUND_REPLY = 'เฮียไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const UNDO_SAVING_DONE_REPLY = 'เฮียยกเลิกการออมให้แล้ว';
+const UNDO_SAVING_NOT_FOUND_REPLY = 'เฮียไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
 const BILL_REPLIES = {
-  declined: 'ปฏิเสธบิลนี้แล้ว',
+  declined: 'เฮียบันทึกว่าคุณปฏิเสธบิลนี้แล้ว',
   cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
   already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
   already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
-  not_found: 'ไม่พบบิลนี้',
+  not_found: 'เฮียไม่พบบิลนี้',
 };
-const SUMMARY_MENU_REPLY = 'ต้องการสรุปช่วงไหน';
-const NO_ENTRIES_COMMENT = 'ยังไม่มีรายการในช่วงนี้';
-const SLIP_UNREADABLE_REPLY = 'อ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
-const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
-const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
-const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปใหม่ได้เลย';
-const SLIP_CANCELLED_REPLY = 'ยกเลิกสลิปแล้ว ไม่ได้บันทึกรายการ';
+const SUMMARY_MENU_REPLY = 'อยากให้เฮียสรุปช่วงไหน';
+const NO_ENTRIES_COMMENT = 'ช่วงนี้เฮียยังไม่เห็นรายการเลย';
+const SLIP_UNREADABLE_REPLY = 'เฮียอ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
+const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไปสำหรับเฮีย (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
+const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่เฮียอ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
+const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปให้เฮียใหม่ได้เลย';
+const SLIP_CANCELLED_REPLY = 'เฮียยกเลิกสลิปให้แล้ว ไม่ได้บันทึกรายการ';
 const SLIP_SAVE_ACTION = 'slip_save';
 const SLIP_CANCEL_ACTION = 'slip_cancel';
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
@@ -587,7 +587,7 @@ function createBot({
     const userId = await users.ensureUser(lineUserId);
     const result = await bills.respond(userId, params.get('bill'), answer);
     if (result.status === 'confirmed') {
-      return { text: `บันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
+      return { text: `เฮียบันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
     }
     // การ์ดเก่าแก้ไม่ได้ เมื่อตอบไปแล้ว (เช่นในเว็บ) จึงบอกชื่อบิลให้รู้ว่าไม่ต้องกดอีก
     if (result.status === 'already_confirmed' && result.title) {

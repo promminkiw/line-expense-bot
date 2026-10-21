@@ -177,7 +177,7 @@ describe('bot text message', () => {
     ]);
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
-      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
+      text: 'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
       quickReply: UNDO_QUICK_REPLY,
     });
     expect(deps.replyText).not.toHaveBeenCalled();
@@ -308,7 +308,7 @@ describe('bot text message', () => {
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
-      text: expect.stringContaining('บันทึกแล้ว'),
+      text: expect.stringContaining('เฮียบันทึกแล้ว'),
       quickReply: UNDO_QUICK_REPLY,
     });
     expect(deps.logger.error).toHaveBeenCalledWith(
@@ -440,7 +440,7 @@ describe('bot text message', () => {
   });
 
   it('uses the agreed wording for the system error message', () => {
-    expect(SYSTEM_ERROR_REPLY).toBe('ขออภัยส่งข้อความไม่สำเร็จเนื่องจากระบบมีปัญหา รบกวนมาใช้บริการใหม่ภายหลัง');
+    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ส่งข้อความไม่สำเร็จ รบกวนมาใช้บริการใหม่ภายหลัง');
   });
 });
 
@@ -728,7 +728,7 @@ describe('bot saving command', () => {
     });
     const flex = deps.replyFlex.mock.calls[0][1];
     expect(deps.replyFlex.mock.calls[0][0]).toBe('r1');
-    expect(flex.altText).toBe('ออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000 / 50,000 บาท (12%)');
+    expect(flex.altText).toBe('เฮียจดออมเข้าเป้า เที่ยวญี่ปุ่น 1,000 บาทแล้ว\nยอดสะสม 6,000 / 50,000 บาท (12%)');
     expect(flex.contents.footer.contents.map((button) => button.action)).toEqual([UNDO_SAVING_QUICK_REPLY[0].action]);
     expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.parseMessage).not.toHaveBeenCalled();
@@ -771,7 +771,7 @@ describe('bot saving command', () => {
 
     expect(deps.replyText).toHaveBeenCalledWith(
       'r1',
-      'ไม่พบเป้า "มือถือ"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000',
+      'เฮียไม่พบเป้า "มือถือ"\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น\nพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000',
       undefined
     );
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
@@ -782,7 +782,7 @@ describe('bot saving command', () => {
 
     await bot.handleEvent(textEvent('ออม 1000'));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ใส่ชื่อเป้าด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น', undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'ใส่ชื่อเป้าให้เฮียด้วย เช่น ออม เที่ยวญี่ปุ่น 1000\nเป้าที่เปิดอยู่: เที่ยวญี่ปุ่น', undefined);
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
     expect(deps.parseMessage).not.toHaveBeenCalled();
   });
@@ -928,7 +928,7 @@ describe('bot.handleEvents', () => {
 });
 
 describe('bot budget alerts', () => {
-  const SAVED = 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว';
+  const SAVED = 'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว';
 
   it('adds the alert under the saved reply when the entry crosses 80 percent', async () => {
     const { deps, bot } = setup();
@@ -987,7 +987,7 @@ describe('bot budget alerts', () => {
 
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
-      text: `${SAVED}\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
+      text: `${SAVED}\n\nเฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
       quickReply: UNDO_QUICK_REPLY,
     });
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to check budgets', { userId: 'user-1' }, error);
@@ -1013,9 +1013,9 @@ describe('bot budget alerts', () => {
     await bot.handleEvent(textEvent('กินข้าว 60 สองวัน'));
 
     const { text } = replyFlexOf(deps);
-    expect(text.split('เช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toHaveLength(2);
-    expect(text.startsWith('บันทึกแล้ว')).toBe(true);
-    expect(text.endsWith('\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
+    expect(text.split('เฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toHaveLength(2);
+    expect(text.startsWith('เฮียบันทึกแล้ว')).toBe(true);
+    expect(text.endsWith('\n\nเฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ')).toBe(true);
     expect(deps.logger.error).toHaveBeenCalledTimes(1);
   });
 
@@ -1349,8 +1349,8 @@ describe('bot wallets', () => {
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to load wallets', { userId: 'user-1' }, expect.any(Error));
     expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
-    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
-    expect(deps.replyFlex.mock.calls[0][1].altText).toContain('อ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+    expect(deps.replyFlex.mock.calls[0][1].altText).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
   });
 
   it('adds no wallet notice when the wallets load', async () => {
@@ -1384,7 +1384,7 @@ describe('bot wallets', () => {
 
 describe('bot slip image', () => {
   const SLIP_CONFIRM_TEXT =
-    'อ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nกดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)';
+    'เฮียอ่านสลิปได้ดังนี้\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\nกดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)';
 
   it('reads the slip, keeps the item pending and asks for confirmation without saving', async () => {
     const { deps, bot } = setup();
@@ -1487,7 +1487,7 @@ describe('bot slip image', () => {
   });
 
   it('tells the user the image limit is 3.5 MB', () => {
-    expect(SLIP_TOO_LARGE_REPLY).toBe('รูปใหญ่เกินไป (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน');
+    expect(SLIP_TOO_LARGE_REPLY).toBe('รูปใหญ่เกินไปสำหรับเฮีย (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน');
   });
 
   it('exports the pending slip lifetime as 10 minutes', () => {
@@ -1630,7 +1630,7 @@ describe('bot slip confirmation', () => {
     ]);
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r2',
-      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง',
+      text: 'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง',
       quickReply: [
         {
           type: 'action',
@@ -1650,7 +1650,7 @@ describe('bot slip confirmation', () => {
 
     expect(deps.repository.getBudgetStatus).toHaveBeenCalledWith('user-1', '2026-09');
     expect(replyFlexOf(deps).text).toBe(
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)'
+      'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 135 จาก 150 บาท (90%)'
     );
   });
 
@@ -1778,7 +1778,7 @@ describe('bot slip confirmation', () => {
 
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r2',
-      text: 'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ',
+      text: 'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n\nเฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ',
       quickReply: [
         {
           type: 'action',
@@ -1866,7 +1866,7 @@ describe('bot slip with several items', () => {
       },
     ]);
     expect(replyFlexOf(deps).text).toBe(
-      'บันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน'
+      'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 120 บาท | 28/09 | โอนให้ ร้านข้าวแกง\n- รายจ่าย | สุขภาพ | 59 บาท | 28/09 | ยาสีฟัน'
     );
     expect(replyFlexOf(deps).quickReply[0].action.data).toBe('action=undo&event=ev-img');
   });
@@ -2014,7 +2014,7 @@ describe('bot reply deadline', () => {
 
   it('keeps the slow reply text and the 50 second deadline', () => {
     expect(SLOW_PROCESSING_REPLY).toBe(
-      'ระบบตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง'
+      'เฮียตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง'
     );
     expect(REPLY_DEADLINE_MS).toBe(50000);
   });
@@ -2149,7 +2149,7 @@ describe('bot bill card buttons', () => {
     await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
 
     expect(deps.bills.respond).toHaveBeenCalledWith('user-1', BILL, 'confirm');
-    expect(deps.replyText).toHaveBeenCalledWith('r2', 'บันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว', undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'เฮียบันทึกส่วนของคุณ 300 บาท ในหมวด อาหาร แล้ว', undefined);
   });
 
   it('answers every other outcome with its own message', async () => {
@@ -2235,11 +2235,11 @@ describe('bot bill card buttons', () => {
 describe('BILL_REPLIES', () => {
   it('uses the agreed wording', () => {
     expect(BILL_REPLIES).toEqual({
-      declined: 'ปฏิเสธบิลนี้แล้ว',
+      declined: 'เฮียบันทึกว่าคุณปฏิเสธบิลนี้แล้ว',
       cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
       already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
       already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
-      not_found: 'ไม่พบบิลนี้',
+      not_found: 'เฮียไม่พบบิลนี้',
     });
   });
 });

@@ -30,7 +30,7 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
       result.created += 1;
       try {
         const text = [
-          'บันทึกรายการประจำให้อัตโนมัติ',
+          'เฮียบันทึกรายการประจำให้อัตโนมัติ',
           formatItem({
             type: rule.type,
             category: rule.categoryName,

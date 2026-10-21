@@ -26,6 +26,7 @@ describe('createSummaryCommenter', () => {
     const [params, options] = client.messages.create.mock.calls[0];
     expect(params.model).toBe('m');
     expect(params.system).toContain('Do not calculate');
+    expect(params.system).toContain('"เฮีย"');
     expect(params.messages[0].content).toContain('รายจ่าย: 1,250.5 บาท');
     expect(params.messages[0].content).toContain('- อาหาร: 1,250.5 บาท');
     expect(options).toEqual({ timeout: 15000, maxRetries: 1, signal: expect.any(AbortSignal) });

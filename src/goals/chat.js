@@ -10,7 +10,7 @@ const NAMELESS_SAVING_PATTERN = /^ออม\s*([\d,]+(?:\.\d{1,2})?)\s*(?:บา
 const MAX_REPLY_NAME_LENGTH = 30;
 
 const SAVING_AMOUNT_REPLY = 'จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท';
-const GOAL_GONE_REPLY = 'ไม่พบเป้านี้แล้ว อาจถูกปิดไปแล้ว ดูเป้าที่เปิดอยู่ในหน้าเว็บ แท็บ ออม';
+const GOAL_GONE_REPLY = 'เฮียไม่พบเป้านี้แล้ว อาจถูกปิดไปแล้ว ดูเป้าที่เปิดอยู่ในหน้าเว็บ แท็บ ออม';
 
 function toSavingAmount(text) {
   const amount = Number(text.replace(/,/g, ''));
@@ -51,7 +51,7 @@ function goalPercent(saved, target) {
 function formatSavingReply({ name, amount, saved, target }) {
   const percent = goalPercent(saved, target);
   const lines = [
-    `ออมเข้าเป้า ${name} ${formatAmount(amount)} บาทแล้ว`,
+    `เฮียจดออมเข้าเป้า ${name} ${formatAmount(amount)} บาทแล้ว`,
     `ยอดสะสม ${formatAmount(saved)} / ${formatAmount(target)} บาท (${percent}%)`,
   ];
   if (percent >= 100) {
@@ -71,12 +71,12 @@ function shortenName(name) {
 
 function formatGoalNotFoundReply(name, goals) {
   const open = openGoalNames(goals);
-  return [`ไม่พบเป้า "${shortenName(name)}"`, `เป้าที่เปิดอยู่: ${open.join(', ')}`, `พิมพ์ เช่น ออม ${open[0]} 1000`].join('\n');
+  return [`เฮียไม่พบเป้า "${shortenName(name)}"`, `เป้าที่เปิดอยู่: ${open.join(', ')}`, `พิมพ์ เช่น ออม ${open[0]} 1000`].join('\n');
 }
 
 function formatGoalNameMissingReply(goals) {
   const open = openGoalNames(goals);
-  return [`ใส่ชื่อเป้าด้วย เช่น ออม ${open[0]} 1000`, `เป้าที่เปิดอยู่: ${open.join(', ')}`].join('\n');
+  return [`ใส่ชื่อเป้าให้เฮียด้วย เช่น ออม ${open[0]} 1000`, `เป้าที่เปิดอยู่: ${open.join(', ')}`].join('\n');
 }
 
 module.exports = {

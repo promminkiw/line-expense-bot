@@ -23,11 +23,11 @@ function formatItem(item) {
 }
 
 function formatSavedReply(items) {
-  return ['บันทึกแล้ว', ...items.map(formatItem)].join('\n');
+  return ['เฮียบันทึกแล้ว', ...items.map(formatItem)].join('\n');
 }
 
 function formatSlipConfirmReply(items, { dateAssumed = false } = {}) {
-  const header = items.length > 1 ? `อ่านสลิปได้ ${items.length} รายการ` : 'อ่านสลิปได้ดังนี้';
+  const header = items.length > 1 ? `เฮียอ่านสลิปได้ ${items.length} รายการ` : 'เฮียอ่านสลิปได้ดังนี้';
   const lines = [header, ...items.map(formatItem)];
   if (dateAssumed) {
     lines.push('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
