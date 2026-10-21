@@ -11,7 +11,7 @@ function declarations(selector) {
 
 describe('style.css skeleton sizes', () => {
   // jsdom ไม่มี layout จึงตรวจได้แค่ว่าทุก variant มีความสูงตายตัว ส่วนตัวเลขตรงของจริงตรวจในเบราว์เซอร์
-  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'row', 'bar', 'friends-card', 'friends-row', 'bill-switch', 'bill-card', 'budget-hero', 'budget-chart', 'budget-list'])(
+  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'row', 'bar', 'friends-card', 'friends-row', 'bill-switch', 'bill-card', 'budget-hero', 'budget-chart', 'budget-list', 'goal-hero', 'goal-card'])(
     'gives the %s skeleton a fixed pixel height',
     (variant) => {
       const rule = declarations(`.skeleton-${variant}`);
@@ -463,14 +463,6 @@ describe('style.css budget card links', () => {
     expect(declarations('.budget-card-link')).toMatch(/border-top:\s*1px solid var\(--border\)/);
   });
 
-  it('sizes the create-goal button like the see-all link and aligns it right', () => {
-    const rule = declarations('.categories-open.goal-add');
-
-    expect(rule).toMatch(/min-height:\s*48px/);
-    expect(rule).toMatch(/font-size:\s*14px/);
-    expect(rule).toMatch(/justify-content:\s*flex-end/);
-  });
-
   it('draws the magnifier inside the transaction search box without catching taps', () => {
     expect(declarations('.filter-search .icon')).toMatch(/pointer-events:\s*none/);
     expect(declarations('.filters .filter-search input')).toMatch(/padding-left:\s*44px/);
@@ -527,5 +519,39 @@ describe('style.css budget bulk page', () => {
 
   it('keeps the save bar visible at the bottom', () => {
     expect(declarations('.budget-bulk-bar')).toMatch(/position:\s*sticky/);
+  });
+});
+
+describe('style.css goals tab', () => {
+  it('draws the create-goal button as a centred dashed outline', () => {
+    const rule = declarations('.goal-add');
+
+    expect(rule).toMatch(/border:\s*1\.5px dashed var\(--primary\)/);
+    expect(rule).toMatch(/justify-content:\s*center/);
+    expect(rule).toMatch(/min-height:\s*52px/);
+    expect(rule).toMatch(/border-radius:\s*20px/);
+    expect(rule).toMatch(/background:\s*none/);
+  });
+
+  it('paints the summary card in the brand colours', () => {
+    const rule = declarations('.goals-hero');
+
+    expect(rule).toMatch(/background:\s*var\(--primary\)/);
+    expect(rule).toMatch(/color:\s*var\(--on-primary\)/);
+    expect(declarations('.goals-hero-lead')).toMatch(/color:\s*var\(--on-brand-muted\)/);
+    expect(declarations('.goals-hero-foot')).toMatch(/color:\s*var\(--on-brand-muted\)/);
+  });
+
+  it('makes each goal a white card with an 8px bar and a green bar once reached', () => {
+    expect(declarations('.goal-card')).toMatch(/background:\s*var\(--surface\)/);
+    expect(declarations('.goal-card')).toMatch(/border-radius:\s*20px/);
+    expect(declarations('.goal-track')).toMatch(/height:\s*8px/);
+    expect(declarations('.goal-row.reached .goal-fill')).toMatch(/background:\s*var\(--income\)/);
+    expect(declarations('.goal-done')).toMatch(/background:\s*var\(--income-soft\)/);
+    expect(declarations('.goal-done')).toMatch(/color:\s*var\(--income-text\)/);
+  });
+
+  it('no longer wraps the whole tab in one white card', () => {
+    expect(declarations('.goals')).toBeNull();
   });
 });

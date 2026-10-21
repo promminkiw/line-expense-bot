@@ -13,7 +13,42 @@ export function goalRow(goal) {
     width: Math.min(percent, 100),
     reached: percent >= 100,
     text: `ออมแล้ว ${formatBaht(goal.saved)} จาก ${formatBaht(goal.targetAmount)} (${percent}%)`,
-    dateText: goal.targetDate ? `อยากถึงเป้า ${formatFullThaiDate(goal.targetDate)}` : '',
+    amountText: `${formatBaht(goal.saved)} จาก ${formatBaht(goal.targetAmount)}`,
+    dateText: dateTextOf(goal, percent >= 100),
+  };
+}
+
+// เป้าที่ครบแล้วและไม่มีวัน ไม่ต้องบอกว่าไม่กำหนดวัน เพราะไม่มีอะไรให้รอแล้ว
+function dateTextOf(goal, reached) {
+  if (goal.targetDate) return `ถึงเป้า ${formatFullThaiDate(goal.targetDate)}`;
+  return reached ? '' : 'ไม่กำหนดวัน';
+}
+
+export function goalLabel(row) {
+  return `${row.name} ${row.text}`;
+}
+
+// รวมเฉพาะเป้าที่เปิดอยู่ คิดเป็นสตางค์เหมือน goalPercent เพื่อไม่ให้ทศนิยมเพี้ยน
+export function goalsSummary(goals) {
+  const open = goals.filter((goal) => !goal.closed);
+  if (open.length === 0) return null;
+  const savedSatang = open.reduce((sum, goal) => sum + Math.round(goal.saved * 100), 0);
+  const targetSatang = open.reduce((sum, goal) => sum + Math.round(goal.targetAmount * 100), 0);
+  const saved = savedSatang / 100;
+  const target = targetSatang / 100;
+  const remaining = Math.max(targetSatang - savedSatang, 0) / 100;
+  const percent = goalPercent(saved, target);
+  return {
+    count: open.length,
+    saved,
+    target,
+    remaining,
+    percent,
+    width: Math.min(percent, 100),
+    savedValue: saved.toLocaleString('en-US', { maximumFractionDigits: 2 }),
+    countText: `ออมแล้วรวม ${open.length} เป้า`,
+    percentText: `${percent}% ของเป้ารวม ${formatBaht(target)}`,
+    remainingText: `เหลืออีก ${formatBaht(remaining)}`,
   };
 }
 

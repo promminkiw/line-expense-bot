@@ -481,6 +481,7 @@ describe('index.html static invariants', () => {
       'goals-skeleton',
       'goals-error',
       'goals-body',
+      'goals-hero',
       'goals-empty',
       'goals-closed',
       'goal-editor-closed-row',
@@ -745,6 +746,7 @@ describe('LIFF page after a normal boot', () => {
     expect(variants('budgets-skeleton')).toEqual(['budget-hero', 'budget-chart', 'budget-list']);
     expect(variants('recurring-skeleton')).toEqual(['recurring', 'recurring', 'recurring']);
     expect(variants('profile-skeleton')).toEqual(['profile-head', 'balance', 'stats']);
+    expect(variants('goals-skeleton')).toEqual(['goal-hero', 'goal-card', 'goal-card']);
   });
 
   it('puts the list head skeleton where the totals card will appear', () => {
@@ -4478,7 +4480,7 @@ describe('LIFF category icons on rows', () => {
 
 describe('LIFF goals tab', () => {
   const rowsOf = (id = 'goal-rows') => [...byId(id).querySelectorAll('.goal-row')];
-  const namesOf = (id) => rowsOf(id).map((row) => row.querySelector('.budget-label').textContent);
+  const namesOf = (id) => rowsOf(id).map((row) => row.querySelector('.goal-name').textContent);
   const submitEditor = () => byId('goal-editor-form').dispatchEvent(new Event('submit', { cancelable: true }));
   const openGoalEditor = async (index) => {
     rowsOf()[index].querySelector('button').click();
@@ -4517,11 +4519,12 @@ describe('LIFF goals tab', () => {
     expect(liff.fetched).toContain('/api/goals');
     const rows = rowsOf();
     expect(namesOf()).toEqual(['เที่ยวญี่ปุ่น', 'กองทุนฉุกเฉิน']);
-    expect(rows[0].querySelector('.budget-value').textContent).toBe('ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)');
-    expect(rows[0].querySelector('.budget-fill').dataset.width).toBe('12');
-    expect(rows[0].querySelector('.goal-date').textContent).toBe('อยากถึงเป้า 31 ธ.ค. 2569');
+    expect(rows[0].querySelector('.goal-amount').textContent).toBe('6,000 บาท จาก 50,000 บาท');
+    expect(rows[0].querySelector('.goal-percent').textContent).toBe('12%');
+    expect(rows[0].querySelector('.goal-fill').dataset.width).toBe('12');
+    expect(rows[0].querySelector('.goal-date').textContent).toBe('ถึงเป้า 31 ธ.ค. 2569');
     expect(rows[1].classList.contains('reached')).toBe(true);
-    expect(rows[1].querySelector('.budget-fill').dataset.width).toBe('100');
+    expect(rows[1].querySelector('.goal-fill').dataset.width).toBe('100');
     expect(rows[1].querySelector('.goal-date')).toBeNull();
     expect(byId('goals-closed').hidden).toBe(false);
     expect(byId('goals-closed-count').textContent).toBe('ปิดแล้ว 1 เป้า');
@@ -4666,17 +4669,61 @@ describe('LIFF goals tab', () => {
   const historyTexts = () => [...byId('goal-history').querySelectorAll('li > span')].map((el) => el.textContent);
   const submitDetail = () => byId('goal-detail-form').dispatchEvent(new Event('submit', { cancelable: true }));
 
-  it('labels each goal row with the save action', async () => {
+  it('reads each goal card out with its name, amounts and percent', async () => {
     await openTab();
 
-    expect(rowsOf()[0].querySelector('.budget-edit').textContent).toBe('ออมเพิ่ม');
+    expect(rowsOf()[0].querySelector('button').getAttribute('aria-label')).toBe('เที่ยวญี่ปุ่น ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)');
+    expect(rowsOf('goal-closed-rows')[0].querySelector('button').getAttribute('aria-label')).toBe('มือถือใหม่ ออมแล้ว 30,000 บาท จาก 30,000 บาท (100%)');
   });
 
-  // เป้าที่ปิดแล้วออมเพิ่มไม่ได้ แถวจึงชวนดูประวัติแทน
-  it('labels a closed goal row with viewing its history', async () => {
+  it('shows a reached goal as a done badge instead of the percent', async () => {
+    await openTab();
+    const [open, reached] = rowsOf();
+
+    expect(open.querySelector('.goal-done')).toBeNull();
+    expect(reached.querySelector('.goal-percent')).toBeNull();
+    expect(reached.querySelector('.goal-done').textContent).toBe('ครบแล้ว');
+  });
+
+  it('says there is no date for an unfinished goal without one', async () => {
+    const goals = [{ id: 'g-5', name: 'ทุนเรียน', targetAmount: 1000, targetDate: null, closed: false, saved: 400, contributionCount: 1 }];
+    await openTab({ overrides: { '/api/goals': { goals } } });
+
+    expect(rowsOf()[0].querySelector('.goal-date').textContent).toBe('ไม่กำหนดวัน');
+  });
+
+  it('summarises only the open goals in the hero card', async () => {
     await openTab();
 
-    expect(rowsOf('goal-closed-rows')[0].querySelector('.budget-edit').textContent).toBe('ดูประวัติ');
+    expect(byId('goals-hero').hidden).toBe(false);
+    expect(byId('goals-hero-count').textContent).toBe('ออมแล้วรวม 2 เป้า');
+    expect(byId('goals-hero-saved').textContent).toBe('18,000');
+    expect(byId('goals-hero-fill').dataset.width).toBe('30');
+    expect(byId('goals-hero-percent').textContent).toBe('30% ของเป้ารวม 60,000 บาท');
+    expect(byId('goals-hero-rest').textContent).toBe('เหลืออีก 42,000 บาท');
+  });
+
+  it('hides the hero card when no goal is open', async () => {
+    const goals = RESPONSES['/api/goals'].goals.filter((goal) => goal.closed);
+    await openTab({ overrides: { '/api/goals': { goals } } });
+
+    expect(byId('goals-hero').hidden).toBe(true);
+    expect(byId('goals-empty').hidden).toBe(false);
+  });
+
+  it('refreshes the hero card after a goal is saved', async () => {
+    await openTab();
+    const first = RESPONSES['/api/goals'].goals[0];
+    captureFetch((method) => (method === 'POST' ? { goal: { id: 'g-9' } } : { goals: [{ ...first, saved: 7000 }] }));
+
+    byId('goal-add').click();
+    byId('goal-editor-name').value = 'x';
+    byId('goal-editor-target').value = '1';
+    submitEditor();
+    await settle();
+
+    expect(byId('goals-hero-count').textContent).toBe('ออมแล้วรวม 1 เป้า');
+    expect(byId('goals-hero-saved').textContent).toBe('7,000');
   });
 
   it('opens the goal detail with its progress, today as the date and the history', async () => {

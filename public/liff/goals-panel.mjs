@@ -2,12 +2,11 @@ import { ApiError } from './api.mjs';
 import { createLoadingIndicator } from './skeleton.mjs';
 import { revealError } from './reveal.mjs';
 import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from './format.mjs';
-import { splitGoals, goalRow, contributionRows, describeGoalError } from './goals-format.mjs';
+import { splitGoals, goalRow, goalsSummary, goalLabel, contributionRows, describeGoalError } from './goals-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
-const ROW_ACTION_LABEL = 'ออมเพิ่ม';
-const CLOSED_ROW_ACTION_LABEL = 'ดูประวัติ';
+const DONE_LABEL = 'ครบแล้ว';
 const STALE_STATUSES = new Set([404, 409]);
 
 // แท็บออม: โหลดตอนเข้าแท็บเท่านั้น และโหลดใหม่ทุกครั้งเพราะผู้ใช้อาจออมผ่านแชตระหว่างนั้น
@@ -23,10 +22,17 @@ export function createGoalsPanel({ doc, els, getApi }) {
   let detailBusy = false;
   // จำ id แทนตัวเป้า เพราะหลังโหลดใหม่ต้องใช้ยอดล่าสุดของเป้าเดิม
   let viewing = null;
-  const loadingIndicator = createLoadingIndicator({ doc, textEl: els.loadingText, skeletonEl: els.skeleton, count: 3, variant: 'budget' });
+  const loadingIndicator = createLoadingIndicator({ doc, textEl: els.loadingText, skeletonEl: els.skeleton, variants: ['goal-hero', 'goal-card', 'goal-card'] });
 
   function onRowClick(row) {
     openDetail(row);
+  }
+
+  function span(className, text) {
+    const element = doc.createElement('span');
+    element.className = className;
+    element.textContent = text;
+    return element;
   }
 
   function renderRow(row) {
@@ -34,39 +40,46 @@ export function createGoalsPanel({ doc, els, getApi }) {
     item.className = row.reached ? 'goal-row reached' : 'goal-row';
     const button = doc.createElement('button');
     button.type = 'button';
-    button.className = 'budget-button';
+    button.className = 'goal-card';
     button.dataset.goalId = row.id;
-    const name = doc.createElement('span');
-    name.className = 'budget-label';
-    name.textContent = row.name;
-    const action = doc.createElement('span');
-    action.className = 'budget-edit';
-    action.textContent = row.closed ? CLOSED_ROW_ACTION_LABEL : ROW_ACTION_LABEL;
-    const value = doc.createElement('span');
-    value.className = 'budget-value';
-    value.textContent = row.text;
+    // ข้อความในการ์ดแยกเป็นส่วนๆ screen reader จึงต้องมีประโยคเต็มให้อ่าน
+    button.setAttribute('aria-label', goalLabel(row));
+    const head = doc.createElement('span');
+    head.className = 'goal-card-head';
+    head.append(span('goal-name', row.name), row.reached ? span('goal-done', DONE_LABEL) : span('goal-percent', `${row.percent}%`));
     // ใช้ span เพราะใน button ใส่ div ไม่ได้
     const track = doc.createElement('span');
-    track.className = 'budget-track';
+    track.className = 'goal-track';
     const fill = doc.createElement('span');
-    fill.className = 'budget-fill';
+    fill.className = 'goal-fill';
     fill.style.width = `${row.width}%`;
     fill.dataset.width = String(row.width);
     track.append(fill);
-    button.append(name, action, value, track);
-    if (row.dateText) {
-      const date = doc.createElement('span');
-      date.className = 'goal-date';
-      date.textContent = row.dateText;
-      button.append(date);
-    }
+    const foot = doc.createElement('span');
+    foot.className = 'goal-card-foot';
+    foot.append(span('goal-amount', row.amountText));
+    if (row.dateText) foot.append(span('goal-date', row.dateText));
+    button.append(head, track, foot);
     button.addEventListener('click', () => onRowClick(row));
     item.append(button);
     return item;
   }
 
+  function renderHero() {
+    const summary = goalsSummary(goals);
+    els.hero.hidden = !summary;
+    if (!summary) return;
+    els.heroCount.textContent = summary.countText;
+    els.heroSaved.textContent = summary.savedValue;
+    els.heroFill.style.width = `${summary.width}%`;
+    els.heroFill.dataset.width = String(summary.width);
+    els.heroPercent.textContent = summary.percentText;
+    els.heroRest.textContent = summary.remainingText;
+  }
+
   function render() {
     const { open, closed } = splitGoals(goals);
+    renderHero();
     els.rows.replaceChildren(...open.map(renderRow));
     els.empty.hidden = open.length > 0;
     els.closed.hidden = closed.length === 0;

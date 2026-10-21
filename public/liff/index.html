@@ -476,7 +476,7 @@
       </section>
     </div>
     <div id="panel-goals" class="panel" hidden>
-      <section id="goals" class="goals" aria-labelledby="goals-title">
+      <section id="goals" class="goals-page" aria-labelledby="goals-title">
         <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
         <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
         <p class="goals-hint">ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน</p>
@@ -488,6 +488,12 @@
           <button type="button" id="goals-retry">ลองใหม่</button>
         </div>
         <div id="goals-body" hidden>
+          <div id="goals-hero" class="goals-hero" hidden>
+            <p id="goals-hero-count" class="goals-hero-lead"></p>
+            <p class="goals-hero-value"><span id="goals-hero-saved"></span> <span class="goals-hero-unit">บาท</span></p>
+            <div class="goals-hero-track" aria-hidden="true"><span id="goals-hero-fill" class="goals-hero-fill"></span></div>
+            <p class="goals-hero-foot"><span id="goals-hero-percent"></span><span id="goals-hero-rest"></span></p>
+          </div>
           <ul id="goal-rows" class="goal-rows"></ul>
           <p id="goals-empty" class="goals-empty" hidden>ยังไม่มีเป้าออม กดปุ่มด้านล่างเพื่อสร้างเป้าแรก</p>
           <details id="goals-closed" class="goals-closed" hidden>
@@ -495,7 +501,7 @@
             <ul id="goal-closed-rows" class="goal-rows"></ul>
           </details>
         </div>
-        <button type="button" id="goal-add" class="categories-open goal-add" disabled><svg class="icon"
+        <button type="button" id="goal-add" class="goal-add" disabled><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-plus"></use>
           </svg>สร้างเป้าใหม่</button>

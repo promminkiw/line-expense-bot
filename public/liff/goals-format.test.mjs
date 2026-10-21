@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { goalPercent, goalRow, splitGoals, contributionRows, describeGoalError } from './goals-format.mjs';
+import { goalPercent, goalRow, goalsSummary, goalLabel, splitGoals, contributionRows, describeGoalError } from './goals-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
 
 const GOAL = { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: '2026-12-31', closed: false, saved: 6000, contributionCount: 2 };
@@ -25,7 +25,8 @@ describe('goalRow', () => {
       width: 12,
       reached: false,
       text: 'ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)',
-      dateText: 'อยากถึงเป้า 31 ธ.ค. 2569',
+      amountText: '6,000 บาท จาก 50,000 บาท',
+      dateText: 'ถึงเป้า 31 ธ.ค. 2569',
     });
   });
 
@@ -33,6 +34,59 @@ describe('goalRow', () => {
     const row = goalRow({ ...GOAL, targetAmount: 10000, saved: 12000, targetDate: null });
 
     expect([row.percent, row.width, row.reached, row.dateText]).toEqual([120, 100, true, '']);
+  });
+
+  it('says there is no date for an unfinished goal without one', () => {
+    expect(goalRow({ ...GOAL, targetDate: null }).dateText).toBe('ไม่กำหนดวัน');
+  });
+
+  it('keeps the date of a reached goal that has one', () => {
+    expect(goalRow({ ...GOAL, saved: 50000 }).dateText).toBe('ถึงเป้า 31 ธ.ค. 2569');
+  });
+});
+
+describe('goalsSummary', () => {
+  it('totals only the open goals and rounds the percent down', () => {
+    const goals = [GOAL, { ...GOAL, id: 'g-2', targetAmount: 10000, saved: 3000 }, { ...GOAL, id: 'g-3', closed: true, saved: 99999 }];
+
+    expect(goalsSummary(goals)).toEqual({
+      count: 2,
+      saved: 9000,
+      target: 60000,
+      remaining: 51000,
+      percent: 15,
+      width: 15,
+      savedValue: '9,000',
+      countText: 'ออมแล้วรวม 2 เป้า',
+      percentText: '15% ของเป้ารวม 60,000 บาท',
+      remainingText: 'เหลืออีก 51,000 บาท',
+    });
+  });
+
+  it('never shows a negative remainder when the savings pass the total', () => {
+    const summary = goalsSummary([{ ...GOAL, targetAmount: 10000, saved: 12000 }]);
+
+    expect([summary.remaining, summary.percent, summary.width, summary.remainingText]).toEqual([0, 120, 100, 'เหลืออีก 0 บาท']);
+  });
+
+  it('adds up in satang so decimals do not drift', () => {
+    const summary = goalsSummary([
+      { ...GOAL, id: 'a', targetAmount: 0.3, saved: 0.1 },
+      { ...GOAL, id: 'b', targetAmount: 0.3, saved: 0.2 },
+    ]);
+
+    expect([summary.saved, summary.target, summary.remaining, summary.percent]).toEqual([0.3, 0.6, 0.3, 50]);
+  });
+
+  it('is null when no goal is open', () => {
+    expect(goalsSummary([])).toBeNull();
+    expect(goalsSummary([{ ...GOAL, closed: true }])).toBeNull();
+  });
+});
+
+describe('goalLabel', () => {
+  it('reads the name, the amounts and the percent', () => {
+    expect(goalLabel(goalRow(GOAL))).toBe('เที่ยวญี่ปุ่น ออมแล้ว 6,000 บาท จาก 50,000 บาท (12%)');
   });
 });
 
