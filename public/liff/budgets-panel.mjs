@@ -6,7 +6,6 @@ const RISK_PAGE_SIZE = 6;
 const CALM_PREVIEW_LIMIT = 8;
 const MANY_THRESHOLD = 14;
 const EMPTY_SUGGESTION_LIMIT = 5;
-const UNSET_NAME_LIMIT = 3;
 
 function node(doc, tag, className, text) {
   const el = doc.createElement(tag);
@@ -124,9 +123,7 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     const { unset } = groups;
     els.unset.hidden = unset.length === 0;
     if (unset.length === 0) return;
-    const names = unset.slice(0, UNSET_NAME_LIMIT).map((row) => row.category).join(' · ');
-    const more = unset.length > UNSET_NAME_LIMIT ? ` และอีก ${unset.length - UNSET_NAME_LIMIT} หมวด` : '';
-    els.unsetText.textContent = `ยังไม่ตั้งงบ ${unset.length} หมวด: ${names}${more}`;
+    els.unsetText.textContent = `ยังไม่ตั้งงบ ${unset.length} หมวด`;
   }
 
   function renderEmpty() {

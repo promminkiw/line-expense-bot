@@ -5537,7 +5537,7 @@ describe('LIFF budgets page', () => {
     await openBudgets();
 
     expect(byId('budget-unset').hidden).toBe(false);
-    expect(byId('budget-unset-text').textContent).toBe('ยังไม่ตั้งงบ 2 หมวด: บันเทิง · อื่นๆ');
+    expect(byId('budget-unset-text').textContent).toBe('ยังไม่ตั้งงบ 2 หมวด');
   });
 
   it('hides the unset strip when every category has a budget', async () => {
