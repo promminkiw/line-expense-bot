@@ -618,7 +618,7 @@ main#app.sub-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .budget-all-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 10px 16px 0; padding: 4px; background: var(--track); border-radius: var(--radius-pill); }
 .budget-all-tabs button { min-height: 44px; padding: 0 4px; border: none; border-radius: var(--radius-pill); background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: var(--brand-dark); }
 .budget-all-tabs button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18); font-weight: 800; color: var(--text); }
-.budget-all-bar { display: flex; align-items: center; justify-content: space-between; margin: 6px 20px 0; font-size: 13px; color: var(--muted); }
+.budget-all-bar { display: flex; align-items: center; justify-content: space-between; margin: 6px 20px 10px;font-size: 13px; color: var(--muted); }
 .budget-all-sort select { min-height: 44px; border: none; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--primary); }
 .budget-all-tab-empty { margin: 16px 20px 0; font-size: 14px; color: var(--muted); }
 .budget-all-list { margin: 0 16px; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-card); overflow: hidden; }
@@ -628,6 +628,8 @@ main#app.sub-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .budget-all-head.level-warn { background: var(--notice-bg); color: var(--notice-text); }
 .budget-all-head.level-ok { background: var(--income-soft); color: var(--income-text); }
 .budget-all-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto 14px; align-items: center; column-gap: 12px; width: 100%; min-height: 68px; box-sizing: border-box; padding: 8px 14px; border: none; border-bottom: 1px solid var(--border); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+/* แถวแท็บ ไม่มีงบ เป็น div ไม่มีลูกศรท้ายแถว จึงใช้ 3 คอลัมน์ให้ปุ่มชิดขวาและไม่ดูเหมือนกดทั้งแถวได้ */
+div.budget-all-row { grid-template-columns: 44px minmax(0, 1fr) auto; cursor: default; }
 .budget-all-icon { position: relative; display: flex; width: 40px; height: 40px; }
 .budget-all-dot { position: absolute; right: -3px; bottom: -3px; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 2px solid var(--surface); border-radius: 50%; background: var(--level); }
 .budget-all-dot .icon { width: 10px; height: 10px; stroke-width: 3; color: var(--on-primary); }
