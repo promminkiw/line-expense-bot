@@ -1,15 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import {
   getFixedReply,
+  getHelpReply,
   buildWebReply,
-  HELP_REPLY,
+  HELP_SECTIONS,
+  HELP_MENU_REPLY,
   WEB_COMING_SOON_REPLY,
   FEEDBACK_REPLY,
 } from './fixed-replies.js';
 
+const sectionText = (label) => HELP_SECTIONS.find((section) => section.label === label).text;
+const sectionLines = (label) => sectionText(label).split('\n');
+
 describe('getFixedReply', () => {
-  it('returns the help text for the help button', () => {
-    expect(getFixedReply('ช่วยเหลือ')).toBe(HELP_REPLY);
+  it('leaves the help button to getHelpReply', () => {
+    expect(getFixedReply('ช่วยเหลือ')).toBeNull();
   });
 
   it('returns the coming soon text for the web button', () => {
@@ -32,43 +37,107 @@ describe('getFixedReply', () => {
     expect(FEEDBACK_REPLY).not.toContain('/edit');
   });
 
-  it('ignores spaces anywhere in the text', () => {
-    expect(getFixedReply(' ช่วย เหลือ ')).toBe(HELP_REPLY);
-  });
-
   it('returns null for other messages', () => {
     expect(getFixedReply('กินข้าว 60')).toBeNull();
     expect(getFixedReply('สรุป')).toBeNull();
     expect(getFixedReply('toString')).toBeNull();
   });
 
-  it('documents the slip section in order before the undo section', () => {
-    const lines = HELP_REPLY.split('\n');
+  it('uses the agreed wording', () => {
+    expect(WEB_COMING_SOON_REPLY).toBe('เฮียกำลังทำหน้าเว็บสำหรับดูและแก้ไขรายการ จะเปิดใช้ได้เร็วๆ นี้');
+  });
+});
+
+describe('getHelpReply', () => {
+  it('asks which topic to explain with one quick reply button per help section', () => {
+    const reply = getHelpReply('ช่วยเหลือ');
+
+    expect(reply.text).toBe(HELP_MENU_REPLY);
+    expect(HELP_MENU_REPLY).toBe('อยากให้เฮียอธิบายเรื่องไหน');
+    expect(reply.quickReply).toEqual(
+      HELP_SECTIONS.map((section) => ({
+        type: 'action',
+        action: { type: 'message', label: section.label, text: `ช่วยเหลือ ${section.label}` },
+      }))
+    );
+  });
+
+  it('ignores spaces anywhere in the text', () => {
+    expect(getHelpReply(' ช่วย เหลือ ')).toEqual(getHelpReply('ช่วยเหลือ'));
+  });
+
+  it('answers each button with only its section', () => {
+    for (const section of HELP_SECTIONS) {
+      expect(getHelpReply(`ช่วยเหลือ ${section.label}`)).toEqual({ text: section.text });
+    }
+  });
+
+  it('returns null for other messages', () => {
+    expect(getHelpReply('กินข้าว 60')).toBeNull();
+    expect(getHelpReply('ช่วยเหลือเรื่องอื่น')).toBeNull();
+    expect(getHelpReply('toString')).toBeNull();
+  });
+
+  // LINE จำกัดป้ายปุ่มลอย 20 ตัวอักษร ปุ่มลอย 13 ปุ่ม และข้อความ 5000 ตัวอักษร
+  it('stays within the LINE limits', () => {
+    expect(HELP_SECTIONS).toHaveLength(5);
+    for (const section of HELP_SECTIONS) {
+      expect(section.label.length).toBeLessThanOrEqual(20);
+      expect(section.text.length).toBeLessThanOrEqual(5000);
+    }
+  });
+});
+
+describe('help sections', () => {
+  it('groups the topics in five buttons in order', () => {
+    expect(HELP_SECTIONS.map((section) => section.label)).toEqual([
+      'จดรายการ',
+      'สลิปและรายการประจำ',
+      'สรุปและถามยอด',
+      'ออม กระเป๋า งบ หมวด',
+      'เพื่อนและแจ้งเตือน',
+    ]);
+  });
+
+  it('keeps every topic exactly once', () => {
+    const titles = (label) => sectionLines(label).filter((line) => /^\p{Extended_Pictographic}/u.test(line));
+    expect(titles('จดรายการ')).toEqual([
+      '✏️ บันทึกรายจ่าย',
+      '💰 บันทึกรายรับ',
+      '📅 บันทึกย้อนหลัง',
+      '↩️ บันทึกผิด?',
+      '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
+    ]);
+    expect(titles('สลิปและรายการประจำ')).toEqual(['🧾 ส่งรูปสลิป/ใบเสร็จ', '🔁 รายการประจำ']);
+    expect(titles('สรุปและถามยอด')).toEqual(['📊 ดูสรุปยอด', '🔎 ถามยอด']);
+    expect(titles('ออม กระเป๋า งบ หมวด')).toEqual(['🎯 ออมเงินเข้าเป้า', '👛 กระเป๋าเงิน', '🧮 งบประมาณ', '🗂️ หมวดของฉัน']);
+    expect(titles('เพื่อนและแจ้งเตือน')).toEqual(['👥 หารบิลกับเพื่อน', '🔔 การแจ้งเตือน']);
+  });
+
+  it('documents the slip section before the recurring section', () => {
+    const lines = sectionLines('สลิปและรายการประจำ');
     const title = lines.indexOf('🧾 ส่งรูปสลิป/ใบเสร็จ');
-    expect(title).toBeGreaterThan(-1);
     expect(lines.slice(title + 1, title + 4)).toEqual([
       'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ เฮียอ่านยอดและวันที่',
       'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
       'ใบเสร็จหลายสินค้าบันทึกเป็นยอดรวมที่จ่ายจริงรายการเดียว (กดภายใน 10 นาที)',
     ]);
     // ตั้งแต่ 2026-10-08 บอทอ่านแค่ยอดรวม ไม่แยกสินค้าแล้ว
-    expect(HELP_REPLY).not.toContain('แยกราคาทีละอย่าง');
-    expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
-  });
-
-  it('documents the recurring section between the slip and undo sections', () => {
-    const lines = HELP_REPLY.split('\n');
-    const title = lines.indexOf('🔁 รายการประจำ');
-    expect(title).toBeGreaterThan(lines.indexOf('🧾 ส่งรูปสลิป/ใบเสร็จ'));
-    expect(lines.slice(title + 1, title + 3)).toEqual([
+    expect(sectionText('สลิปและรายการประจำ')).not.toContain('แยกราคาทีละอย่าง');
+    const recurring = lines.indexOf('🔁 รายการประจำ');
+    expect(recurring).toBeGreaterThan(title);
+    expect(lines.slice(recurring + 1, recurring + 3)).toEqual([
       'ตั้งในหน้าเว็บ แท็บ ฉัน ปุ่ม "รายการประจำ" (เปิดเว็บจากปุ่ม "เว็บไซต์" ในเมนูด้านล่าง) เช่น ค่าเน็ตทุกวันที่ 5',
       'เฮียบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ยกเลิก" ได้',
     ]);
-    expect(title).toBeLessThan(lines.indexOf('↩️ บันทึกผิด?'));
   });
 
-  it('documents asking for totals after the summary section', () => {
-    const lines = HELP_REPLY.split('\n');
+  it('documents the undo button under the saved message', () => {
+    expect(sectionLines('จดรายการ')).toContain('กดปุ่ม "ยกเลิก" ใต้ข้อความ "เฮียบันทึกแล้ว" ได้ทันที');
+  });
+
+  it('documents asking for totals after the summary', () => {
+    const lines = sectionLines('สรุปและถามยอด');
     const title = lines.indexOf('🔎 ถามยอด');
     expect(title).toBeGreaterThan(lines.indexOf('📊 ดูสรุปยอด'));
     expect(lines.slice(title + 1, title + 3)).toEqual([
@@ -77,10 +146,9 @@ describe('getFixedReply', () => {
     ]);
   });
 
-  it('documents the saving command after the totals section', () => {
-    const lines = HELP_REPLY.split('\n');
+  it('documents the saving command', () => {
+    const lines = sectionLines('ออม กระเป๋า งบ หมวด');
     const title = lines.indexOf('🎯 ออมเงินเข้าเป้า');
-    expect(title).toBeGreaterThan(lines.indexOf('🔎 ถามยอด'));
     expect(lines.slice(title + 1, title + 4)).toEqual([
       'สร้างเป้าในหน้าเว็บ แท็บ ออม',
       'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
@@ -89,84 +157,14 @@ describe('getFixedReply', () => {
   });
 
   it('names only buttons that exist in the rich menu', () => {
+    const all = HELP_SECTIONS.map((section) => section.text).join('\n');
     // Rich Menu มีปุ่ม เว็บไซต์ ที่เปิดเว็บตรง ไม่มีปุ่ม เปิดเว็บ
-    expect(HELP_REPLY).not.toContain('"เปิดเว็บ"');
-    expect(HELP_REPLY).toContain('ปุ่ม "เว็บไซต์"');
-    expect(HELP_REPLY).toContain('ปุ่ม "หารบิล"');
+    expect(all).not.toContain('"เปิดเว็บ"');
+    expect(all).toContain('ปุ่ม "เว็บไซต์"');
+    expect(all).toContain('ปุ่ม "หารบิล"');
   });
 
-  it('documents wallets, budgets, categories, bills and notifications before the amount limit', () => {
-    const lines = HELP_REPLY.split('\n');
-    const titles = ['👛 กระเป๋าเงิน', '🧮 งบประมาณ', '🗂️ หมวดของฉัน', '👥 หารบิลกับเพื่อน', '🔔 การแจ้งเตือน'].map((title) => lines.indexOf(title));
-    expect(titles.every((index) => index > lines.indexOf('🎯 ออมเงินเข้าเป้า'))).toBe(true);
-    expect([...titles].sort((a, b) => a - b)).toEqual(titles);
-    expect(titles.at(-1)).toBeLessThan(lines.indexOf('⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท'));
-  });
-
-  it('uses the agreed wording', () => {
-    expect(WEB_COMING_SOON_REPLY).toBe('เฮียกำลังทำหน้าเว็บสำหรับดูและแก้ไขรายการ จะเปิดใช้ได้เร็วๆ นี้');
-    expect(HELP_REPLY).toBe(
-      [
-        '📒 วิธีใช้เฮียสมัครบันทึกรายรับรายจ่าย',
-        '',
-        '✏️ บันทึกรายจ่าย',
-        'พิมพ์ชื่อรายการตามด้วยจำนวนเงิน',
-        'ตัวอย่าง: กินข้าว 60',
-        'หลายรายการในข้อความเดียวได้: กินข้าว 60 กาแฟ 45',
-        '',
-        '💰 บันทึกรายรับ',
-        'ตัวอย่าง: เงินเดือนเข้า 25000',
-        '',
-        '📅 บันทึกย้อนหลัง',
-        'ใส่คำบอกวันไว้ข้างหน้า',
-        'ตัวอย่าง: เมื่อวานค่าแท็กซี่ 120',
-        '',
-        '🧾 ส่งรูปสลิป/ใบเสร็จ',
-        'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ เฮียอ่านยอดและวันที่',
-        'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
-        'ใบเสร็จหลายสินค้าบันทึกเป็นยอดรวมที่จ่ายจริงรายการเดียว (กดภายใน 10 นาที)',
-        '',
-        '🔁 รายการประจำ',
-        'ตั้งในหน้าเว็บ แท็บ ฉัน ปุ่ม "รายการประจำ" (เปิดเว็บจากปุ่ม "เว็บไซต์" ในเมนูด้านล่าง) เช่น ค่าเน็ตทุกวันที่ 5',
-        'เฮียบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ยกเลิก" ได้',
-        '',
-        '↩️ บันทึกผิด?',
-        'กดปุ่ม "ยกเลิก" ใต้ข้อความ "เฮียบันทึกแล้ว" ได้ทันที',
-        '(ปุ่มจะหายไปเมื่อส่งข้อความถัดไป)',
-        '',
-        '📊 ดูสรุปยอด',
-        'กดปุ่ม "สรุป" ในเมนูด้านล่าง หรือพิมพ์ สรุป',
-        'แล้วเลือก วันนี้ / สัปดาห์นี้ / เดือนนี้',
-        '',
-        '🔎 ถามยอด',
-        'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
-        'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
-        '',
-        '🎯 ออมเงินเข้าเป้า',
-        'สร้างเป้าในหน้าเว็บ แท็บ ออม',
-        'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
-        'ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ',
-        '',
-        '👛 กระเป๋าเงิน',
-        'เพิ่มกระเป๋าในหน้าเว็บ เช่น บัตรเครดิต',
-        'แล้วพิมพ์ชื่อกระเป๋าต่อท้าย เช่น กาแฟ 60 บัตรเครดิต (ไม่ระบุ = เงินสด)',
-        '',
-        '🧮 งบประมาณ',
-        'ตั้งงบรายเดือนต่อหมวดในหน้าเว็บ แท็บ งบ',
-        'เฮียเตือนในข้อความตอบกลับเมื่อใช้ถึง 80% และเมื่อเกินงบ',
-        '',
-        '🗂️ หมวดของฉัน',
-        'เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวดได้ในหน้าเว็บ',
-        '',
-        '👥 หารบิลกับเพื่อน',
-        'กดปุ่ม "หารบิล" ในเมนูด้านล่าง เพิ่มเพื่อนแล้วสร้างบิล',
-        'เพื่อนกดยืนยันจากการ์ดในแชตหรือในหน้าเว็บ',
-        '',
-        '🔔 การแจ้งเตือน',
-        'เปิดสรุปทุกวันอาทิตย์ และเตือนถ้าวันนี้ยังไม่ได้จด ได้ในหน้าเว็บ',
-        '',
-        '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
-      ].join('\n')
-    );
+  it('does not repeat the old single message title', () => {
+    expect(HELP_SECTIONS.map((section) => section.text).join('\n')).not.toContain('📒');
   });
 });

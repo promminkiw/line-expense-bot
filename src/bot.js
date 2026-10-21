@@ -5,7 +5,7 @@ const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
 const { buildSummary } = require('./summary/summary');
 const { buildSummaryFlex } = require('./summary/flex');
-const { getFixedReply } = require('./menu/fixed-replies');
+const { getFixedReply, getHelpReply } = require('./menu/fixed-replies');
 const { budgetMonths, findBudgetAlerts } = require('./budget/alerts');
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('./bills/flex');
 const { formatAmount } = require('./parser/format-reply');
@@ -402,6 +402,10 @@ function createBot({
       }
     }
     // ปุ่มเมนูตอบข้อความคงที่ ไม่เรียก Claude จึงไม่ต้องนับ rate limit
+    const helpReply = getHelpReply(event.message.text);
+    if (helpReply) {
+      return helpReply;
+    }
     const fixedReply = getFixedReply(event.message.text, { liffUrl });
     if (fixedReply) {
       return { text: fixedReply };

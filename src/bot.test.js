@@ -20,7 +20,7 @@ import {
   UNDO_SAVING_DONE_REPLY,
   UNDO_SAVING_NOT_FOUND_REPLY,
 } from './bot.js';
-import { HELP_REPLY, WEB_COMING_SOON_REPLY } from './menu/fixed-replies.js';
+import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } from './menu/fixed-replies.js';
 import { TEXT_CATEGORIES } from './parser/categories.js';
 import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from './goals/chat.js';
 
@@ -445,14 +445,24 @@ describe('bot text message', () => {
 });
 
 describe('bot menu fixed replies', () => {
-  it('replies the help text without calling Claude', async () => {
+  it('asks which help topic to show without calling Claude', async () => {
     const { deps, bot } = setup();
 
     await bot.handleEvent(textEvent('ช่วยเหลือ'));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_REPLY, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_MENU_REPLY, getHelpReply('ช่วยเหลือ').quickReply);
     expect(deps.parseMessage).not.toHaveBeenCalled();
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('replies only the chosen help section', async () => {
+    const { deps, bot } = setup();
+    const section = HELP_SECTIONS[2];
+
+    await bot.handleEvent(textEvent(`ช่วยเหลือ ${section.label}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', section.text, undefined);
+    expect(deps.parseMessage).not.toHaveBeenCalled();
   });
 
   it('replies the LIFF link for the web button when configured', async () => {
@@ -481,7 +491,7 @@ describe('bot menu fixed replies', () => {
 
     await bot.handleEvent(textEvent('ช่วยเหลือ'));
 
-    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_REPLY, undefined);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', HELP_MENU_REPLY, getHelpReply('ช่วยเหลือ').quickReply);
     expect(deps.allowRequest).not.toHaveBeenCalled();
   });
 

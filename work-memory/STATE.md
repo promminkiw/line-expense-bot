@@ -33,11 +33,11 @@ Goal: ผลักดัน push รวมของฟีเจอร์ 3-6 (�
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
+- [x] ช่วยเหลือแบบเลือกหัวข้อ (2026-10-21, ยังไม่ commit): พิมพ์/กดปุ่ม ช่วยเหลือ ได้ปุ่มลอย 5 กลุ่ม (HELP_SECTIONS ใน fixed-replies.js, getHelpReply ใน bot.js) ตอบเฉพาะกลุ่มที่เลือก; npm test 2185/2185 lint ผ่าน; รอผู้ใช้ลองใน LINE
 - [x] P3 ข้อ 4-6 จาก work-memory/p3-audit.md (2026-10-21, ยังไม่ commit): error ใน dialog เลื่อนให้เห็น (reveal.mjs; แก้รายการ, งบ, รายการประจำ, เป้าออม), แถวเมนู ฉัน ที่ disabled บอก กำลังเตรียม.../เปิดหน้านี้ใหม่อีกครั้ง, ตัด skeleton tips; npm test 2174/2174 lint ผ่าน; ข้อ 1-3 และ 7-12 ยังไม่ทำ (ข้อ 11 รอผู้ใช้ตัดสิน)
 - [x] น้ำเสียงเฮีย (2026-10-21, ยังไม่ commit): ข้อความที่บอทส่งใน LINE แทนตัวเองว่า เฮีย ไม่มีคำลงท้าย เรียกผู้ใช้ว่า คุณ; ข้อความสำเร็จรูป + prompt ของ Claude (คอมเมนต์สรุป, คำถามกลับ) ผ่าน src/persona.js; เว็บ LIFF ไม่แตะ; npm test 2164/2164 lint ผ่าน
 - [x] ปิดจุดอ่อนจากการตรวจ cyber (2026-10-20, branch fix/security-hardening ยังไม่ commit): header ความปลอดภัยใน src/app.js, limiter นับ token ผิดต่อ IP (30/นาที ตอบ 429 ก่อนเรียก LINE) ใน rate-limit.js+api/router.js, ล้าง key เก่าใน limiter, dependabot + npm audit ใน CI; ไล่ตรวจ repository.js ไม่เจอจุดรั่ว; npm test 2162/2162 lint ผ่าน; merge+push แล้ว (c42ae12); trust proxy ต้องเป็น 3 (วัดจริง: ผู้ใช้, Cloudflare, Render) ยืนยันบน production แล้ว ip ตรงและ XFF ปลอมไม่ถูกใช้; ผู้ใช้ลองแชตใน LINE แล้วปกติ; ลบ branch fix/security-hardening แล้ว
 - [x] กระเป๋าเงิน เฟส 1 roadmap ข ข้อ 6 (2026-10-19, branch feat/wallets ยังไม่ merge): migration 024, API /api/wallets, Claude เลือกกระเป๋า, ตัวกรอง/ตัวแก้ในเว็บ, ถามยอดกรองกระเป๋า; ส่วนกระเป๋าในโปรไฟล์โชว์ notify-loading และปิดฟอร์มเพิ่มจนโหลดครั้งแรกเสร็จ (ผู้ใช้ตัดสิน ไม่ตามแผน); npm test 2036/2036 lint ผ่าน (หลังรอบแก้ final review)
-- [x] เป้าหมายการออม roadmap ข (2026-10-19, merge 784949b ในเครื่อง): reviewer I1 กดออมซ้ำระหว่างโหลดใหม่ได้ยอดซ้ำ แก้ใน 2b95e25 (เทสต์แดงก่อนแก้); npm test 1903/1903 lint ผ่าน; Minor M1-M3 M5-M8 ยังไม่ทำ (ตัดชื่อใน ไม่พบเป้า, normalize ชื่อ, 409/404 ไม่โหลดใหม่, ลบประวัติไม่ยืนยัน, "ออม 1000" ไปเป็นรายจ่าย, aria-label งบ, soft cap 20 เป้า/ปี 0000)
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
 
