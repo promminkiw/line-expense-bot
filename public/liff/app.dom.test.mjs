@@ -341,7 +341,6 @@ describe('index.html static invariants', () => {
   // ผู้ใช้ให้แถวปุ่มล่างเหลือแค่ ลบ/ไม่ตั้งงบ กับ บันทึก ส่วนปิดเป็นปุ่ม X มุมขวาบน
   it.each([
     ['edit-form', 'cancel-button', 'delete-button'],
-    ['budget-form', 'budget-cancel', 'budget-remove'],
     ['recurring-form', 'recurring-cancel', 'recurring-delete'],
   ])('moves the close button of %s to a labelled X outside the action row', (formId, closeId, removeId) => {
     const close = doc.getElementById(closeId);
@@ -5553,7 +5552,7 @@ describe('LIFF budgets page', () => {
     byId('budget-risk-bars').querySelector('.budget-col').click();
 
     expect(byId('budget-editor').hasAttribute('open')).toBe(true);
-    expect(byId('budget-title').textContent).toBe('งบ ช้อปปิ้ง');
+    expect(byId('budget-title').textContent).toBe('ช้อปปิ้ง');
   });
 
   it('pages the risk columns six at a time', async () => {
@@ -5641,7 +5640,7 @@ describe('LIFF budgets page states', () => {
 
     byId('budget-empty-list').querySelector('.budget-empty-set').click();
 
-    expect(byId('budget-title').textContent).toBe('งบ ข');
+    expect(byId('budget-title').textContent).toBe('ตั้งงบ ข');
   });
 
   it('tells the user to log spending first when there is nothing to suggest', async () => {
@@ -5705,7 +5704,7 @@ describe('LIFF budgets all page', () => {
 
     buttons[0].click();
 
-    expect(byId('budget-title').textContent).toBe('งบ บันเทิง');
+    expect(byId('budget-title').textContent).toBe('ตั้งงบ บันเทิง');
   });
 
   it('filters all groups by the search text and updates the counts', async () => {
@@ -5788,5 +5787,242 @@ describe('LIFF budgets all page', () => {
 
     expect(byId('budget-editor').hasAttribute('open')).toBe(false);
     expect(byId('panel-budget-all').hidden).toBe(false);
+  });
+});
+
+describe('LIFF budget edit sheet', () => {
+  const openSheetFor = async (categoryId) => {
+    await openBudgets();
+    byId('budget-risk-bars').querySelector(`[data-category-id="${categoryId}"]`).click();
+  };
+
+  it('opens as a sheet with the category name, usage line and before/after preview', async () => {
+    await openSheetFor('c-shop');
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(true);
+    expect(byId('budget-title').textContent).toBe('ช้อปปิ้ง');
+    expect(byId('budget-sheet-sub').textContent).toBe('ใช้ไปเดือนนี้ 3,450 บาท · งบเดิม 3,000');
+    expect(byId('budget-amount').value).toBe('3,000');
+    expect(byId('budget-preview-before').textContent).toContain('115%');
+    expect(byId('budget-preview-before').textContent).toContain('เกิน 450');
+    expect(byId('budget-scope').textContent).toBe('มีผลตั้งแต่เดือน 10/2026 เป็นต้นไป');
+    expect(byId('budget-remove').hidden).toBe(false);
+    expect(byId('budget-submit').textContent).toBe('บันทึก');
+  });
+
+  it('steps the amount by 500 and updates the after preview', async () => {
+    await openSheetFor('c-shop');
+
+    byId('budget-plus').click();
+
+    expect(byId('budget-amount').value).toBe('3,500');
+    expect(byId('budget-preview-after').textContent).toContain('98%');
+    expect(byId('budget-preview-after').textContent).toContain('เหลือ 50');
+    expect(byId('budget-preview-after').textContent).toContain('ถ้างบ 3,500');
+
+    byId('budget-minus').click();
+    byId('budget-minus').click();
+
+    expect(byId('budget-amount').value).toBe('2,500');
+  });
+
+  it('updates the preview while typing and disables minus for an empty field', async () => {
+    await openSheetFor('c-shop');
+
+    byId('budget-amount').value = '';
+    byId('budget-amount').dispatchEvent(new Event('input'));
+
+    expect(byId('budget-minus').disabled).toBe(true);
+    expect(byId('budget-preview-after').textContent).toContain('ใส่จำนวนเงิน');
+
+    byId('budget-amount').value = '4000';
+    byId('budget-amount').dispatchEvent(new Event('input'));
+
+    expect(byId('budget-preview-after').textContent).toContain('86%');
+  });
+
+  it('fills the field from a quick chip', async () => {
+    await openSheetFor('c-shop');
+    const chips = [...byId('budget-chips').querySelectorAll('button')];
+
+    expect(chips.map((chip) => chip.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+      'เท่าที่ใช้จริง 3,450', 'เพิ่ม 10% 3,300', 'เพิ่ม 20% 3,600',
+    ]);
+
+    chips[0].click();
+
+    expect(byId('budget-amount').value).toBe('3,450');
+    expect(byId('budget-preview-after').textContent).toContain('100%');
+  });
+
+  it('saves the amount, closes the sheet and reloads the budgets', async () => {
+    await openSheetFor('c-shop');
+    const calls = routeFetch((method, path) => (method === 'PUT' && path.startsWith('/api/budgets/') ? {} : undefined));
+    byId('budget-plus').click();
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls).toContain('PUT /api/budgets/c-shop');
+    expect(calls).toContain('GET /api/budgets');
+    expect(byId('budget-editor').hasAttribute('open')).toBe(false);
+  });
+
+  it('closes the sheet before it reloads the budgets so focus can return to the column', async () => {
+    await openSheetFor('c-shop');
+    let openDuringReload = null;
+    routeFetch((method, path) => {
+      if (method === 'GET' && path === '/api/budgets') openDuringReload = byId('budget-editor').hasAttribute('open');
+      return method === 'PUT' ? {} : undefined;
+    });
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(openDuringReload).toBe(false);
+  });
+
+  it('does not call the API for an empty amount and says the amount is not valid', async () => {
+    await openSheetFor('c-shop');
+    const calls = routeFetch(() => undefined);
+    byId('budget-amount').value = '';
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(calls.filter((call) => call.startsWith('PUT'))).toHaveLength(0);
+    expect(byId('budget-error').hidden).toBe(false);
+    expect(byId('budget-error-title').textContent).toBe('จำนวนเงินไม่ถูกต้อง');
+  });
+
+  it('keeps the amount and offers a retry when saving fails', async () => {
+    await openSheetFor('c-shop');
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-plus').click();
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(true);
+    expect(byId('budget-error').hidden).toBe(false);
+    expect(byId('budget-error-title').textContent).toBe('บันทึกงบไม่สำเร็จ');
+    expect(byId('budget-error-text').textContent).toBe('ตัวเลข 3,500 ยังอยู่ในช่อง ลองบันทึกอีกครั้งได้เลย');
+    expect(byId('budget-amount').value).toBe('3,500');
+    expect(byId('budget-amount').getAttribute('aria-invalid')).toBe('true');
+    expect(byId('budget-submit').textContent).toBe('ลองบันทึกอีกครั้ง');
+    expect(byId('budget-submit').disabled).toBe(false);
+  });
+
+  it('uses the server reason for 400 and 404', async () => {
+    await openSheetFor('c-shop');
+    routeFetch((method) => (method === 'PUT' ? { status: 404 } : undefined));
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('budget-error-text').textContent).toBe('ไม่พบหมวดนี้แล้ว');
+  });
+
+  it('clears the error when the amount changes', async () => {
+    await openSheetFor('c-shop');
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    byId('budget-plus').click();
+
+    expect(byId('budget-error').hidden).toBe(true);
+    expect(byId('budget-amount').hasAttribute('aria-invalid')).toBe(false);
+    expect(byId('budget-submit').textContent).toBe('บันทึก');
+  });
+
+  it('opens the set-budget sheet for a category without a budget', async () => {
+    await openBudgets();
+    byId('budget-unset-open').click();
+    await settle();
+    byId('budget-all-list').querySelector('.budget-all-set').click();
+
+    expect(byId('budget-title').textContent).toBe('ตั้งงบ บันเทิง');
+    expect(byId('budget-sheet-sub').textContent).toBe('ยังไม่เคยตั้งงบ · ใช้ไปเดือนนี้ 620 บาท');
+    expect(byId('budget-amount').value).toBe('');
+    expect(byId('budget-remove').hidden).toBe(true);
+    expect(byId('budget-submit').textContent).toBe('ตั้งงบ');
+    expect(byId('budget-preview-before').textContent).toContain('ไม่มีงบ');
+    expect(byId('budget-scope').textContent).toBe('มีผลตั้งแต่เดือน 10/2026 เป็นต้นไป · เฮียจะเตือนเมื่อใช้ถึง 80%');
+    expect([...byId('budget-chips').querySelectorAll('button')].map((chip) => chip.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+      'เท่าที่ใช้จริง 620', 'ปัดขึ้น 700', 'ปัดขึ้น 1,000',
+    ]);
+  });
+
+  it('asks before removing a budget and keeps the sheet when the user declines', async () => {
+    await openSheetFor('c-shop');
+
+    byId('budget-remove').click();
+
+    expect(byId('budget-remove-confirm').hasAttribute('open')).toBe(true);
+    expect(byId('budget-confirm-title').textContent).toBe('เลิกตั้งงบ ช้อปปิ้ง ใช่ไหม');
+    expect(byId('budget-confirm-body').textContent).toContain('3,000');
+    expect(byId('budget-confirm-body').textContent).toContain('10/2026');
+
+    byId('budget-confirm-cancel').click();
+
+    expect(byId('budget-remove-confirm').hasAttribute('open')).toBe(false);
+    expect(byId('budget-editor').hasAttribute('open')).toBe(true);
+    expect(byId('budget-amount').value).toBe('3,000');
+  });
+
+  it('removes the budget after confirmation with a null amount', async () => {
+    await openSheetFor('c-shop');
+    const requests = [];
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      requests.push({ url: String(url), method: options.method ?? 'GET', body: options.body });
+      return { ok: true, status: 200, json: async () => (String(url).includes('/api/budgets') && !options.method ? BUDGET_SAMPLE : {}) };
+    });
+
+    byId('budget-remove').click();
+    byId('budget-confirm-ok').click();
+    await settle();
+
+    const put = requests.find((request) => request.method === 'PUT');
+    expect(JSON.parse(put.body)).toEqual({ month: '2026-10', amount: null });
+    expect(byId('budget-editor').hasAttribute('open')).toBe(false);
+    expect(byId('budget-remove-confirm').hasAttribute('open')).toBe(false);
+  });
+
+  it('shows a failed removal inside the edit sheet', async () => {
+    await openSheetFor('c-shop');
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+
+    byId('budget-remove').click();
+    byId('budget-confirm-ok').click();
+    await settle();
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(true);
+    expect(byId('budget-error').hidden).toBe(false);
+    expect(byId('budget-error-title').textContent).toBe('เลิกตั้งงบไม่สำเร็จ');
+    expect(byId('budget-submit').textContent).toBe('บันทึก');
+  });
+
+  it('does not close on Escape while saving', async () => {
+    await openSheetFor('c-shop');
+    let release;
+    vi.stubGlobal('fetch', () => new Promise((resolve) => { release = resolve; }));
+
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    const cancel = new Event('cancel', { cancelable: true });
+    byId('budget-editor').dispatchEvent(cancel);
+
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(byId('budget-submit').disabled).toBe(true);
+    expect(byId('budget-busy').hidden).toBe(false);
+    release({ ok: true, status: 200, json: async () => ({}) });
+  });
+
+  it('closes with the X button when not saving', async () => {
+    await openSheetFor('c-shop');
+
+    byId('budget-cancel').click();
+
+    expect(byId('budget-editor').hasAttribute('open')).toBe(false);
   });
 });

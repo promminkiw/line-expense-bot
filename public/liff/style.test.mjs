@@ -477,3 +477,21 @@ describe('style.css budget columns', () => {
     expect(declarations('.budget-bar-track')).not.toMatch(/opacity/);
   });
 });
+
+describe('style.css budget sheet', () => {
+  it('anchors the sheet to the bottom with rounded top corners', () => {
+    const rule = declarations('dialog.budget-sheet');
+
+    expect(rule).toMatch(/margin:\s*auto 0 0/);
+    expect(rule).toMatch(/border-radius:\s*var\(--radius-sheet\) var\(--radius-sheet\) 0 0/);
+  });
+
+  it('gives the stepper buttons a 52px target', () => {
+    expect(declarations('.budget-stepper button')).toMatch(/width:\s*52px/);
+    expect(declarations('.budget-stepper button')).toMatch(/height:\s*52px/);
+  });
+
+  it('clips the preview mini bar into one rounded shape like the page bars', () => {
+    expect(declarations('.budget-mini')).toMatch(/overflow:\s*hidden/);
+  });
+});

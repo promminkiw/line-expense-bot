@@ -902,24 +902,55 @@
       <button type="button" id="confirm-ok" class="danger-solid">ลบ</button>
     </div>
   </dialog>
-  <dialog id="budget-editor" aria-labelledby="budget-title">
-    <form id="budget-form">
-      <h2 id="budget-title"></h2>
-      <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
-          aria-hidden="true" focusable="false">
-          <use href="#icon-close"></use>
-        </svg></button>
+  <dialog id="budget-editor" class="budget-sheet" aria-labelledby="budget-title">
+    <form id="budget-form" novalidate>
+      <div class="budget-sheet-grab" aria-hidden="true"></div>
+      <div class="budget-sheet-head">
+        <span id="budget-sheet-badge" class="budget-sheet-badge"></span>
+        <div class="budget-sheet-heading">
+          <h2 id="budget-title"></h2>
+          <p id="budget-sheet-sub"></p>
+        </div>
+        <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
+            aria-hidden="true" focusable="false">
+            <use href="#icon-close"></use>
+          </svg></button>
+      </div>
+      <div class="budget-preview">
+        <div id="budget-preview-before" class="budget-preview-side"></div>
+        <svg class="icon budget-preview-arrow" aria-hidden="true" focusable="false">
+          <use href="#icon-chevron"></use>
+        </svg>
+        <div id="budget-preview-after" class="budget-preview-side" aria-live="polite"></div>
+      </div>
+      <div class="budget-sheet-field">
+        <label for="budget-amount" class="budget-sheet-label">งบต่อเดือน (บาท)</label>
+        <div class="budget-stepper">
+          <button type="button" id="budget-minus" aria-label="ลดงบ 500 บาท">−</button>
+          <input id="budget-amount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="budget-scope">
+          <button type="button" id="budget-plus" aria-label="เพิ่มงบ 500 บาท">+</button>
+        </div>
+      </div>
+      <div id="budget-chips" class="budget-chips"></div>
       <p id="budget-scope" class="confirm-detail"></p>
-      <label>งบต่อเดือน (บาท)
-        <input id="budget-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
-      </label>
       <p id="budget-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
-      <p id="budget-error" class="error" role="alert" hidden></p>
-      <div class="actions">
-        <button type="button" id="budget-remove" class="danger">ไม่ตั้งงบ</button>
-        <button type="submit" class="primary">บันทึก</button>
+      <div id="budget-error" class="budget-sheet-error" role="alert" hidden>
+        <strong id="budget-error-title"></strong>
+        <span id="budget-error-text"></span>
+      </div>
+      <div class="budget-sheet-actions">
+        <button type="button" id="budget-remove" class="budget-remove">ไม่ตั้งงบ</button>
+        <button type="submit" id="budget-submit" class="budget-cta">บันทึก</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="budget-remove-confirm" class="budget-confirm" aria-labelledby="budget-confirm-title">
+    <h2 id="budget-confirm-title"></h2>
+    <div id="budget-confirm-body" class="budget-confirm-body"></div>
+    <div class="budget-confirm-actions">
+      <button type="button" id="budget-confirm-cancel">ไม่ลบ</button>
+      <button type="button" id="budget-confirm-ok" class="danger">เลิกตั้งงบ</button>
+    </div>
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">

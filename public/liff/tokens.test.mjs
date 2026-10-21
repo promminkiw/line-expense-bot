@@ -54,6 +54,9 @@ const TEXT_PAIRS = [
   ['income-text', 'surface'],
   ['warn-text', 'notice-bg'],
   ['warn-text', 'surface'],
+  ['income-text', 'bg'],
+  ['warn-text', 'bg'],
+  ['danger-text', 'bg'],
   ...CATEGORY_KEYS.map((key) => [`cat-${key}-fg`, `cat-${key}-bg`]),
 ];
 

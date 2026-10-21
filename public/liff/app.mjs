@@ -19,7 +19,6 @@ import {
   profileView,
   profilePictureUrl,
   formatMonthLabel,
-  describeBudgetFailure,
   recurringRows,
   describeRecurringFailure,
   shouldCloseRecurringEditor,
@@ -49,6 +48,7 @@ import { createEmptyState } from './empty-state.mjs';
 import { revealError } from './reveal.mjs';
 import { createBudgetsPanel } from './budgets-panel.mjs';
 import { createBudgetsAllPanel } from './budgets-all-panel.mjs';
+import { createBudgetSheet } from './budget-sheet.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
@@ -160,14 +160,28 @@ const els = {
   trendRetry: document.getElementById('trend-retry'),
   budgetEditor: document.getElementById('budget-editor'),
   budgetForm: document.getElementById('budget-form'),
+  budgetSheetBadge: document.getElementById('budget-sheet-badge'),
   budgetTitle: document.getElementById('budget-title'),
-  budgetScope: document.getElementById('budget-scope'),
+  budgetSheetSub: document.getElementById('budget-sheet-sub'),
+  budgetPreviewBefore: document.getElementById('budget-preview-before'),
+  budgetPreviewAfter: document.getElementById('budget-preview-after'),
   budgetAmount: document.getElementById('budget-amount'),
+  budgetMinus: document.getElementById('budget-minus'),
+  budgetPlus: document.getElementById('budget-plus'),
+  budgetChips: document.getElementById('budget-chips'),
+  budgetScope: document.getElementById('budget-scope'),
   budgetBusy: document.getElementById('budget-busy'),
   budgetError: document.getElementById('budget-error'),
+  budgetErrorTitle: document.getElementById('budget-error-title'),
+  budgetErrorText: document.getElementById('budget-error-text'),
   budgetRemove: document.getElementById('budget-remove'),
+  budgetSubmit: document.getElementById('budget-submit'),
   budgetCancel: document.getElementById('budget-cancel'),
-  budgetSave: document.querySelector('#budget-form button[type="submit"]'),
+  budgetRemoveConfirm: document.getElementById('budget-remove-confirm'),
+  budgetConfirmTitle: document.getElementById('budget-confirm-title'),
+  budgetConfirmBody: document.getElementById('budget-confirm-body'),
+  budgetConfirmCancel: document.getElementById('budget-confirm-cancel'),
+  budgetConfirmOk: document.getElementById('budget-confirm-ok'),
   recurring: document.getElementById('recurring'),
   recurringRows: document.getElementById('recurring-rows'),
   recurringLoading: document.getElementById('recurring-loading'),
@@ -232,8 +246,6 @@ let lastSummary = [];
 let lastTransactions = [];
 let lastTruncated = false;
 let exporting = false;
-let editingBudget = null;
-let budgetBusy = false;
 let editingRecurring = null;
 let recurringBusy = false;
 // โหลดที่ถูกทิ้งอาจพก focus มา เก็บไว้ให้โหลดล่าสุดที่ render จริงใช้
@@ -1358,64 +1370,35 @@ els.exportButton.addEventListener('click', async () => {
   }
 });
 
+async function saveBudget({ row, amount, month }) {
+  try {
+    await api.setBudget(row.categoryId, { month, amount });
+  } catch (err) {
+    return { ok: false, status: err instanceof ApiError ? err.status : undefined };
+  }
+  return { ok: true };
+}
+
+const budgetSheet = createBudgetSheet({
+  doc: document,
+  els: {
+    dialog: els.budgetEditor, form: els.budgetForm, badge: els.budgetSheetBadge, title: els.budgetTitle, sub: els.budgetSheetSub,
+    previewBefore: els.budgetPreviewBefore, previewAfter: els.budgetPreviewAfter, amount: els.budgetAmount,
+    minus: els.budgetMinus, plus: els.budgetPlus, chips: els.budgetChips, scope: els.budgetScope, busy: els.budgetBusy,
+    error: els.budgetError, errorTitle: els.budgetErrorTitle, errorText: els.budgetErrorText, remove: els.budgetRemove,
+    submit: els.budgetSubmit, close: els.budgetCancel, confirm: els.budgetRemoveConfirm, confirmTitle: els.budgetConfirmTitle,
+    confirmBody: els.budgetConfirmBody, confirmCancel: els.budgetConfirmCancel, confirmOk: els.budgetConfirmOk,
+  },
+  badgeFor,
+  getMonth: () => els.month.value,
+  onSubmit: saveBudget,
+  onSaved: ({ row }) => loadBudgets({ focusCategoryId: row.categoryId }),
+});
+
 function openBudgetEditor(row) {
   if (!els.month.value) return;
-  editingBudget = { categoryId: row.categoryId, month: els.month.value };
-  els.budgetTitle.textContent = `งบ ${row.category}`;
-  els.budgetScope.textContent = `มีผลตั้งแต่เดือน ${formatMonthLabel(editingBudget.month)} เป็นต้นไป`;
-  els.budgetAmount.value = row.budget === null ? '' : String(row.budget);
-  els.budgetRemove.hidden = row.budget === null;
-  els.budgetBusy.hidden = true;
-  els.budgetError.hidden = true;
-  els.budgetEditor.showModal();
+  budgetSheet.open(row);
 }
-
-function setBudgetBusy(isBusy) {
-  budgetBusy = isBusy;
-  els.budgetSave.disabled = isBusy;
-  els.budgetRemove.disabled = isBusy;
-  els.budgetCancel.disabled = isBusy;
-  els.budgetBusy.hidden = !isBusy;
-  // ข้อความ error อยู่ใน role=alert แยกจากข้อความกำลังบันทึก
-  els.budgetError.hidden = true;
-}
-
-async function saveBudget(amount) {
-  if (budgetBusy) return;
-  const target = editingBudget;
-  setBudgetBusy(true);
-  let failure = null;
-  try {
-    await api.setBudget(target.categoryId, { month: target.month, amount });
-  } catch (err) {
-    failure = describeBudgetFailure(err instanceof ApiError ? err.status : undefined);
-  } finally {
-    setBudgetBusy(false);
-  }
-  if (failure) {
-    els.budgetError.textContent = failure;
-    els.budgetError.hidden = false;
-    revealError(els.budgetError);
-    return;
-  }
-  els.budgetEditor.close();
-  await loadBudgets({ focusCategoryId: target.categoryId });
-}
-
-els.budgetForm.addEventListener('submit', (event) => {
-  event.preventDefault();
-  saveBudget(Number(els.budgetAmount.value));
-});
-els.budgetRemove.addEventListener('click', () => saveBudget(null));
-els.budgetCancel.addEventListener('click', () => els.budgetEditor.close());
-// กัน Esc ปิด dialog ระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
-els.budgetEditor.addEventListener('cancel', (event) => {
-  if (budgetBusy) event.preventDefault();
-});
-// Esc ครั้งที่สอง browser บางตัวปิด dialog แม้ preventDefault แล้ว จึงเปิดกลับ
-els.budgetEditor.addEventListener('close', () => {
-  if (budgetBusy) els.budgetEditor.showModal();
-});
 els.budgetsRetry.addEventListener('click', () => {
   els.budgetsError.hidden = true;
   budgetsLoading.set(true);
