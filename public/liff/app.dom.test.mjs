@@ -175,6 +175,8 @@ async function boot({ inClient = true, loggedIn = true, overrides = {}, search =
   // reduced motion resolves count-up and bar growth at once; animated paths are covered in motion.test.mjs
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   vi.stubGlobal('scrollTo', () => {});
+  // jsdom ย้อน history จริงแล้วยิง popstate ข้ามเทสต์ ใช้ stub แล้วเทสต์ยิง popstate เอง
+  window.history.back = vi.fn();
   // jsdom has no modal dialog support; mirror the open attribute so the edit flow can run
   HTMLDialogElement.prototype.showModal = function showModal() {
     this.setAttribute('open', '');
@@ -5355,5 +5357,107 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
     expect(byId('filter-wallet').hidden).toBe(true);
     expect(byId('filter-wallet').value).toBe('');
     expect(ids()).toEqual(['t1', 't2']);
+  });
+});
+
+// ปุ่มย้อนกลับของเครื่อง (Android) และท่าปัดย้อนกลับ (iOS) ต้องพากลับจากหน้าย่อยไปแท็บเจ้าของหน้า ไม่ใช่ออกจาก LIFF
+describe('LIFF device back button on sub pages', () => {
+  const pressDeviceBack = () => window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+
+  async function openWallets() {
+    await boot();
+    clickTab('profile');
+    await settle();
+    byId('wallets-open').click();
+  }
+
+  it('adds one history entry when a sub page opens', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const push = vi.spyOn(window.history, 'pushState');
+
+    byId('wallets-open').click();
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith({ subPage: true }, '');
+    push.mockRestore();
+  });
+
+  it('goes back to the me tab when the device back button is pressed', async () => {
+    await openWallets();
+
+    pressDeviceBack();
+
+    expect(byId('panel-wallets').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('ฉัน');
+    expect(document.activeElement).toBe(byId('wallets-open'));
+    // ผู้ใช้กดย้อนเองอยู่แล้ว ห้ามย้อนซ้ำจนออกจากเว็บ
+    expect(window.history.back).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the budgets tab from the categories page opened there', async () => {
+    await boot();
+    clickTab('budgets');
+    await settle();
+    byId('categories-open').click();
+    expect(byId('panel-categories').hidden).toBe(false);
+
+    pressDeviceBack();
+
+    expect(byId('panel-categories').hidden).toBe(true);
+    expect(byId('panel-budgets').hidden).toBe(false);
+  });
+
+  it('uses up the history entry when the in-page back button is pressed', async () => {
+    await openWallets();
+
+    byId('page-back').click();
+
+    expect(byId('panel-wallets').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(window.history.back).toHaveBeenCalledTimes(1);
+    // popstate ที่ตามมาจากการย้อนนั้นไม่ทำอะไรซ้ำ
+    pressDeviceBack();
+    expect(byId('panel-profile').hidden).toBe(false);
+  });
+
+  it('ignores the device back button when no sub page is open', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+
+    pressDeviceBack();
+
+    expect(byId('panel-profile').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+  });
+
+  it('can open the same page again after going back with the device button', async () => {
+    await openWallets();
+    pressDeviceBack();
+    const push = vi.spyOn(window.history, 'pushState');
+
+    byId('wallets-open').click();
+
+    expect(byId('panel-wallets').hidden).toBe(false);
+    expect(push).toHaveBeenCalledTimes(1);
+    push.mockRestore();
+  });
+
+  it('adds only one entry for the friend link that opens the friends page at boot', async () => {
+    const push = vi.spyOn(window.history, 'pushState');
+    await boot({ search: '?friend=WXYZ2345' });
+
+    expect(byId('panel-friends').hidden).toBe(false);
+    expect(push).toHaveBeenCalledTimes(1);
+    push.mockRestore();
+
+    pressDeviceBack();
+
+    expect(byId('panel-friends').hidden).toBe(true);
+    expect(byId('panel-profile').hidden).toBe(false);
   });
 });

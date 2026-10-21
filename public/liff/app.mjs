@@ -1722,8 +1722,20 @@ function refreshAfterCategoryChange() {
 
 // หน้าย่อย (หมวดของฉัน รายการประจำ) ไม่อยู่ในแถบเมนูล่าง จึงซ่อนเมนูและมีปุ่มย้อนกลับพากลับแท็บเจ้าของหน้า
 let activeSubPage = null;
+// หน้าย่อยเพิ่ม history 1 รายการ ปุ่มย้อนกลับของเครื่องจะพากลับแท็บเจ้าของหน้าแทนการออกจาก LIFF
+let subPageEntryPushed = false;
+
+function pushSubPageEntry() {
+  try {
+    window.history.pushState({ subPage: true }, '');
+    subPageEntryPushed = true;
+  } catch {
+    subPageEntryPushed = false;
+  }
+}
 
 function enterSubPage(page) {
+  if (!activeSubPage) pushSubPageEntry();
   activeSubPage = page;
   document.getElementById('app').classList.add('sub-page');
   els.bottomNav.hidden = true;
@@ -1742,6 +1754,7 @@ function leaveSubPage() {
   const page = activeSubPage;
   if (!page) return;
   activeSubPage = null;
+  subPageEntryPushed = false;
   document.getElementById('app').classList.remove('sub-page');
   els.bottomNav.hidden = false;
   els.pageBack.hidden = true;
@@ -1775,7 +1788,19 @@ const ME_CATEGORIES_PAGE = { ...CATEGORIES_PAGE, backLabel: 'กลับไป�
 
 els.categoriesOpen.addEventListener('click', () => enterCategoriesPage(CATEGORIES_PAGE));
 els.meCategoriesOpen.addEventListener('click', () => enterCategoriesPage(ME_CATEGORIES_PAGE));
-els.pageBack.addEventListener('click', leaveSubPage);
+// ปุ่มย้อนกลับในหน้าต้องใช้ history ที่เพิ่มไว้ให้หมดด้วย ไม่งั้นต้องกดย้อนกลับของเครื่องสองครั้งถึงจะออก
+function backFromSubPage() {
+  const entryPushed = subPageEntryPushed;
+  leaveSubPage();
+  if (entryPushed) window.history.back();
+}
+
+els.pageBack.addEventListener('click', backFromSubPage);
+window.addEventListener('popstate', (event) => {
+  // เทสต์โหลดโมดูลซ้ำบน window เดียวกัน ตัวฟังของรอบเก่าที่หน้าหลุดจาก DOM แล้วต้องไม่ทำอะไร
+  if (!els.pageBack.isConnected || !activeSubPage || event.state?.subPage) return;
+  leaveSubPage();
+});
 
 const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจำ', els.recurringOpen);
 
