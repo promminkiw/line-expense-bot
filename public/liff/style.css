@@ -286,6 +286,8 @@ dialog.budget-confirm[open] { animation: pop-in 0.26s cubic-bezier(0.34, 1.56, 0
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes grow-y { from { transform: scaleY(0); } to { transform: none; } }
 @keyframes avatar-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+.chart-stack.sweep { animation: stack-sweep 0.8s ease-out; }
+@keyframes stack-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 /*MOTION-END*/
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

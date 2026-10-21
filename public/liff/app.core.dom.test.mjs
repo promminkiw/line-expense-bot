@@ -989,3 +989,25 @@ describe('LIFF page opened from a card link', () => {
     expect(byId('editor').open).toBe(false);
   });
 });
+
+describe('LIFF summary stacked bar motion', () => {
+  it('replays the sweep class when the summary tab opens', async () => {
+    await boot();
+    clickTab('summary');
+    await settle();
+
+    expect(byId('chart-stack').classList.contains('sweep')).toBe(true);
+  });
+
+  // สลับรายรับ/รายจ่ายเป็น re-render ธรรมดา ไม่เล่น animation เหมือนแท่งรายหมวด
+  it('does not replay the sweep when only the chart type changes', async () => {
+    await boot();
+    clickTab('summary');
+    await settle();
+    byId('chart-stack').classList.remove('sweep');
+    document.querySelector('#chart .tabs [data-type="income"]').click();
+    await settle();
+
+    expect(byId('chart-stack').classList.contains('sweep')).toBe(false);
+  });
+});

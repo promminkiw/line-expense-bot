@@ -875,7 +875,10 @@ function renderChart({ animate = false } = {}) {
     item.append(label, value, track);
     els.chartRows.append(item);
   }
-  if (animate && !els.panelSummary.hidden) playBars(window, els.chartRows);
+  if (animate && !els.panelSummary.hidden) {
+    playBars(window, els.chartRows);
+    replayClass(els.chartStack, 'sweep');
+  }
 }
 
 // กล่องครึ่งการ์ดที่จอ 390px ใส่ตัวอักษรขนาด 15px ได้ราว 12 ตัว ยาวกว่านี้ต้องเรียงแนวตั้ง
@@ -1711,6 +1714,7 @@ const tabController = createTabController({
     if (id === 'summary') {
       playBars(window, els.chartRows);
       playBars(window, els.trendBars);
+      replayClass(els.chartStack, 'sweep');
     }
     // ผู้ใช้อาจออมผ่านแชตระหว่างที่หน้าเว็บเปิดอยู่ จึงโหลดใหม่ทุกครั้งที่เข้าแท็บ
     if (id === 'goals') goalsPanel.refresh();

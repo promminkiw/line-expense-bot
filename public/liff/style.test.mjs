@@ -607,3 +607,10 @@ describe('style.css motion polish: budgets, goals and profile', () => {
     expect(css).toContain('@keyframes avatar-pop');
   });
 });
+
+describe('style.css motion polish: summary stack', () => {
+  it('sweeps the stacked bar from the left', () => {
+    expect(declarations('.chart-stack.sweep')).toMatch(/animation:\s*stack-sweep/);
+    expect(css).toMatch(/@keyframes stack-sweep\s*\{\s*from\s*\{\s*clip-path:\s*inset\(0 100% 0 0\)/);
+  });
+});
