@@ -98,7 +98,7 @@ dialog input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .goals-empty { margin: 12px 0 0; color: var(--muted); }
 .goals-closed { margin-top: 12px; }
 .goals-closed summary { display: flex; align-items: center; min-height: 44px; color: var(--primary); font-weight: 700; cursor: pointer; }
-.goal-add { margin-top: 16px; }
+.categories-open.goal-add { justify-content: flex-end; min-height: 48px; margin-top: 16px; font-size: 14px; font-weight: 800; }
 .goal-detail-edit { min-height: 44px; padding: 0; border: none; background: none; font: inherit; font-weight: 700; color: var(--primary); cursor: pointer; }
 .goal-history-title { margin: 20px 0 0; font-size: 16px; font-weight: 800; }
 /* แบบ R2 ปฏิทินฉีก: วันที่ตัวใหญ่ซ้าย ชื่อกับบรรทัดรองกลาง ยอดขวา แทนประโยคยาว */
@@ -246,7 +246,9 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 
 .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 16px 0; }
 .filters input, .filters select { min-height: 44px; padding: 8px 16px; font: inherit; font-size: 16px; color: var(--text); background: var(--surface); border: 1.5px solid var(--outline); border-radius: 980px; }
-.filters input[type="search"] { grid-column: 1 / -1; }
+.filter-search { position: relative; grid-column: 1 / -1; }
+.filter-search .icon { position: absolute; left: 16px; top: 50%; width: 20px; height: 20px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.filters .filter-search input { width: 100%; box-sizing: border-box; padding-left: 44px; }
 .filters select { min-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #filter-wallet { grid-column: 1 / -1; }
 #filter-clear { grid-column: 1 / -1; }
@@ -589,7 +591,7 @@ main#app.sub-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 .budget-calm-pct { font-weight: 800; color: var(--income); }
 .budget-calm-track { display: block; height: 6px; margin-top: 4px; border-radius: 3px; background: var(--bar-track); overflow: hidden; }
 .budget-calm-fill { display: block; height: 100%; background: var(--income); }
-.budget-card-link { display: block; width: 100%; min-height: 48px; border: none; background: none; font: inherit; font-size: 14px; font-weight: 800; color: var(--primary); cursor: pointer; }
+.budget-card-link { display: block; width: 100%; min-height: 48px; margin-top: 8px; border: none; border-top: 1px solid var(--border); background: none; font: inherit; font-size: 14px; font-weight: 800; color: var(--primary); cursor: pointer; }
 .budget-unset { display: flex; align-items: center; gap: 10px; margin: 12px 16px 0; padding: 4px 4px 4px 16px; border: 1.5px dashed var(--outline); border-radius: 18px; font-size: 13px; color: var(--muted); }
 .budget-unset > span { flex: 1; min-width: 0; }
 .budget-unset > button { flex: none; min-height: 44px; padding: 0 14px; border: none; background: none; font: inherit; font-size: 14px; font-weight: 800; color: var(--primary); cursor: pointer; }

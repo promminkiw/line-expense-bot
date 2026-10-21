@@ -117,6 +117,8 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
       if (focusId === row.categoryId) item.focus();
     }
     els.calmAll.textContent = `ดูทั้งหมด ${budgetedCount} หมวด ›`;
+    // ปุ่มอยู่การ์ดต้องดูแลถ้ามี ไม่งั้นอยู่การ์ดปกติ เพื่อไม่ให้แยกเป็นการ์ดลอย
+    (groups.risk.length > 0 ? els.risk : els.calm).append(els.calmAll);
   }
 
   function renderUnset() {

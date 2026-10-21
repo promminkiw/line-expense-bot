@@ -5757,6 +5757,26 @@ describe('LIFF budgets all page', () => {
     expect(byId('budget-all-tabs').querySelector('button[data-tab="unset"]').getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('puts the see-all button in the risk card when one is shown', async () => {
+    await openBudgets();
+
+    expect(byId('budget-all-open').closest('#budget-risk')).not.toBeNull();
+  });
+
+  it('puts the see-all button in the calm card when nothing needs attention', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 600 }] } });
+
+    expect(byId('budget-all-open').closest('#budget-calm')).not.toBeNull();
+  });
+
+  it('gives the transaction search box a magnifier icon', async () => {
+    await boot();
+
+    const field = byId('search').closest('.filter-search');
+    expect(field).not.toBeNull();
+    expect(field.querySelector('use').getAttribute('href')).toBe('#icon-search');
+  });
+
   it('opens the calm tab from see-all when nothing needs attention', async () => {
     await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 600 }] } });
 

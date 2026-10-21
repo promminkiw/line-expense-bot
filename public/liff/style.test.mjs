@@ -458,6 +458,25 @@ describe('style.css list filters', () => {
   });
 });
 
+describe('style.css budget card links', () => {
+  it('separates the see-all link from the chart with a divider line', () => {
+    expect(declarations('.budget-card-link')).toMatch(/border-top:\s*1px solid var\(--border\)/);
+  });
+
+  it('sizes the create-goal button like the see-all link and aligns it right', () => {
+    const rule = declarations('.categories-open.goal-add');
+
+    expect(rule).toMatch(/min-height:\s*48px/);
+    expect(rule).toMatch(/font-size:\s*14px/);
+    expect(rule).toMatch(/justify-content:\s*flex-end/);
+  });
+
+  it('draws the magnifier inside the transaction search box without catching taps', () => {
+    expect(declarations('.filter-search .icon')).toMatch(/pointer-events:\s*none/);
+    expect(declarations('.filters .filter-search input')).toMatch(/padding-left:\s*44px/);
+  });
+});
+
 describe('style.css budget columns', () => {
   // แท่งเป็นชิ้นเดียว ตัดมุมที่กรอบนอก ไม่ให้ส่วนสีแดงต่อทับแล้วเกิดรอยหยัก
   it('clips the bar to one rounded shape', () => {

@@ -267,7 +267,12 @@
       <p id="truncated" class="notice" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ
         ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
       <div id="filters" class="filters" hidden>
-        <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+        <div class="filter-search">
+          <svg class="icon" aria-hidden="true" focusable="false">
+            <use href="#icon-search"></use>
+          </svg>
+          <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+        </div>
         <select id="filter-type" aria-label="กรองตามประเภท">
           <option value="">ทุกประเภท</option>
           <option value="expense">รายจ่าย</option>
