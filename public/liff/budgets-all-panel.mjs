@@ -15,7 +15,7 @@ function node(doc, tag, className, text) {
   return el;
 }
 
-export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabel }) {
+export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabel, onBulk }) {
   let groups = { risk: [], calm: [], unset: [] };
   let focusId = null;
   const state = { tab: 'risk', query: '', sort: 'usage' };
@@ -71,6 +71,9 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
     els.emptyTitle.textContent = `ไม่พบหมวด "${trimmed}"`;
     els.list.hidden = notFound;
     els.tabEmpty.hidden = notFound || shownRows.length > 0;
+    const hasAnyRows = TABS.some((tab) => groups[tab.id].length > 0);
+    els.bulk.hidden = !hasAnyRows || notFound;
+    els.bulk.textContent = state.tab === 'unset' ? 'ตั้งงบหลายหมวดพร้อมกัน' : 'แก้งบหลายหมวดพร้อมกัน';
     els.count.textContent = `${getMonthLabel()} · แสดง ${shownRows.length} จาก ${groups[state.tab].length} หมวด`;
     els.list.replaceChildren();
     if (notFound) return;
@@ -94,6 +97,7 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
     state.tab = tab;
     state.query = '';
     els.search.value = '';
+    els.status.textContent = '';
     draw();
   }
 
@@ -119,5 +123,7 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
     draw();
   });
 
-  return { setBudgets, show };
+  els.bulk.addEventListener('click', () => onBulk({ first: state.tab === 'unset' ? 'unset' : 'risk' }));
+
+  return { setBudgets, show, setStatus: (text) => { els.status.textContent = text; } };
 }

@@ -416,6 +416,22 @@
         <p>ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
         <button type="button" id="budget-all-empty-clear" class="budget-cta">ล้างคำค้น</button>
       </div>
+      <p id="budget-all-status" class="budget-all-status" role="status" aria-live="polite"></p>
+      <div class="budget-all-foot">
+        <button type="button" id="budget-all-bulk-open" class="budget-cta">แก้งบหลายหมวดพร้อมกัน</button>
+      </div>
+    </div>
+    <div id="panel-budget-bulk" class="panel" hidden>
+      <p class="budget-bulk-hint">กด − / + ปรับทีละ 500 แล้วบันทึกทีเดียว % ใหม่ขึ้นให้ดูทันที แถวที่แก้จะมีเส้นน้ำเงินด้านซ้าย</p>
+      <div id="budget-bulk-list" class="budget-bulk-list"></div>
+      <div class="budget-bulk-bar">
+        <div class="budget-bulk-summary">
+          <span id="budget-bulk-count" role="status" aria-live="polite">ยังไม่ได้แก้อะไร</span>
+          <span><strong id="budget-bulk-delta"></strong> <span id="budget-bulk-total"></span></span>
+        </div>
+        <button type="button" id="budget-bulk-cancel" class="budget-bulk-cancel">ยกเลิก</button>
+        <button type="button" id="budget-bulk-save" class="budget-cta" disabled>บันทึกทั้งหมด</button>
+      </div>
     </div>
     <div id="panel-categories" class="panel" hidden>
       <div class="category-segment" role="group" aria-label="ประเภทหมวด">
@@ -951,6 +967,19 @@
       <button type="button" id="budget-confirm-cancel">ไม่ลบ</button>
       <button type="button" id="budget-confirm-ok" class="danger">เลิกตั้งงบ</button>
     </div>
+  </dialog>
+  <dialog id="budget-bulk-result" class="budget-sheet" aria-labelledby="budget-bulk-result-title">
+    <div class="budget-sheet-grab" aria-hidden="true"></div>
+    <div class="budget-bulk-result-head">
+      <img src="assets/mascot.webp" alt="" width="56" height="56">
+      <div>
+        <h2 id="budget-bulk-result-title"></h2>
+        <p id="budget-bulk-result-sub"></p>
+      </div>
+    </div>
+    <div id="budget-bulk-result-list" class="budget-bulk-result-list"></div>
+    <button type="button" id="budget-bulk-result-retry" class="budget-cta">ลองบันทึกหมวดที่ไม่สำเร็จ</button>
+    <button type="button" id="budget-bulk-result-close" class="budget-bulk-result-close">ปิด</button>
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">

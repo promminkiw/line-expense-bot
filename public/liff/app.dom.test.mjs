@@ -6026,3 +6026,295 @@ describe('LIFF budget edit sheet', () => {
     expect(byId('budget-editor').hasAttribute('open')).toBe(false);
   });
 });
+
+describe('LIFF bulk budget edit', () => {
+  async function openBulk(tab) {
+    await openBudgets();
+    byId('budget-all-open').click();
+    await settle();
+    if (tab) byId('budget-all-tabs').querySelector(`button[data-tab="${tab}"]`).click();
+    byId('budget-all-bulk-open').click();
+    await settle();
+  }
+  const row = (categoryId) => byId('budget-bulk-list').querySelector(`[data-category-id="${categoryId}"]`);
+  const plus = (categoryId) => row(categoryId).querySelector('.budget-bulk-plus');
+  const minus = (categoryId) => row(categoryId).querySelector('.budget-bulk-minus');
+
+  it('has an entry button on the see-all page that changes its label on the unset tab', async () => {
+    await openBudgets();
+    byId('budget-all-open').click();
+    await settle();
+
+    expect(byId('budget-all-bulk-open').textContent).toBe('แก้งบหลายหมวดพร้อมกัน');
+
+    byId('budget-all-tabs').querySelector('button[data-tab="unset"]').click();
+
+    expect(byId('budget-all-bulk-open').textContent).toBe('ตั้งงบหลายหมวดพร้อมกัน');
+  });
+
+  it('opens as a sub page with every category and nothing to save yet', async () => {
+    await openBulk();
+
+    expect(byId('panel-budget-bulk').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe('แก้งบหลายหมวด');
+    expect([...byId('budget-bulk-list').children].map((item) => item.dataset.categoryId)).toEqual(['c-shop', 'c-trip', 'c-food', 'c-fun', 'c-other']);
+    expect(byId('budget-bulk-save').disabled).toBe(true);
+    expect(byId('budget-bulk-count').textContent).toBe('ยังไม่ได้แก้อะไร');
+  });
+
+  it('puts the unset categories first when opened from the unset tab', async () => {
+    await openBulk('unset');
+
+    expect([...byId('budget-bulk-list').children].map((item) => item.dataset.categoryId).slice(0, 2)).toEqual(['c-fun', 'c-other']);
+    expect(byId('budget-bulk-list').children[0].querySelector('.budget-bulk-value').textContent).toBe('ไม่ตั้งงบ');
+    expect(minus('c-fun').disabled).toBe(true);
+  });
+
+  it('adds 500 per tap and shows the percent before and after', async () => {
+    await openBulk();
+
+    plus('c-shop').click();
+
+    const item = row('c-shop');
+    expect(item.querySelector('.budget-bulk-value').textContent).toBe('3,500');
+    expect(item.querySelector('.budget-bulk-was').textContent).toBe('เดิม 3,000');
+    expect(item.querySelector('.budget-bulk-old').textContent).toBe('115%');
+    expect(item.querySelector('.budget-bulk-new').textContent).toBe('98%');
+    expect(item.classList.contains('dirty')).toBe(true);
+    expect(byId('budget-bulk-count').textContent).toBe('แก้ 1 หมวด · รวมงบ');
+    expect(byId('budget-bulk-delta').textContent).toBe('+500');
+    expect(byId('budget-bulk-total').textContent).toBe('เป็น 11,500');
+    expect(byId('budget-bulk-save').disabled).toBe(false);
+  });
+
+  it('shows a new budget for an unset category', async () => {
+    await openBulk();
+
+    plus('c-fun').click();
+
+    const item = row('c-fun');
+    expect(item.querySelector('.budget-bulk-value').textContent).toBe('500');
+    expect(item.querySelector('.budget-bulk-was').textContent).toBe('ใหม่');
+    expect(item.querySelector('.budget-bulk-old').textContent).toBe('ยังไม่ตั้งงบ');
+    expect(item.querySelector('.budget-bulk-new').textContent).toBe('124%');
+  });
+
+  it('clears the mark when a tap is undone', async () => {
+    await openBulk();
+    plus('c-shop').click();
+
+    minus('c-shop').click();
+
+    expect(row('c-shop').classList.contains('dirty')).toBe(false);
+    expect(byId('budget-bulk-save').disabled).toBe(true);
+  });
+
+  it('saves each changed category with the month and goes back to the see-all page', async () => {
+    await openBulk();
+    plus('c-shop').click();
+    plus('c-fun').click();
+    const requests = [];
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      requests.push({ method: options.method ?? 'GET', path: new URL(url, 'http://localhost').pathname, body: options.body });
+      return { ok: true, status: 200, json: async () => (options.method ? {} : BUDGET_SAMPLE) };
+    });
+
+    byId('budget-bulk-save').click();
+    await settle();
+
+    const puts = requests.filter((request) => request.method === 'PUT');
+    expect(puts.map((put) => [put.path, JSON.parse(put.body)])).toEqual([
+      ['/api/budgets/c-shop', { month: '2026-10', amount: 3500 }],
+      ['/api/budgets/c-fun', { month: '2026-10', amount: 500 }],
+    ]);
+    expect(requests.some((request) => request.method === 'GET' && request.path === '/api/budgets')).toBe(true);
+    expect(byId('panel-budget-all').hidden).toBe(false);
+    expect(byId('panel-budget-bulk').hidden).toBe(true);
+    expect(byId('budget-all-status').textContent).toBe('บันทึกงบแล้ว 2 หมวด');
+  });
+
+  it('disables the buttons while saving', async () => {
+    await openBulk();
+    plus('c-shop').click();
+    let release;
+    vi.stubGlobal('fetch', () => new Promise((resolve) => { release = resolve; }));
+
+    byId('budget-bulk-save').click();
+
+    expect(byId('budget-bulk-save').disabled).toBe(true);
+    expect(plus('c-shop').disabled).toBe(true);
+    release({ ok: true, status: 200, json: async () => ({}) });
+    await settle();
+  });
+
+  it('lists successes and failures and retries only the failed ones', async () => {
+    await openBulk();
+    plus('c-shop').click();
+    plus('c-trip').click();
+    routeFetch((method, path) => (method === 'PUT' && path === '/api/budgets/c-trip' ? { status: 500 } : method === 'PUT' ? {} : undefined));
+
+    byId('budget-bulk-save').click();
+    await settle();
+
+    expect(byId('budget-bulk-result').hasAttribute('open')).toBe(true);
+    expect(byId('budget-bulk-result-title').textContent).toBe('บันทึกได้ 1 จาก 2 หมวด');
+    const items = [...byId('budget-bulk-result-list').children];
+    expect(items.map((item) => item.querySelector('.budget-bulk-result-say').textContent)).toEqual(['บันทึกแล้ว', 'บันทึกไม่สำเร็จ']);
+    expect(items[1].classList.contains('failed')).toBe(true);
+    expect(row('c-shop').classList.contains('dirty')).toBe(false);
+    expect(row('c-trip').classList.contains('dirty')).toBe(true);
+
+    const retried = [];
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PUT') retried.push(new URL(url, 'http://localhost').pathname);
+      return { ok: true, status: 200, json: async () => (options.method ? {} : BUDGET_SAMPLE) };
+    });
+    byId('budget-bulk-result-retry').click();
+    await settle();
+
+    expect(retried).toEqual(['/api/budgets/c-trip']);
+    expect(byId('budget-bulk-result').hasAttribute('open')).toBe(false);
+    expect(byId('budget-all-status').textContent).toBe('บันทึกงบแล้ว 2 หมวด');
+  });
+
+  it('keeps the failed rows editable after closing the result', async () => {
+    await openBulk();
+    plus('c-trip').click();
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-bulk-save').click();
+    await settle();
+
+    byId('budget-bulk-result-close').click();
+
+    expect(byId('budget-bulk-result').hasAttribute('open')).toBe(false);
+    expect(byId('panel-budget-bulk').hidden).toBe(false);
+    expect(row('c-trip').classList.contains('dirty')).toBe(true);
+    expect(byId('budget-bulk-save').disabled).toBe(false);
+  });
+
+  it('forgets an earlier failure when the user undoes it and saves something else', async () => {
+    await openBulk();
+    plus('c-trip').click();
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-bulk-save').click();
+    await settle();
+    byId('budget-bulk-result-close').click();
+    minus('c-trip').click();
+    plus('c-shop').click();
+    routeFetch((method) => (method === 'PUT' ? {} : undefined));
+
+    byId('budget-bulk-save').click();
+    await settle();
+
+    expect(byId('budget-bulk-result').hasAttribute('open')).toBe(false);
+    expect(byId('budget-all-status').textContent).toBe('บันทึกงบแล้ว 1 หมวด');
+  });
+
+  it('does not close the result on Escape while a retry is running', async () => {
+    await openBulk();
+    plus('c-trip').click();
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-bulk-save').click();
+    await settle();
+    let release;
+    vi.stubGlobal('fetch', () => new Promise((resolve) => { release = resolve; }));
+
+    byId('budget-bulk-result-retry').click();
+    const cancel = new Event('cancel', { cancelable: true });
+    byId('budget-bulk-result').dispatchEvent(cancel);
+
+    expect(cancel.defaultPrevented).toBe(true);
+    release({ ok: true, status: 200, json: async () => ({}) });
+    await settle();
+  });
+
+  it('clears the status message when the see-all page is opened again', async () => {
+    await openBulk();
+    plus('c-shop').click();
+    routeFetch((method) => (method === 'PUT' ? {} : undefined));
+    byId('budget-bulk-save').click();
+    await settle();
+    byId('page-back').click();
+    await settle();
+    byId('budget-all-open').click();
+    await settle();
+
+    expect(byId('budget-all-status').textContent).toBe('');
+  });
+});
+
+describe('LIFF nested budget sub pages and the back button', () => {
+  const pressDeviceBack = () => window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+  const openBulkPage = async () => {
+    await openBudgets();
+    byId('budget-all-open').click();
+    await settle();
+    byId('budget-all-bulk-open').click();
+    await settle();
+  };
+
+  it('adds only one history entry for the whole chain of sub pages', async () => {
+    await openBudgets();
+    const push = vi.spyOn(window.history, 'pushState');
+
+    byId('budget-all-open').click();
+    await settle();
+    byId('budget-all-bulk-open').click();
+    await settle();
+
+    expect(push).toHaveBeenCalledTimes(1);
+    push.mockRestore();
+  });
+
+  it('goes back to the see-all page with the in-page back button without using history', async () => {
+    await openBulkPage();
+
+    byId('page-back').click();
+
+    expect(byId('panel-budget-all').hidden).toBe(false);
+    expect(byId('panel-budget-bulk').hidden).toBe(true);
+    expect(byId('page-title').textContent).toBe('ดูงบทุกหมวด');
+    expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้างบ');
+    expect(window.history.back).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(byId('budget-all-bulk-open'));
+  });
+
+  it('leaves the sub pages from the see-all page and consumes the history entry', async () => {
+    await openBulkPage();
+    byId('page-back').click();
+
+    byId('page-back').click();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    expect(window.history.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the see-all page for the device back button and keeps one entry for the next press', async () => {
+    await openBulkPage();
+    const push = vi.spyOn(window.history, 'pushState');
+
+    pressDeviceBack();
+
+    expect(byId('panel-budget-all').hidden).toBe(false);
+    expect(byId('panel-budget-bulk').hidden).toBe(true);
+    expect(push).toHaveBeenCalledTimes(1);
+
+    pressDeviceBack();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+    push.mockRestore();
+  });
+
+  it('still leaves straight to the budgets tab from a sub page without a parent', async () => {
+    await openBudgets();
+    byId('budget-all-open').click();
+    await settle();
+
+    pressDeviceBack();
+
+    expect(byId('panel-budgets').hidden).toBe(false);
+    expect(byId('bottom-nav').hidden).toBe(false);
+  });
+});

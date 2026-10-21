@@ -495,3 +495,18 @@ describe('style.css budget sheet', () => {
     expect(declarations('.budget-mini')).toMatch(/overflow:\s*hidden/);
   });
 });
+
+describe('style.css budget bulk page', () => {
+  it('marks edited rows with a blue edge on the left', () => {
+    expect(declarations('.budget-bulk-row.dirty')).toMatch(/inset 4px 0 0 var\(--primary\)/);
+  });
+
+  it('gives the stepper buttons a 44px target', () => {
+    expect(declarations('.budget-bulk-stepper button')).toMatch(/width:\s*44px/);
+    expect(declarations('.budget-bulk-stepper button')).toMatch(/height:\s*44px/);
+  });
+
+  it('keeps the save bar visible at the bottom', () => {
+    expect(declarations('.budget-bulk-bar')).toMatch(/position:\s*sticky/);
+  });
+});

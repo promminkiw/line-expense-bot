@@ -49,6 +49,7 @@ import { revealError } from './reveal.mjs';
 import { createBudgetsPanel } from './budgets-panel.mjs';
 import { createBudgetsAllPanel } from './budgets-all-panel.mjs';
 import { createBudgetSheet } from './budget-sheet.mjs';
+import { createBudgetBulkPanel } from './budget-bulk-panel.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
@@ -136,6 +137,20 @@ const els = {
   budgetAllEmptyTitle: document.getElementById('budget-all-empty-title'),
   budgetAllEmptyClear: document.getElementById('budget-all-empty-clear'),
   budgetAllTabEmpty: document.getElementById('budget-all-tab-empty'),
+  budgetAllBulkOpen: document.getElementById('budget-all-bulk-open'),
+  budgetAllStatus: document.getElementById('budget-all-status'),
+  budgetBulkList: document.getElementById('budget-bulk-list'),
+  budgetBulkCount: document.getElementById('budget-bulk-count'),
+  budgetBulkDelta: document.getElementById('budget-bulk-delta'),
+  budgetBulkTotal: document.getElementById('budget-bulk-total'),
+  budgetBulkCancel: document.getElementById('budget-bulk-cancel'),
+  budgetBulkSave: document.getElementById('budget-bulk-save'),
+  budgetBulkResult: document.getElementById('budget-bulk-result'),
+  budgetBulkResultTitle: document.getElementById('budget-bulk-result-title'),
+  budgetBulkResultSub: document.getElementById('budget-bulk-result-sub'),
+  budgetBulkResultList: document.getElementById('budget-bulk-result-list'),
+  budgetBulkResultRetry: document.getElementById('budget-bulk-result-retry'),
+  budgetBulkResultClose: document.getElementById('budget-bulk-result-close'),
   budgetUnset: document.getElementById('budget-unset'),
   budgetUnsetText: document.getElementById('budget-unset-text'),
   budgetUnsetOpen: document.getElementById('budget-unset-open'),
@@ -255,6 +270,8 @@ const recurringGuard = createLatestGuard();
 const budgetsLoading = createLoadingIndicator({ doc: document, textEl: els.budgetsLoading, skeletonEl: els.budgetsSkeleton, variants: ['budget-hero', 'budget-chart', 'budget-list'] });
 // ถูก assign ใหม่ตอนประกาศหน้าดูทั้งหมด เพราะต้องรอ enterSubPage
 let openBudgetsAll = () => {};
+// งบล่าสุดที่โหลดมา ใช้เป็นต้นฉบับของหน้าแก้หลายหมวด
+let latestBudgets = [];
 const budgetsPanel = createBudgetsPanel({
   doc: document,
   els: {
@@ -277,10 +294,12 @@ const budgetsAllPanel = createBudgetsAllPanel({
     tabs: els.budgetAllTabs, search: els.budgetAllSearch, clear: els.budgetAllClear, sort: els.budgetAllSort,
     count: els.budgetAllCount, list: els.budgetAllList, empty: els.budgetAllEmpty, emptyTitle: els.budgetAllEmptyTitle,
     emptyClear: els.budgetAllEmptyClear, tabEmpty: els.budgetAllTabEmpty,
+    bulk: els.budgetAllBulkOpen, status: els.budgetAllStatus,
   },
   badgeFor,
   onEdit: (row) => openBudgetEditor(row),
   getMonthLabel: () => formatMonthLabel(els.month.value),
+  onBulk: (options) => openBudgetsBulk(options),
 });
 const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.recurringLoading, skeletonEl: els.recurringSkeleton, count: 3, variant: 'recurring' });
 const trendGuard = createLatestGuard();
@@ -954,6 +973,7 @@ function renderList() {
 function renderBudgets(budgets, focusCategoryId = null) {
   budgetsLoading.set(false);
   els.budgetsError.hidden = true;
+  latestBudgets = budgets;
   budgetsPanel.render(budgets, { focusCategoryId });
   budgetsAllPanel.setBudgets(budgets, { focusCategoryId });
 }
@@ -1764,7 +1784,13 @@ function enterSubPage(page) {
 
 function leaveSubPage() {
   const page = activeSubPage;
-  if (!page) return;
+  if (!page) return false;
+  if (page.parent) {
+    // หน้าลูกกลับไปหน้าแม่ ยังอยู่ในชุดหน้าย่อยเดิมจึงไม่แตะ history
+    enterSubPage(page.parent);
+    page.returnFocus.focus();
+    return false;
+  }
   activeSubPage = null;
   subPageEntryPushed = false;
   document.getElementById('app').classList.remove('sub-page');
@@ -1774,6 +1800,7 @@ function leaveSubPage() {
   // controller ยังจำว่าอยู่แท็บเจ้าของหน้า จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
   tabController.select(page.ownerTab, { force: true });
   page.returnFocus.focus();
+  return true;
 }
 
 const CATEGORIES_PAGE = {
@@ -1799,6 +1826,38 @@ openBudgetsAll = ({ tab = 'risk', focusSearch = false } = {}) => {
   if (focusSearch) els.budgetAllSearch.focus();
 };
 
+const budgetBulkPanel = createBudgetBulkPanel({
+  doc: document,
+  els: {
+    list: els.budgetBulkList, count: els.budgetBulkCount, delta: els.budgetBulkDelta, total: els.budgetBulkTotal,
+    cancel: els.budgetBulkCancel, save: els.budgetBulkSave, result: els.budgetBulkResult, resultTitle: els.budgetBulkResultTitle,
+    resultSub: els.budgetBulkResultSub, resultList: els.budgetBulkResultList, resultRetry: els.budgetBulkResultRetry,
+    resultClose: els.budgetBulkResultClose,
+  },
+  setBudget: (categoryId, body) => api.setBudget(categoryId, body),
+  onSaved: () => loadBudgets(),
+  onDone: ({ savedCount }) => {
+    backFromSubPage();
+    budgetsAllPanel.setStatus(`บันทึกงบแล้ว ${savedCount} หมวด`);
+  },
+});
+
+const BUDGET_BULK_PAGE = {
+  panelId: 'panel-budget-bulk',
+  title: 'แก้งบหลายหมวด',
+  backLabel: 'กลับไปดูงบทุกหมวด',
+  ownerTab: 'budgets',
+  returnFocus: els.budgetAllBulkOpen,
+  parent: BUDGETS_ALL_PAGE,
+};
+
+function openBudgetsBulk({ first = 'risk' } = {}) {
+  budgetBulkPanel.show({ budgets: latestBudgets, month: els.month.value, first });
+  enterSubPage(BUDGET_BULK_PAGE);
+}
+
+els.budgetBulkCancel.addEventListener('click', () => backFromSubPage());
+
 function enterCategoriesPage(page) {
   // ข้อความผลบันทึกรอบก่อนไม่ควรค้างมาตอนเข้าหน้าใหม่
   document.getElementById('category-status').textContent = '';
@@ -1817,14 +1876,22 @@ els.meCategoriesOpen.addEventListener('click', () => enterCategoriesPage(ME_CATE
 // ปุ่มย้อนกลับในหน้าต้องใช้ history ที่เพิ่มไว้ให้หมดด้วย ไม่งั้นต้องกดย้อนกลับของเครื่องสองครั้งถึงจะออก
 function backFromSubPage() {
   const entryPushed = subPageEntryPushed;
-  leaveSubPage();
-  if (entryPushed) window.history.back();
+  // ใช้ history entry ให้หมดเฉพาะตอนออกจากชุดหน้าย่อยจริง
+  if (leaveSubPage() && entryPushed) window.history.back();
 }
 
 els.pageBack.addEventListener('click', backFromSubPage);
 window.addEventListener('popstate', (event) => {
   // เทสต์โหลดโมดูลซ้ำบน window เดียวกัน ตัวฟังของรอบเก่าที่หน้าหลุดจาก DOM แล้วต้องไม่ทำอะไร
   if (!els.pageBack.isConnected || !activeSubPage || event.state?.subPage) return;
+  if (activeSubPage.parent) {
+    // entry ถูกใช้ไปแล้ว จึงเปิดหน้าแม่ใหม่พร้อมเพิ่ม entry ให้การกดย้อนครั้งถัดไปออกจากชุดหน้าย่อย
+    const { parent } = activeSubPage;
+    activeSubPage = null;
+    subPageEntryPushed = false;
+    enterSubPage(parent);
+    return;
+  }
   leaveSubPage();
 });
 
