@@ -5763,6 +5763,14 @@ describe('LIFF budgets all page', () => {
     expect(byId('budget-all-open').closest('#budget-risk')).not.toBeNull();
   });
 
+  it('hides the calm card when every budgeted category needs attention', async () => {
+    await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 1000, spent: 1200 }] } });
+
+    expect(byId('budget-risk').hidden).toBe(false);
+    expect(byId('budget-calm').hidden).toBe(true);
+    expect(byId('budget-all-open').closest('#budget-risk')).not.toBeNull();
+  });
+
   it('puts the see-all button in the calm card when nothing needs attention', async () => {
     await openBudgets({ '/api/budgets': { budgets: [{ categoryId: 'c-food', category: 'อาหาร', budget: 6000, spent: 600 }] } });
 

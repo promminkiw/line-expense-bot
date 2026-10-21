@@ -95,7 +95,7 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
 
   function renderCalm(budgetedCount) {
     const { calm } = groups;
-    els.calm.hidden = budgetedCount === 0;
+    els.calm.hidden = calm.length === 0;
     els.calmHead.hidden = calm.length === 0;
     els.calmList.hidden = calm.length === 0;
     els.calmTitle.textContent = `ปกติ ${calm.length} หมวด`;
