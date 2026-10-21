@@ -78,9 +78,9 @@ describe('getHelpReply', () => {
     expect(getHelpReply('toString')).toBeNull();
   });
 
-  // LINE จำกัดป้ายปุ่มลอย 20 ตัวอักษร ปุ่มลอย 13 ปุ่ม และข้อความ 5000 ตัวอักษร
+  // LINE จำกัดป้ายปุ่มลอย 20 ตัวอักษร ปุ่มลอยไม่เกิน 13 ปุ่ม และข้อความ 5000 ตัวอักษร
   it('stays within the LINE limits', () => {
-    expect(HELP_SECTIONS).toHaveLength(5);
+    expect(HELP_SECTIONS).toHaveLength(13);
     for (const section of HELP_SECTIONS) {
       expect(section.label.length).toBeLessThanOrEqual(20);
       expect(section.text.length).toBeLessThanOrEqual(5000);
@@ -89,67 +89,93 @@ describe('getHelpReply', () => {
 });
 
 describe('help sections', () => {
-  it('groups the topics in five buttons in order', () => {
+  it('has one button per topic with the emoji first so users can scan by emoji', () => {
     expect(HELP_SECTIONS.map((section) => section.label)).toEqual([
-      'จดรายการ',
-      'สลิปและรายการประจำ',
-      'สรุปและถามยอด',
-      'ออม กระเป๋า งบ หมวด',
-      'เพื่อนและแจ้งเตือน',
+      '✏️ รายรับรายจ่าย',
+      '📅 ย้อนหลัง',
+      '🧾 สลิป',
+      '🔁 รายการประจำ',
+      '↩️ บันทึกผิด',
+      '📊 สรุปยอด',
+      '🔎 ถามยอด',
+      '🎯 ออมเงิน',
+      '👛 กระเป๋า',
+      '🧮 งบประมาณ',
+      '🗂️ หมวดหมู่',
+      '👥 หารบิล',
+      '🔔 แจ้งเตือน',
     ]);
   });
 
-  it('keeps every topic exactly once', () => {
-    const titles = (label) => sectionLines(label).filter((line) => /^\p{Extended_Pictographic}/u.test(line));
-    expect(titles('จดรายการ')).toEqual([
+  it('opens every section with the same emoji as its button and uses each emoji once', () => {
+    const emojis = HELP_SECTIONS.map((section) => section.label.split(' ')[0]);
+    expect(new Set(emojis).size).toBe(emojis.length);
+    for (const section of HELP_SECTIONS) {
+      expect(section.text.startsWith(section.label.split(' ')[0])).toBe(true);
+    }
+  });
+
+  it('keeps every topic title exactly once, in order', () => {
+    const titles = HELP_SECTIONS.flatMap((section) =>
+      section.text.split('\n').filter((line) => /^\p{Extended_Pictographic}/u.test(line))
+    );
+    expect(titles).toEqual([
       '✏️ บันทึกรายจ่าย',
       '💰 บันทึกรายรับ',
-      '📅 บันทึกย้อนหลัง',
-      '↩️ บันทึกผิด?',
       '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
+      '📅 บันทึกย้อนหลัง',
+      '🧾 ส่งรูปสลิป/ใบเสร็จ',
+      '🔁 รายการประจำ',
+      '↩️ บันทึกผิด?',
+      '📊 ดูสรุปยอด',
+      '🔎 ถามยอด',
+      '🎯 ออมเงินเข้าเป้า',
+      '👛 กระเป๋าเงิน',
+      '🧮 งบประมาณ',
+      '🗂️ หมวดของฉัน',
+      '👥 หารบิลกับเพื่อน',
+      '🔔 การแจ้งเตือน',
     ]);
-    expect(titles('สลิปและรายการประจำ')).toEqual(['🧾 ส่งรูปสลิป/ใบเสร็จ', '🔁 รายการประจำ']);
-    expect(titles('สรุปและถามยอด')).toEqual(['📊 ดูสรุปยอด', '🔎 ถามยอด']);
-    expect(titles('ออม กระเป๋า งบ หมวด')).toEqual(['🎯 ออมเงินเข้าเป้า', '👛 กระเป๋าเงิน', '🧮 งบประมาณ', '🗂️ หมวดของฉัน']);
-    expect(titles('เพื่อนและแจ้งเตือน')).toEqual(['👥 หารบิลกับเพื่อน', '🔔 การแจ้งเตือน']);
   });
 
-  it('documents the slip section before the recurring section', () => {
-    const lines = sectionLines('สลิปและรายการประจำ');
-    const title = lines.indexOf('🧾 ส่งรูปสลิป/ใบเสร็จ');
-    expect(lines.slice(title + 1, title + 4)).toEqual([
+  it('puts the amount limit with the section that records amounts', () => {
+    expect(sectionLines('✏️ รายรับรายจ่าย')).toContain('⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท');
+  });
+
+  it('documents the slip section on its own', () => {
+    expect(sectionLines('🧾 สลิป')).toEqual([
+      '🧾 ส่งรูปสลิป/ใบเสร็จ',
       'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ เฮียอ่านยอดและวันที่',
       'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
       'ใบเสร็จหลายสินค้าบันทึกเป็นยอดรวมที่จ่ายจริงรายการเดียว (กดภายใน 10 นาที)',
     ]);
     // ตั้งแต่ 2026-10-08 บอทอ่านแค่ยอดรวม ไม่แยกสินค้าแล้ว
-    expect(sectionText('สลิปและรายการประจำ')).not.toContain('แยกราคาทีละอย่าง');
-    const recurring = lines.indexOf('🔁 รายการประจำ');
-    expect(recurring).toBeGreaterThan(title);
-    expect(lines.slice(recurring + 1, recurring + 3)).toEqual([
+    expect(sectionText('🧾 สลิป')).not.toContain('แยกราคาทีละอย่าง');
+  });
+
+  it('documents the recurring section on its own', () => {
+    expect(sectionLines('🔁 รายการประจำ')).toEqual([
+      '🔁 รายการประจำ',
       'ตั้งในหน้าเว็บ แท็บ ฉัน ปุ่ม "รายการประจำ" (เปิดเว็บจากปุ่ม "เว็บไซต์" ในเมนูด้านล่าง) เช่น ค่าเน็ตทุกวันที่ 5',
       'เฮียบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ยกเลิก" ได้',
     ]);
   });
 
   it('documents the undo button under the saved message', () => {
-    expect(sectionLines('จดรายการ')).toContain('กดปุ่ม "ยกเลิก" ใต้ข้อความ "เฮียบันทึกแล้ว" ได้ทันที');
+    expect(sectionLines('↩️ บันทึกผิด')).toContain('กดปุ่ม "ยกเลิก" ใต้ข้อความ "เฮียบันทึกแล้ว" ได้ทันที');
   });
 
-  it('documents asking for totals after the summary', () => {
-    const lines = sectionLines('สรุปและถามยอด');
-    const title = lines.indexOf('🔎 ถามยอด');
-    expect(title).toBeGreaterThan(lines.indexOf('📊 ดูสรุปยอด'));
-    expect(lines.slice(title + 1, title + 3)).toEqual([
+  it('documents asking for totals on its own', () => {
+    expect(sectionLines('🔎 ถามยอด')).toEqual([
+      '🔎 ถามยอด',
       'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
       'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
     ]);
   });
 
-  it('documents the saving command', () => {
-    const lines = sectionLines('ออม กระเป๋า งบ หมวด');
-    const title = lines.indexOf('🎯 ออมเงินเข้าเป้า');
-    expect(lines.slice(title + 1, title + 4)).toEqual([
+  it('documents the saving command on its own', () => {
+    expect(sectionLines('🎯 ออมเงิน')).toEqual([
+      '🎯 ออมเงินเข้าเป้า',
       'สร้างเป้าในหน้าเว็บ แท็บ ออม',
       'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ยกเลิก" ได้ถ้าพิมพ์ผิด)',
       'ใช้ได้เมื่อมีเป้าที่เปิดอยู่ ถ้าไม่มีจะจดเป็นรายการตามปกติ',
