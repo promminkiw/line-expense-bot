@@ -44,6 +44,7 @@ import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseLi
 import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
+import { installRipple } from './ripple.mjs';
 import { createEmptyState } from './empty-state.mjs';
 import { revealError } from './reveal.mjs';
 import { createBudgetsPanel } from './budgets-panel.mjs';
@@ -1616,6 +1617,8 @@ els.recurringEditor.addEventListener('cancel', (event) => {
 els.recurringEditor.addEventListener('close', () => {
   if (recurringBusy) els.recurringEditor.showModal();
 });
+installRipple(document);
+
 els.bannerRetry.addEventListener('click', async () => {
   if (!api) {
     window.location.reload();

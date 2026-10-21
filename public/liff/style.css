@@ -288,6 +288,10 @@ dialog.budget-confirm[open] { animation: pop-in 0.26s cubic-bezier(0.34, 1.56, 0
 @keyframes avatar-pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
 .chart-stack.sweep { animation: stack-sweep 0.8s ease-out; }
 @keyframes stack-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+/* วงริบเปิลใช้สีตัวอักษรของปุ่ม จึงไม่ต้องมีสีตายตัวและเข้ากับทั้งสองธีม */
+.actions .primary, .bill-new, #friend-add-submit, #friend-share, .bill-actions .bill-confirm, #bill-form-submit { overflow: hidden; }
+.ripple { position: absolute; border-radius: 50%; background: currentColor; pointer-events: none; transform: scale(0); animation: ripple-out 0.65s ease-out forwards; }
+@keyframes ripple-out { from { transform: scale(0); opacity: 0.25; } to { transform: scale(1); opacity: 0; } }
 /*MOTION-END*/
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

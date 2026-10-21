@@ -614,3 +614,17 @@ describe('style.css motion polish: summary stack', () => {
     expect(css).toMatch(/@keyframes stack-sweep\s*\{\s*from\s*\{\s*clip-path:\s*inset\(0 100% 0 0\)/);
   });
 });
+
+describe('style.css motion polish: ripple', () => {
+  it('clips the ripple to the yellow primary buttons', () => {
+    expect(declarations('.actions .primary, .bill-new, #friend-add-submit, #friend-share, .bill-actions .bill-confirm, #bill-form-submit')).toMatch(/overflow:\s*hidden/);
+  });
+
+  it('expands the ripple from the pointer and fades it using the button text color', () => {
+    const rule = declarations('.ripple');
+    expect(rule).toMatch(/border-radius:\s*50%/);
+    expect(rule).toMatch(/background:\s*currentColor/);
+    expect(rule).toMatch(/animation:\s*ripple-out/);
+    expect(css).toContain('@keyframes ripple-out');
+  });
+});
