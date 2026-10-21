@@ -47,6 +47,7 @@ import { createSwipeTracker } from './swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './motion.mjs';
 import { createEmptyState } from './empty-state.mjs';
+import { revealError } from './reveal.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
@@ -206,7 +207,7 @@ const recurringLoading = createLoadingIndicator({ doc: document, textEl: els.rec
 const trendGuard = createLatestGuard();
 const trendLoading = createLoadingIndicator({ doc: document, textEl: els.trendLoading, skeletonEl: els.trendSkeleton, variants: ['trend'] });
 const profileGuard = createLatestGuard();
-const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, variants: ['profile-head', 'balance', 'stats', 'tips'] });
+const profileLoading = createLoadingIndicator({ doc: document, textEl: els.profileLoading, skeletonEl: els.profileSkeleton, variants: ['profile-head', 'balance', 'stats'] });
 let profileRendered = false;
 let profileLoginRequired = false;
 // ยอดอาจเก่ากว่าข้อมูลจริง (แก้/ลบรายการแล้ว หรือโหลดซ้ำพัง) ต้องโหลดใหม่เมื่อเข้าแท็บ
@@ -1166,6 +1167,7 @@ async function openEditor(item) {
   if (!loaded) {
     els.error.textContent = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
     els.error.hidden = false;
+    revealError(els.error);
     return;
   }
   showCategoryOptions(els.category, item.categoryId);
@@ -1174,6 +1176,7 @@ async function openEditor(item) {
     // ยังบันทึกช่องอื่นได้ เพราะไม่ส่ง walletId server จึงไม่แตะกระเป๋าเดิม
     els.error.textContent = 'โหลดกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง';
     els.error.hidden = false;
+    revealError(els.error);
   } else if (!walletsWereLoaded) {
     showWalletOptions(item);
   }
@@ -1233,6 +1236,7 @@ async function runEdit(action, kind) {
   }
   els.error.textContent = failure.message;
   els.error.hidden = false;
+  revealError(els.error);
 }
 
 els.form.addEventListener('submit', (event) => {
@@ -1361,6 +1365,7 @@ async function saveBudget(amount) {
   if (failure) {
     els.budgetError.textContent = failure;
     els.budgetError.hidden = false;
+    revealError(els.budgetError);
     return;
   }
   els.budgetEditor.close();
@@ -1534,6 +1539,7 @@ async function runRecurringAction(action, kind, focusRuleId = null) {
   if (failure) {
     els.recurringEditorError.textContent = failure;
     els.recurringEditorError.hidden = false;
+    revealError(els.recurringEditorError);
     return;
   }
   els.recurringEditor.close();
@@ -1862,6 +1868,28 @@ function selectLinkedWallet(wallet) {
   refilter();
 }
 
+// แถวเมนูที่ต้องมี api ก่อนใช้ได้ ระหว่างรอต้องบอกเหตุผลที่กดไม่ได้
+const API_MENU_ROWS = [els.walletsOpen, els.notifyOpen, els.friendsOpen];
+const menuRowHint = (button) => button.querySelector('.menu-row-sub');
+
+for (const button of API_MENU_ROWS) {
+  button.dataset.readyHint = menuRowHint(button).textContent;
+  menuRowHint(button).textContent = 'กำลังเตรียม...';
+}
+
+function enableApiMenuRows() {
+  for (const button of API_MENU_ROWS) {
+    button.disabled = false;
+    menuRowHint(button).textContent = button.dataset.readyHint;
+  }
+}
+
+function markApiMenuRowsUnavailable() {
+  for (const button of API_MENU_ROWS) {
+    if (button.disabled) menuRowHint(button).textContent = 'เปิดหน้านี้ใหม่อีกครั้ง';
+  }
+}
+
 async function boot() {
   // ตัดสินก่อนรอ LIFF เพื่อไม่ให้เห็นเว็บหลักแวบขึ้นมาก่อนหน้าหารบิล
   const billsPage = isBillsPageLink(window.location.search);
@@ -1890,7 +1918,7 @@ async function boot() {
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
     // ส่วนเหล่านี้โหลดตอนเข้าแท็บหรือหน้าย่อย ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
-    for (const button of [els.walletsOpen, els.notifyOpen, els.friendsOpen]) button.disabled = false;
+    enableApiMenuRows();
     // อ่านลิงก์หลัง login สำเร็จ ไม่งั้นการเด้งไป login จะทำพารามิเตอร์หาย
     const link = parseEditLink(window.location.search);
     const friendCode = parseFriendLink(window.location.search);
@@ -1933,6 +1961,7 @@ async function boot() {
     // ลิงก์ชวนเปิด dialog ของตัวเองแล้ว ไม่เปิดตัวแก้ไขรายการซ้อน
     if (link && !friendCode) openLinkedTransaction(link);
   } catch (err) {
+    markApiMenuRowsUnavailable();
     showLoadError(err);
   }
 }

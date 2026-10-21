@@ -196,7 +196,6 @@ main#app.bills-page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); 
 .skeleton-stats { height: 86px; margin-top: 12px; border-radius: 24px; }
 .skeleton-friends-card { height: 207px; margin-top: 0; border-radius: 20px; }
 .skeleton-friends-row { height: 48px; }
-.skeleton-tips { height: 203px; margin-top: 12px; border-radius: 24px; }
 /* ขนาดวัดจากหน้าจริงจอ 390px: ปุ่มสลับ 44px แล้วส่วนบิลที่มีบิลรอตอบ 1 ใบ 199px */
 .skeleton-bill-switch { height: 44px; margin-top: 0; border-radius: 9999px; }
 .skeleton-bill-card { height: 199px; margin-top: 12px; border-radius: 24px; }

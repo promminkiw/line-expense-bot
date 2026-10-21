@@ -11,7 +11,7 @@ function declarations(selector) {
 
 describe('style.css skeleton sizes', () => {
   // jsdom ไม่มี layout จึงตรวจได้แค่ว่าทุก variant มีความสูงตายตัว ส่วนตัวเลขตรงของจริงตรวจในเบราว์เซอร์
-  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'tips', 'bill-switch', 'bill-card'])(
+  it.each(['totals', 'filters', 'chart', 'trend', 'budget', 'recurring', 'profile-head', 'balance', 'stats', 'row', 'bar', 'friends-card', 'friends-row', 'bill-switch', 'bill-card'])(
     'gives the %s skeleton a fixed pixel height',
     (variant) => {
       const rule = declarations(`.skeleton-${variant}`);

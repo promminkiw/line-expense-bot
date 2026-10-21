@@ -754,7 +754,7 @@ describe('LIFF page after a normal boot', () => {
     expect(variants('trend-skeleton')).toEqual(['trend']);
     expect(variants('budgets-skeleton')).toEqual(['budget', 'budget', 'budget', 'budget']);
     expect(variants('recurring-skeleton')).toEqual(['recurring', 'recurring', 'recurring']);
-    expect(variants('profile-skeleton')).toEqual(['profile-head', 'balance', 'stats', 'tips']);
+    expect(variants('profile-skeleton')).toEqual(['profile-head', 'balance', 'stats']);
   });
 
   it('puts the list head skeleton where the totals card will appear', () => {
@@ -1434,6 +1434,23 @@ describe('LIFF small tickets', () => {
     expect(byId('edit-error').textContent).toBe('บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
   });
 
+  // dialog เลื่อนได้เอง ข้อความ error อยู่ล่างสุด ต้องเลื่อนให้เห็นเมื่อคีย์บอร์ดบังอยู่
+  it('scrolls the failed save message into view', async () => {
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      await boot();
+      routeFetch((method) => (method === 'PATCH' ? { status: 500 } : undefined));
+
+      await submitEditOfFirstRow();
+
+      expect(scroll.mock.contexts).toContain(byId('edit-error'));
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    } finally {
+      delete HTMLElement.prototype.scrollIntoView;
+    }
+  });
+
   it('(E) does not ask for the profile again on every tab entry after a login required answer', async () => {
     const liff = await boot({ overrides: { '/api/profile': { status: 401 } } });
     const profileCalls = () => liff.fetched.filter((path) => path === '/api/profile').length;
@@ -1934,6 +1951,36 @@ describe('LIFF friends section guards and failure paths', () => {
     hold.release({ friend: { id: 'f-2', displayName: 'ซี' } });
     await settle();
     expect(byId('friend-add-submit').textContent).toBe('ค้นหา');
+  });
+
+  // แถวเมนูที่กดไม่ได้ต้องบอกเหตุผล ไม่ใช่เทาเฉยๆ
+  it('tells why the profile menu rows are disabled until login finishes', async () => {
+    const liff = await boot({ holdInit: true });
+    const rows = ['wallets-open', 'notify-open', 'friends-open'].map((id) => byId(id));
+
+    for (const row of rows) {
+      expect(row.disabled).toBe(true);
+      expect(row.querySelector('.menu-row-sub').textContent).toBe('กำลังเตรียม...');
+    }
+
+    liff.releaseInit();
+    await settle();
+
+    expect(rows.map((row) => row.disabled)).toEqual([false, false, false]);
+    expect(rows.map((row) => row.querySelector('.menu-row-sub').textContent)).toEqual([
+      'จัดการกระเป๋าและดูยอดแยก',
+      'สรุปรายสัปดาห์และเตือนลืมจด',
+      'จัดการเพื่อนและไปหารบิล',
+    ]);
+  });
+
+  it('tells the user to reopen the page when the menu rows can never be enabled', async () => {
+    await boot({ overrides: { '/api/config': new TypeError('network down') } });
+
+    for (const id of ['wallets-open', 'notify-open', 'friends-open']) {
+      expect(byId(id).disabled).toBe(true);
+      expect(byId(id).querySelector('.menu-row-sub').textContent).toBe('เปิดหน้านี้ใหม่อีกครั้ง');
+    }
   });
 
   it('loads friends when the profile tab was opened before boot finished', async () => {
@@ -4572,6 +4619,25 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-editor-error').hidden).toBe(false);
     expect(byId('goal-editor-error').textContent).toBe('มีเป้าชื่อนี้อยู่แล้ว');
     expect(byId('goal-editor-save').disabled).toBe(false);
+  });
+
+  it('scrolls the goal editor error into view', async () => {
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      await openTab();
+      captureFetch((method) => (method === 'POST' ? { status: 409, error: 'Duplicate name' } : undefined));
+
+      byId('goal-add').click();
+      byId('goal-editor-name').value = 'เที่ยวญี่ปุ่น';
+      byId('goal-editor-target').value = '1000';
+      submitEditor();
+      await settle();
+
+      expect(scroll.mock.contexts).toContain(byId('goal-editor-error'));
+    } finally {
+      delete HTMLElement.prototype.scrollIntoView;
+    }
   });
 
   it('fills the editor with the goal and sends only the changed field when closing it', async () => {

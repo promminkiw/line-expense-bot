@@ -1,5 +1,6 @@
 import { ApiError } from './api.mjs';
 import { createLoadingIndicator } from './skeleton.mjs';
+import { revealError } from './reveal.mjs';
 import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from './format.mjs';
 import { splitGoals, goalRow, contributionRows, describeGoalError } from './goals-format.mjs';
 
@@ -121,6 +122,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
   function setEditorError(text) {
     els.editorError.textContent = text;
     els.editorError.hidden = !text;
+    if (text) revealError(els.editorError);
   }
 
   function openEditor(goal) {
