@@ -1,6 +1,7 @@
 const express = require('express');
 const { middleware, SignatureValidationFailed, JSONParseError } = require('@line/bot-sdk');
 const path = require('node:path');
+const { rejectUnsupportedEncoding } = require('./utils/request-encoding');
 
 const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
@@ -50,7 +51,7 @@ function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recur
   }
 
   // อ่าน body เป็น raw Buffer (ไม่ใช่ JSON) พร้อมจำกัดขนาด เพราะ SDK ต้องใช้ byte ดิบตรวจ signature
-  app.post('/webhook', express.raw({ type: () => true, limit: '1mb' }), middleware({ channelSecret }), (req, res) => {
+  app.post('/webhook', rejectUnsupportedEncoding, express.raw({ type: () => true, limit: '1mb' }), middleware({ channelSecret }), (req, res) => {
     // ตอบ 200 ก่อนประมวลผล เพราะ LINE มี timeout ของ webhook สั้น
     res.sendStatus(200);
     const events = req.body.events || [];

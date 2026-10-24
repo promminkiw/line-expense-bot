@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
+import http from 'node:http';
 import express from 'express';
 import { createRequire } from 'node:module';
 import { createApp } from './app.js';
@@ -134,6 +136,49 @@ describe('POST /webhook', () => {
 
     expect(res.status).toBe(413);
     expect(handleEvents).not.toHaveBeenCalled();
+  });
+
+  it('returns 415 for a brotli encoded body before checking the signature and never builds the brotli decoder', async () => {
+    const brotli = vi.spyOn(zlib, 'createBrotliDecompress');
+    const handleEvents = vi.fn();
+    const baseUrl = await start(handleEvents);
+    const body = JSON.stringify({ destination: 'U1', events: [] });
+
+    const res = await fetch(`${baseUrl}/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'br', 'x-line-signature': sign(body) },
+      body,
+    });
+
+    expect(res.status).toBe(415);
+    expect(handleEvents).not.toHaveBeenCalled();
+    expect(brotli).not.toHaveBeenCalled();
+    brotli.mockRestore();
+  });
+
+  // fetch รวม header ซ้ำไม่ได้ จึงใช้ http.request เพื่อส่ง Content-Encoding สองบรรทัดจริง
+  it('returns 415 when a second Content-Encoding header line asks for brotli', async () => {
+    const brotli = vi.spyOn(zlib, 'createBrotliDecompress');
+    const handleEvents = vi.fn();
+    const baseUrl = await start(handleEvents);
+    const body = JSON.stringify({ destination: 'U1', events: [] });
+
+    const status = await new Promise((resolve, reject) => {
+      const req = http.request(
+        `${baseUrl}/webhook`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Encoding': ['gzip', 'br'], 'x-line-signature': sign(body) } },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        }
+      );
+      req.on('error', reject);
+      req.end(body);
+    });
+
+    expect(status).toBe(415);
+    expect(brotli).not.toHaveBeenCalled();
+    brotli.mockRestore();
   });
 
   it('returns 415 without stack trace when content-encoding is unsupported', async () => {

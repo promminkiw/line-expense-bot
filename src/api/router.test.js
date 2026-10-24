@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import express from 'express';
+import zlib from 'node:zlib';
 import { createApiRouter } from './router.js';
 import { hashLinkToken } from '../export/link-token.js';
 import { createRequire } from 'node:module';
@@ -175,6 +176,51 @@ describe('GET /api/config', () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ liffId: 'liff-123' });
+  });
+});
+
+describe('request encoding', () => {
+  it('returns 415 for a brotli encoded body before reading the token and never builds the brotli decoder', async () => {
+    const brotli = vi.spyOn(zlib, 'createBrotliDecompress');
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await fetch(`${base}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'br', Authorization: 'Bearer good' },
+      body: JSON.stringify({ name: 'x', type: 'expense' }),
+    });
+
+    expect(res.status).toBe(415);
+    expect(await res.json()).toEqual({ error: 'Unsupported encoding' });
+    expect(deps.verifyIdToken).not.toHaveBeenCalled();
+    expect(brotli).not.toHaveBeenCalled();
+    brotli.mockRestore();
+  });
+
+  // /bills/read-receipt ใช้ express.raw ของตัวเอง ต้องถูกกั้นด้วย middleware ระดับ router เช่นกัน
+  it('also guards the receipt upload route mounted under the bills router', async () => {
+    const readReceiptHandler = vi.fn((req, res) => res.json({ amount: 1 }));
+    const billsRouter = express.Router();
+    billsRouter.post('/read-receipt', readReceiptHandler);
+    const base = await start(setup({ billsRouter }));
+
+    const res = await fetch(`${base}/bills/read-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/jpeg', 'Content-Encoding': 'br', Authorization: 'Bearer good' },
+      body: Buffer.from([1, 2, 3]),
+    });
+
+    expect(res.status).toBe(415);
+    expect(readReceiptHandler).not.toHaveBeenCalled();
+  });
+
+  it('still accepts a plain JSON body', async () => {
+    const base = await start(setup());
+
+    const res = await call(base, '/config', { token: null });
+
+    expect(res.status).toBe(200);
   });
 });
 
