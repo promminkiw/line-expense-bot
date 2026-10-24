@@ -121,7 +121,7 @@ describe('bill list helpers', () => {
   const incoming = (over) => ({ status: 'open', myStatus: 'pending', paid: false, ...over });
 
   it('matches the list limit of the server', async () => {
-    const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../../src/db/repository.js', import.meta.url), 'utf8'));
+    const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../../src/db/domains/bills.js', import.meta.url), 'utf8'));
     expect(source).toContain(`const BILL_LIST_LIMIT = ${BILL_LIST_LIMIT};`);
   });
 
