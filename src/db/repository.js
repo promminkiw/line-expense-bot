@@ -6,6 +6,7 @@ const { createCategoriesRepository } = require('./domains/categories');
 const { createExportsRepository } = require('./domains/exports');
 const { createPendingRepository } = require('./domains/pending');
 const { createUsersRepository } = require('./domains/users');
+const { createStatsRepository } = require('./domains/stats');
 const { createTransactionsRepository } = require('./domains/transactions');
 
 const RULE_COLUMNS = 'id, type, category_id, amount, note, day_of_month, active, last_run_on';
@@ -80,36 +81,6 @@ function toIncomingBill(row) {
 }
 
 function createRepository(supabase) {
-  async function summarizeTransactions(userId, from, to) {
-    const { data, error } = await supabase.rpc('summarize_transactions', {
-      p_user_id: userId,
-      p_from: from,
-      p_to: to,
-    });
-    throwIfError('summarizeTransactions', error);
-    // แปลงเป็น number เผื่อไว้ ให้ได้ชนิดเดียวกันเสมอไม่ว่า PostgREST จะส่งแบบไหน
-    return data.map((row) => ({
-      type: row.type,
-      category: row.category,
-      total: Number(row.total),
-      entryCount: Number(row.entry_count),
-    }));
-  }
-
-  async function queryTotals(userId, { from, to, type, category, keyword, wallet }) {
-    const { data, error } = await supabase.rpc('query_totals', {
-      p_user_id: userId,
-      p_from: from,
-      p_to: to,
-      p_type: type,
-      p_category: category,
-      p_keyword: keyword,
-      p_wallet: wallet ?? '',
-    });
-    throwIfError('queryTotals', error);
-    return data.map((row) => ({ type: row.type, total: Number(row.total), entryCount: Number(row.entry_count) }));
-  }
-
   async function listGoals(userId) {
     const { data, error } = await supabase.rpc('goal_progress', { p_user_id: userId });
     throwIfError('listGoals', error);
@@ -194,25 +165,6 @@ function createRepository(supabase) {
       .eq('line_event_id', webhookEventId);
     throwIfError('deleteGoalContributionsByEvent', error);
     return count;
-  }
-
-  async function getLifetimeTotals(userId) {
-    const { data, error } = await supabase.rpc('lifetime_totals', { p_user_id: userId });
-    throwIfError('getLifetimeTotals', error);
-    // aggregate คืนหนึ่งแถวเสมอ แต่กันไว้เผื่อผลว่าง
-    const row = data[0] || {};
-    return {
-      income: Number(row.income ?? 0),
-      expense: Number(row.expense ?? 0),
-      entryCount: Number(row.entry_count ?? 0),
-      firstDate: row.first_date ?? null,
-    };
-  }
-
-  async function getMonthlyTotals(userId, from, to) {
-    const { data, error } = await supabase.rpc('monthly_totals', { p_user_id: userId, p_from: from, p_to: to });
-    throwIfError('getMonthlyTotals', error);
-    return data.map((row) => ({ month: row.month, type: row.type, total: Number(row.total) }));
   }
 
   async function getFriendCode(userId) {
@@ -509,6 +461,7 @@ function createRepository(supabase) {
     ...createPendingRepository(supabase),
     ...createWalletsRepository(supabase),
     ...createCategoriesRepository(supabase),
+    ...createStatsRepository(supabase),
     ...createTransactionsRepository(supabase),
     listRecurringRules,
     createRecurringRule,
@@ -516,8 +469,6 @@ function createRepository(supabase) {
     deleteRecurringRule,
     listDueRecurringRules,
     applyRecurringRule,
-    summarizeTransactions,
-    queryTotals,
     listGoals,
     createGoal,
     updateGoal,
@@ -525,8 +476,6 @@ function createRepository(supabase) {
     listGoalContributions,
     deleteGoalContribution,
     deleteGoalContributionsByEvent,
-    getLifetimeTotals,
-    getMonthlyTotals,
     getFriendCode,
     setFriendCode,
     findUserByFriendCode,
