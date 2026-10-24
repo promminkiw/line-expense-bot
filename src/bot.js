@@ -1,5 +1,5 @@
 const { createConcurrencyLimit } = require('./slip/concurrency-limit');
-const { buildSavedFlex, buildSlipConfirmFlex } = require('./parser/saved-flex');
+const { buildSlipConfirmFlex } = require('./parser/saved-flex');
 const { toTransactionRows } = require('./db/transaction-rows');
 const { parseSummaryCommand } = require('./summary/command');
 const { getPeriodRange } = require('./summary/period');
@@ -24,50 +24,43 @@ const {
   GOAL_GONE_REPLY,
 } = require('./goals/chat');
 const { toBangkokDateString } = require('./utils/date');
+const { createUrlBuilders } = require('./chat/urls');
+const {
+  SYSTEM_ERROR_REPLY,
+  SLOW_PROCESSING_REPLY,
+  RATE_LIMITED_REPLY,
+  QUESTION_FAILED_REPLY,
+  UNDO_DONE_REPLY,
+  UNDO_NOT_FOUND_REPLY,
+  UNDO_SAVING_DONE_REPLY,
+  UNDO_SAVING_NOT_FOUND_REPLY,
+  BILL_REPLIES,
+  SUMMARY_MENU_REPLY,
+  NO_ENTRIES_COMMENT,
+  SLIP_UNREADABLE_REPLY,
+  SLIP_TOO_LARGE_REPLY,
+  SLIP_UNSUPPORTED_REPLY,
+  SLIP_EXPIRED_REPLY,
+  SLIP_CANCELLED_REPLY,
+  SLIP_SAVE_ACTION,
+  SLIP_CANCEL_ACTION,
+  UNDO_ACTION,
+  UNDO_SAVING_ACTION,
+  buildUndoQuickReply,
+  buildUndoSavingQuickReply,
+  buildSavedReply,
+  buildSlipQuickReply,
+  buildSummaryQuickReply,
+} = require('./chat/replies');
 
-const SYSTEM_ERROR_REPLY = 'เฮียขออภัย ระบบมีปัญหา ส่งข้อความไม่สำเร็จ รบกวนมาใช้บริการใหม่ภายหลัง';
-const SLOW_PROCESSING_REPLY =
-  'เฮียตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
 // LINE ไม่ระบุอายุของ reply token ที่แน่นอน ตอบก่อนราว 1 นาทีที่มักใช้ได้ ผู้ใช้จะได้ไม่เงียบหาย
 const REPLY_DEADLINE_MS = 50000;
 const DEADLINE_PASSED = Symbol('deadline passed');
-const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป เฮียตามไม่ทัน รอสักครู่แล้วลองใหม่อีกครั้ง';
-const QUESTION_FAILED_REPLY = 'ตอนนี้เฮียตอบคำถามยอดไม่ได้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
-const UNDO_DONE_REPLY = 'เฮียยกเลิกรายการให้แล้ว';
-const UNDO_NOT_FOUND_REPLY = 'เฮียไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
-const UNDO_SAVING_DONE_REPLY = 'เฮียยกเลิกการออมให้แล้ว';
-const UNDO_SAVING_NOT_FOUND_REPLY = 'เฮียไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
-const BILL_REPLIES = {
-  declined: 'เฮียบันทึกว่าคุณปฏิเสธบิลนี้แล้ว',
-  cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
-  already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
-  already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
-  not_found: 'เฮียไม่พบบิลนี้',
-};
-const SUMMARY_MENU_REPLY = 'อยากให้เฮียสรุปช่วงไหน';
-const NO_ENTRIES_COMMENT = 'ช่วงนี้เฮียยังไม่เห็นรายการเลย';
-const SLIP_UNREADABLE_REPLY = 'เฮียอ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
-const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไปสำหรับเฮีย (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
-const SLIP_UNSUPPORTED_REPLY = 'ไฟล์นี้ไม่ใช่รูปที่เฮียอ่านได้ (รองรับ JPEG, PNG, GIF, WebP)';
-const SLIP_EXPIRED_REPLY = 'รายการนี้ถูกบันทึกหรือยกเลิกไปแล้ว หรือหมดเวลายืนยัน (10 นาที) ส่งสลิปให้เฮียใหม่ได้เลย';
-const SLIP_CANCELLED_REPLY = 'เฮียยกเลิกสลิปให้แล้ว ไม่ได้บันทึกรายการ';
-const SLIP_SAVE_ACTION = 'slip_save';
-const SLIP_CANCEL_ACTION = 'slip_cancel';
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
 const SLIP_TTL_MS = 10 * 60 * 1000;
 // รูปแต่ละใบกินความจำประมาณ 20-25 MB ตอนโหลดและอ่าน จำกัดจำนวนที่ทำพร้อมกันกันหน่วยความจำหมด
 const MAX_CONCURRENT_SLIPS = 3;
 const { UUID_PATTERN } = require('./utils/uuid');
-const SUMMARY_PERIOD_BUTTONS = [
-  { label: 'วันนี้', text: 'สรุปวันนี้' },
-  { label: 'สัปดาห์นี้', text: 'สรุปสัปดาห์นี้' },
-  { label: 'เดือนนี้', text: 'สรุปเดือนนี้' },
-];
-const UNDO_ACTION = 'undo';
-const UNDO_SAVING_ACTION = 'undo_saving';
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-// LINE จำกัดความยาว uri ของ action ที่ 1000 ตัวอักษร
-const MAX_URI_LENGTH = 1000;
 // เกิน 10 นาทีถือว่าเป็นเรื่องใหม่ กันไม่ให้ข้อความใหม่ถูกรวมกับคำถามเก่าโดยไม่ตั้งใจ
 const PENDING_TTL_MS = 10 * 60 * 1000;
 // จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
@@ -90,65 +83,6 @@ function isSilentEvent(event) {
 
 function isImageMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'image';
-}
-
-function buildUndoQuickReply(webhookEventId) {
-  return [
-    {
-      type: 'action',
-      action: {
-        type: 'postback',
-        label: 'ยกเลิก',
-        data: new URLSearchParams({ action: UNDO_ACTION, event: webhookEventId }).toString(),
-        displayText: 'ยกเลิก',
-      },
-    },
-  ];
-}
-
-function buildUndoSavingQuickReply(webhookEventId) {
-  return [
-    {
-      type: 'action',
-      action: {
-        type: 'postback',
-        label: 'ยกเลิก',
-        data: new URLSearchParams({ action: UNDO_SAVING_ACTION, event: webhookEventId }).toString(),
-        displayText: 'ยกเลิก',
-      },
-    },
-  ];
-}
-
-function buildSavedReply(items, budget, webhookEventId, editUrls, { walletReadFailed = false } = {}) {
-  return buildSavedFlex(items, {
-    alerts: budget.alerts,
-    budgetCheckFailed: budget.failed,
-    walletReadFailed,
-    buttons: buildUndoQuickReply(webhookEventId),
-    editUrls,
-  });
-}
-
-function buildSlipQuickReply(slipId) {
-  const button = (label, action) => ({
-    type: 'action',
-    action: {
-      type: 'postback',
-      label,
-      data: new URLSearchParams({ action, slip: slipId }).toString(),
-      displayText: label,
-    },
-  });
-  return [button('บันทึก', SLIP_SAVE_ACTION), button('ยกเลิก', SLIP_CANCEL_ACTION)];
-}
-
-// ใช้ message action เพื่อให้กดปุ่มแล้วได้ผลเหมือนพิมพ์คำสั่งเอง (Rich Menu ขั้นที่ 5 ใช้ข้อความชุดเดียวกัน)
-function buildSummaryQuickReply() {
-  return SUMMARY_PERIOD_BUTTONS.map((button) => ({
-    type: 'action',
-    action: { type: 'message', label: button.label, text: button.text },
-  }));
 }
 
 function createBot({
@@ -259,61 +193,9 @@ function createBot({
     }
   }
 
+  const { buildEditUrls, buildGoalsUrl, buildTotalsListUrl } = createUrlBuilders({ liffUrl });
+
   // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
-  // ลิงก์เข้าหน้าแก้ไขรายการ: ใส่วันที่ไปด้วยเพื่อให้หน้าเว็บเปิดเดือนที่ถูกต้องก่อนหารายการ
-  function buildEditUrls(rows, ids) {
-    if (!liffUrl || !Array.isArray(ids) || ids.length !== rows.length) {
-      return undefined;
-    }
-    return ids.map((id, index) => buildEditUrl(id, rows[index].occurred_on));
-  }
-
-  function buildEditUrl(id, date) {
-    try {
-      const url = new URL(liffUrl);
-      url.searchParams.set('tx', String(id));
-      if (ISO_DATE_PATTERN.test(date)) url.searchParams.set('d', date);
-      const text = url.toString();
-      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด กระเป๋า และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
-  function buildGoalsUrl() {
-    if (!liffUrl) {
-      return undefined;
-    }
-    try {
-      const url = new URL(liffUrl);
-      url.searchParams.set('tab', 'goals');
-      const text = url.toString();
-      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  function buildTotalsListUrl(question) {
-    if (!liffUrl) {
-      return undefined;
-    }
-    try {
-      const url = new URL(liffUrl);
-      url.searchParams.set('tab', 'list');
-      url.searchParams.set('m', question.to.slice(0, 7));
-      if (question.keyword) url.searchParams.set('q', question.keyword);
-      if (question.category) url.searchParams.set('c', question.category);
-      if (question.wallet) url.searchParams.set('w', question.wallet);
-      if (question.type !== 'both') url.searchParams.set('type', question.type);
-      const text = url.toString();
-      return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
   async function checkBudgets(userId, rows) {
     const months = budgetMonths(rows);
     if (months.length === 0) {
