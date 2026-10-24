@@ -35,7 +35,7 @@ export function outstandingAmount(bill) {
   return owing.reduce((sum, member) => sum + Math.round(member.share * 100), 0) / 100;
 }
 
-// ตรงกับ BILL_LIST_LIMIT ใน src/db/repository.js ครบเท่านี้แปลว่าอาจมีบิลเก่าที่ไม่ได้ส่งมา
+// ตรงกับ BILL_LIST_LIMIT ใน src/db/domains/bills.js ครบเท่านี้แปลว่าอาจมีบิลเก่าที่ไม่ได้ส่งมา
 export const BILL_LIST_LIMIT = 50;
 
 // คนที่ต้องจ่าย: ไม่รวมคนที่ปฏิเสธ และคนที่ไม่ได้ตอบบิลที่ยกเลิกแล้ว

@@ -1,5 +1,7 @@
 # Code Organization Implementation Plan
 
+> **Status (2026-10-25):** Part 1 (Tasks 1-7), Part 2 (Tasks 8-12) and Part 3 (Tasks 13-14) executed on branch refactor/code-organization, not yet merged. Move to plans/archive/ after merge. Line numbers cited for src/bot.js refer to the file before Part 2.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** แยกไฟล์ใหญ่ฝั่ง server (`src/db/repository.js` 1,065 บรรทัด, `src/bot.js` 743 บรรทัด) ออกเป็นโมดูลตามโดเมน และจัดระเบียบเอกสารงาน (migration index, STATE.md) โดยไม่เปลี่ยนพฤติกรรมของระบบเลย

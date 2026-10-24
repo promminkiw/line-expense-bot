@@ -3,7 +3,6 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_URI_LENGTH = 1000;
 
 function createUrlBuilders({ liffUrl }) {
-  // เช็กไม่ได้ต้องบอกผู้ใช้ เพราะเตือนแค่ตอนข้ามเส้น ถ้าเงียบจะพลาดเตือนของเดือนนั้น
   // ลิงก์เข้าหน้าแก้ไขรายการ: ใส่วันที่ไปด้วยเพื่อให้หน้าเว็บเปิดเดือนที่ถูกต้องก่อนหารายการ
   function buildEditUrls(rows, ids) {
     if (!liffUrl || !Array.isArray(ids) || ids.length !== rows.length) {

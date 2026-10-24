@@ -1,11 +1,12 @@
 # STATE
-Updated: 2026-10-21 (ล่าสุด: animation 10 ข้อ commit และ push แล้ว รอผู้ใช้ลองใน LINE แล้วสั่งแก้จุดที่ไม่สวย; แท็บออมและงบเฟส 1-3 push แล้ว รอลองด้วยตา)
-Goal: ฟีเจอร์ 3-6 และงาน UX P1-P2 ขึ้น main หมดแล้ว ตอนนี้ไม่มีงานโค้ดค้าง รอผู้ใช้ลองใน LINE/เบราว์เซอร์ และเลือกงาน P3 ที่เหลือจาก work-memory/p3-audit.md
+Updated: 2026-10-25 (ล่าสุด: จัดโครงสร้างโค้ดบน branch refactor/code-organization รอผู้ใช้ตัดสิน merge/push; animation, แท็บออม และงบเฟส 1-3 push แล้ว รอลองด้วยตา)
+Goal: ฟีเจอร์ 3-6 และงาน UX P1-P2 ขึ้น main หมดแล้ว งานโค้ดที่ค้างคือ branch refactor/code-organization รอผู้ใช้ตัดสิน; รอผู้ใช้ลองใน LINE/เบราว์เซอร์ และเลือกงาน P3 ที่เหลือจาก work-memory/p3-audit.md
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
 ## รอผู้ใช้ทำ (ตอบตามนี้เมื่อผู้ใช้ถามว่าทำถึงไหน)
 ฟีเจอร์ 3-6 push แล้ว (31c793d, 2026-10-19; ตรวจแล้วว่า Supabase มี 021-024 ครบก่อน push, npm test 2038/2038 lint ผ่าน); ทำตามลำดับ:
+0. ตัดสินว่าจะ merge/push branch refactor/code-organization ไหม (commit ในเครื่องเท่านั้น ยังไม่ push; ดู `git log origin/main..HEAD`); ก่อนตัดสินรัน `npm test`; พฤติกรรมบอทไม่เปลี่ยนเพราะย้ายโค้ดอย่างเดียว ลองส่งข้อความใน LINE สั้นๆ หลัง deploy ก็พอ
 1. ตั้ง cron-job.org weekly (Custom: Sunday, 19, 0) และ daily-reminder (Every day at 21:00) แล้ว และรันทดสอบ daily-reminder แล้ว (2026-10-19); daily-reminder ไม่เข้า 21:00 วันที่ 20 เพราะผู้ใช้จดเยอะวันนั้น (ตามที่ออกแบบ ยังไม่เห็นข้อความจริง ถ้าอยากเห็นให้ไม่จดทั้งวัน); รอเช็ก weekly หลัง 19:00 ของ 2026-10-25 ว่าได้ 200 และการ์ดสรุปเข้า LINE (ผู้ใช้เปิดสวิตช์แล้ว)
 2. push แล้ว (3b888d5, 2026-10-19): ตัวกรองไม่ล้นจอแคบ+กระเป๋าเต็มแถว และการ์ด Flex ของคำสั่งออม; รอผู้ใช้ลอง `ออม เที่ยวญี่ปุ่น 100` ดูการ์ดจริง (แล้วกด ยกเลิก) และดูตัวกรองบนมือถือ
 - ลองออม+กระเป๋าแล้ว 2026-10-19 (Claude ทดสอบหน้าเว็บผ่าน Chrome, ผู้ใช้พิมพ์แชต) ผ่านทุกข้อ; ข้าม A2 ข้อ 1 (มีเป้า MacBook), A5 (ต้องปิดเป้าผู้ใช้), การ์ด "อ่านกระเป๋าไม่ได้" (ทำให้เกิดเองไม่ได้), Task 11 ข้อ 6 (ต้องมีบัญชีที่สอง)
@@ -26,6 +27,8 @@ Goal: ฟีเจอร์ 3-6 และงาน UX P1-P2 ขึ้น main �
 
 ## Next
 - [ ] **branch refactor/code-organization รอผู้ใช้ตัดสินว่าจะ merge/push**; แผนต่อไปที่ยังไม่ได้ทำ: แยก public/liff/app.mjs และความเสถียร/ความปลอดภัย (ท้ายแผน code-organization); เทสต์ jsdom ใน public/liff ล้มสุ่มจาก timeout ตอนเครื่องโหลด ผ่านเมื่อรันซ้ำ
+- [ ] minor ที่ยอมรับ/ตามต่อ (refactor): supabase/schema.sql:1 รายการลำดับหยุดที่ 024 ควรมี 025 (แก้ .sql ต้องรอผู้ใช้อนุญาต); gate WARN "no unit test" ของ src/db/errors.js และ src/chat/{replies,support,slip,postback,text}.js ยอมรับ (ครอบด้วย repository-surface.test.js, bot.test.js)
+  - supabase/README.md แถว 020 เขียน repeatable ตรงกับ SQL หัวไฟล์ (มีคำเตือน 020/024 ด้านล่าง); คอมเมนต์/เทสต์ใน public/liff อัปเดต path BILL_LIST_LIMIT แล้ว
 - [ ] **งบใหม่ เฟส 3 (แก้หลายหมวด)** commit 94cf48b และ push แล้ว รอผู้ใช้ลองด้วยตา: docs/superpowers/plans/2026-10-21-budget-redesign-p3-bulk-edit.md; ตั้งใจไม่ทำ: ไม่ถามยืนยันเมื่อออกจากหน้าแก้หลายหมวดที่ยังไม่บันทึก, เลิกตั้งงบจากหน้านี้ไม่ได้ (ใช้แผ่นแก้งบ)
 - [ ] งบใหม่ ข้อมูลรวม (2026-10-21): ดีไซน์ที่เลือก = artifact https://claude.ai/artifact/PYNrUiDyTF7jWns14bDosx บอร์ด 1-15 (แบบ R3, แท่ง % สูงเท่ากัน); เฟส 1 commit แล้ว (a4cb668) เฟส 2 commit แล้ว (db0ad5d) เฟส 3 commit แล้ว (94cf48b) ทั้งหมดอยู่ใน origin/main แล้ว
   - แผน (falcon รีวิวและแก้แล้ว) docs/superpowers/plans/2026-10-21-budget-redesign-p1-main-and-list.md, -p2-edit-sheet.md, -p3-bulk-edit.md; ส่งทีละเฟส เฟส 3 Task 2+3 ส่งพร้อมกัน; บันทึกหลายหมวดยิง PUT เดิมทีละหมวด; แทนที่หน้างบเดิมเลย
@@ -43,7 +46,7 @@ Goal: ฟีเจอร์ 3-6 และงาน UX P1-P2 ขึ้น main �
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
-- [x] จัดโครงสร้างโค้ด Part 1-2 (2026-10-25, branch refactor/code-organization 24 commit ยังไม่ push): repository.js เหลือ 34 บรรทัดกับ 13 ไฟล์ใน src/db/domains/, bot.js 743 เป็น 182 บรรทัดกับ src/chat/{replies,urls,support,slip,postback,text}.js, supabase/README.md; npm test 2396/2396 (114 ไฟล์) lint ผ่าน (แผน docs/superpowers/plans/2026-10-25-code-organization.md)
+- [x] จัดโครงสร้างโค้ด Part 1-2 (2026-10-25, branch refactor/code-organization 26 commit ยังไม่ push): repository.js เหลือ 34 บรรทัดกับ 13 ไฟล์ใน src/db/domains/, bot.js 743 เป็น 182 บรรทัดกับ src/chat/{replies,urls,support,slip,postback,text}.js, supabase/README.md; npm test 2396/2396 (114 ไฟล์) lint ผ่าน (แผน docs/superpowers/plans/2026-10-25-code-organization.md)
 - [x] animation 10 ข้อ (2026-10-21, push แล้ว): CSS ใน style.css + ripple.mjs + success-mark.mjs; npm test 2384/2384 lint ผ่าน (รันเต็ม 6 รอบ ล้มสุ่ม 2 รอบ ข้อละต่างกัน เป็น timeout 5 วินาทีตอนเครื่องโหลด ผ่านเมื่อรันซ้ำ); รอผู้ใช้ลอง ข้อ 12
 - [x] แยก app.dom.test.mjs เป็น 9 ไฟล์ app.<กลุ่ม>.dom.test.mjs + dom-harness.mjs (2026-10-21, commit 4730973 push แล้ว): แก้ heap OOM; npm test 2363/2363 ที่ heap ปกติ lint ผ่าน, รายชื่อเทสต์ 449 ข้อตรงก่อนย้าย, heap สูงสุด bills 658 MB (แผน docs/superpowers/plans/2026-10-21-split-dom-tests.md)
 - [x] แท็บออม ดีไซน์ A โค้ดเสร็จ (2026-10-21, commit 4bd02cb push แล้วพร้อมงบเฟส 1-3): การ์ดสรุปสีหลัก (goalsSummary ใน goals-format.mjs) + การ์ดขาวต่อเป้า (goal-card) + ปุ่มสร้างเป้ากรอบเส้นประ + skeleton goal-hero/goal-card; ข้อความวันที่เปลี่ยนเป็น ถึงเป้า/ไม่กำหนดวัน, เลิกใช้ป้าย ออมเพิ่ม/ดูประวัติ; public/liff 971/971, npm test 2362/2363 (1 ล้มเพราะ timeout 5 วินาทีตอนรันรวม ผ่านเมื่อรันเดี่ยว) lint ผ่าน; รอผู้ใช้ลองด้วยตา รอผู้ใช้ทำ ข้อ 11

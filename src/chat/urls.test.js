@@ -20,7 +20,7 @@ describe('createUrlBuilders buildEditUrl', () => {
     const { buildEditUrl } = createUrlBuilders({ liffUrl: LIFF_URL });
     const noScheme = createUrlBuilders({ liffUrl: 'liff.line.me/no-scheme' });
 
-    expect(buildEditUrl('a b[1]')).not.toMatch(/[\s[\]]/);
+    expect(buildEditUrl('a b[1]')).toBe('https://liff.line.me/liff-1?tx=a+b%5B1%5D');
     expect(noScheme.buildEditUrl('tx-1')).toBeUndefined();
   });
 });
