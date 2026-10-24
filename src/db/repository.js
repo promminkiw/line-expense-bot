@@ -4,6 +4,7 @@ const { lastDayOf, monthStartOf } = require('../recurring/schedule');
 const { DEFAULT_WALLET_NAME } = require('../wallets/wallets');
 const { SETTINGS_COLUMNS, toNotificationSettings, toSettingsColumns } = require('../notifications/settings');
 const { DatabaseError, throwIfError, UNIQUE_VIOLATION, FOREIGN_KEY_VIOLATION } = require('./errors');
+const { createUsersRepository } = require('./domains/users');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id, wallet_id';
 const CATEGORY_COLUMNS = 'id, name, type, hidden, icon';
@@ -114,37 +115,6 @@ function compareOldestFirst(a, b) {
 }
 
 function createRepository(supabase) {
-  async function findUserIdByLineId(lineUserId) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id')
-      .eq('line_user_id', lineUserId)
-      .maybeSingle();
-    throwIfError('findUserIdByLineId', error);
-    return data ? data.id : null;
-  }
-
-  async function createUser({ lineUserId, displayName }) {
-    // upsert กันกรณี event แรกของผู้ใช้ใหม่มาพร้อมกันหลายอัน
-    const { data, error } = await supabase
-      .from('users')
-      .upsert({ line_user_id: lineUserId, display_name: displayName }, { onConflict: 'line_user_id' })
-      .select('id')
-      .single();
-    throwIfError('createUser', error);
-    return data.id;
-  }
-
-  // เงื่อนไข is null กันเขียนทับชื่อที่มีอยู่แล้ว
-  async function fillMissingDisplayName(userId, displayName) {
-    const { error } = await supabase
-      .from('users')
-      .update({ display_name: displayName })
-      .eq('id', userId)
-      .is('display_name', null);
-    throwIfError('fillMissingDisplayName', error);
-  }
-
   async function seedDefaultCategories(userId, categories = DEFAULT_CATEGORIES) {
     const rows = Object.entries(categories).flatMap(([type, names]) =>
       names.map((name) => ({ user_id: userId, type, name }))
@@ -392,12 +362,6 @@ function createRepository(supabase) {
     return data.map((row) => ({ month: row.month, type: row.type, total: Number(row.total) }));
   }
 
-  async function getDisplayName(userId) {
-    const { data, error } = await supabase.from('users').select('display_name').eq('id', userId).maybeSingle();
-    throwIfError('getDisplayName', error);
-    return data ? data.display_name : null;
-  }
-
   async function getNotificationSettings(userId) {
     const { data, error } = await supabase.from('users').select(SETTINGS_COLUMNS).eq('id', userId).maybeSingle();
     throwIfError('getNotificationSettings', error);
@@ -588,12 +552,6 @@ function createRepository(supabase) {
       .eq('user_id', userId);
     throwIfError('setBillMemberPaid', error);
     return count > 0;
-  }
-
-  async function getLineUserIds(userIds) {
-    const { data, error } = await supabase.from('users').select('id, line_user_id').in('id', userIds);
-    throwIfError('getLineUserIds', error);
-    return new Map(data.map((row) => [row.id, row.line_user_id]));
   }
 
   async function getBudgetStatus(userId, month) {
@@ -963,6 +921,7 @@ function createRepository(supabase) {
   }
 
   return {
+    ...createUsersRepository(supabase),
     listTransactions,
     listAllTransactions,
     createExportLink,
@@ -1000,7 +959,6 @@ function createRepository(supabase) {
     deleteGoalContributionsByEvent,
     getLifetimeTotals,
     getMonthlyTotals,
-    getDisplayName,
     getNotificationSettings,
     updateNotificationSettings,
     disableNotifications,
@@ -1020,7 +978,6 @@ function createRepository(supabase) {
     cancelBill,
     isBillOwner,
     setBillMemberPaid,
-    getLineUserIds,
     getBudgetStatus,
     setBudget,
     getPendingClarification,
@@ -1030,9 +987,6 @@ function createRepository(supabase) {
     claimPendingSlip,
     deleteExpiredPendingSlips,
     deleteAllExpiredPendingSlips,
-    findUserIdByLineId,
-    createUser,
-    fillMissingDisplayName,
     seedDefaultCategories,
     getCategoryIds,
     claimEvent,
