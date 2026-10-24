@@ -6,8 +6,8 @@ Goal: ฟีเจอร์ 3-6, งาน UX P1-P2 และจัดโคร�
 
 ## รอผู้ใช้ทำ (ตอบตามนี้เมื่อผู้ใช้ถามว่าทำถึงไหน)
 ข้อ A, B ไว้บนสุดเพราะเกี่ยวกับ security release ของ Node (ใช้ตัวอักษรเพื่อไม่ให้เลขข้อ 6-12 ที่ user-checks.md อ้างถึงเลื่อน); ที่เหลือทำตามลำดับ (ฟีเจอร์ 3-6 push แล้ว 31c793d, 2026-10-19):
-A. เปิด Render dashboard > line-expense-bot > Logs ของ deploy ล่าสุด หาบรรทัด `Using Node.js version` ต้องเป็น 24.22.1 และ deploy ต้องสำเร็จ (ถ้า build ล้มเพราะหาเวอร์ชันไม่เจอ แจ้ง Claude; ยังไม่ทราบว่า Render คงอินสแตนซ์เก่าไว้ไหม)
-B. อัปเดต Node ในเครื่องเป็น 22.23.4 หรือ 24.22.1 ขึ้นไป (ตรวจด้วย `node -v` ตอนนี้ v22.12.0) แล้วรัน `npm test` ซ้ำ; ที่มา nodejs.org/en/blog/vulnerability/october-2026-security-releases
+A. หลัง push 7250c6c เข้า main: เปิด Render dashboard > line-expense-bot > Logs ของ deploy ล่าสุด หาบรรทัด `Using Node.js version` ถ้าสำเร็จจะเห็น 24.22.1 และ deploy เป็น Live; ถ้าเป็นเลขอื่นหรือ build ล้ม แจ้ง Claude (ยังไม่ทราบว่า Render คงอินสแตนซ์เก่าไว้ไหม)
+B. อัปเดต Node ในเครื่องเป็น 22.23.4 หรือ 24.22.1 ขึ้นไป (ตรวจด้วย `node -v` ตอนนี้ v22.12.0) แล้วรัน `npm test` ซ้ำ; ที่มา nodejs.org/en/blog/vulnerability/october-2026-security-releases ควรเห็นเลขใหม่ แล้ว npm test ผ่านทั้งหมด
 0. refactor/code-organization merge และ push เข้า main แล้ว (67d562f, 2026-10-25); พฤติกรรมบอทไม่เปลี่ยน ลองส่งข้อความใน LINE สั้นๆ หลัง deploy ก็พอ
 1. ตั้ง cron-job.org weekly (Custom: Sunday, 19, 0) และ daily-reminder (Every day at 21:00) แล้ว และรันทดสอบ daily-reminder แล้ว (2026-10-19); daily-reminder ไม่เข้า 21:00 วันที่ 20 เพราะผู้ใช้จดเยอะวันนั้น (ตามที่ออกแบบ ยังไม่เห็นข้อความจริง ถ้าอยากเห็นให้ไม่จดทั้งวัน); รอเช็ก weekly หลัง 19:00 ของ 2026-10-25 ว่าได้ 200 และการ์ดสรุปเข้า LINE (ผู้ใช้เปิดสวิตช์แล้ว)
 2. push แล้ว (3b888d5, 2026-10-19): ตัวกรองไม่ล้นจอแคบ+กระเป๋าเต็มแถว และการ์ด Flex ของคำสั่งออม; รอผู้ใช้ลอง `ออม เที่ยวญี่ปุ่น 100` ดูการ์ดจริง (แล้วกด ยกเลิก) และดูตัวกรองบนมือถือ
@@ -28,7 +28,7 @@ B. อัปเดต Node ในเครื่องเป็น 22.23.4 ห�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] refactor/code-organization merge และ push แล้ว (67d562f); แผนต่อไปที่ยังไม่ได้ทำ: แยก public/liff/app.mjs และความเสถียร/ความปลอดภัย (ท้ายแผน code-organization); เทสต์ jsdom ใน public/liff ล้มสุ่มจาก timeout ตอนเครื่องโหลด ผ่านเมื่อรันซ้ำ
+- [ ] แผนต่อไปที่ยังไม่ได้เขียน (ต่อจาก code-organization ที่ merge แล้ว): แยก public/liff/app.mjs และความเสถียร/ความปลอดภัย (ท้ายแผน code-organization); เทสต์ jsdom ใน public/liff ล้มสุ่มจาก timeout ตอนเครื่องโหลด ผ่านเมื่อรันซ้ำ
 - [ ] minor ที่ยอมรับ/ตามต่อ (refactor): supabase/schema.sql:1 รายการลำดับหยุดที่ 024 ควรมี 025 (แก้ .sql ต้องรอผู้ใช้อนุญาต); gate WARN "no unit test" ของ src/db/errors.js และ src/chat/{replies,support,slip,postback,text}.js ยอมรับ (ครอบด้วย repository-surface.test.js, bot.test.js)
   - supabase/README.md แถว 020 เขียน repeatable ตรงกับ SQL หัวไฟล์ (มีคำเตือน 020/024 ด้านล่าง); คอมเมนต์/เทสต์ใน public/liff อัปเดต path BILL_LIST_LIMIT แล้ว
 - [ ] **งบใหม่ เฟส 3 (แก้หลายหมวด)** commit 94cf48b และ push แล้ว รอผู้ใช้ลองด้วยตา: docs/superpowers/plans/2026-10-21-budget-redesign-p3-bulk-edit.md; ตั้งใจไม่ทำ: ไม่ถามยืนยันเมื่อออกจากหน้าแก้หลายหมวดที่ยังไม่บันทึก, เลิกตั้งงบจากหน้านี้ไม่ได้ (ใช้แผ่นแก้งบ)
@@ -48,7 +48,7 @@ B. อัปเดต Node ในเครื่องเป็น 22.23.4 ห�
 - [ ] ความเสี่ยงที่ผู้ใช้ยอมรับแล้ว ไม่แก้ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้ (soft cap), .limit(500) ต่อรอบไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์ (ต้องพิมพ์ Bearer ตัว B ใหญ่)
 
 ## Done
-- [x] ป้องกัน Content-Encoding และปัก Node (2026-10-25): c1ccd46 npm audit fix (body-parser 2.4.0, qs 6.16.1, undici 7.30.1) และ be9d7c5 src/utils/request-encoding.js ตอบ 415 ก่อน express.raw ที่ /webhook และก่อน express.json ใน router.js push แล้ว; 7250c6c render.yaml NODE_VERSION "24.22.1" (Node security release 2026-10-21, CVE-2026-111497 Brotli ใน node:zlib) ยังไม่ push; npm test 2422/2422 (115 ไฟล์) lint ผ่าน, npm audit --omit=dev --audit-level=high exit 0 (แผน docs/superpowers/plans/2026-10-25-node-security-hardening.md)
+- [x] ป้องกัน Content-Encoding และปัก Node (2026-10-25): c1ccd46 npm audit fix (body-parser 2.4.0, qs 6.16.1, undici 7.30.1) และ be9d7c5 src/utils/request-encoding.js ตอบ 415 ก่อน express.raw ที่ /webhook และก่อน express.json ใน router.js และ 7250c6c render.yaml NODE_VERSION "24.22.1" อยู่บน branch fix/node-security-oct-2026 (สถานะ push ดูด้วย `git log origin/main`); npm test 2422/2422 (115 ไฟล์) lint ผ่าน, npm audit --omit=dev --audit-level=high exit 0 (แผน docs/superpowers/plans/2026-10-25-node-security-hardening.md)
 - [x] จัดโครงสร้างโค้ด Part 1-2 (2026-10-25, merge และ push แล้ว 67d562f): repository.js เหลือ 34 บรรทัดกับ 13 ไฟล์ใน src/db/domains/, bot.js 743 เป็น 182 บรรทัดกับ src/chat/{replies,urls,support,slip,postback,text}.js, supabase/README.md; npm test 2396/2396 (114 ไฟล์) lint ผ่าน (แผน docs/superpowers/plans/2026-10-25-code-organization.md)
 - [x] animation 10 ข้อ (2026-10-21, push แล้ว): CSS ใน style.css + ripple.mjs + success-mark.mjs; npm test 2384/2384 lint ผ่าน (รันเต็ม 6 รอบ ล้มสุ่ม 2 รอบ ข้อละต่างกัน เป็น timeout 5 วินาทีตอนเครื่องโหลด ผ่านเมื่อรันซ้ำ); รอผู้ใช้ลอง ข้อ 12
 - [x] แยก app.dom.test.mjs เป็น 9 ไฟล์ app.<กลุ่ม>.dom.test.mjs + dom-harness.mjs (2026-10-21, commit 4730973 push แล้ว): แก้ heap OOM; npm test 2363/2363 ที่ heap ปกติ lint ผ่าน, รายชื่อเทสต์ 449 ข้อตรงก่อนย้าย, heap สูงสุด bills 658 MB (แผน docs/superpowers/plans/2026-10-21-split-dom-tests.md)
