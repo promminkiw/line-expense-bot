@@ -32,12 +32,16 @@ describe('render.yaml', () => {
     expect(yaml).toMatch(/^\s*healthCheckPath: \/health$/m);
   });
 
-  // Node 22 หมดการดูแลราวเมษายน 2027 จึงย้ายไป 24 ทั้ง Render และ CI ให้ตรงกัน
-  it('pins Node 24 on Render, the same version CI tests with', () => {
+  // security release 2026-10-21 แก้ Brotli decoder (CVE-2026-111497) ใน 24.22.1 จึงห้ามปักต่ำกว่านี้
+  it('pins Node 24.22.1 or newer on Render, the same major CI tests with', () => {
     const node = envBlocks.find((block) => block.name === 'NODE_VERSION');
     const ci = readFileSync(new URL('.github/workflows/ci.yml', root), 'utf8');
+    const pinned = node.body.match(/value: "(\d+)\.(\d+)\.(\d+)"/);
 
-    expect(node.body).toMatch(/value: "24"/);
+    expect(pinned, 'NODE_VERSION must be an exact x.y.z').not.toBeNull();
+    const [major, minor, patch] = pinned.slice(1).map(Number);
+    expect(major).toBe(24);
+    expect(minor > 22 || (minor === 22 && patch >= 1), `NODE_VERSION ${major}.${minor}.${patch} is older than 24.22.1`).toBe(true);
     expect(ci).toMatch(/^\s*node-version: 24$/m);
   });
 
