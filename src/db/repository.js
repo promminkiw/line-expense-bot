@@ -3,6 +3,7 @@ const { categoryKey } = require('./transaction-rows');
 const { lastDayOf, monthStartOf } = require('../recurring/schedule');
 const { DEFAULT_WALLET_NAME } = require('../wallets/wallets');
 const { SETTINGS_COLUMNS, toNotificationSettings, toSettingsColumns } = require('../notifications/settings');
+const { DatabaseError, throwIfError, UNIQUE_VIOLATION, FOREIGN_KEY_VIOLATION } = require('./errors');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id, wallet_id';
 const CATEGORY_COLUMNS = 'id, name, type, hidden, icon';
@@ -13,9 +14,6 @@ const EXPORT_COLUMNS = `${TRANSACTION_COLUMNS}, created_at`;
 const RULE_COLUMNS = 'id, type, category_id, amount, note, day_of_month, active, last_run_on';
 // กันงานรอบเดียวหนักเกินไป ที่เหลือจะถูกหยิบในรอบถัดไป
 const DUE_RULE_BATCH = 500;
-// unique_violation ของ Postgres ใช้แยกกรณีรหัสเพื่อนชนกับของคนอื่น
-const UNIQUE_VIOLATION = '23505';
-const FOREIGN_KEY_VIOLATION = '23503';
 // รายการบิลในหน้าเว็บแสดงเฉพาะของล่าสุด กันหน้าโหลดช้าเมื่อใช้ไปนาน
 const BILL_LIST_LIMIT = 50;
 const GOAL_COLUMNS = 'id, name, target_amount, target_date, closed';
@@ -113,25 +111,6 @@ function compareOldestFirst(a, b) {
   if (created !== 0) return created;
   if (a.id === b.id) return 0;
   return a.id < b.id ? -1 : 1;
-}
-
-const SAFE_CAUSE_FIELDS = ['message', 'code', 'hint'];
-
-class DatabaseError extends Error {
-  constructor(operation, cause) {
-    super(`Database ${operation} failed: ${cause.message}`);
-    this.name = 'DatabaseError';
-    // details ของ Postgres อาจมีแถวที่พัง (ยอดเงิน โน้ต) จึงเก็บเฉพาะ field ที่ปลอดภัย
-    this.cause = Object.fromEntries(
-      SAFE_CAUSE_FIELDS.filter((field) => cause[field] !== undefined).map((field) => [field, cause[field]]),
-    );
-  }
-}
-
-function throwIfError(operation, error) {
-  if (error) {
-    throw new DatabaseError(operation, error);
-  }
 }
 
 function createRepository(supabase) {
