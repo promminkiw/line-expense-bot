@@ -65,7 +65,7 @@ flowchart LR
 ## โครงสร้างโฟลเดอร์
 
 ```
-src/                        โค้ดฝั่ง server: bot.js, api, parser, query, slip, summary, budget, recurring,
+src/                        โค้ดฝั่ง server: bot.js, api, chat, parser, query, slip, summary, budget, recurring,
                             notifications, goals, wallets, friends, bills, export, menu, db (domains), utils
 public/liff/                หน้าเว็บ LIFF และเทสต์ของหน้า
 supabase/                   SQL schema และ migration (รันตามลำดับ หัวไฟล์บอกว่าต้องรันก่อน push ไหม)
