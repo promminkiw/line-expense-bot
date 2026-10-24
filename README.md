@@ -92,7 +92,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
    | `CRON_SECRET` | secret ของ endpoint cron ยาวอย่างน้อย 32 ตัวอักษร |
    | `PORT` | ไม่บังคับ ค่าเริ่มต้น 3000 |
 
-3. รัน SQL ใน Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `025` (ไม่มี 016)
+3. รัน SQL ใน Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `025` (ไม่มี 016) ดูรายละเอียดแต่ละไฟล์ที่ [supabase/README.md](supabase/README.md)
    - ห้ามรัน `020` ซ้ำหลัง `024` (จะได้ `query_totals` สองแบบ โค้ดเก่าเรียกแล้วล้ม) ถ้าเผลอรันให้รัน `024` ซ้ำ
 4. `npm start` (ทดสอบกับ LINE จริงจากเครื่องต้องใช้ tunnel เช่น ngrok ซึ่งทำให้บอทที่ deploy หยุดตอบระหว่างนั้น)
 
