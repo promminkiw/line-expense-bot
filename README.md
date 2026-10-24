@@ -121,6 +121,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 - RLS เปิดทุกตาราง function ใน DB ให้ `service_role` เท่านั้น secret อยู่ใน `.env` หรือ environment ของ Render
 - rate limit: ข้อความ/รูปที่เรียก Claude 10/นาที, export 5/นาที, ค้นหา/เพิ่มเพื่อน 10/นาที, เปลี่ยนรหัสเพื่อน 10/ชม., สร้างบิล 10/ชม., อ่านใบเสร็จในฟอร์มบิล 20/ชม. (ต่อผู้ใช้)
 - endpoint cron ป้องกันด้วย `CRON_SECRET` และตั้งใจไม่มี rate limit
+- server ตอบ 415 ถ้า `Content-Encoding` ไม่ใช่ identity/gzip/deflate ก่อนอ่าน body ที่ `/webhook` และ `/api` เพราะ `body-parser` คลาย Brotli ให้เอง (`src/utils/request-encoding.js`)
 
 ## ข้อจำกัดที่ทราบ
 
@@ -131,3 +132,4 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 - หน้าหารบิลแสดงไม่เกิน 50 บิลล่าสุดต่อส่วน, เพื่อนที่ยังไม่เพิ่มบอทไม่ได้การ์ดบิล ต้องยืนยันในเว็บ
 - ข้อเสนอแนะเก็บใน Google Form ภายนอก (ไม่รู้ว่าใครส่ง), CSV ยังไม่มีคอลัมน์กระเป๋า
 - เทสต์ SQL รันบน PGlite: เรียงข้อความแบบ C collation (ชื่อไทยที่ขึ้นต้นด้วยสระหน้าเรียงต่างจาก Supabase)
+- `NODE_VERSION` ใน `render.yaml` ปักเลขเต็ม ต้องตามอัปเดตเองเมื่อ Node ออก security release (เช็กที่ nodejs.org/en/blog/vulnerability)
