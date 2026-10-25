@@ -6,8 +6,8 @@ Goal: ฟีเจอร์ 3-6, งาน UX P1-P2 และจัดโคร�
 
 ## รอผู้ใช้ทำ (ตอบตามนี้เมื่อผู้ใช้ถามว่าทำถึงไหน)
 ข้อ A, B ไว้บนสุดเพราะเกี่ยวกับ security release ของ Node (ใช้ตัวอักษรเพื่อไม่ให้เลขข้อ 6-12 ที่ user-checks.md อ้างถึงเลื่อน); ที่เหลือทำตามลำดับ (ฟีเจอร์ 3-6 push แล้ว 31c793d, 2026-10-19):
-A. หลัง push 7250c6c เข้า main: เปิด Render dashboard > line-expense-bot > Logs ของ deploy ล่าสุด หาบรรทัด `Using Node.js version` ถ้าสำเร็จจะเห็น 24.22.1 และ deploy เป็น Live; ถ้าเป็นเลขอื่นหรือ build ล้ม แจ้ง Claude (ยังไม่ทราบว่า Render คงอินสแตนซ์เก่าไว้ไหม)
-B. อัปเดต Node ในเครื่องเป็น 22.23.4 หรือ 24.22.1 ขึ้นไป (ตรวจด้วย `node -v` ตอนนี้ v22.12.0) แล้วรัน `npm test` ซ้ำ; ที่มา nodejs.org/en/blog/vulnerability/october-2026-security-releases ควรเห็นเลขใหม่ แล้ว npm test ผ่านทั้งหมด
+A. เสร็จแล้ว (2026-10-26): Render ขึ้น 24.21.0 (default) เพราะ service ไม่อ่าน envVars ใน render.yaml ผู้ใช้เพิ่ม NODE_VERSION=24.22.1 ใน dashboard เอง ตอนนี้เป็น 24.22.1
+B. เสร็จแล้ว (2026-10-26): ติดตั้ง Node 24.22.1 ด้วย `winget install OpenJS.NodeJS.LTS --version 24.22.1` (แพ็กเกจ OpenJS.NodeJS เป็นสาย 26 ไม่มี 24.x); npm test 2422/2422 lint ผ่าน ต้องใช้ `npx vitest run --maxWorkers=3` เพราะรันปกติ jsdom ใน public/liff timeout 5 วินาทีล้มสุ่ม 5-13 ข้อ (รันเดี่ยวผ่านหมด)
 0. refactor/code-organization merge และ push เข้า main แล้ว (67d562f, 2026-10-25); พฤติกรรมบอทไม่เปลี่ยน ลองส่งข้อความใน LINE สั้นๆ หลัง deploy ก็พอ
 1. ตั้ง cron-job.org weekly (Custom: Sunday, 19, 0) และ daily-reminder (Every day at 21:00) แล้ว และรันทดสอบ daily-reminder แล้ว (2026-10-19); daily-reminder ไม่เข้า 21:00 วันที่ 20 เพราะผู้ใช้จดเยอะวันนั้น (ตามที่ออกแบบ ยังไม่เห็นข้อความจริง ถ้าอยากเห็นให้ไม่จดทั้งวัน); รอเช็ก weekly หลัง 19:00 ของ 2026-10-25 ว่าได้ 200 และการ์ดสรุปเข้า LINE (ผู้ใช้เปิดสวิตช์แล้ว)
 2. push แล้ว (3b888d5, 2026-10-19): ตัวกรองไม่ล้นจอแคบ+กระเป๋าเต็มแถว และการ์ด Flex ของคำสั่งออม; รอผู้ใช้ลอง `ออม เที่ยวญี่ปุ่น 100` ดูการ์ดจริง (แล้วกด ยกเลิก) และดูตัวกรองบนมือถือ
