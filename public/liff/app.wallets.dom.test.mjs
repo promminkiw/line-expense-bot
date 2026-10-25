@@ -427,7 +427,7 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
 
     expect(byId('filter-wallet').value).toBe('w-card');
     expect(ids()).toEqual(['t2']);
-    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ รวม -40 บาท');
     expect(byId('filter-clear').hidden).toBe(false);
   });
 

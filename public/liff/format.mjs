@@ -263,7 +263,8 @@ export function isFilterActive({ query = '', categoryId = '', type = '', walletI
 }
 
 export function describeFilterResult(shown, total, truncated) {
-  const text = `พบ ${shown} จาก ${total} รายการ`;
+  const count = `พบ ${shown.length} จาก ${total} รายการ`;
+  const text = shown.length > 0 ? `${count} รวม ${formatDayNet(shown)} บาท` : count;
   return truncated ? `${text} (ค้นเฉพาะรายการที่แสดง)` : text;
 }
 
@@ -310,6 +311,8 @@ export function describeExpenseComparison(months) {
   if (diff === 0) return { level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' };
   const percent = Math.round((Math.abs(diff) / previous) * 100);
   const amount = formatBaht(Math.abs(diff) / 100);
+  // เดือนก่อนจ่ายน้อยมาก % จะพุ่งเป็นหลักพันจนอ่านไม่ได้ความหมาย จึงบอกแค่จำนวนเงิน
+  if (diff > 0 && percent > 200) return { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${amount}` };
   return diff > 0
     ? { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${percent}% (+${amount})` }
     : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };

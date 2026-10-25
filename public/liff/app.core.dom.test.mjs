@@ -370,7 +370,7 @@ describe('LIFF page after a normal boot', () => {
     search.dispatchEvent(new Event('input'));
     expect(document.querySelectorAll('#list .row')).toHaveLength(1);
     expect(document.querySelector('#list .row .row-note').textContent).toBe('BTS');
-    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ รวม -40 บาท');
     expect(byId('filter-clear').hidden).toBe(false);
 
     search.value = 'ไม่มีแน่นอน';
@@ -394,7 +394,7 @@ describe('LIFF page after a normal boot', () => {
     type.value = 'income';
     type.dispatchEvent(new Event('input'));
     expect(document.querySelectorAll('#list .row')).toHaveLength(1);
-    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ รวม +25,000 บาท');
 
     byId('filter-clear').click();
     expect(type.value).toBe('');
@@ -858,7 +858,7 @@ describe('LIFF page opened from a totals answer card', () => {
     expect(byId('filter-type').value).toBe('expense');
     expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
     expect(noteOf()).toEqual(['BTS']);
-    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ');
+    expect(byId('filter-status').textContent).toBe('พบ 1 จาก 3 รายการ รวม -40 บาท');
     expect(window.location.search).toBe('');
   });
 
@@ -880,7 +880,7 @@ describe('LIFF page opened from a totals answer card', () => {
       expect(byId('filter-category').value).toBe('c-food');
       expect(byId('search').value).toBe('กาแฟ');
       expect(ids()).toEqual(['a1']);
-      expect(byId('filter-status').textContent).toBe('พบ 1 จาก 4 รายการ');
+      expect(byId('filter-status').textContent).toBe('พบ 1 จาก 4 รายการ รวม -60 บาท');
     });
 
     it('filters by the category alone when there is no keyword', async () => {

@@ -934,7 +934,7 @@ function renderList() {
   // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
   els.filters.hidden = lastTransactions.length === 0 && !active;
   els.filterClear.hidden = !active;
-  const filterText = active ? describeFilterResult(shown.length, lastTransactions.length, lastTruncated) : '';
+  const filterText = active ? describeFilterResult(shown, lastTransactions.length, lastTruncated) : '';
   // เขียนเฉพาะเมื่อข้อความเปลี่ยน ไม่ให้ screen reader อ่านซ้ำทุกตัวอักษร
   if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
   if (lastTransactions.length === 0) {

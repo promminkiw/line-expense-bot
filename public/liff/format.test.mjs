@@ -510,12 +510,25 @@ describe('isFilterActive', () => {
 });
 
 describe('describeFilterResult', () => {
-  it('reports shown and total counts', () => {
-    expect(describeFilterResult(3, 20, false)).toBe('พบ 3 จาก 20 รายการ');
+  const expense = (amount) => ({ type: 'expense', amount });
+  const income = (amount) => ({ type: 'income', amount });
+
+  it('reports shown and total counts with the net of the shown entries', () => {
+    expect(describeFilterResult([expense(60), expense(40.5), income(25000)], 20, false)).toBe('พบ 3 จาก 20 รายการ รวม +24,899.5 บาท');
+    expect(describeFilterResult([expense(2000), expense(500)], 27, false)).toBe('พบ 2 จาก 27 รายการ รวม -2,500 บาท');
+  });
+
+  it('omits the net when nothing matches', () => {
+    expect(describeFilterResult([], 20, false)).toBe('พบ 0 จาก 20 รายการ');
+  });
+
+  it('shows a zero net without a sign', () => {
+    expect(describeFilterResult([expense(100), income(100)], 5, false)).toBe('พบ 2 จาก 5 รายการ รวม 0 บาท');
   });
 
   it('warns that only the displayed entries were searched when the month is truncated', () => {
-    expect(describeFilterResult(0, 500, true)).toBe('พบ 0 จาก 500 รายการ (ค้นเฉพาะรายการที่แสดง)');
+    expect(describeFilterResult([], 500, true)).toBe('พบ 0 จาก 500 รายการ (ค้นเฉพาะรายการที่แสดง)');
+    expect(describeFilterResult([expense(60)], 500, true)).toBe('พบ 1 จาก 500 รายการ รวม -60 บาท (ค้นเฉพาะรายการที่แสดง)');
   });
 });
 
@@ -607,7 +620,17 @@ describe('describeExpenseComparison', () => {
   it('compares in satang so decimals do not drift', () => {
     expect(describeExpenseComparison(pair(0.1, 0.3)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+0.2 บาท)');
     expect(describeExpenseComparison(pair(0.08, 0.07)).text).toBe('รายจ่ายน้อยกว่าเดือนก่อน 13% (-0.01 บาท)');
-    expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 263% (+0.21 บาท)');
+    expect(describeExpenseComparison(pair(0.08, 0.29)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 0.21 บาท');
+  });
+
+  // เดือนก่อนจ่ายน้อยมาก % จะพุ่งเป็นหลักพันซึ่งอ่านแล้วไม่ได้ความหมาย
+  it('drops the percent above 200% and shows only the amount', () => {
+    expect(describeExpenseComparison(pair(110, 7613.5))).toEqual({
+      level: 'up',
+      text: 'รายจ่ายมากกว่าเดือนก่อน 7,503.5 บาท',
+    });
+    expect(describeExpenseComparison(pair(1000, 3000)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 200% (+2,000 บาท)');
+    expect(describeExpenseComparison(pair(1000, 3010)).text).toBe('รายจ่ายมากกว่าเดือนก่อน 2,010 บาท');
   });
 });
 
