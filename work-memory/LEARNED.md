@@ -37,6 +37,7 @@
 - เทสต์ขอบ (>= กับ >) ต้องพิสูจน์ด้วยการ mutate เงื่อนไขชั่วคราวแล้วเห็นเทสต์แดง; สถานะ M ของ public/liff/format.mjs ที่เห็นใน git status เป็นแค่ line ending (diff ว่าง)
 - `require('vitest')` throw ใน CommonJS -> ไฟล์เทสต์ต้องใช้ `import`
 - ใน vitest ถ้าเทสต์ `import` class แต่โค้ด `require` module เดียวกัน จะได้คนละ instance ทำให้ `instanceof` เป็น false -> เทสต์ต้องโหลดด้วย `createRequire(import.meta.url)` (router.test.js)
+- เทสต์ jsdom ล้มสุ่มด้วย "timed out in 5000ms" เกิดจาก RAM หมด (เครื่อง 5.8 GB, worker ค่าเริ่มต้น ~11 ตัว, RAM ว่างลงถึง 0 GB แล้ว swap); แก้ด้วย `maxWorkers: 3` ใน vitest.config.mjs (2026-10-26: 4 ผ่านแต่เฉียด, 6 ล้ม 3 ข้อ); อย่าแก้ด้วย testTimeout
 - เทสต์ jsdom ใน public/liff/ heap โตราว 7 MB ต่อเทสต์ (boot() รีเซ็ต module + innerHTML ทุกข้อ) ไฟล์เกิน ~350 เทสต์ worker crash exit 134 -> แยกไฟล์ตามแท็บเป็น app.<กลุ่ม>.dom.test.mjs และใช้ helper ใน dom-harness.mjs (2026-10-21 แยกจาก app.dom.test.mjs เดิมแล้ว ไฟล์ใหญ่สุด bills ~660 MB)
 
 ## เครื่องมือและ workflow
