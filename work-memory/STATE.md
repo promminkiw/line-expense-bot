@@ -19,6 +19,7 @@ Goal: โค้ดทุกฟีเจอร์ขึ้น main หมดแ�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
+- [ ] รอผู้ใช้ตัดสิน (security): ใส่ limitInputPixels ให้ sharp ใน preprocess-image.js ไหม (ทดสอบ RAM จริงบน Windows ไม่ได้ ต้องใช้ Docker)
 - [ ] แผนต่อไปที่ยังไม่ได้เขียน: แยก public/liff/app.mjs และความเสถียร/ความปลอดภัย (ท้ายแผน plans/archive/2026-10-25-code-organization.md)
 - [ ] P3 ที่เหลือ ข้อ 2-3 และ 7-12 ใน work-memory/p3-audit.md; ข้อ 11 รอผู้ใช้ตัดสินว่าเว็บจะเปลี่ยน "บอท" เป็น "เฮีย" ไหม
 - [ ] รอผู้ใช้ตัดสิน (งบ): เก็บข้อความ "งบมีผลตั้งแต่เดือน… (ไม่กระทบเดือนก่อนหน้า)" ไว้หน้าหลักไหม (แผนถอดออก เหลือในแผ่นแก้งบเฟส 2)
@@ -32,11 +33,11 @@ Goal: โค้ดทุกฟีเจอร์ขึ้น main หมดแ�
 - ความเสี่ยงที่ยอมรับ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้, .limit(500) ไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์
 
 ## Done
+- [x] security audit แบบ inline (2026-10-27, 81d3652): ไม่พบช่องโหว่ที่ยืนยันได้, 1 ข้อรอทดสอบ sharp ไม่มี limitInputPixels (src/slip/preprocess-image.js:11) อาจทำ RAM เต็ม; รายงาน ~/security-audit-skill/line-expense-bot/run-1/
 - [x] รีวิว UX ผ่าน Chrome (2026-10-26): แนวโน้มเกิน 200% บอกเป็นบาทอย่างเดียว, บรรทัด "พบ X จาก Y" ต่อท้ายยอดรวมของรายการที่กรอง (format.mjs); npm test 2425/2425 lint ผ่าน push แล้ว รอผู้ใช้ดูบนมือถือ
 - [x] เทสต์ jsdom timeout สุ่ม (2026-10-26, 068a971): สาเหตุ RAM หมดจาก worker ค่าเริ่มต้น ปัก maxWorkers 3 ใน vitest.config.mjs; npm test 2422/2422 ผ่าน 3 รอบติด lint ผ่าน
 - [x] Node 24.22.1 (2026-10-26): Render ต้องตั้ง NODE_VERSION ใน dashboard เอง (service ไม่อ่าน render.yaml), เครื่องติดตั้งด้วย `winget install OpenJS.NodeJS.LTS --version 24.22.1`; ป้องกัน Content-Encoding 415 (c1ccd46, be9d7c5, 7250c6c)
 - [x] จัดโครงสร้างโค้ด Part 1-2 (2026-10-25, 67d562f): repository.js เหลือ 34 บรรทัดกับ 13 ไฟล์ใน src/db/domains/, bot.js 743 เป็น 182 บรรทัดกับ src/chat/*.js
-- [x] animation 10 ข้อ (2026-10-21) และแท็บออม ดีไซน์ A + งบเฟส 1-3 (a4cb668, db0ad5d, 94cf48b): push แล้ว รอผู้ใช้ลองข้อ 8-12; ดีไซน์งบ artifact https://claude.ai/artifact/PYNrUiDyTF7jWns14bDosx
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
