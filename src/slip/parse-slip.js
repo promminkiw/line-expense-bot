@@ -91,7 +91,11 @@ function toRejectionKind(value) {
 function createSlipParser({ client, model, now = () => new Date(), preprocessImage = async (image) => image }) {
   return async function parseSlip(image) {
     const today = toBangkokDateString(now());
-    const { data: imageData, mediaType } = await preprocessImage(image);
+    const prepared = await preprocessImage(image);
+    if (!prepared) {
+      return { ...unreadable('too_large', 0, []), rejectionKind: 'other' };
+    }
+    const { data: imageData, mediaType } = prepared;
     const response = await client.messages.create(
       {
         model,

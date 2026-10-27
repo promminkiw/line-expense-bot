@@ -90,6 +90,21 @@ describe('createSlipParser', () => {
     });
   });
 
+  it('returns unreadable without calling Claude when the preprocessor rejects the image as too large', async () => {
+    const create = vi.fn();
+    const preprocessImage = vi.fn().mockResolvedValue(null);
+    const parseSlip = createSlipParser({ client: { messages: { create } }, model: 'test-model', now: () => NOW, preprocessImage });
+
+    expect(await parseSlip(IMAGE)).toEqual({
+      status: 'unreadable',
+      reason: 'too_large',
+      itemCount: 0,
+      rejectedAmounts: [],
+      rejectionKind: 'other',
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('asks for one amount: the final total paid, not the product lines, subtotal, cash or change', async () => {
     const { create, parseSlip } = setup(slipJson());
 

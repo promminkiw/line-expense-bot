@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRequire } from 'node:module';
-import { preprocessImage, MAX_LONG_EDGE } from './preprocess-image.js';
+import { preprocessImage, MAX_LONG_EDGE, MAX_INPUT_PIXELS } from './preprocess-image.js';
 
 const sharp = createRequire(import.meta.url)('sharp');
 
@@ -61,6 +61,26 @@ describe('preprocessImage', () => {
     expect((await sharp(decode(png)).metadata()).format).toBe('png');
     expect(webp.mediaType).toBe('image/jpeg');
     expect((await sharp(decode(webp)).metadata()).format).toBe('jpeg');
+  });
+
+  it('returns null without decoding when the image has more pixels than the limit', async () => {
+    const input = toInput(await solid(200, 100).png().toBuffer(), 'image/png');
+    const logger = { error: vi.fn() };
+
+    expect(await preprocessImage(input, { logger, maxInputPixels: 200 * 100 - 1 })).toBeNull();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('accepts an image exactly at the pixel limit', async () => {
+    const input = toInput(await solid(200, 100).png().toBuffer(), 'image/png');
+
+    const result = await preprocessImage(input, { maxInputPixels: 200 * 100 });
+
+    expect((await sharp(decode(result)).metadata()).width).toBe(200);
+  });
+
+  it('allows a 50 megapixel phone photo by default', () => {
+    expect(MAX_INPUT_PIXELS).toBeGreaterThanOrEqual(8160 * 6120);
   });
 
   it('returns the original image untouched when it cannot be decoded', async () => {
