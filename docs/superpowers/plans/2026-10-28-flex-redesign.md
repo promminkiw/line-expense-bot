@@ -826,6 +826,12 @@ For each failure that comes from the saved or slip card:
 - Assertions that read `contents.body.contents` for rows with `action` keep working (rows are still top-level body items).
 Do not change any assertion about altText or about the text replies.
 
+Known failures (verified against the current `src/bot.test.js`; `replyFlexOf` at line ~94 maps footer actions in order, so whole-array `quickReply` comparisons break):
+- Saved card, label now `ยกเลิกรายการนี้` (all these are single-item cards): lines ~181, ~312, ~955, ~971, ~988, ~1001 (`quickReply: UNDO_QUICK_REPLY`) and the inline objects at ~1644 and ~1792 (`label: 'ยกเลิก'`). Add near `UNDO_QUICK_REPLY` a constant `const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ยกเลิกรายการนี้' } }];` and use it in those six card assertions; change only `label` in the two inline objects. Leave `UNDO_QUICK_REPLY` itself as is (data/displayText unchanged; other non-card uses may still need it).
+- Slip confirm card, cancel now first: lines ~1410 and ~1442 (`quickReply: SLIP_QUICK_REPLY`) → `quickReply: [SLIP_QUICK_REPLY[1], SLIP_QUICK_REPLY[0]]`.
+- Wallet sub line moved (title is now the note, sub starts with the category): lines ~1339-1340 → `'อาหาร · 29/09 · บัตรเครดิต'` and `'อาหาร · 29/09 · เงินสด'`.
+- Line ~1881 reads only `quickReply[0].action.data` and still passes (single footer button).
+
 Run: `npx vitest run src/bot.test.js src/parser`
 Expected: PASS
 
