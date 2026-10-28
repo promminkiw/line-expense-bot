@@ -4,7 +4,7 @@ const { buildSummaryFlex } = require('../summary/flex');
 
 const WEEKLY_SUMMARY_KIND = 'weekly_summary';
 
-function createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(), logger = console }) {
+function createWeeklySummaryRunner({ repository, pushFlex, summaryUrl, now = () => new Date(), logger = console }) {
   return async function run() {
     const range = getPeriodRange('week', now());
     const users = await repository.listWeeklySummaryUsers();
@@ -38,7 +38,7 @@ function createWeeklySummaryRunner({ repository, pushFlex, now = () => new Date(
       }
       try {
         // ไม่เรียก Claude เขียนคอมเมนต์ ให้ทัน timeout 30 วินาทีของ cron-job.org และไม่เสียค่า Claude
-        await pushFlex(user.lineUserId, buildSummaryFlex(summary, ''));
+        await pushFlex(user.lineUserId, buildSummaryFlex(summary, '', { summaryUrl }));
         result.sent += 1;
       } catch (err) {
         // ไม่ลบการจองและไม่ลองซ้ำเพราะ LINE อาจส่งถึงแล้ว นับแยกจาก failed เพื่อไม่ให้ cron ตอบ 500 เหมือนรายการประจำ

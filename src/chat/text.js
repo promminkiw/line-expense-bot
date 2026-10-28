@@ -31,7 +31,7 @@ const {
 const MAX_HISTORY_MESSAGES = 6;
 
 function createTextHandlers({ parseMessage, parseQuestion, repository, users, allowRequest, liffUrl, now, logger, urls, support }) {
-  const { buildEditUrls, buildGoalsUrl, buildTotalsListUrl } = urls;
+  const { buildEditUrls, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl } = urls;
   const {
     loadHistory,
     rememberConversation,
@@ -68,7 +68,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     const rows = await repository.summarizeTransactions(userId, range.from, range.to);
     const summary = buildSummary(rows, range.label);
     const comment = await commentOn(summary, userId);
-    return { flex: buildSummaryFlex(summary, comment) };
+    return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl() }) };
   }
 
   // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ handleText ทำทางเดิมต่อ เพราะคนที่ไม่ใช้เป้าอาจพิมพ์ "ออมสิน 1000" เป็นรายการ

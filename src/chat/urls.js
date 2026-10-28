@@ -23,14 +23,14 @@ function createUrlBuilders({ liffUrl }) {
     }
   }
 
-  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด กระเป๋า และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
-  function buildGoalsUrl() {
+  // ลิงก์เปิดแท็บตรงๆ จาก Rich Menu หรือการ์ด
+  function buildTabUrl(tab) {
     if (!liffUrl) {
       return undefined;
     }
     try {
       const url = new URL(liffUrl);
-      url.searchParams.set('tab', 'goals');
+      url.searchParams.set('tab', tab);
       const text = url.toString();
       return url.protocol === 'https:' && text.length <= MAX_URI_LENGTH ? text : undefined;
     } catch {
@@ -38,6 +38,15 @@ function createUrlBuilders({ liffUrl }) {
     }
   }
 
+  function buildGoalsUrl() {
+    return buildTabUrl('goals');
+  }
+
+  function buildSummaryUrl() {
+    return buildTabUrl('summary');
+  }
+
+  // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด กระเป๋า และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)
   function buildTotalsListUrl(question) {
     if (!liffUrl) {
       return undefined;
@@ -57,7 +66,7 @@ function createUrlBuilders({ liffUrl }) {
     }
   }
 
-  return { buildEditUrls, buildEditUrl, buildGoalsUrl, buildTotalsListUrl };
+  return { buildEditUrls, buildEditUrl, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl };
 }
 
 module.exports = { createUrlBuilders };

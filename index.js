@@ -23,6 +23,7 @@ const { createExportRouter } = require('./src/export/router');
 const { createRecurringRunner } = require('./src/recurring/run');
 const { createRecurringRouter } = require('./src/recurring/router');
 const { createWeeklySummaryRunner } = require('./src/notifications/weekly');
+const { createUrlBuilders } = require('./src/chat/urls');
 const { createDailyReminderRunner } = require('./src/notifications/daily-reminder');
 const { createNotificationsRouter } = require('./src/notifications/router');
 const { createFriendService } = require('./src/friends/service');
@@ -129,7 +130,7 @@ const recurringRouter = createRecurringRouter({
 });
 const notificationsRouter = createNotificationsRouter({
   cronSecret: config.cronSecret,
-  runWeeklySummary: createWeeklySummaryRunner({ repository, pushFlex: createPushFlex(lineClient) }),
+  runWeeklySummary: createWeeklySummaryRunner({ repository, pushFlex: createPushFlex(lineClient), summaryUrl: createUrlBuilders({ liffUrl }).buildSummaryUrl() }),
   runDailyReminder: createDailyReminderRunner({ repository, pushText: createPushText(lineClient) }),
 });
 const app = createApp({

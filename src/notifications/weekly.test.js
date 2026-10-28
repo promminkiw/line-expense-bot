@@ -6,6 +6,7 @@ import { buildSummaryFlex } from '../summary/flex.js';
 // 2026-10-18 19:00 เวลาไทย (วันอาทิตย์) สัปดาห์คือ 12-18 ต.ค.
 const NOW = new Date('2026-10-18T12:00:00Z');
 const LABEL = 'สัปดาห์นี้ (12/10 - 18/10)';
+const SUMMARY_URL = 'https://liff.line.me/liff-1?tab=summary';
 const ROWS = [
   { type: 'expense', category: 'อาหาร', total: 160, entryCount: 3 },
   { type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 },
@@ -30,7 +31,7 @@ function setup(users = [{ userId: 'user-1', lineUserId: 'U1' }]) {
   };
   const pushFlex = vi.fn().mockResolvedValue();
   const logger = { error: vi.fn() };
-  const run = createWeeklySummaryRunner({ repository, pushFlex, now: () => NOW, logger });
+  const run = createWeeklySummaryRunner({ repository, pushFlex, summaryUrl: SUMMARY_URL, now: () => NOW, logger });
   return { repository, pushFlex, logger, run };
 }
 
@@ -42,10 +43,11 @@ describe('createWeeklySummaryRunner', () => {
 
     expect(repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-10-12', '2026-10-18');
     expect(repository.reserveNotification).toHaveBeenCalledWith({ userId: 'user-1', kind: WEEKLY_SUMMARY_KIND, period: '2026-10-12' });
-    expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(buildSummary(ROWS, LABEL), ''));
+    expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(buildSummary(ROWS, LABEL), '', { summaryUrl: SUMMARY_URL }));
     const flex = pushFlex.mock.calls[0][1];
     expect(flex.altText).toBe('สรุปสัปดาห์นี้ (12/10 - 18/10): รายรับ 25,000 บาท รายจ่าย 160 บาท');
-    expect(JSON.stringify(flex)).not.toContain('"wrap":true');
+    expect(JSON.stringify(flex)).not.toContain('เฮียว่า');
+    expect(flex.contents.footer.contents[0].action.uri).toBe(SUMMARY_URL);
     expect(emptyTexts(flex)).toEqual([]);
     expect(repository.reserveNotification.mock.invocationCallOrder[0]).toBeLessThan(pushFlex.mock.invocationCallOrder[0]);
     expect(result).toEqual({ eligible: 1, sent: 1, skipped: 0, failed: 0, pushFailed: 0 });

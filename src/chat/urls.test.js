@@ -81,3 +81,13 @@ describe('createUrlBuilders buildTotalsListUrl', () => {
     expect(createUrlBuilders({ liffUrl: LIFF_URL }).buildTotalsListUrl({ ...question, keyword: 'ก'.repeat(200) })).toBeUndefined();
   });
 });
+
+describe('createUrlBuilders buildSummaryUrl', () => {
+  it('opens the summary tab', () => {
+    expect(createUrlBuilders({ liffUrl: LIFF_URL }).buildSummaryUrl()).toBe(`${LIFF_URL}?tab=summary`);
+  });
+
+  it('has no link without a web page', () => {
+    expect(createUrlBuilders({}).buildSummaryUrl()).toBeUndefined();
+  });
+});
