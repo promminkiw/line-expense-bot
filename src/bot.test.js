@@ -753,7 +753,7 @@ describe('bot saving command', () => {
     await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1000'));
 
     const footer = deps.replyFlex.mock.calls[0][1].contents.footer;
-    expect(footer.contents[0].action).toEqual({ type: 'uri', label: 'ดูเป้าในเว็บ', uri: 'https://liff.line.me/liff-1?tab=goals' });
+    expect(footer.contents.at(-1).action).toEqual({ type: 'uri', label: 'ดูเป้าในเว็บ', uri: 'https://liff.line.me/liff-1?tab=goals' });
   });
 
   it('ignores a redelivered saving message', async () => {
