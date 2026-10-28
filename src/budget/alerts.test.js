@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert } from './alerts.js';
+import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge } from './alerts.js';
 
 function row({ type = 'expense', categoryId = 'c-food', amount = 60, date = '2026-09-29' } = {}) {
   return { type, category_id: categoryId, amount, occurred_on: date };
@@ -152,5 +152,29 @@ describe('describeBudgetAlert', () => {
 
     expect(described.level).toBe('over');
     expect(described.title).toBe('เกินงบ เดินทาง 123%');
+  });
+});
+
+describe('describeBudgetGauge', () => {
+  it('shows the percent and what is left when near the budget', () => {
+    expect(describeBudgetGauge({ level: 'warn', month: '2026-10', category: 'อาหาร', spent: 5160, budget: 6000 })).toEqual({
+      level: 'warn',
+      percent: 86,
+      label: 'งบอาหาร · ใกล้เต็มงบ',
+      value: '86% · เหลือ 840',
+      detail: 'ใช้ไป 5,160 จาก 6,000 บาท (เดือน 10/2026)',
+    });
+  });
+
+  it('shows how much is over when the budget is exceeded', () => {
+    const gauge = describeBudgetGauge({ level: 'over', month: '2026-10', category: 'อาหาร', spent: 6450.5, budget: 6000 });
+
+    expect(gauge.label).toBe('งบอาหาร · เกินงบ');
+    expect(gauge.value).toBe('107% · เกิน 450.5');
+    expect(gauge.percent).toBe(107);
+  });
+
+  it('says nothing is left at exactly the budget', () => {
+    expect(describeBudgetGauge({ level: 'over', month: '2026-10', category: 'อาหาร', spent: 150, budget: 150 }).value).toBe('100% · เหลือ 0');
   });
 });

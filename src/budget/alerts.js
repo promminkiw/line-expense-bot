@@ -72,4 +72,18 @@ function describeBudgetAlert(alert) {
   };
 }
 
-module.exports = { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, BUDGET_CHECK_FAILED_NOTICE };
+// แถบงบในการ์ดบันทึก: ป้ายซ้าย ตัวเลขขวา คิดยอดเหลือเป็นสตางค์กันทศนิยมเพี้ยน
+function describeBudgetGauge(alert) {
+  const { monthText, percent, label } = alertParts(alert);
+  const left = toSatang(alert.budget) - toSatang(alert.spent);
+  const remainder = left >= 0 ? `เหลือ ${formatAmount(left / 100)}` : `เกิน ${formatAmount(-left / 100)}`;
+  return {
+    level: alert.level,
+    percent,
+    label: `งบ${alert.category} · ${label}`,
+    value: `${percent}% · ${remainder}`,
+    detail: `ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (เดือน ${monthText})`,
+  };
+}
+
+module.exports = { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge, BUDGET_CHECK_FAILED_NOTICE };
