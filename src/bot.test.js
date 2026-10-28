@@ -54,6 +54,7 @@ const UNDO_QUICK_REPLY = [
     action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev1', displayText: 'ยกเลิก' },
   },
 ];
+const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ยกเลิกรายการนี้' } }];
 
 const SUMMARY_QUICK_REPLY = [
   { type: 'action', action: { type: 'message', label: 'วันนี้', text: 'สรุปวันนี้' } },
@@ -178,7 +179,7 @@ describe('bot text message', () => {
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
       text: 'เฮียบันทึกแล้ว\n- รายจ่าย | อาหาร | 60 บาท | 29/09 | กินข้าว',
-      quickReply: UNDO_QUICK_REPLY,
+      quickReply: SAVED_UNDO_FOOTER,
     });
     expect(deps.replyText).not.toHaveBeenCalled();
   });
@@ -309,7 +310,7 @@ describe('bot text message', () => {
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
       text: expect.stringContaining('เฮียบันทึกแล้ว'),
-      quickReply: UNDO_QUICK_REPLY,
+      quickReply: SAVED_UNDO_FOOTER,
     });
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to clear pending clarification',
@@ -952,7 +953,7 @@ describe('bot budget alerts', () => {
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
       text: `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
-      quickReply: UNDO_QUICK_REPLY,
+      quickReply: SAVED_UNDO_FOOTER,
     });
   });
 
@@ -968,7 +969,7 @@ describe('bot budget alerts', () => {
     expect(replyFlexOf(deps, 0)).toEqual({
       replyToken: 'r1',
       text: `${SAVED}\n\nใกล้เต็มงบ อาหาร เดือน 09/2026: ใช้ไป 4,030 จาก 5,000 บาท (80%)`,
-      quickReply: UNDO_QUICK_REPLY,
+      quickReply: SAVED_UNDO_FOOTER,
     });
     expect(replyFlexOf(deps, 1)).toEqual({
       replyToken: 'r2',
@@ -985,7 +986,7 @@ describe('bot budget alerts', () => {
     expect(deps.repository.insertTransactions.mock.invocationCallOrder[0]).toBeLessThan(
       deps.repository.getBudgetStatus.mock.invocationCallOrder[0]
     );
-    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r1', text: SAVED, quickReply: UNDO_QUICK_REPLY });
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r1', text: SAVED, quickReply: SAVED_UNDO_FOOTER });
   });
 
   it('keeps the saved reply and adds the failure line and logs when the budget check fails', async () => {
@@ -998,7 +999,7 @@ describe('bot budget alerts', () => {
     expect(replyFlexOf(deps)).toEqual({
       replyToken: 'r1',
       text: `${SAVED}\n\nเฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ`,
-      quickReply: UNDO_QUICK_REPLY,
+      quickReply: SAVED_UNDO_FOOTER,
     });
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to check budgets', { userId: 'user-1' }, error);
   });
@@ -1336,8 +1337,8 @@ describe('bot wallets', () => {
     const rows = deps.repository.insertTransactions.mock.calls[0][0];
     expect(rows.map((row) => row.wallet_id)).toEqual(['w-card', null]);
     const card = JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body);
-    expect(card).toContain('29/09 · กินข้าว · บัตรเครดิต');
-    expect(card).toContain('29/09 · กาแฟ · เงินสด');
+    expect(card).toContain('อาหาร · 29/09 · บัตรเครดิต');
+    expect(card).toContain('อาหาร · 29/09 · เงินสด');
   });
 
   // ผู้ใช้กระเป๋าเดียวไม่ส่ง wallet_id เลย จึงบันทึกได้แม้ DB ยังไม่มีคอลัมน์ หรืออ่านกระเป๋าไม่ได้
@@ -1407,7 +1408,7 @@ describe('bot slip image', () => {
     expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
-    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: SLIP_QUICK_REPLY });
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: [SLIP_QUICK_REPLY[1], SLIP_QUICK_REPLY[0]] });
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -1439,7 +1440,7 @@ describe('bot slip image', () => {
     await bot.handleEvent(imageEvent());
 
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to delete expired pending slips', { userId: 'user-1' }, error);
-    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: SLIP_QUICK_REPLY });
+    expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: [SLIP_QUICK_REPLY[1], SLIP_QUICK_REPLY[0]] });
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -1644,7 +1645,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
         },
       ],
     });
@@ -1792,7 +1793,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
         },
       ],
     });
