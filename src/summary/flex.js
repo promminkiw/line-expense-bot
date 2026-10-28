@@ -1,23 +1,8 @@
 const { formatAmount } = require('../parser/format-reply');
-const { COLORS: STYLE, CHART_COLORS, brandHeader, stackBar, actionRow, separator } = require('../utils/flex-style');
-
-// สีและ row ชุดเดิมคงไว้ให้ query/answer-flex.js ที่ยังใช้อยู่
-const COLORS = { income: '#1DB446', expense: '#E53935', muted: '#888888' };
+const { COLORS, CHART_COLORS, brandHeader, stackBar, actionRow, separator } = require('../utils/flex-style');
 
 function baht(amount) {
   return `${formatAmount(amount)} บาท`;
-}
-
-function row(label, value, color) {
-  const valueText = { type: 'text', text: value, size: 'sm', align: 'end', flex: 4 };
-  if (color) {
-    valueText.color = color;
-  }
-  return {
-    type: 'box',
-    layout: 'horizontal',
-    contents: [{ type: 'text', text: label, size: 'sm', color: COLORS.muted, flex: 3 }, valueText],
-  };
 }
 
 function totalColumn(label, amount, color, align) {
@@ -26,7 +11,7 @@ function totalColumn(label, amount, color, align) {
     layout: 'vertical',
     flex: 1,
     contents: [
-      { type: 'text', text: label, size: 'xxs', color: STYLE.muted, align },
+      { type: 'text', text: label, size: 'xxs', color: COLORS.muted, align },
       { type: 'text', text: formatAmount(amount), size: 'md', weight: 'bold', color, align },
     ],
   };
@@ -68,8 +53,8 @@ function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
       type: 'box',
       layout: 'horizontal',
       contents: [
-        totalColumn('รายรับ', summary.incomeTotal, STYLE.income, 'start'),
-        totalColumn('รายจ่าย', summary.expenseTotal, STYLE.expense, 'end'),
+        totalColumn('รายรับ', summary.incomeTotal, COLORS.income, 'start'),
+        totalColumn('รายจ่าย', summary.expenseTotal, COLORS.expense, 'end'),
       ],
     },
   ];
@@ -90,9 +75,9 @@ function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
       margin: 'lg',
       paddingAll: 'md',
       cornerRadius: 'md',
-      backgroundColor: STYLE.brandSoft,
+      backgroundColor: COLORS.brandSoft,
       contents: [
-        { type: 'text', text: 'เฮียว่า', size: 'xxs', weight: 'bold', color: STYLE.brand },
+        { type: 'text', text: 'เฮียว่า', size: 'xxs', weight: 'bold', color: COLORS.brand },
         { type: 'text', text: comment, size: 'xs', wrap: true },
       ],
     });
@@ -112,4 +97,4 @@ function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
   };
 }
 
-module.exports = { buildSummaryFlex, COLORS, row, baht };
+module.exports = { buildSummaryFlex, baht };

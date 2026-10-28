@@ -3,101 +3,79 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { buildTotalsFlex } = require('./answer-flex.js');
+const { COLORS } = require('../utils/flex-style.js');
 
 const BASE = { type: 'expense', category: '', keyword: '', from: '2026-10-01', to: '2026-10-19' };
 const EXPENSE_ROWS = [{ type: 'expense', total: 450, entryCount: 6 }];
 const INCOME_ROWS = [{ type: 'income', total: 25000, entryCount: 1 }];
 
-function bodyTexts(flex) {
-  return flex.contents.body.contents.map((item) =>
-    item.type === 'box' ? item.contents.map((part) => part.text) : item.type
-  );
+function texts(node) {
+  if (!node || typeof node !== 'object') return [];
+  return [...(node.type === 'text' ? [node.text] : []), ...(node.contents ?? []).flatMap(texts)];
+}
+
+function bars(node, found = []) {
+  if (!node || typeof node !== 'object') return found;
+  if (node.type === 'box' && node.height === '8px') found.push(node);
+  (node.contents ?? []).forEach((child) => bars(child, found));
+  return found;
 }
 
 describe('buildTotalsFlex', () => {
-  it('shows the range as the title and the keyword, category and total as rows', () => {
+  it('puts the range and the answer in the brand header', () => {
     const flex = buildTotalsFlex({ ...BASE, keyword: 'กาแฟ' }, EXPENSE_ROWS, {});
 
-    expect(flex.type).toBe('flex');
-    expect(flex.contents.type).toBe('bubble');
-    expect(flex.contents.header.contents[0].text).toBe('ยอด 1-19 ต.ค. 2569');
-    expect(bodyTexts(flex)).toEqual([
-      ['คำค้น', '"กาแฟ"'],
-      ['หมวด', 'ทุกหมวด'],
-      'separator',
-      ['รายจ่าย', '450 บาท'],
-      ['จำนวนรายการ', '6 รายการ'],
-    ]);
+    expect(flex.contents.header.backgroundColor).toBe(COLORS.brand);
+    expect(texts(flex.contents.header)).toEqual(['ยอด 1-19 ต.ค. 2569', 'จ่ายไป 450 บาท']);
+    expect(texts(buildTotalsFlex({ ...BASE, type: 'income' }, INCOME_ROWS, {}).contents.header)[1]).toBe('รับมา 25,000 บาท');
   });
 
-  it('leaves out the keyword row without a keyword and names the category', () => {
-    const flex = buildTotalsFlex({ ...BASE, category: 'อาหาร' }, EXPENSE_ROWS, {});
+  it('shows the filters as chips, then the count and the average', () => {
+    const flex = buildTotalsFlex({ ...BASE, keyword: 'กาแฟ' }, EXPENSE_ROWS, {});
 
-    expect(bodyTexts(flex)[0]).toEqual(['หมวด', 'อาหาร']);
+    expect(texts(flex.contents.body)).toEqual(['คำค้น กาแฟ', 'ทุกหมวด', 'จำนวนรายการ', '6 รายการ', 'เฉลี่ยรายการละ', '75 บาท']);
   });
 
-  it('adds the wallet row after the category only when the question names a wallet', () => {
+  it('names the category and adds the wallet chip only when asked', () => {
     const withWallet = buildTotalsFlex({ ...BASE, category: 'อาหาร', wallet: 'บัตรเครดิต' }, EXPENSE_ROWS, {});
-    const withoutWallet = buildTotalsFlex({ ...BASE, wallet: '' }, EXPENSE_ROWS, {});
 
-    expect(bodyTexts(withWallet).slice(0, 3)).toEqual([['หมวด', 'อาหาร'], ['กระเป๋า', 'บัตรเครดิต'], 'separator']);
+    expect(texts(withWallet.contents.body.contents[0])).toEqual(['อาหาร', 'กระเป๋า บัตรเครดิต']);
     expect(withWallet.altText).toContain('กระเป๋า บัตรเครดิต');
-    expect(JSON.stringify(withoutWallet.contents.body)).not.toContain('กระเป๋า');
+    expect(JSON.stringify(buildTotalsFlex(BASE, EXPENSE_ROWS, {}).contents.body)).not.toContain('กระเป๋า');
   });
 
-  it('colors the amount by type', () => {
-    const expense = buildTotalsFlex(BASE, EXPENSE_ROWS, {});
-    const income = buildTotalsFlex({ ...BASE, type: 'income' }, INCOME_ROWS, {});
+  it('says there are no entries and skips the average when the count is zero', () => {
+    const found = texts(buildTotalsFlex(BASE, [], {}).contents.body);
 
-    expect(expense.contents.body.contents[2].contents[1].color).toBe('#E53935');
-    expect(income.contents.body.contents[2].contents[1].color).toBe('#1DB446');
+    expect(found.slice(-2)).toEqual(['จำนวนรายการ', 'ไม่มีรายการ']);
+    expect(found).not.toContain('เฉลี่ยรายการละ');
   });
 
-  it('says there are no entries when the count is zero', () => {
-    const flex = buildTotalsFlex(BASE, [], {});
-
-    expect(bodyTexts(flex).slice(-2)).toEqual([['รายจ่าย', '0 บาท'], ['จำนวนรายการ', 'ไม่มีรายการ']]);
-  });
-
-  it('lists income first and then expense, each with its own count, when the type is both', () => {
+  it('compares income and expense with bars when the type is both', () => {
     const flex = buildTotalsFlex({ ...BASE, type: 'both' }, [...EXPENSE_ROWS, ...INCOME_ROWS], {});
 
-    expect(bodyTexts(flex).slice(-5)).toEqual([
-      ['รายรับ', '25,000 บาท'],
-      ['จำนวนรายการ', '1 รายการ'],
-      'separator',
-      ['รายจ่าย', '450 บาท'],
-      ['จำนวนรายการ', '6 รายการ'],
-    ]);
+    expect(texts(flex.contents.header)[1]).toBe('เหลือ 24,550 บาท');
+    expect(texts(flex.contents.body).slice(-4)).toEqual(['รายรับ · 1 รายการ', '25,000', 'รายจ่าย · 6 รายการ', '450']);
+    expect(bars(flex.contents.body).map((bar) => bar.contents[0].width)).toEqual(['100%', '2%']);
   });
 
-  it('keeps the plain sentence as the alt text', () => {
-    const flex = buildTotalsFlex({ ...BASE, keyword: 'กาแฟ' }, EXPENSE_ROWS, {});
+  it('says the balance is negative in words when spending is larger', () => {
+    const flex = buildTotalsFlex({ ...BASE, type: 'both' }, [{ type: 'income', total: 100, entryCount: 1 }, ...EXPENSE_ROWS], {});
 
-    expect(flex.altText).toBe('ช่วง 1-19 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)');
+    expect(texts(flex.contents.header)[1]).toBe('ติดลบ 350 บาท');
   });
 
-  it('caps a long alt text with capAltText', () => {
-    const flex = buildTotalsFlex({ ...BASE, keyword: 'ก'.repeat(500) }, EXPENSE_ROWS, {});
-
-    expect(flex.altText).toHaveLength(400);
-    expect(flex.altText.endsWith('...')).toBe(true);
+  it('keeps the plain sentence as the alt text and caps it', () => {
+    expect(buildTotalsFlex({ ...BASE, keyword: 'กาแฟ' }, EXPENSE_ROWS, {}).altText).toBe('ช่วง 1-19 ต.ค. 2569 คำว่า "กาแฟ": รายจ่าย 450 บาท (6 รายการ)');
+    const long = buildTotalsFlex({ ...BASE, keyword: 'ก'.repeat(500) }, EXPENSE_ROWS, {});
+    expect(long.altText).toHaveLength(400);
   });
 
-  it('adds a footer button that opens the list url', () => {
-    const flex = buildTotalsFlex(BASE, EXPENSE_ROWS, { listUrl: 'https://liff.line.me/1?tab=list' });
+  it('adds a yellow footer button that opens the list url', () => {
+    const footer = buildTotalsFlex(BASE, EXPENSE_ROWS, { listUrl: 'https://liff.line.me/1?tab=list' }).contents.footer;
 
-    expect(flex.contents.footer.contents).toEqual([
-      {
-        type: 'button',
-        style: 'link',
-        height: 'sm',
-        action: { type: 'uri', label: 'ดูรายการในเว็บ', uri: 'https://liff.line.me/1?tab=list' },
-      },
-    ]);
-  });
-
-  it('has no footer without a list url', () => {
+    expect(footer.contents[0].action).toEqual({ type: 'uri', label: 'ดูรายการในเว็บ', uri: 'https://liff.line.me/1?tab=list' });
+    expect(footer.contents[0].backgroundColor).toBe(COLORS.cta);
     expect(buildTotalsFlex(BASE, EXPENSE_ROWS, {}).contents.footer).toBeUndefined();
   });
 });
