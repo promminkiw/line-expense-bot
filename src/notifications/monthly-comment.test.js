@@ -15,7 +15,7 @@ describe('pickMonthlyComment', () => {
   it('names the biggest category when spending beat income', () => {
     const value = summary({ income: 10000, expense: 12000, top: [{ category: 'ช้อปปิ้ง', total: 6000 }, { category: 'อาหาร', total: 6000 }] });
 
-    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เดือนตุลาคมจ่ายเกินรับไป 2,000 บาท ตัวหนักสุดคือช้อปปิ้ง (50%) เดือนหน้าลองคุมหมวดนี้ดูนะ');
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เดือนตุลาคมจ่ายเกินรับไป 2,000 บาท ตัวหนักสุดคือช้อปปิ้ง (50%) เดือนนี้ลองคุมหมวดนี้ดูนะ');
   });
 
   it('praises a month with no spending', () => {
@@ -37,7 +37,7 @@ describe('pickMonthlyComment', () => {
   it('nudges toward 20% otherwise, rounding the rate down', () => {
     const value = summary({ income: 25000, expense: 20100, top: [{ category: 'อาหาร', total: 6200 }] });
 
-    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 4,900 บาท (19% ของรายรับ) เดือนหน้าลองเก็บให้ถึง 20% ดูนะ');
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 4,900 บาท (19% ของรายรับ) เดือนนี้ลองเก็บให้ถึง 20% ดูนะ');
   });
 
   // 0.57 * 100 ใน JavaScript ได้ 56.99... ถ้าหารก่อนคูณจะปัดลงเหลือ 56
@@ -62,7 +62,7 @@ describe('pickMonthlyComment', () => {
   it('nudges when income and expense cancel out exactly', () => {
     const value = summary({ income: 500, expense: 500, top: [{ category: 'อาหาร', total: 150 }, { category: 'เดินทาง', total: 150 }, { category: 'ช้อปปิ้ง', total: 200 - 100 }] });
 
-    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 0 บาท (0% ของรายรับ) เดือนหน้าลองเก็บให้ถึง 20% ดูนะ');
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 0 บาท (0% ของรายรับ) เดือนนี้ลองเก็บให้ถึง 20% ดูนะ');
   });
 });
 

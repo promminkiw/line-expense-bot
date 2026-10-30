@@ -11,7 +11,7 @@ function pickMonthlyComment(summary, monthName) {
     return `เดือน${monthName}ยังไม่มีรายรับเลย ถ้ามีเงินเข้าอย่าลืมจดด้วยนะ ยอดคงเหลือจะได้ตรง`;
   }
   if (summary.net < 0) {
-    return `เดือน${monthName}จ่ายเกินรับไป ${formatAmount(-summary.net)} บาท ตัวหนักสุดคือ${top.category} (${topShare}%) เดือนหน้าลองคุมหมวดนี้ดูนะ`;
+    return `เดือน${monthName}จ่ายเกินรับไป ${formatAmount(-summary.net)} บาท ตัวหนักสุดคือ${top.category} (${topShare}%) เดือนนี้ลองคุมหมวดนี้ดูนะ`;
   }
   if (summary.expenseTotal === 0) {
     return `เดือน${monthName}ไม่มีรายจ่ายเลย เก็บได้เต็มๆ ${formatAmount(summary.net)} บาท`;
@@ -25,7 +25,7 @@ function pickMonthlyComment(summary, monthName) {
   if (rate >= GOOD_SAVING_RATE) {
     return `เก็บได้ ${saved} บาท (${rate}% ของรายรับ) เยี่ยมเลย ทำแบบนี้ต่อไปนะ`;
   }
-  return `เก็บได้ ${saved} บาท (${rate}% ของรายรับ) เดือนหน้าลองเก็บให้ถึง ${GOOD_SAVING_RATE}% ดูนะ`;
+  return `เก็บได้ ${saved} บาท (${rate}% ของรายรับ) เดือนนี้ลองเก็บให้ถึง ${GOOD_SAVING_RATE}% ดูนะ`;
 }
 
 function buildEmptyMonthText({ monthName, nextMonthName }) {
