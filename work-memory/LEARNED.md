@@ -6,7 +6,7 @@
 - LINE edit event (messageEdited, ออก 2026-08-12) ส่งมาเฉพาะ group chat ไม่มีในแชท 1:1; unsend event ในเอกสาร developer บอกว่ามีในแชท 1:1 แต่แอป LINE ในไทยไม่มีเมนูยกเลิกข้อความในแชทกับ official account (ลองจริง 2026-10-18) และในไทยยกเลิกข้อความได้แค่ภายใน 1 ชั่วโมง
 - LINE Verify ผ่านได้แม้ข้อความแชตยังไม่ถูกส่งมา webhook -> ต้องปิด Chat และเปิด Webhook ใน OA Manager > Response settings
 - global `[hidden]{display:none!important}` จำเป็น เพราะ display ของ component (เช่น grid) ชนะ attribute hidden; element ที่ JS สลับโหลด/error ต้องเริ่มด้วย `hidden`
-- LIFF ต้องล็อกอิน LINE จึงใช้ Playwright ทดสอบอัตโนมัติไม่ได้: ตรวจ UI ด้วยมือในแอป LINE + DOM smoke test ด้วย jsdom (`public/liff/app.dom.test.mjs` ใช้ fake `liff`/`fetch`); jsdom ไม่มี `matchMedia`/`showModal` ต้อง stub
+- LIFF ต้องล็อกอิน LINE จึงใช้ Playwright ทดสอบอัตโนมัติไม่ได้: ตรวจ UI ด้วยมือในแอป LINE + DOM smoke test ด้วย jsdom (`public/liff/app.<group>.dom.test.mjs` ใช้ fake `liff`/`fetch`); jsdom ไม่มี `matchMedia`/`showModal` ต้อง stub
 - error โหลดข้อมูลแสดงใน #banner ที่อยู่นอก panel ซึ่งถูกซ่อนตามแท็บ และต้องเป็น sticky loadError ที่แสดงซ้ำเมื่อสลับแท็บ (ไม่ใช่ล้างทุกครั้ง) ไม่งั้นแท็บอื่นว่างเปล่าไม่มีข้อความ; ข้อความชั่วคราว (เช่น 404 ตอนแก้) ยังล้างเมื่อสลับแท็บ
 - ID token ของ LIFF ใน Chrome หมดอายุราว 1 ชั่วโมง หน้าเว็บขึ้น "กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง" ต้อง `liff.logout()` แล้วให้ผู้ใช้กด Log in เอง (Claude ไม่กดปุ่ม login แทน)
 
