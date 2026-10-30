@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPeriodRange } from './period.js';
+import { getPeriodRange, getPreviousMonthRange } from './period.js';
 
 // 2026-09-29 เป็นวันอังคาร
 const TUESDAY_NOON_BANGKOK = new Date('2026-09-29T05:00:00Z');
@@ -53,5 +53,29 @@ describe('getPeriodRange', () => {
 
   it('throws for an unknown period', () => {
     expect(() => getPeriodRange('year', TUESDAY_NOON_BANGKOK)).toThrow('Unknown period: year');
+  });
+});
+
+describe('getPreviousMonthRange', () => {
+  it('covers the whole month that just ended in Bangkok time', () => {
+    // 2026-11-01 08:00 เวลาไทย
+    expect(getPreviousMonthRange(new Date('2026-11-01T01:00:00Z'))).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-31',
+      month: '2026-10',
+      monthName: 'ตุลาคม',
+      nextMonthName: 'พฤศจิกายน',
+      label: 'เดือนตุลาคม 2569',
+    });
+  });
+
+  it('uses the Bangkok date, not UTC, right after midnight', () => {
+    // 2026-10-31 17:30 UTC คือ 2026-11-01 00:30 เวลาไทย
+    expect(getPreviousMonthRange(new Date('2026-10-31T17:30:00Z')).month).toBe('2026-10');
+  });
+
+  it('crosses the year and handles February', () => {
+    expect(getPreviousMonthRange(new Date('2027-01-01T01:00:00Z'))).toMatchObject({ from: '2026-12-01', to: '2026-12-31', label: 'เดือนธันวาคม 2569', nextMonthName: 'มกราคม' });
+    expect(getPreviousMonthRange(new Date('2028-03-01T01:00:00Z'))).toMatchObject({ from: '2028-02-01', to: '2028-02-29' });
   });
 });
