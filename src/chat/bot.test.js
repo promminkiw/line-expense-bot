@@ -20,9 +20,9 @@ import {
   UNDO_SAVING_DONE_REPLY,
   UNDO_SAVING_NOT_FOUND_REPLY,
 } from './bot.js';
-import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } from './menu/fixed-replies.js';
-import { TEXT_CATEGORIES } from './parser/categories.js';
-import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from './goals/chat.js';
+import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } from '../menu/fixed-replies.js';
+import { TEXT_CATEGORIES } from '../parser/categories.js';
+import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from '../goals/chat.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 

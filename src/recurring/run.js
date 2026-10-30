@@ -1,7 +1,7 @@
 const { toBangkokDateString } = require('../utils/date');
 const { dueDateFor, isDue } = require('./schedule');
 const { formatItem } = require('../parser/format-reply');
-const { buildUndoQuickReply } = require('../bot');
+const { buildUndoQuickReply } = require('../chat/bot');
 
 function createRecurringRunner({ repository, pushText, now = () => new Date(), logger = console }) {
   return async function run() {

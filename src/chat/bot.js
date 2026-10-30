@@ -1,8 +1,8 @@
-const { createUrlBuilders } = require('./chat/urls');
-const { createSupport } = require('./chat/support');
-const { createSlipHandlers, SLIP_TTL_MS } = require('./chat/slip');
-const { createPostbackHandlers } = require('./chat/postback');
-const { createTextHandlers } = require('./chat/text');
+const { createUrlBuilders } = require('./urls');
+const { createSupport } = require('./support');
+const { createSlipHandlers, SLIP_TTL_MS } = require('./slip');
+const { createPostbackHandlers } = require('./postback');
+const { createTextHandlers } = require('./text');
 const {
   SYSTEM_ERROR_REPLY,
   SLOW_PROCESSING_REPLY,
@@ -21,7 +21,7 @@ const {
   SLIP_EXPIRED_REPLY,
   SLIP_CANCELLED_REPLY,
   buildUndoQuickReply,
-} = require('./chat/replies');
+} = require('./replies');
 
 // LINE ไม่ระบุอายุของ reply token ที่แน่นอน ตอบก่อนราว 1 นาทีที่มักใช้ได้ ผู้ใช้จะได้ไม่เงียบหาย
 const REPLY_DEADLINE_MS = 50000;
