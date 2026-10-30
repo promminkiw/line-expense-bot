@@ -1,6 +1,6 @@
-const { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES, toTextCategories } = require('./parser/categories');
-const { categoryKey } = require('./db/transaction-rows');
-const { isDefaultWallet } = require('./wallets/wallets');
+const { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES, toTextCategories } = require('../parser/categories');
+const { categoryKey } = require('../db/transaction-rows');
+const { isDefaultWallet } = require('../wallets/wallets');
 
 // getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
 const PROFILE_TIMEOUT_MS = 3000;

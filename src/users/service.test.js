@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createUserService } from './users.js';
-import { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES } from './parser/categories.js';
+import { createUserService } from './service.js';
+import { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES } from '../parser/categories.js';
 
 // ผู้ใช้ที่มีหมวดเริ่มต้นครบ อาหาร = c1 ให้เทสต์อ้างได้
 const ALL_DEFAULT_IDS = new Map([
