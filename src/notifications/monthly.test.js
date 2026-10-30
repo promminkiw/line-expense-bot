@@ -14,6 +14,8 @@ const ROWS = [
   { type: 'income', category: 'เงินเดือน', total: 25000, entryCount: 1 },
 ];
 
+const TWO_USERS = [{ userId: 'user-1', lineUserId: 'U1' }, { userId: 'user-2', lineUserId: 'U2' }];
+
 function setup({ users = [{ userId: 'user-1', lineUserId: 'U1' }], rows = ROWS } = {}) {
   const repository = {
     listMonthlySummaryUsers: vi.fn().mockResolvedValue(users),
@@ -59,11 +61,12 @@ describe('createMonthlySummaryRunner', () => {
   });
 
   it('skips a user whose month was already reserved', async () => {
-    const { repository, pushFlex, run } = setup();
+    const { repository, pushFlex, pushText, run } = setup();
     repository.reserveNotification.mockResolvedValue(false);
 
     expect(await run()).toEqual({ eligible: 1, sent: 0, nudged: 0, skipped: 1, failed: 0, pushFailed: 0 });
     expect(pushFlex).not.toHaveBeenCalled();
+    expect(pushText).not.toHaveBeenCalled();
   });
 
   it('keeps going after one user fails to load and logs no amounts', async () => {
@@ -76,6 +79,51 @@ describe('createMonthlySummaryRunner', () => {
     expect(pushFlex.mock.calls[0][0]).toBe('U2');
     expect(logger.error).toHaveBeenCalledWith('Failed to prepare monthly summary', { userId: 'user-1', reason: 'db down' });
     expect(result).toEqual({ eligible: 2, sent: 1, nudged: 0, skipped: 0, failed: 1, pushFailed: 0 });
+  });
+
+  it('counts a reservation error as failed and does not push to that user', async () => {
+    const { repository, pushFlex, logger, run } = setup({ users: TWO_USERS });
+    repository.reserveNotification.mockRejectedValueOnce(new Error('db down'));
+
+    const result = await run();
+
+    expect(pushFlex).toHaveBeenCalledTimes(1);
+    expect(pushFlex.mock.calls[0][0]).toBe('U2');
+    expect(logger.error).toHaveBeenCalledWith('Failed to prepare monthly summary', { userId: 'user-1', reason: 'db down' });
+    expect(result).toEqual({ eligible: 2, sent: 1, nudged: 0, skipped: 0, failed: 1, pushFailed: 0 });
+  });
+
+  // จองไว้แล้วไม่ลบและไม่ลองซ้ำ เพราะ LINE อาจส่งถึงแล้วแม้ client ได้ error
+  it('counts a failed push as pushFailed, keeps the reservation and still sends to the next user', async () => {
+    const { repository, pushFlex, logger, run } = setup({ users: TWO_USERS });
+    pushFlex.mockRejectedValueOnce(new Error('LINE 500'));
+
+    const result = await run();
+
+    expect(repository.reserveNotification).toHaveBeenCalledTimes(2);
+    expect(pushFlex).toHaveBeenCalledTimes(2);
+    expect(pushFlex.mock.calls[1][0]).toBe('U2');
+    expect(logger.error).toHaveBeenCalledWith('Failed to push monthly summary', { userId: 'user-1', reason: 'LINE 500' });
+    expect(result).toEqual({ eligible: 2, sent: 1, nudged: 0, skipped: 0, failed: 0, pushFailed: 1 });
+  });
+
+  it('counts a failed comeback text as pushFailed after reserving the month', async () => {
+    const { repository, pushText, logger, run } = setup({ rows: [] });
+    pushText.mockRejectedValue(new Error('LINE 500'));
+
+    const result = await run();
+
+    expect(repository.reserveNotification.mock.invocationCallOrder[0]).toBeLessThan(pushText.mock.invocationCallOrder[0]);
+    expect(pushText).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith('Failed to push monthly summary', { userId: 'user-1', reason: 'LINE 500' });
+    expect(result).toEqual({ eligible: 1, sent: 0, nudged: 0, skipped: 0, failed: 0, pushFailed: 1 });
+  });
+
+  it('returns zero counts when nobody is enrolled', async () => {
+    const { repository, run } = setup({ users: [] });
+
+    expect(await run()).toEqual({ eligible: 0, sent: 0, nudged: 0, skipped: 0, failed: 0, pushFailed: 0 });
+    expect(repository.summarizeTransactions).not.toHaveBeenCalled();
   });
 
   it('counts a failed push separately and does not retry it', async () => {
