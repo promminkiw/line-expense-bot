@@ -289,6 +289,15 @@ describe('GET /liff/', () => {
     expect(res.status).toBe(404);
   });
 
+  it('does not serve a test file by its Windows 8.3 short name', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff/FORMAT~1.MJS`);
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('Not Found');
+  });
+
   it('still serves the module that sits next to a test file', async () => {
     const baseUrl = await start(vi.fn());
 

@@ -6,8 +6,8 @@ const { rejectUnsupportedEncoding } = require('./utils/request-encoding');
 const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
 // เทสต์วางคู่กับโค้ดหน้า LIFF แต่ไม่ใช่ส่วนของหน้าเว็บ จึงไม่ควรให้คนนอกโหลดได้
-// ไม่ยึดท้าย path และไม่สนตัวพิมพ์ เพราะ Windows (dev ผ่าน ngrok) เปิด FORMAT.TEST.MJS หรือ format.test.mjs::$DATA ได้
-const LIFF_TEST_ONLY = /\.test\.mjs|dom-harness\.mjs/i;
+// ไม่ยึดท้าย path ไม่สนตัวพิมพ์ และกัน ~ เพราะ Windows (dev ผ่าน ngrok) เปิดไฟล์ด้วย FORMAT.TEST.MJS, ::$DATA หรือชื่อสั้น 8.3 อย่าง FORMAT~1.MJS ได้
+const LIFF_TEST_ONLY = /\.test\.mjs|dom-harness\.mjs|~/i;
 
 function hideLiffTestFiles(req, res, next) {
   let filePath;
