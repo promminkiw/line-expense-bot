@@ -134,6 +134,7 @@ function setup(overrides = {}) {
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
       disableNotifications: vi.fn().mockResolvedValue(),
+      resumeMonthlySummary: vi.fn().mockResolvedValue(),
     },
     now: () => NOW_MS,
     users: {
@@ -633,6 +634,7 @@ describe('bot follow event', () => {
     await bot.handleEvent(followEvent());
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.resumeMonthlySummary).toHaveBeenCalledWith('U1');
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
