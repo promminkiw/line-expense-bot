@@ -30,4 +30,20 @@ function getPeriodRange(period, now) {
   return { from, to: today, label: `${PERIOD_NAMES[period]} (${dates})` };
 }
 
-module.exports = { getPeriodRange };
+const THAI_MONTH_NAMES = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+function getPreviousMonthRange(now) {
+  const firstOfThisMonth = `${toBangkokDateString(now).slice(0, 8)}01`;
+  const to = addDays(firstOfThisMonth, -1);
+  const [year, month] = to.split('-').map(Number);
+  return {
+    from: `${to.slice(0, 8)}01`,
+    to,
+    month: to.slice(0, 7),
+    monthName: THAI_MONTH_NAMES[month - 1],
+    nextMonthName: THAI_MONTH_NAMES[month % 12],
+    label: `เดือน${THAI_MONTH_NAMES[month - 1]} ${year + 543}`,
+  };
+}
+
+module.exports = { getPeriodRange, getPreviousMonthRange };

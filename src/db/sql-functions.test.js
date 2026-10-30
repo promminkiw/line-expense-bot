@@ -31,6 +31,7 @@ const MIGRATIONS = [
   '023_savings_goals.sql',
   '024_wallets.sql',
   '025_wallet_name_case.sql',
+  '026_monthly_summary.sql',
 ];
 
 const readMigration = (file) => readFileSync(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');
@@ -1429,5 +1430,34 @@ describe('function permissions', () => {
     } else {
       await expect(query).resolves.toBeDefined();
     }
+  });
+});
+
+describe('026_monthly_summary.sql', () => {
+  it('accepts the monthly summary kind next to the existing kinds', async () => {
+    const user = await createUser('U1');
+
+    for (const kind of ['weekly_summary', 'daily_reminder', 'monthly_summary']) {
+      expect(await rows('insert into notification_log (user_id, kind, period) values ($1, $2, $3) returning kind', [user, kind, '2026-10-01'])).toEqual([{ kind }]);
+    }
+  });
+
+  it('still refuses an unknown kind', async () => {
+    const user = await createUser('U1');
+
+    await expect(db.query("insert into notification_log (user_id, kind, period) values ($1, 'monthly', '2026-10-01')", [user])).rejects.toThrow('check constraint');
+  });
+
+  it('sends the monthly summary to every user by default and refuses null', async () => {
+    const user = await createUser('U1');
+
+    expect(await one('select monthly_summary_enabled from users where id = $1', [user])).toEqual({ monthly_summary_enabled: true });
+    await db.exec('savepoint null_monthly');
+    await expect(db.query('update users set monthly_summary_enabled = null where id = $1', [user])).rejects.toThrow('monthly_summary_enabled');
+    await db.exec('rollback to savepoint null_monthly');
+  });
+
+  it('can run again without failing', async () => {
+    await expect(db.exec(readMigration('026_monthly_summary.sql'))).resolves.toBeDefined();
   });
 });

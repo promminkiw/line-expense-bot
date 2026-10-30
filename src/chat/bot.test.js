@@ -134,6 +134,7 @@ function setup(overrides = {}) {
       deleteExpiredPendingSlips: vi.fn().mockResolvedValue(),
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
       disableNotifications: vi.fn().mockResolvedValue(),
+      resumeMonthlySummary: vi.fn().mockResolvedValue(),
     },
     now: () => NOW_MS,
     users: {
@@ -633,7 +634,24 @@ describe('bot follow event', () => {
     await bot.handleEvent(followEvent());
 
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.resumeMonthlySummary).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
     expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('logs but does not reply when resuming the monthly summary fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.resumeMonthlySummary.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(followEvent());
+
+    expect(deps.logger.error).toHaveBeenCalledWith(
+      'Failed to process event',
+      { lineUserId: 'U1', eventType: 'follow' },
+      expect.any(Error)
+    );
+    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyFlex).not.toHaveBeenCalled();
   });
 
   it('logs but does not reply when registration fails', async () => {

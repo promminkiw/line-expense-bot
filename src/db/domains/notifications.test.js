@@ -51,13 +51,13 @@ describe('repository notification settings', () => {
 });
 
 describe('repository.disableNotifications', () => {
-  it('turns off both notification switches of that LINE user', async () => {
+  it('turns off every notification of that LINE user', async () => {
     const { supabase, calls } = fakeSupabase({ data: null, error: null });
 
     await expect(createNotificationsRepository(supabase).disableNotifications('U1')).resolves.toBeUndefined();
     expect(calls).toEqual([
       ['from', 'users'],
-      ['update', { weekly_summary_enabled: false, daily_reminder_enabled: false }],
+      ['update', { weekly_summary_enabled: false, daily_reminder_enabled: false, monthly_summary_enabled: false }],
       ['eq', 'line_user_id', 'U1'],
     ]);
   });
@@ -89,6 +89,45 @@ describe('repository.listWeeklySummaryUsers', () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 
     await expect(createNotificationsRepository(supabase).listWeeklySummaryUsers()).rejects.toThrow('Database listWeeklySummaryUsers failed: boom');
+  });
+});
+
+describe('repository.listMonthlySummaryUsers', () => {
+  it('lists users with the monthly summary enabled ordered by id', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
+
+    expect(await createNotificationsRepository(supabase).listMonthlySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['select', 'id, line_user_id'],
+      ['eq', 'monthly_summary_enabled', true],
+      ['order', 'id'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createNotificationsRepository(supabase).listMonthlySummaryUsers()).rejects.toThrow('Database listMonthlySummaryUsers failed: boom');
+  });
+});
+
+describe('repository.resumeMonthlySummary', () => {
+  it('turns the monthly summary back on for that LINE user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: null, error: null });
+
+    await expect(createNotificationsRepository(supabase).resumeMonthlySummary('U1')).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      ['from', 'users'],
+      ['update', { monthly_summary_enabled: true }],
+      ['eq', 'line_user_id', 'U1'],
+    ]);
+  });
+
+  it('throws DatabaseError when Supabase returns an error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createNotificationsRepository(supabase).resumeMonthlySummary('U1')).rejects.toThrow('Database resumeMonthlySummary failed: boom');
   });
 });
 

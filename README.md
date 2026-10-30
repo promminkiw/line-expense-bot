@@ -14,6 +14,7 @@ LINE Official Account บันทึกรายรับรายจ่าย�
 - **งบประมาณ:** ตั้งงบต่อหมวดต่อเดือน เตือนบนการ์ดเมื่อถึง 80% และเมื่อเกินงบ หน้างบแสดงแท่ง % ของหมวดที่ต้องดูแล และมีหน้า ดูทั้งหมด (3 แท็บ ค้นหา เรียง) แตะหมวดเพื่อเปิดแผ่นแก้งบที่เห็น % ก่อน/หลังทันที หรือแก้หลายหมวดพร้อมกันทีละ 500 แล้วบันทึกทีเดียว
 - **รายการประจำ:** บันทึกอัตโนมัติตามรอบเดือน แจ้งใน LINE พร้อมปุ่มยกเลิก
 - **สรุปรายสัปดาห์ / เตือนลืมจด:** สวิตช์ในแท็บ ฉัน (ค่าตั้งต้นปิด) ส่งทุกอาทิตย์ 19:00 / ทุกวัน 21:00 ถ้าวันนั้นยังไม่ได้จด
+- **สรุปรายเดือน:** ส่งการ์ดสรุปเดือนก่อนทุกวันที่ 1 เวลา 08:00 ไม่มีสวิตช์ (unfollow บอท = ไม่ส่ง)
 - **เป้าหมายการออม:** สร้างเป้าในแท็บ ออม ออมจากเว็บหรือพิมพ์ `ออม เที่ยวญี่ปุ่น 1000` (ใช้ได้เมื่อมีเป้าที่เปิดอยู่) ยอดออมไม่กระทบยอดคงเหลือ หน้าแท็บ ออมมีการ์ดสรุปยอดรวมและการ์ดแยกต่อเป้า
 - **หมวดของฉัน:** เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน และลบหมวด (รายการของหมวดที่ลบย้ายไป อื่นๆ) เปิดจากปุ่มล่างสุดของแท็บงบ หรือแถวจัดการหมวดหมู่ในแท็บ ฉัน
 - **หารบิล:** หน้าแยกจากเว็บหลัก (`?tab=bills`) หารกับเพื่อน เพื่อนกดยืนยันจากการ์ดหรือในเว็บ อ่านยอดจากรูปใบเสร็จได้
@@ -42,9 +43,11 @@ flowchart LR
   Cron -->|POST วันละครั้ง| Run["/internal/recurring/run"]
   Cron -->|POST อาทิตย์ 19:00| Weekly["/internal/notifications/weekly"]
   Cron -->|POST ทุกวัน 21:00| Daily["/internal/notifications/daily-reminder"]
+  Cron -->|POST วันที่ 1 08:00| Monthly["/internal/notifications/monthly"]
   Run --> Express
   Weekly --> Express
   Daily --> Express
+  Monthly --> Express
 ```
 
 | เส้นทาง | หน้าที่ |
@@ -53,7 +56,7 @@ flowchart LR
 | `/api/*` | API ของหน้า LIFF (ตรวจ ID token) |
 | `/liff/` | ไฟล์ static ของหน้าเว็บ |
 | `/exports/<token>` | ดาวน์โหลด CSV แบบลิงก์ใช้ครั้งเดียว |
-| `POST /internal/*` | งาน cron 3 งาน ต้องมี `Authorization: Bearer <CRON_SECRET>` |
+| `POST /internal/*` | งาน cron 4 งาน ต้องมี `Authorization: Bearer <CRON_SECRET>` |
 | `GET /health` | ตรวจสถานะ ใช้พิงกันเซิร์ฟเวอร์หลับ |
 
 ## Tech stack
@@ -94,7 +97,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
    | `CRON_SECRET` | secret ของ endpoint cron ยาวอย่างน้อย 32 ตัวอักษร |
    | `PORT` | ไม่บังคับ ค่าเริ่มต้น 3000 |
 
-3. รัน SQL ใน Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `025` (ไม่มี 016) ดูรายละเอียดแต่ละไฟล์ที่ [supabase/README.md](supabase/README.md)
+3. รัน SQL ใน Supabase SQL Editor ตามลำดับ: `schema.sql` แล้ว `002` ถึง `026` (ไม่มี 016) ดูรายละเอียดแต่ละไฟล์ที่ [supabase/README.md](supabase/README.md)
    - ห้ามรัน `020` ซ้ำหลัง `024` (จะได้ `query_totals` สองแบบ โค้ดเก่าเรียกแล้วล้ม) ถ้าเผลอรันให้รัน `024` ซ้ำ
 4. `npm start` (ทดสอบกับ LINE จริงจากเครื่องต้องใช้ tunnel เช่น ngrok ซึ่งทำให้บอทที่ deploy หยุดตอบระหว่างนั้น)
 
@@ -105,9 +108,10 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 1. push เข้า `main` = deploy อัตโนมัติ (บอทอาจไม่ตอบ 2-5 นาที) ถ้ามีไฟล์ SQL ใหม่ให้รันตามที่หัวไฟล์บอก ส่วนใหญ่ต้องรันก่อน push
 2. สร้าง Blueprint จาก repo แล้วกรอก secret 8 ตัว (ตัวแปรในตารางข้างบน ยกเว้น `CLAUDE_MODEL` และ `PORT`)
 3. Webhook URL = `<URL>/webhook`, LIFF Endpoint URL = `<URL>/liff/`
-4. cron-job.org 4 งาน (เขตเวลา `Asia/Bangkok`, header `Authorization: Bearer <CRON_SECRET>` B ตัวใหญ่ และเปิดแจ้งเตือนเมื่อล้มเหลว):
+4. cron-job.org 5 งาน (เขตเวลา `Asia/Bangkok`, header `Authorization: Bearer <CRON_SECRET>` B ตัวใหญ่ และเปิดแจ้งเตือนเมื่อล้มเหลว):
    - `GET /health` ทุก 10 นาที, `POST /internal/recurring/run` วันละครั้ง
    - `POST /internal/notifications/weekly` อาทิตย์ 19:00 (Custom), `POST /internal/notifications/daily-reminder` ทุกวัน 21:00
+   - `POST /internal/notifications/monthly` วันที่ 1 เวลา 08:00 (Custom) ห้ามกด Test run งานรายเดือนก่อนวันที่ 1 (จะส่งสรุปเดือนก่อนหน้าที่ไม่ใช่เดือนล่าสุด) รันเองในวันที่ 1 ขึ้นไปได้ การจองกันส่งซ้ำ
 5. LINE Login channel แท็บ LIFF: เปิด shareTargetPicker (ปุ่มส่งลิงก์ชวนเพื่อน), Scopes เปิด `openid` และ `profile`, Add friend option = On (aggressive)
 6. LINE Login channel แท็บ Basic settings: Linked LINE Official Account = บอทนี้ (ต้องอยู่ provider เดียวกัน)
 
@@ -127,8 +131,9 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 
 ## ข้อจำกัดที่ทราบ
 
-- push (รายการประจำ, สรุปรายสัปดาห์, เตือนลืมจด, การ์ดบิล) นับโควตาข้อความต่อเดือนของ LINE OA ก้อนเดียวกัน ถ้าหมด LINE ตอบ 429
+- push (รายการประจำ, สรุปรายสัปดาห์, สรุปรายเดือน, เตือนลืมจด, การ์ดบิล) นับโควตาข้อความต่อเดือนของ LINE OA ก้อนเดียวกัน ถ้าหมด LINE ตอบ 429
 - งาน cron แจ้งเตือนส่งทีละคน อาจเกิน timeout 30 วินาทีของ cron-job.org เมื่อคนเปิดสวิตช์เยอะ push ที่พังไม่ลองซ้ำ (ดู `pushFailed`)
+- สรุปรายเดือนวนทุกคนที่ `monthly_summary_enabled` เปิดอยู่ จึงเกิน timeout 30 วินาทีได้เมื่อผู้ใช้เยอะ งานยังทำต่อจนจบและการจองกันส่งซ้ำ แต่ cron-job.org จะแจ้งว่าล้มเหลว
 - Render Free หลับเมื่อไม่มี traffic 15 นาที (พิง `/health` กันไว้) และ Supabase Free อาจ pause โปรเจกต์ถ้าไม่ใช้หลายวัน
 - ถ้า LINE ปฏิเสธการ์ด Flex หรือประมวลผลเกิน 50 วินาที ผู้ใช้อาจไม่ได้คำตอบจริงทั้งที่รายการบันทึกแล้ว ให้ตรวจในเว็บก่อนส่งซ้ำ
 - หน้าหารบิลแสดงไม่เกิน 50 บิลล่าสุดต่อส่วน, เพื่อนที่ยังไม่เพิ่มบอทไม่ได้การ์ดบิล ต้องยืนยันในเว็บ

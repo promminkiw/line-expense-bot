@@ -18,14 +18,14 @@ const EXPECTED_METHODS = [
   'reserveNotification', 'savePendingClarification', 'savePendingSlip', 'seedDefaultCategories',
   'seedDefaultWallet', 'setBillMemberPaid', 'setBudget', 'setFriendCode', 'summarizeTransactions',
   'updateCategory', 'updateGoal', 'updateNotificationSettings', 'updateRecurringRule', 'updateTransaction',
-  'updateWallet',
+  'updateWallet', 'listMonthlySummaryUsers', 'resumeMonthlySummary',
 ];
 
 describe('createRepository surface', () => {
   it('exposes exactly the methods that callers depend on', () => {
     const methods = Object.keys(createRepository({})).sort();
     expect(methods).toEqual([...EXPECTED_METHODS].sort());
-    expect(methods).toHaveLength(75);
+    expect(methods).toHaveLength(77);
   });
 
   it('exposes only functions', () => {

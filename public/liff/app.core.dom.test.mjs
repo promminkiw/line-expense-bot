@@ -862,6 +862,25 @@ describe('LIFF page opened from a totals answer card', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('opens the summary tab on the month named in a monthly summary link', async () => {
+    await boot({ search: '?tab=summary&m=2026-09' });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('summary');
+    expect(byId('panel-summary').hidden).toBe(false);
+    expect(byId('panel-list').hidden).toBe(true);
+    expect(byId('search').value).toBe('');
+  });
+
+  it('still opens the list for a list link that only names a month', async () => {
+    await boot({ search: '?tab=list&m=2026-09' });
+    await settle();
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(document.querySelector('#bottom-nav [aria-current="page"]').dataset.tab).toBe('list');
+  });
+
   describe('with a category in the link', () => {
     const categories = [...CATEGORIES, { id: 'c-other-in', name: 'อื่นๆ', type: 'income' }, { id: 'c-other-out', name: 'อื่นๆ', type: 'expense' }];
     const transactions = [

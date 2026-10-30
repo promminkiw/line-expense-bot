@@ -73,6 +73,7 @@ function createBot({
   async function buildReply(event, lineUserId, deadline) {
     if (event.type === 'follow') {
       await users.ensureUser(lineUserId);
+      await repository.resumeMonthlySummary(lineUserId);
       return null;
     }
     if (event.type === 'unfollow') {

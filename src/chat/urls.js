@@ -1,4 +1,5 @@
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 // LINE จำกัดความยาว uri ของ action ที่ 1000 ตัวอักษร
 const MAX_URI_LENGTH = 1000;
 
@@ -42,8 +43,13 @@ function createUrlBuilders({ liffUrl }) {
     return buildTabUrl('goals');
   }
 
-  function buildSummaryUrl() {
-    return buildTabUrl('summary');
+  // การ์ดสรุปรายเดือนส่งหลังข้ามเดือนแล้ว จึงต้องบอกเดือนให้หน้าเว็บเปิดเดือนที่การ์ดสรุป
+  function buildSummaryUrl(month) {
+    const base = buildTabUrl('summary');
+    if (!base || !MONTH_PATTERN.test(month ?? '')) return base;
+    const url = new URL(base);
+    url.searchParams.set('m', month);
+    return url.toString();
   }
 
   // ลิงก์เปิดแท็บรายการของเดือนสิ้นสุดช่วง พร้อมคำค้น หมวด กระเป๋า และประเภท (ถามทั้งสองประเภทไม่กรองประเภท)

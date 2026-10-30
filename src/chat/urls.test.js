@@ -87,6 +87,13 @@ describe('createUrlBuilders buildSummaryUrl', () => {
     expect(createUrlBuilders({ liffUrl: LIFF_URL }).buildSummaryUrl()).toBe(`${LIFF_URL}?tab=summary`);
   });
 
+  it('adds the month for a monthly summary card and ignores a bad month', () => {
+    const { buildSummaryUrl } = createUrlBuilders({ liffUrl: LIFF_URL });
+
+    expect(buildSummaryUrl('2026-10')).toBe(`${LIFF_URL}?tab=summary&m=2026-10`);
+    expect(buildSummaryUrl('2026-13')).toBe(`${LIFF_URL}?tab=summary`);
+  });
+
   it('has no link without a web page', () => {
     expect(createUrlBuilders({}).buildSummaryUrl()).toBeUndefined();
   });
