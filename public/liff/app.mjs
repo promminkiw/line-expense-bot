@@ -2084,8 +2084,12 @@ async function boot() {
       return;
     }
     // ลิงก์แก้ไขรายการและลิงก์ชวนเพื่อนมาก่อน ลิงก์จากการ์ดตอบยอดใช้เฉพาะตอนไม่มีสองอย่างนั้น
-    const listFilter = !link && !friendCode ? listLink : null;
-    els.month.value = link && link.date ? link.date.slice(0, 7) : (listFilter && listFilter.month) || currentMonth(new Date());
+    // ลิงก์เปิดแท็บอื่นที่มีแค่เดือน (การ์ดสรุปรายเดือน) ใช้เดือนอย่างเดียว ไม่ใช่ตัวกรองแท็บรายการ
+    const monthOnlyTabLink = Boolean(!link && !friendCode && tabId && tabId !== 'list' && listLink
+      && !listLink.query && !listLink.category && !listLink.wallet && !listLink.type);
+    const listFilter = !link && !friendCode && !monthOnlyTabLink ? listLink : null;
+    const linkedMonth = (listFilter || (monthOnlyTabLink ? listLink : null))?.month;
+    els.month.value = link && link.date ? link.date.slice(0, 7) : linkedMonth || currentMonth(new Date());
     // เริ่มก่อน loadAll เพื่อให้ลิงก์ชวนไม่หายเมื่อโหลดข้อมูลหลักไม่สำเร็จ (openAdd ไม่ throw)
     if (friendCode) {
       tabController.select('profile');
