@@ -5,6 +5,26 @@ const { rejectUnsupportedEncoding } = require('./utils/request-encoding');
 
 const LIFF_DIR = path.join(__dirname, '..', 'public', 'liff');
 
+// เทสต์วางคู่กับโค้ดหน้า LIFF แต่ไม่ใช่ส่วนของหน้าเว็บ จึงไม่ควรให้คนนอกโหลดได้
+// ไม่ยึดท้าย path และไม่สนตัวพิมพ์ เพราะ Windows (dev ผ่าน ngrok) เปิด FORMAT.TEST.MJS หรือ format.test.mjs::$DATA ได้
+const LIFF_TEST_ONLY = /\.test\.mjs|dom-harness\.mjs/i;
+
+function hideLiffTestFiles(req, res, next) {
+  let filePath;
+  try {
+    // serve-static decode path ก่อนหาไฟล์ ต้องเทียบหลัง decode ไม่งั้น %2E เลี่ยงได้
+    filePath = decodeURIComponent(req.path);
+  } catch {
+    next();
+    return;
+  }
+  if (LIFF_TEST_ONLY.test(filePath)) {
+    res.sendStatus(404);
+    return;
+  }
+  next();
+}
+
 // CSP จำกัดเฉพาะส่วนที่ไม่กระทบ LIFF SDK: กัน iframe ฝังหน้า, base tag และ plugin
 const CSP = "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 // วัดจาก X-Forwarded-For จริงบน Render: ผู้ใช้, Cloudflare, Render; ค่าน้อยกว่านี้ได้ IP ภายใน ค่ามากกว่านี้ถูกปลอม IP ได้
@@ -31,7 +51,7 @@ function createApp({ channelSecret, handleEvents, apiRouter, exportRouter, recur
     res.json({ status: 'ok' });
   });
 
-  app.use('/liff', express.static(LIFF_DIR));
+  app.use('/liff', hideLiffTestFiles, express.static(LIFF_DIR));
 
   // router parse JSON และจัดการ error เองเป็น JSON จึงห้ามใส่ parser ไว้ข้างนอก
   if (apiRouter) {

@@ -274,6 +274,28 @@ describe('GET /liff/', () => {
     expect(res.status).toBe(301);
     expect(res.headers.get('location')).toBe('/liff/');
   });
+
+  it.each([
+    '/liff/format.test.mjs',
+    '/liff/app.core.dom.test.mjs',
+    '/liff/dom-harness.mjs',
+    '/liff/format%2Etest.mjs',
+    '/liff/FORMAT.TEST.MJS',
+  ])('does not serve test-only file %s', async (path) => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}${path}`);
+
+    expect(res.status).toBe(404);
+  });
+
+  it('still serves the module that sits next to a test file', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const res = await fetch(`${baseUrl}/liff/format.mjs`);
+
+    expect(res.status).toBe(200);
+  });
 });
 
 // ต้องใช้ instance เดียวกับที่ router require ไม่งั้น instanceof AuthError ไม่ตรงกัน
