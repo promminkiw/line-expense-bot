@@ -11,6 +11,7 @@ function deps(overrides = {}) {
     cronSecret: 's3cret',
     runWeeklySummary: vi.fn().mockResolvedValue(COUNTS),
     runDailyReminder: vi.fn().mockResolvedValue(COUNTS),
+    runMonthlySummary: vi.fn().mockResolvedValue(COUNTS),
     logger: { error: vi.fn() },
     ...overrides,
   };
@@ -48,6 +49,10 @@ describe('createNotificationsRouter', () => {
 
   it('refuses to build without the daily reminder job', () => {
     expect(() => createNotificationsRouter(deps({ runDailyReminder: undefined }))).toThrow('runDailyReminder');
+  });
+
+  it('refuses to build without the monthly job', () => {
+    expect(() => createNotificationsRouter(deps({ runMonthlySummary: undefined }))).toThrow('runMonthlySummary');
   });
 });
 
@@ -162,5 +167,28 @@ describe('POST /internal/notifications/daily-reminder', () => {
 
     expect(res.status).toBe(500);
     expect(options.logger.error).toHaveBeenCalledWith('Daily reminder run failed', { reason: 'db down' });
+  });
+});
+
+describe('POST /internal/notifications/monthly', () => {
+  it('runs the monthly summary and returns the counts when the bearer secret matches', async () => {
+    const options = deps();
+    const base = await start(options);
+
+    const res = await post(base, '/notifications/monthly', 's3cret');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(COUNTS);
+    expect(options.runMonthlySummary).toHaveBeenCalledTimes(1);
+    expect(options.runWeeklySummary).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 and does not run for a missing or wrong secret', async () => {
+    const options = deps();
+    const base = await start(options);
+
+    expect((await post(base, '/notifications/monthly')).status).toBe(401);
+    expect((await post(base, '/notifications/monthly', 'wrong')).status).toBe(401);
+    expect(options.runMonthlySummary).not.toHaveBeenCalled();
   });
 });
