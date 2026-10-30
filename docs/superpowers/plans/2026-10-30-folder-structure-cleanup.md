@@ -100,8 +100,8 @@ Expected: FAIL 5 เคสของ `does not serve test-only file` (ได้ 2
 
 ```js
 // เทสต์วางคู่กับโค้ดหน้า LIFF แต่ไม่ใช่ส่วนของหน้าเว็บ จึงไม่ควรให้คนนอกโหลดได้
-// ไม่ยึดท้าย path และไม่สนตัวพิมพ์ เพราะ Windows (dev ผ่าน ngrok) เปิด FORMAT.TEST.MJS หรือ format.test.mjs::$DATA ได้
-const LIFF_TEST_ONLY = /\.test\.mjs|dom-harness\.mjs/i;
+// ไม่ยึดท้าย path ไม่สนตัวพิมพ์ และกัน ~ เพราะ Windows (dev ผ่าน ngrok) เปิดไฟล์ด้วย FORMAT.TEST.MJS, ::$DATA หรือชื่อสั้น 8.3 อย่าง FORMAT~1.MJS ได้
+const LIFF_TEST_ONLY = /\.test\.mjs|dom-harness\.mjs|~/i;
 
 function hideLiffTestFiles(req, res, next) {
   let filePath;
@@ -135,7 +135,7 @@ Expected: PASS ทั้งไฟล์ รวมเทสต์เดิม `se
 - [ ] **Step 5: Run full suite and lint**
 
 Run: `npm test` แล้ว `npm run lint`
-Expected: เทสต์ผ่าน 2451/2451 (เพิ่ม 6), lint ไม่มี error
+Expected: เทสต์ผ่าน 2452/2452 (เพิ่ม 7 รวมเคส 8.3 จาก review), lint ไม่มี error
 
 - [ ] **Step 6: Commit**
 
@@ -556,7 +556,7 @@ Expected: PASS ทั้งหมด รวม `serves modules from feature fold
 - [ ] **Step 8: Run full suite, lint and node --check**
 
 Run: `npm test` แล้ว `npm run lint` แล้ว `node --check public/liff/app.mjs`
-Expected: เทสต์ผ่าน 2452/2452 (หลัง Task 1 บวก 1), lint ไม่มี error
+Expected: เทสต์ผ่าน 2453/2453 (หลัง Task 1 บวก 1), lint ไม่มี error
 
 - [ ] **Step 9: Commit**
 
