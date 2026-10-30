@@ -42,9 +42,11 @@ flowchart LR
   Cron -->|POST วันละครั้ง| Run["/internal/recurring/run"]
   Cron -->|POST อาทิตย์ 19:00| Weekly["/internal/notifications/weekly"]
   Cron -->|POST ทุกวัน 21:00| Daily["/internal/notifications/daily-reminder"]
+  Cron -->|POST วันที่ 1 08:00| Monthly["/internal/notifications/monthly"]
   Run --> Express
   Weekly --> Express
   Daily --> Express
+  Monthly --> Express
 ```
 
 | เส้นทาง | หน้าที่ |
@@ -53,7 +55,7 @@ flowchart LR
 | `/api/*` | API ของหน้า LIFF (ตรวจ ID token) |
 | `/liff/` | ไฟล์ static ของหน้าเว็บ |
 | `/exports/<token>` | ดาวน์โหลด CSV แบบลิงก์ใช้ครั้งเดียว |
-| `POST /internal/*` | งาน cron 3 งาน ต้องมี `Authorization: Bearer <CRON_SECRET>` |
+| `POST /internal/*` | งาน cron 4 งาน ต้องมี `Authorization: Bearer <CRON_SECRET>` |
 | `GET /health` | ตรวจสถานะ ใช้พิงกันเซิร์ฟเวอร์หลับ |
 
 ## Tech stack
@@ -105,9 +107,10 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 1. push เข้า `main` = deploy อัตโนมัติ (บอทอาจไม่ตอบ 2-5 นาที) ถ้ามีไฟล์ SQL ใหม่ให้รันตามที่หัวไฟล์บอก ส่วนใหญ่ต้องรันก่อน push
 2. สร้าง Blueprint จาก repo แล้วกรอก secret 8 ตัว (ตัวแปรในตารางข้างบน ยกเว้น `CLAUDE_MODEL` และ `PORT`)
 3. Webhook URL = `<URL>/webhook`, LIFF Endpoint URL = `<URL>/liff/`
-4. cron-job.org 4 งาน (เขตเวลา `Asia/Bangkok`, header `Authorization: Bearer <CRON_SECRET>` B ตัวใหญ่ และเปิดแจ้งเตือนเมื่อล้มเหลว):
+4. cron-job.org 5 งาน (เขตเวลา `Asia/Bangkok`, header `Authorization: Bearer <CRON_SECRET>` B ตัวใหญ่ และเปิดแจ้งเตือนเมื่อล้มเหลว):
    - `GET /health` ทุก 10 นาที, `POST /internal/recurring/run` วันละครั้ง
    - `POST /internal/notifications/weekly` อาทิตย์ 19:00 (Custom), `POST /internal/notifications/daily-reminder` ทุกวัน 21:00
+   - `POST /internal/notifications/monthly` วันที่ 1 เวลา 08:00 (Custom)
 5. LINE Login channel แท็บ LIFF: เปิด shareTargetPicker (ปุ่มส่งลิงก์ชวนเพื่อน), Scopes เปิด `openid` และ `profile`, Add friend option = On (aggressive)
 6. LINE Login channel แท็บ Basic settings: Linked LINE Official Account = บอทนี้ (ต้องอยู่ provider เดียวกัน)
 
@@ -127,8 +130,9 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 
 ## ข้อจำกัดที่ทราบ
 
-- push (รายการประจำ, สรุปรายสัปดาห์, เตือนลืมจด, การ์ดบิล) นับโควตาข้อความต่อเดือนของ LINE OA ก้อนเดียวกัน ถ้าหมด LINE ตอบ 429
+- push (รายการประจำ, สรุปรายสัปดาห์, สรุปรายเดือน, เตือนลืมจด, การ์ดบิล) นับโควตาข้อความต่อเดือนของ LINE OA ก้อนเดียวกัน ถ้าหมด LINE ตอบ 429
 - งาน cron แจ้งเตือนส่งทีละคน อาจเกิน timeout 30 วินาทีของ cron-job.org เมื่อคนเปิดสวิตช์เยอะ push ที่พังไม่ลองซ้ำ (ดู `pushFailed`)
+- สรุปรายเดือนวนทุกคนที่ยัง follow จึงเกิน timeout 30 วินาทีได้เมื่อผู้ใช้เยอะ งานยังทำต่อจนจบและการจองกันส่งซ้ำ แต่ cron-job.org จะแจ้งว่าล้มเหลว
 - Render Free หลับเมื่อไม่มี traffic 15 นาที (พิง `/health` กันไว้) และ Supabase Free อาจ pause โปรเจกต์ถ้าไม่ใช้หลายวัน
 - ถ้า LINE ปฏิเสธการ์ด Flex หรือประมวลผลเกิน 50 วินาที ผู้ใช้อาจไม่ได้คำตอบจริงทั้งที่รายการบันทึกแล้ว ให้ตรวจในเว็บก่อนส่งซ้ำ
 - หน้าหารบิลแสดงไม่เกิน 50 บิลล่าสุดต่อส่วน, เพื่อนที่ยังไม่เพิ่มบอทไม่ได้การ์ดบิล ต้องยืนยันในเว็บ

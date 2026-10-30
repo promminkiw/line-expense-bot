@@ -1,5 +1,5 @@
 # STATE
-Updated: 2026-10-30 (ล่าสุด: สรุปรายเดือนหยุดกลางทางตามผู้ใช้สั่ง ทำถึง Task 6 จาก 8 บน branch feat/monthly-summary)
+Updated: 2026-10-31 (ล่าสุด: สรุปรายเดือนทำครบ Task 1-8 บน branch feat/monthly-summary ยังไม่ merge ไม่ push)
 Goal: จัดโฟลเดอร์ merge และ push ขึ้น main แล้ว (4e89a1f); งานเปลี่ยนเดือนเอง push แล้ว (38d54fe); รอผู้ใช้ลองด้วยตา (ข้อ 6-16) แล้วเลือกงาน P3 จาก work-memory/p3-audit.md หรือบอกฟีเจอร์ใหม่
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ และแผนไป docs/superpowers/plans/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
@@ -19,13 +19,16 @@ Goal: จัดโฟลเดอร์ merge และ push ขึ้น main �
 15. จัดโฟลเดอร์ (merge และ push แล้ว 4e89a1f): เช็กในเครื่องผ่านแล้ว (2026-10-30, /liff/ โหลด .mjs 36 ไฟล์ 200 ไม่มี error, ui/motion.test.mjs 404) เหลือ: (ก) ผ่าน ngrok /liff/ui/motion.test.mjs, /liff/FORMAT~1.MJS, /liff/dom-harness.mjs ขึ้น Not Found และ /liff/ui/motion.mjs ยังโหลดได้
     (ข) ในแอป LINE: QR หน้าเพื่อนวาดขึ้น ส่งข้อความแล้วบอทตอบ; (ค) CI เขียวที่ GitHub Actions ของ 4e89a1f แล้วหลัง Render deploy เปิด /liff/ ซ้ำ
 16. เปิดเว็บใน LINE ค้างไว้ข้ามเที่ยงคืนสิ้นเดือน (หรือคืนวันที่ 31 ต.ค.) แล้วสลับกลับมา: ช่องเดือนต้องเป็นเดือนใหม่และยอดโหลดใหม่ ถ้าเปิดแผ่นแก้ไขค้างไว้ ต้องเปลี่ยนหลังปิดแผ่น
+17. สรุปรายเดือน (ลำดับ ก -> push -> ข -> ค; push ต้องรอผู้ใช้อนุญาต):
+    (ก) รัน 026 แล้ว (2026-10-31) เหลือเช็กใน SQL Editor: select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.notification_log'::regclass and contype = 'c'; ต้องได้ notification_log_kind_check ตัวเดียวที่มี weekly_summary, daily_reminder, monthly_summary และ users.monthly_summary_enabled boolean default true not null (026 ใช้ drop constraint if exists ถ้าชื่อเดิมต่างจะรอดอยู่เงียบๆ แล้วจอง monthly ล้มทุกครั้ง)
+    (ข) หลัง push: เพิ่มงานใน cron-job.org POST /internal/notifications/monthly เขตเวลา Asia/Bangkok วันที่ 1 เวลา 08:00 header Authorization: Bearer <CRON_SECRET>
+    (ค) วันที่ 1 ถัดไป: ดูการ์ดในแอป LINE กดปุ่ม เปิดหน้าสรุป ต้องเปิดแท็บสรุปของเดือนที่การ์ดสรุป
 - ยืนยันแล้ว (ไม่ต้องทำอีก): cron weekly/daily ถูกต้อง (2026-10-26), ออม/กระเป๋า/ตัวกรอง (2026-10-19), UX P1/P2 และแท็บ ฉัน (2026-10-20)
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] สรุปรายเดือน (กำลังทำ, หยุด 2026-10-30): branch feat/monthly-summary ยังไม่ merge ไม่ push แผน plans/2026-10-30-monthly-summary.md ledger .superpowers/sdd/progress.md (บรรทัด MS)
-    เสร็จแล้ว Task 1-4, 6 (รีวิว+gate ครบ); Task 5 commit 7cc2c16 แล้วแต่ยังไม่ได้รีวิว (falcon ถูกหยุด) -> ทำต่อ: รีวิว Task 5, แล้ว Task 7 (endpoint+index.js), Task 8 (docs), final review; npm test 2494/2494 lint ผ่านที่ 7cc2c16
-    ต้องใส่ใน Task 8: รัน 026 ก่อน push (ไม่งั้น unfollow พังทั้งชุด), เช็คชื่อ constraint notification_log_kind_check ใน Supabase ก่อนรัน, resume ตอน follow พังแล้วผู้ใช้ไม่ได้สรุปจนกว่าจะ follow ใหม่ (ยอมรับ)
+- [ ] สรุปรายเดือน: Task 1-8 done on feat/monthly-summary (not merged, not pushed); เหลือ final whole-branch review แล้วรอผู้ใช้อนุมัติ merge/push
+    ความเสี่ยงที่ยอมรับ: resume ตอน follow พัง (log ไว้) ผู้ใช้ไม่ได้การ์ดรายเดือนจน unfollow แล้ว follow ใหม่; แผน plans/2026-10-30-monthly-summary.md
 - [ ] แผนต่อไปที่ยังไม่ได้เขียน: แยก public/liff/app.mjs (โฟลเดอร์ฟีเจอร์พร้อมแล้ว ส่วนที่แยกออกให้วางในโฟลเดอร์ฟีเจอร์ที่ตรงกัน) และความเสถียร/ความปลอดภัย (ท้ายแผน plans/archive/2026-10-25-code-organization.md)
 - [ ] P3 ที่เหลือ ข้อ 2-3 และ 7-12 ใน work-memory/p3-audit.md; ข้อ 11 รอผู้ใช้ตัดสินว่าเว็บจะเปลี่ยน "บอท" เป็น "เฮีย" ไหม
 - [ ] รอผู้ใช้ตัดสิน (งบ): เก็บข้อความ "งบมีผลตั้งแต่เดือน… (ไม่กระทบเดือนก่อนหน้า)" ไว้หน้าหลักไหม (แผนถอดออก เหลือในแผ่นแก้งบเฟส 2)
@@ -40,11 +43,11 @@ Goal: จัดโฟลเดอร์ merge และ push ขึ้น main �
 - ความเสี่ยงที่ยอมรับ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้, .limit(500) ไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์
 
 ## Done
+- [x] สรุปรายเดือน (2026-10-31, branch feat/monthly-summary ยังไม่ merge/push): push วันที่ 1 08:00 สรุปเดือนก่อน การ์ด/ข้อความชวนเดือนว่าง เฮียสำเร็จรูป 6 แบบ endpoint /internal/notifications/monthly; SQL 026; SPEC ข้อ 15
 - [x] ช่องเดือนเปลี่ยนเองเมื่อข้ามเดือน (2026-10-30, 38d54fe push แล้ว): public/liff/month-rollover.mjs เช็กตอนกลับมาที่หน้า รอปิด dialog/หน้าย่อย; SPEC เว็บ LIFF; npm test 2463/2463 lint ผ่าน
 - [x] จัดโฟลเดอร์ (2026-10-30, d246a19..1f94385, merge และ push แล้ว 4e89a1f): ไม่ส่งไฟล์เทสต์ทาง /liff, ย้ายไฟล์หลวมใน src/, budget -> budgets, LIFF แยกโฟลเดอร์ตามฟีเจอร์; แผน plans/2026-10-30-folder-structure-cleanup.md; npm test 2453/2453 lint ผ่าน
 - [x] ออกแบบ Flex ใหม่ (2026-10-28, 6b5b616..10989c7): หัวน้ำเงิน ปุ่มเหลืองขวา ยกเลิกซ้าย กราฟ 8px, สีหมวดเหมือนเว็บ, ปุ่มเปิดหน้าสรุป; แผน plans/2026-10-28-flex-redesign.md; npm test 2445/2445 lint ผ่าน push แล้ว
 - [x] security audit แบบ inline (2026-10-27, 81d3652): ไม่พบช่องโหว่ที่ยืนยันได้; ใส่เพดาน 50M pixel ให้ sharp รูปเกินตอบอ่านไม่ได้โดยไม่เรียก Claude (ผู้ใช้สั่งไม่ต้องวัด RAM); npm test 2429/2429 lint ผ่าน push แล้ว; รายงาน ~/security-audit-skill/line-expense-bot/run-1/
-- [x] รีวิว UX ผ่าน Chrome (2026-10-26): แนวโน้มเกิน 200% บอกเป็นบาทอย่างเดียว, บรรทัด "พบ X จาก Y" ต่อท้ายยอดรวมของรายการที่กรอง (format.mjs); npm test 2425/2425 lint ผ่าน push แล้ว รอผู้ใช้ดูบนมือถือ
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง

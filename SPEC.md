@@ -76,7 +76,7 @@
 
 ### 11. สรุปรายสัปดาห์
 - สวิตช์ในแท็บ ฉัน (ค่าตั้งต้นปิด) cron อาทิตย์ 19:00 ส่งการ์ดช่วงจันทร์-วันที่รัน ไม่มีคอมเมนต์ Claude สัปดาห์ว่างไม่ส่ง
-- จองแถว `notification_log` (kind `weekly_summary`, period = วันจันทร์) ก่อน push กันส่งซ้ำ unfollow แล้วปิดสวิตช์ทุกตัวของคนนั้น
+- จองแถว `notification_log` (kind `weekly_summary`, period = วันจันทร์) ก่อน push กันส่งซ้ำ unfollow แล้วปิดสวิตช์ทุกตัวของคนนั้น (รวมสรุปรายเดือน)
 - API: `GET /api/settings` คืน `{ weeklySummary, dailyReminder }`, `PATCH /api/settings` รับ boolean เฉพาะ field ที่รู้จัก
 
 ### 12. เตือนลืมจด
@@ -100,9 +100,17 @@
 - ยอดแยกกระเป๋าจาก `wallet_totals` คำถามยอดกรองด้วย `p_wallet` สลิป รายการประจำ และบิลลงเงินสด
 - API: `GET/POST /api/wallets`, `PATCH /api/wallets/:id` (ตั้งต้นตอบ 400), transactions คืน `walletId`/`walletName` และ PATCH รับ `walletId`
 
+### 15. สรุปรายเดือน
+- ส่งทุกคนที่ยัง follow (`monthly_summary_enabled` ค่าตั้งต้น true จาก `026`) ไม่มีสวิตช์ในเว็บ unfollow ปิด กลับมา follow แล้วเปิดส่งต่อ
+- cron วันที่ 1 เวลา 08:00 (Asia/Bangkok) สรุปทั้งเดือนก่อนหน้าเป็นการ์ด Flex ข้อความเฮียสำเร็จรูป 6 แบบตามยอดของเดือน ไม่เรียก Claude
+- เดือนที่ไม่มีรายการเลย (`entryCount` 0) ส่งข้อความชวนจดแทนการ์ด
+- จอง `notification_log` (kind `monthly_summary`, period = วันที่ 1 ของเดือนที่สรุป) ก่อน push กันส่งซ้ำ push ที่พังไม่ลองซ้ำ
+- ปุ่มบนการ์ดเปิดแท็บสรุปของเดือนที่การ์ดสรุป (`?tab=summary&m=YYYY-MM`)
+- ความเสี่ยงที่ยอมรับ: ถ้าเปิดส่งต่อตอน follow ไม่สำเร็จ (log ไว้) คนนั้นไม่ได้สรุปรายเดือนจนกว่าจะ unfollow แล้ว follow ใหม่ (ผู้ใช้คนเดียว)
+
 ## Database (Supabase)
 
-- users: id, line_user_id, display_name (เติมจาก ID token), friend_code, weekly_summary_enabled, daily_reminder_enabled
+- users: id, line_user_id, display_name (เติมจาก ID token), friend_code, weekly_summary_enabled, daily_reminder_enabled, monthly_summary_enabled (`026` ค่าตั้งต้น true)
 - categories: id, user_id, name, type, hidden (`017`), icon (`018`)
 - transactions: id, user_id, type, category_id, amount, note, occurred_on, source (text/slip/recurring/bill), line_event_id, created_at, wallet_id
 - wallets: id, user_id, name (unique ต่อผู้ใช้ และแบบ lower ใน `025`), hidden, created_at
@@ -125,8 +133,8 @@
 - Web Service เดียว (webhook + API + static) ตอบ webhook 200 ทันทีแล้วประมวลผลต่อ แพ็กเกจฟรีหลับทำให้ข้อความแรกช้า
 - cron ภายนอกเรียกด้วย `Authorization: Bearer <CRON_SECRET>` (ยาวอย่างน้อย 32) token ผิดตอบ 401
 - `POST /internal/recurring/run` วันละครั้ง ตอบ `{ due, created, skipped, failed, pushFailed }` 500 เมื่อมีกฎทำไม่สำเร็จ
-- `POST /internal/notifications/weekly` และ `.../daily-reminder` ตอบ `{ eligible, sent, skipped, failed, pushFailed }` 500 เมื่อ failed > 0
-- push นับโควตา LINE OA: รายการประจำ 1 ต่อรายการ สรุปรายสัปดาห์ 1 ต่อคนต่อสัปดาห์ เตือนลืมจด 1 ต่อคนต่อวัน
+- `POST /internal/notifications/weekly` และ `.../daily-reminder` ตอบ `{ eligible, sent, skipped, failed, pushFailed }`, `.../monthly` ตอบ `{ eligible, sent, nudged, skipped, failed, pushFailed }` (`nudged` = จำนวนข้อความชวนของเดือนว่าง) 500 เมื่อ failed > 0
+- push นับโควตา LINE OA: รายการประจำ 1 ต่อรายการ สรุปรายสัปดาห์ 1 ต่อคนต่อสัปดาห์ เตือนลืมจด 1 ต่อคนต่อวัน สรุปรายเดือน 1 ต่อคนต่อเดือน
 
 ## ลำดับการทำ
 
