@@ -19,16 +19,16 @@ Goal: จัดโฟลเดอร์ merge และ push ขึ้น main �
 15. จัดโฟลเดอร์ (merge และ push แล้ว 4e89a1f): เช็กในเครื่องผ่านแล้ว (2026-10-30, /liff/ โหลด .mjs 36 ไฟล์ 200 ไม่มี error, ui/motion.test.mjs 404) เหลือ: (ก) ผ่าน ngrok /liff/ui/motion.test.mjs, /liff/FORMAT~1.MJS, /liff/dom-harness.mjs ขึ้น Not Found และ /liff/ui/motion.mjs ยังโหลดได้
     (ข) ในแอป LINE: QR หน้าเพื่อนวาดขึ้น ส่งข้อความแล้วบอทตอบ; (ค) CI เขียวที่ GitHub Actions ของ 4e89a1f แล้วหลัง Render deploy เปิด /liff/ ซ้ำ
 16. เปิดเว็บใน LINE ค้างไว้ข้ามเที่ยงคืนสิ้นเดือน (หรือคืนวันที่ 31 ต.ค.) แล้วสลับกลับมา: ช่องเดือนต้องเป็นเดือนใหม่และยอดโหลดใหม่ ถ้าเปิดแผ่นแก้ไขค้างไว้ ต้องเปลี่ยนหลังปิดแผ่น
-17. สรุปรายเดือน (ลำดับ ก -> push -> ข -> ค; push ต้องรอผู้ใช้อนุญาต):
-    (ก) รัน 026 แล้ว (2026-10-31) เหลือเช็กใน SQL Editor: select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.notification_log'::regclass and contype = 'c'; ต้องได้ notification_log_kind_check ตัวเดียวที่มี weekly_summary, daily_reminder, monthly_summary และ users.monthly_summary_enabled boolean default true not null (026 ใช้ drop constraint if exists ถ้าชื่อเดิมต่างจะรอดอยู่เงียบๆ แล้วจอง monthly ล้มทุกครั้ง)
-    (ข) หลัง push: เพิ่มงานใน cron-job.org POST /internal/notifications/monthly เขตเวลา Asia/Bangkok วันที่ 1 เวลา 08:00 header Authorization: Bearer <CRON_SECRET>
-    (ค) วันที่ 1 ถัดไป: ดูการ์ดในแอป LINE กดปุ่ม เปิดหน้าสรุป ต้องเปิดแท็บสรุปของเดือนที่การ์ดสรุป
+17. สรุปรายเดือน (รัน 026 และเช็กแล้ว 2026-10-31; push ต้องรอผู้ใช้อนุญาต): (ข) หลัง push เพิ่มงานใน cron-job.org
+    POST /internal/notifications/monthly Asia/Bangkok วันที่ 1 08:00 Authorization: Bearer <CRON_SECRET>; (ค) วันที่ 1 ถัดไปดูการ์ด กดปุ่มต้องเปิดแท็บสรุปของเดือนนั้น
 - ยืนยันแล้ว (ไม่ต้องทำอีก): cron weekly/daily ถูกต้อง (2026-10-26), ออม/กระเป๋า/ตัวกรอง (2026-10-19), UX P1/P2 และแท็บ ฉัน (2026-10-20)
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
 - [ ] สรุปรายเดือน: Task 1-8 done on feat/monthly-summary (not merged, not pushed); เหลือ final whole-branch review แล้วรอผู้ใช้อนุมัติ merge/push
     ความเสี่ยงที่ยอมรับ: resume ตอน follow พัง (log ไว้) ผู้ใช้ไม่ได้การ์ดรายเดือนจน unfollow แล้ว follow ใหม่; แผน plans/2026-10-30-monthly-summary.md
+- [ ] ถ้าจะไม่ส่งสรุปรายเดือนให้คนที่ไม่ follow: ต้องมีวิธีรู้ว่าใคร follow (ตอนนี้แยกไม่ได้)
+    ยอมรับไว้ก่อน 2026-10-31 (คนไม่เคยเพิ่มบอทนับเป็น pushFailed เดือนละครั้ง)
 - [ ] แผนต่อไปที่ยังไม่ได้เขียน: แยก public/liff/app.mjs (โฟลเดอร์ฟีเจอร์พร้อมแล้ว ส่วนที่แยกออกให้วางในโฟลเดอร์ฟีเจอร์ที่ตรงกัน) และความเสถียร/ความปลอดภัย (ท้ายแผน plans/archive/2026-10-25-code-organization.md)
 - [ ] P3 ที่เหลือ ข้อ 2-3 และ 7-12 ใน work-memory/p3-audit.md; ข้อ 11 รอผู้ใช้ตัดสินว่าเว็บจะเปลี่ยน "บอท" เป็น "เฮีย" ไหม
 - [ ] รอผู้ใช้ตัดสิน (งบ): เก็บข้อความ "งบมีผลตั้งแต่เดือน… (ไม่กระทบเดือนก่อนหน้า)" ไว้หน้าหลักไหม (แผนถอดออก เหลือในแผ่นแก้งบเฟส 2)
