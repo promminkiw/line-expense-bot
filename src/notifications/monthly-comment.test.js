@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { pickMonthlyComment, buildEmptyMonthText } from './monthly-comment.js';
 
 function summary({ income, expense, top = [] }) {
-  return { incomeTotal: income, expenseTotal: expense, net: income - expense, topExpenses: top, otherExpenseTotal: 0 };
+  return { incomeTotal: income, expenseTotal: expense, net: Math.round((income - expense) * 100) / 100, topExpenses: top, otherExpenseTotal: 0 };
 }
 
 describe('pickMonthlyComment', () => {
@@ -45,6 +45,24 @@ describe('pickMonthlyComment', () => {
     const value = summary({ income: 100, expense: 43, top: [{ category: 'อาหาร', total: 15 }, { category: 'เดินทาง', total: 14 }, { category: 'ช้อปปิ้ง', total: 14 }] });
 
     expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 57 บาท (57% ของรายรับ) เยี่ยมเลย ทำแบบนี้ต่อไปนะ');
+  });
+
+  it('floors exactly 20% correctly with satang amounts', () => {
+    const value = summary({ income: 1280.15, expense: 1024.12, top: [{ category: 'อาหาร', total: 400 }, { category: 'เดินทาง', total: 350 }, { category: 'ช้อปปิ้ง', total: 274.12 }] });
+
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 256.03 บาท (20% ของรายรับ) เยี่ยมเลย ทำแบบนี้ต่อไปนะ');
+  });
+
+  it('keeps 57% for decimal amounts', () => {
+    const value = summary({ income: 1, expense: 0.43, top: [{ category: 'อาหาร', total: 0.15 }, { category: 'เดินทาง', total: 0.14 }, { category: 'ช้อปปิ้ง', total: 0.14 }] });
+
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 0.57 บาท (57% ของรายรับ) เยี่ยมเลย ทำแบบนี้ต่อไปนะ');
+  });
+
+  it('nudges when income and expense cancel out exactly', () => {
+    const value = summary({ income: 500, expense: 500, top: [{ category: 'อาหาร', total: 150 }, { category: 'เดินทาง', total: 150 }, { category: 'ช้อปปิ้ง', total: 200 - 100 }] });
+
+    expect(pickMonthlyComment(value, 'ตุลาคม')).toBe('เก็บได้ 0 บาท (0% ของรายรับ) เดือนหน้าลองเก็บให้ถึง 20% ดูนะ');
   });
 });
 

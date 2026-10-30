@@ -20,8 +20,8 @@ function pickMonthlyComment(summary, monthName) {
   if (topShare >= TOP_SHARE_WARNING) {
     return `เก็บได้ ${saved} บาท แต่${top.category}กินไป ${topShare}% ของรายจ่ายทั้งเดือน ลองตั้งงบหมวดนี้ดูไหม`;
   }
-  // คูณก่อนหาร ไม่งั้นทศนิยมของ JavaScript ทำให้ปัดลงหาย 1%
-  const rate = Math.floor((summary.net * 100) / summary.incomeTotal);
+  // คิดเป็นสตางค์จำนวนเต็มก่อนหาร ไม่งั้นทศนิยมของ JavaScript ทำให้ปัดลงหาย 1%
+  const rate = Math.floor((Math.round(summary.net * 100) * 100) / Math.round(summary.incomeTotal * 100));
   if (rate >= GOOD_SAVING_RATE) {
     return `เก็บได้ ${saved} บาท (${rate}% ของรายรับ) เยี่ยมเลย ทำแบบนี้ต่อไปนะ`;
   }
