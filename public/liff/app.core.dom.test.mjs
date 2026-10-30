@@ -1011,3 +1011,104 @@ describe('LIFF summary stacked bar motion', () => {
     expect(byId('chart-stack').classList.contains('sweep')).toBe(false);
   });
 });
+
+describe('LIFF month rollover while the page stays open', () => {
+  // 2026-10-31 17:00 UTC คือ 2026-11-01 00:00 เวลาไทย
+  const NEXT_MONTH = new Date('2026-11-01T02:00:00Z');
+
+  function returnToPage(visibility = 'visible') {
+    Object.defineProperty(document, 'visibilityState', { value: visibility, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }
+
+  afterEach(() => {
+    delete document.visibilityState;
+  });
+
+  it('switches to the new month and reloads it when the user comes back', async () => {
+    await boot();
+    const calls = routeFetch(() => undefined);
+    vi.setSystemTime(NEXT_MONTH);
+
+    returnToPage();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-11');
+    expect(calls).toContain('GET /api/transactions');
+  });
+
+  it('also leaves an older month the user picked once the month changes', async () => {
+    await boot();
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+    vi.setSystemTime(NEXT_MONTH);
+
+    returnToPage();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-11');
+  });
+
+  it('keeps the chosen month when the user comes back within the same month', async () => {
+    await boot();
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+    const calls = routeFetch(() => undefined);
+    vi.setSystemTime(new Date('2026-10-31T16:00:00Z'));
+
+    returnToPage();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-09');
+    expect(calls).toEqual([]);
+  });
+
+  it('ignores the page being hidden', async () => {
+    await boot();
+    vi.setSystemTime(NEXT_MONTH);
+
+    returnToPage('hidden');
+    await settle();
+
+    expect(byId('month').value).toBe('2026-10');
+  });
+
+  it('waits for an open editor to close before switching', async () => {
+    await boot();
+    document.querySelector('#list .row-button').click();
+    await settle();
+    vi.setSystemTime(NEXT_MONTH);
+
+    returnToPage();
+    await settle();
+
+    expect(byId('editor').open).toBe(true);
+    expect(byId('month').value).toBe('2026-10');
+
+    byId('editor').close();
+    byId('editor').dispatchEvent(new Event('close'));
+    await settle();
+
+    expect(byId('month').value).toBe('2026-11');
+  });
+
+  it('waits until the user leaves a sub-page before switching', async () => {
+    await boot();
+    clickTab('profile');
+    byId('tips-open').click();
+    await settle();
+    vi.setSystemTime(NEXT_MONTH);
+
+    returnToPage();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-10');
+
+    byId('page-back').click();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-11');
+  });
+});

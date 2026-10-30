@@ -41,6 +41,7 @@ import { createBannerSetter } from './ui/banner.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './ui/tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories/categories.mjs';
 import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseListLink, parseTabLink } from './deep-link.mjs';
+import { createMonthRollover } from './month-rollover.mjs';
 import { createSwipeTracker } from './ui/swipe.mjs';
 import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './ui/skeleton.mjs';
 import { animateNumber, replayClass, playBars } from './ui/motion.mjs';
@@ -1813,8 +1814,26 @@ function leaveSubPage() {
   // controller ยังจำว่าอยู่แท็บเจ้าของหน้า จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
   tabController.select(page.ownerTab, { force: true });
   page.returnFocus.focus();
+  monthRollover.check();
   return true;
 }
+
+const monthRollover = createMonthRollover({
+  // เทสต์โหลดโมดูลซ้ำบน document เดียวกัน รอบเก่าที่ช่องเดือนหลุดจาก DOM แล้วต้องไม่ทำอะไร
+  // รอปิดแผ่นแก้ไขและหน้าย่อยก่อน ไม่งั้นงบหรือรายการที่กำลังแก้อาจบันทึกผิดเดือน
+  canSwitch: () => Boolean(api) && els.month.isConnected && !activeSubPage
+    && !document.getElementById('app').classList.contains('bills-page') && !document.querySelector('dialog[open]'),
+  onRollover: (month) => {
+    els.month.value = month;
+    loadMonth({ reset: true });
+  },
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') monthRollover.check();
+});
+// event close ของ dialog ไม่ bubble จึงต้องฟังแบบ capture
+document.addEventListener('close', () => monthRollover.check(), true);
 
 const CATEGORIES_PAGE = {
   panelId: 'panel-categories',
