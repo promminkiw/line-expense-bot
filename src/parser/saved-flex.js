@@ -1,5 +1,5 @@
 const { formatAmount, formatSavedReply, formatSlipConfirmReply } = require('./format-reply');
-const { formatBudgetAlerts, describeBudgetGauge, BUDGET_CHECK_FAILED_NOTICE } = require('../budget/alerts');
+const { formatBudgetAlerts, describeBudgetGauge, BUDGET_CHECK_FAILED_NOTICE } = require('../budgets/alerts');
 const { WALLETS_UNREADABLE_NOTICE } = require('../wallets/wallets');
 const { capAltText, ALT_TEXT_MAX } = require('../utils/alt-text');
 const { shortDate } = require('../utils/date');

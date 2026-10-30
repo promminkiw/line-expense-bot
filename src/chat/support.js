@@ -1,4 +1,4 @@
-const { budgetMonths, findBudgetAlerts } = require('../budget/alerts');
+const { budgetMonths, findBudgetAlerts } = require('../budgets/alerts');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('../parser/categories');
 const { walletQuestionNames } = require('../wallets/wallets');
 const { NO_ENTRIES_COMMENT } = require('./replies');
