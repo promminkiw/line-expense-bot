@@ -93,7 +93,7 @@ describe('repository.listWeeklySummaryUsers', () => {
 });
 
 describe('repository.listMonthlySummaryUsers', () => {
-  it('lists users who still follow the bot ordered by id', async () => {
+  it('lists users with the monthly summary enabled ordered by id', async () => {
     const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
 
     expect(await createNotificationsRepository(supabase).listMonthlySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);

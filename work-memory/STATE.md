@@ -1,5 +1,5 @@
 # STATE
-Updated: 2026-10-31 (ล่าสุด: สรุปรายเดือนทำครบ Task 1-8 บน branch feat/monthly-summary ยังไม่ merge ไม่ push)
+Updated: 2026-10-31 (ล่าสุด: สรุปรายเดือนผ่าน final review และแก้ครบ บน branch feat/monthly-summary รอ controller merge + push)
 Goal: จัดโฟลเดอร์ merge และ push ขึ้น main แล้ว (4e89a1f); งานเปลี่ยนเดือนเอง push แล้ว (38d54fe); รอผู้ใช้ลองด้วยตา (ข้อ 6-16) แล้วเลือกงาน P3 จาก work-memory/p3-audit.md หรือบอกฟีเจอร์ใหม่
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ และแผนไป docs/superpowers/plans/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
@@ -19,20 +19,21 @@ Goal: จัดโฟลเดอร์ merge และ push ขึ้น main �
 15. จัดโฟลเดอร์ (merge และ push แล้ว 4e89a1f): เช็กในเครื่องผ่านแล้ว (2026-10-30, /liff/ โหลด .mjs 36 ไฟล์ 200 ไม่มี error, ui/motion.test.mjs 404) เหลือ: (ก) ผ่าน ngrok /liff/ui/motion.test.mjs, /liff/FORMAT~1.MJS, /liff/dom-harness.mjs ขึ้น Not Found และ /liff/ui/motion.mjs ยังโหลดได้
     (ข) ในแอป LINE: QR หน้าเพื่อนวาดขึ้น ส่งข้อความแล้วบอทตอบ; (ค) CI เขียวที่ GitHub Actions ของ 4e89a1f แล้วหลัง Render deploy เปิด /liff/ ซ้ำ
 16. เปิดเว็บใน LINE ค้างไว้ข้ามเที่ยงคืนสิ้นเดือน (หรือคืนวันที่ 31 ต.ค.) แล้วสลับกลับมา: ช่องเดือนต้องเป็นเดือนใหม่และยอดโหลดใหม่ ถ้าเปิดแผ่นแก้ไขค้างไว้ ต้องเปลี่ยนหลังปิดแผ่น
-17. สรุปรายเดือน (รัน 026 และเช็กแล้ว 2026-10-31; push ต้องรอผู้ใช้อนุญาต): (ข) หลัง push เพิ่มงานใน cron-job.org
-    POST /internal/notifications/monthly Asia/Bangkok วันที่ 1 08:00 Authorization: Bearer <CRON_SECRET>; (ค) วันที่ 1 ถัดไปดูการ์ด กดปุ่มต้องเปิดแท็บสรุปของเดือนนั้น
+17. สรุปรายเดือน: (ก) รัน 026 และเช็กแล้ว 2026-10-31; (ข) สร้างงานใน cron-job.org แล้ว 2026-10-31 (Test run ได้ 404 เพราะยังไม่ deploy ปกติ) ห้ามกด Test run ก่อนวันที่ 1 (ส่งสรุปเดือนก่อนหน้าที่ไม่ใช่เดือนล่าสุด) รันเองวันที่ 1 ขึ้นไปได้ การจองกันส่งซ้ำ
+    (ค) 2026-11-01 หลัง 08:00: การ์ดเข้า LINE, ปุ่มเปิดแท็บสรุปเดือนตุลาคม, History ใน cron-job.org ขึ้น 200 และ failed = 0 (pushFailed >= 1 ปกติสำหรับคนที่ไม่ใช่เพื่อนบอท)
 - ยืนยันแล้ว (ไม่ต้องทำอีก): cron weekly/daily ถูกต้อง (2026-10-26), ออม/กระเป๋า/ตัวกรอง (2026-10-19), UX P1/P2 และแท็บ ฉัน (2026-10-20)
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] สรุปรายเดือน: Task 1-8 done on feat/monthly-summary (not merged, not pushed); เหลือ final whole-branch review แล้วรอผู้ใช้อนุมัติ merge/push
+- [ ] สรุปรายเดือน: Task 1-8 และ final review เสร็จบน feat/monthly-summary; merge + push ได้รับอนุญาตแล้ว 2026-10-31 (controller ทำหลังรอบแก้นี้)
     ความเสี่ยงที่ยอมรับ: resume ตอน follow พัง (log ไว้) ผู้ใช้ไม่ได้การ์ดรายเดือนจน unfollow แล้ว follow ใหม่; แผน plans/2026-10-30-monthly-summary.md
+- [ ] product: หน้าเว็บไม่มีสัญญาณว่ากำลังดูเดือนที่ผ่านมา (เปิดจากการ์ดรายเดือน) ยังไม่ทำ
 - [ ] ถ้าจะไม่ส่งสรุปรายเดือนให้คนที่ไม่ follow: ต้องมีวิธีรู้ว่าใคร follow (ตอนนี้แยกไม่ได้)
-    ยอมรับไว้ก่อน 2026-10-31 (คนไม่เคยเพิ่มบอทนับเป็น pushFailed เดือนละครั้ง)
+    ยอมรับไว้ก่อน 2026-10-31 (คนที่ไม่ได้เป็นเพื่อนบอท: ไม่เคยเพิ่ม หรือ unfollow ก่อนรัน 026 และ unfollow ที่ LINE ส่งซ้ำมาช้ากว่า follow นับเป็น pushFailed เดือนละครั้ง flag คงเป็น false จน follow ใหม่)
 - [ ] แผนต่อไปที่ยังไม่ได้เขียน: แยก public/liff/app.mjs (โฟลเดอร์ฟีเจอร์พร้อมแล้ว ส่วนที่แยกออกให้วางในโฟลเดอร์ฟีเจอร์ที่ตรงกัน) และความเสถียร/ความปลอดภัย (ท้ายแผน plans/archive/2026-10-25-code-organization.md)
 - [ ] P3 ที่เหลือ ข้อ 2-3 และ 7-12 ใน work-memory/p3-audit.md; ข้อ 11 รอผู้ใช้ตัดสินว่าเว็บจะเปลี่ยน "บอท" เป็น "เฮีย" ไหม
 - [ ] รอผู้ใช้ตัดสิน (งบ): เก็บข้อความ "งบมีผลตั้งแต่เดือน… (ไม่กระทบเดือนก่อนหน้า)" ไว้หน้าหลักไหม (แผนถอดออก เหลือในแผ่นแก้งบเฟส 2)
-- [ ] minor: supabase/schema.sql:1 รายการลำดับหยุดที่ 024 ควรมี 025 (แก้ .sql ต้องรอผู้ใช้อนุญาต); gate WARN "no unit test" ของ src/db/errors.js และ src/chat/{replies,support,slip,postback,text}.js ยอมรับ
+- [ ] minor: gate WARN "no unit test" ของ src/db/errors.js และ src/chat/{replies,support,slip,postback,text}.js ยอมรับ
 
 ## ตัดสินแล้ว ไม่ทำ
 - /liff ใช้ denylist (`LIFF_TEST_ONLY` ใน src/app.js) ไม่ใช่ allowlist: helper เทสต์ใหม่ใน public/liff ต้องตั้งชื่อ `*.test.mjs` หรือเพิ่มชื่อใน `LIFF_TEST_ONLY` (2026-10-30)
