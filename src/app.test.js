@@ -305,6 +305,17 @@ describe('GET /liff/', () => {
 
     expect(res.status).toBe(200);
   });
+
+  it('serves modules from feature folders and hides their tests', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const moduleRes = await fetch(`${baseUrl}/liff/ui/motion.mjs`);
+    const testRes = await fetch(`${baseUrl}/liff/ui/motion.test.mjs`);
+
+    expect(moduleRes.status).toBe(200);
+    expect(moduleRes.headers.get('content-type')).toContain('javascript');
+    expect(testRes.status).toBe(404);
+  });
 });
 
 // ต้องใช้ instance เดียวกับที่ router require ไม่งั้น instanceof AuthError ไม่ตรงกัน

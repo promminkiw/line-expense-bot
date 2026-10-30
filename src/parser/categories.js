@@ -26,7 +26,7 @@ const MAX_VISIBLE_CATEGORIES = 30;
 // หมวดที่ซ่อนก็ยังถูกอ่านทุกครั้ง และแถวที่ไม่จำกัดจะชนเพดาน max rows ของ PostgREST
 const MAX_TOTAL_CATEGORIES = 100;
 
-// ไอคอนที่ผู้ใช้เลือกให้หมวดได้ ต้องตรงกับ public/liff/category-icons.mjs (มีเทสต์ผูกไว้)
+// ไอคอนที่ผู้ใช้เลือกให้หมวดได้ ต้องตรงกับ public/liff/categories/category-icons.mjs (มีเทสต์ผูกไว้)
 const CATEGORY_ICONS = [
   'food', 'coffee', 'shopping', 'grocery', 'clothes', 'beauty', 'pet', 'gift',
   'bill', 'home', 'electric', 'water', 'internet', 'phone', 'insurance', 'tax',

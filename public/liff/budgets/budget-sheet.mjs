@@ -1,7 +1,7 @@
 import { barGeometry, formatNumber } from './budgets-format.mjs';
 import { BUDGET_STEP, parseBudgetAmount, previewBudget, quickChips, stepBudget } from './budget-edit.mjs';
-import { describeBudgetFailure, formatMonthLabel } from './format.mjs';
-import { revealError } from './reveal.mjs';
+import { describeBudgetFailure, formatMonthLabel } from '../format.mjs';
+import { revealError } from '../ui/reveal.mjs';
 
 const PREVIEW_H100 = 80;
 const GENERIC_FAILURE_TITLE = 'บันทึกงบไม่สำเร็จ';

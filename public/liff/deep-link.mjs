@@ -1,4 +1,4 @@
-import { normalizeFriendCodeInput } from './friends-format.mjs';
+import { normalizeFriendCodeInput } from './friends/friends-format.mjs';
 
 // id ของรายการเป็น UUID จึงรับเฉพาะตัวอักษรที่ UUID ใช้ ไม่ให้ค่าแปลกๆ จากลิงก์เข้าไปใน flow แก้ไข
 const ID_PATTERN = /^[0-9A-Za-z-]{1,64}$/;

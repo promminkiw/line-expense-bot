@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CATEGORY_ICONS, CATEGORY_ICON_KEYS } from './category-icons.mjs';
-import { CATEGORY_ICONS as SERVER_ICONS } from '../../src/parser/categories.js';
+import { CATEGORY_ICONS as SERVER_ICONS } from '../../../src/parser/categories.js';
 
 describe('CATEGORY_ICONS', () => {
   it('matches the list the server accepts, in the same order', () => {

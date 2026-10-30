@@ -1,4 +1,4 @@
-import { ApiError } from './api.mjs';
+import { ApiError } from '../api.mjs';
 import { describeWalletError, sortWallets, walletRowView } from './wallets-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);

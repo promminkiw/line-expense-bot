@@ -1,6 +1,6 @@
-import { qrcode } from './vendor/qrcode.mjs';
-import { ApiError } from './api.mjs';
-import { createLoadingIndicator } from './skeleton.mjs';
+import { qrcode } from '../vendor/qrcode.mjs';
+import { ApiError } from '../api.mjs';
+import { createLoadingIndicator } from '../ui/skeleton.mjs';
 import {
   normalizeFriendCodeInput,
   formatFriendCode,

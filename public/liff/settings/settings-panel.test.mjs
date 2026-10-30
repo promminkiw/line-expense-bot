@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { createSettingsPanel } from './settings-panel.mjs';
-import { ApiError } from './api.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { ApiError } from '../api.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const byId = (id) => document.getElementById(id);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));

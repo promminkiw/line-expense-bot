@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE, thaiMonthShort } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE, thaiMonthShort } from '../format.mjs';
 
 // ตรงกับ src/bills/validate.js ฝั่ง server เพื่อให้ยอดที่หน้าเว็บแบ่งผ่านการตรวจเสมอ
 export function toSatang(amount) {

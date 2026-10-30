@@ -1,6 +1,6 @@
-import { ApiError } from './api.mjs';
+import { ApiError } from '../api.mjs';
 import { buildEqualShares, sumShortfall, toSatang, describeBillError, describeReceiptError } from './bills-format.mjs';
-import { formatBaht, currentDate } from './format.mjs';
+import { formatBaht, currentDate } from '../format.mjs';
 
 const DEFAULT_CATEGORY = 'อาหาร';
 const FRIENDS_LOAD_FAILED = 'โหลดรายชื่อเพื่อนไม่สำเร็จ';

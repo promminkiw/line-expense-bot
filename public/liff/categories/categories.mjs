@@ -1,4 +1,4 @@
-import { createSvgIcon } from './icons.mjs';
+import { createSvgIcon } from '../ui/icons.mjs';
 import { CATEGORY_ICON_KEYS } from './category-icons.mjs';
 
 // ใช้ Map เพราะชื่อหมวดมาจากผู้ใช้ ชื่ออย่าง constructor ต้องไม่หลุดไปเจอ property ของ Object

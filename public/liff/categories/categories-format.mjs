@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const MESSAGES = new Map([
   ['409:Duplicate name', 'มีหมวดชื่อนี้อยู่แล้ว'],

@@ -1,5 +1,5 @@
-import { ApiError } from './api.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { ApiError } from '../api.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const LOAD_FAILED_MESSAGE = 'โหลดการตั้งค่าไม่สำเร็จ';
 // สถานะมีบรรทัดเดียวใช้ร่วมกันทุกสวิตช์ จึงต้องบอกชื่อสวิตช์ในข้อความ

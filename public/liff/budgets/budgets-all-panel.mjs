@@ -1,5 +1,5 @@
-import { createSvgIcon } from './icons.mjs';
-import { setSuccessStatus } from './success-mark.mjs';
+import { createSvgIcon } from '../ui/icons.mjs';
+import { setSuccessStatus } from '../ui/success-mark.mjs';
 import { describeDiff, filterBudgetRows, formatNumber, groupBudgetRows, sectionsForTab, sortBudgetRows } from './budgets-format.mjs';
 
 const TABS = [

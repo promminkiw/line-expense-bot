@@ -1,4 +1,4 @@
-import { budgetRows } from './format.mjs';
+import { budgetRows } from '../format.mjs';
 
 // คิดเป็นสตางค์ทั้งหมด กันเศษทศนิยมลอยตอนบวกลบ
 const toSatang = (value) => Math.round(value * 100);

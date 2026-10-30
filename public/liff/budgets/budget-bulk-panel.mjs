@@ -1,4 +1,4 @@
-import { createSvgIcon } from './icons.mjs';
+import { createSvgIcon } from '../ui/icons.mjs';
 import { applyResults, createDraft, draftSummary, entryView, saveDraft, stepDraft } from './budget-bulk.mjs';
 import { formatNumber } from './budgets-format.mjs';
 import { stepBudget } from './budget-edit.mjs';

@@ -1,4 +1,4 @@
-import { formatBaht, formatFullThaiDate, LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { formatBaht, formatFullThaiDate, LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 // คิดเป็นสตางค์และปัดลง ให้ตรงกับเปอร์เซ็นต์ที่บอทตอบในแชต
 export function goalPercent(saved, target) {

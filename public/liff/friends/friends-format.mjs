@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 // ตรงกับ FRIEND_CODE_PATTERN ฝั่ง server ตรวจซ้ำที่นี่เพื่อบอกผู้ใช้ได้ทันทีโดยไม่ต้องยิง request
 const FRIEND_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;

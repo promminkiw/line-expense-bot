@@ -8,8 +8,8 @@ import {
   INVALID_CODE_MESSAGE,
   OWN_CODE_MESSAGE,
 } from './friends-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
-import { normalizeFriendCode as serverNormalize } from '../../src/friends/code.js';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { normalizeFriendCode as serverNormalize } from '../../../src/friends/code.js';
 
 describe('normalizeFriendCodeInput', () => {
   it('accepts lower case, spaces and the dash used on screen', () => {

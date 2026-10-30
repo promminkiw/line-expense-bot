@@ -29,28 +29,28 @@ import {
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
 } from './format.mjs';
-import { createFriendsPanel } from './friends-panel.mjs';
-import { createSettingsPanel } from './settings-panel.mjs';
-import { createCategoriesPanel } from './categories-panel.mjs';
-import { createWalletsPanel } from './wallets-panel.mjs';
-import { walletOptions, sortWallets, hasSeveralWallets } from './wallets-format.mjs';
-import { createBillsPanel } from './bills-panel.mjs';
-import { createBillForm } from './bill-form.mjs';
-import { createGoalsPanel } from './goals-panel.mjs';
-import { createBannerSetter } from './banner.mjs';
-import { DEFAULT_TAB, TABS, createTabController } from './tabs.mjs';
-import { categoryStyle, createCategoryBadge } from './categories.mjs';
+import { createFriendsPanel } from './friends/friends-panel.mjs';
+import { createSettingsPanel } from './settings/settings-panel.mjs';
+import { createCategoriesPanel } from './categories/categories-panel.mjs';
+import { createWalletsPanel } from './wallets/wallets-panel.mjs';
+import { walletOptions, sortWallets, hasSeveralWallets } from './wallets/wallets-format.mjs';
+import { createBillsPanel } from './bills/bills-panel.mjs';
+import { createBillForm } from './bills/bill-form.mjs';
+import { createGoalsPanel } from './goals/goals-panel.mjs';
+import { createBannerSetter } from './ui/banner.mjs';
+import { DEFAULT_TAB, TABS, createTabController } from './ui/tabs.mjs';
+import { categoryStyle, createCategoryBadge } from './categories/categories.mjs';
 import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseListLink, parseTabLink } from './deep-link.mjs';
-import { createSwipeTracker } from './swipe.mjs';
-import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './skeleton.mjs';
-import { animateNumber, replayClass, playBars } from './motion.mjs';
-import { installRipple } from './ripple.mjs';
-import { createEmptyState } from './empty-state.mjs';
-import { revealError } from './reveal.mjs';
-import { createBudgetsPanel } from './budgets-panel.mjs';
-import { createBudgetsAllPanel } from './budgets-all-panel.mjs';
-import { createBudgetSheet } from './budget-sheet.mjs';
-import { createBudgetBulkPanel } from './budget-bulk-panel.mjs';
+import { createSwipeTracker } from './ui/swipe.mjs';
+import { createSkeletonRows, createSkeletonBlocks, createLoadingIndicator } from './ui/skeleton.mjs';
+import { animateNumber, replayClass, playBars } from './ui/motion.mjs';
+import { installRipple } from './ui/ripple.mjs';
+import { createEmptyState } from './ui/empty-state.mjs';
+import { revealError } from './ui/reveal.mjs';
+import { createBudgetsPanel } from './budgets/budgets-panel.mjs';
+import { createBudgetsAllPanel } from './budgets/budgets-all-panel.mjs';
+import { createBudgetSheet } from './budgets/budget-sheet.mjs';
+import { createBudgetBulkPanel } from './budgets/budget-bulk-panel.mjs';
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css

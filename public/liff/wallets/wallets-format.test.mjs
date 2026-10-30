@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { describeWalletError, walletRowView, sortWallets, walletOptions, hasSeveralWallets } from './wallets-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 400, balance: 24600, entryCount: 2 };
 const CARD = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 300, balance: -300, entryCount: 1 };

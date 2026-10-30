@@ -1,8 +1,8 @@
-import { ApiError } from './api.mjs';
+import { ApiError } from '../api.mjs';
 import { createCategoryBadge, effectiveIconKey } from './categories.mjs';
 import { CATEGORY_ICONS } from './category-icons.mjs';
 import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
-import { createSvgIcon } from './icons.mjs';
+import { createSvgIcon } from '../ui/icons.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);

@@ -2,10 +2,10 @@
 import { existsSync } from 'node:fs';
 import { URL as NodeUrl } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TABS } from './tabs.mjs';
-import { categoryStyle } from './categories.mjs';
-import { createEmptyState } from './empty-state.mjs';
-import { CATEGORY_ICON_KEYS } from './category-icons.mjs';
+import { TABS } from './ui/tabs.mjs';
+import { categoryStyle } from './categories/categories.mjs';
+import { createEmptyState } from './ui/empty-state.mjs';
+import { CATEGORY_ICON_KEYS } from './categories/category-icons.mjs';
 import { html, CATEGORIES, RESPONSES, EMPTY_MONTH, LOADING_ELEMENT_IDS, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, deleteFirstRow, cleanupGlobals } from './dom-harness.mjs';
 
 afterEach(cleanupGlobals);

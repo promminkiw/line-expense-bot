@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { goalPercent, goalRow, goalsSummary, goalLabel, splitGoals, contributionRows, describeGoalError } from './goals-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const GOAL = { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: '2026-12-31', closed: false, saved: 6000, contributionCount: 2 };
 

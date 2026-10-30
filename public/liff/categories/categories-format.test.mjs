@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from './format.mjs';
-import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../src/parser/categories.js';
+import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../../src/parser/categories.js';
 
 describe('describeCategoryError', () => {
   it.each([

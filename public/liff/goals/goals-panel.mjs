@@ -1,7 +1,7 @@
-import { ApiError } from './api.mjs';
-import { createLoadingIndicator } from './skeleton.mjs';
-import { revealError } from './reveal.mjs';
-import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from './format.mjs';
+import { ApiError } from '../api.mjs';
+import { createLoadingIndicator } from '../ui/skeleton.mjs';
+import { revealError } from '../ui/reveal.mjs';
+import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from '../format.mjs';
 import { splitGoals, goalRow, goalsSummary, goalLabel, contributionRows, describeGoalError } from './goals-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);

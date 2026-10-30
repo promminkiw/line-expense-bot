@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE, formatBaht } from './format.mjs';
+import { LOGIN_REQUIRED_MESSAGE, formatBaht } from '../format.mjs';
 
 const MESSAGES = new Map([
   ['409:Duplicate name', 'มีกระเป๋าชื่อนี้อยู่แล้ว'],
