@@ -592,8 +592,8 @@ agent ห้ามเปิด server เอง ให้ส่งตารา�
 src/                        โค้ดฝั่ง server: app.js, config.js, persona.js ที่ราก ที่เหลือแยกโฟลเดอร์ตามฟีเจอร์:
                             chat (bot.js, line-reply.js), api, parser, query, slip, summary, budgets, recurring,
                             notifications, goals, wallets, friends, bills, users, export, menu, db (domains), utils
-public/liff/                หน้าเว็บ LIFF: app.mjs, api.mjs, format.mjs ที่ราก ที่เหลือแยกโฟลเดอร์ ui, bills,
-                            budgets, categories, friends, goals, wallets, settings (เทสต์อยู่คู่ไฟล์ และ server ไม่ส่งไฟล์เทสต์ออก)
+public/liff/                หน้าเว็บ LIFF: index.html, app.mjs, api.mjs, format.mjs, deep-link.mjs, css, assets/ และ vendor/ อยู่ที่ราก
+                            ที่เหลือแยกโฟลเดอร์ ui, bills, budgets, categories, friends, goals, wallets, settings (เทสต์อยู่คู่ไฟล์ และ server ไม่ส่งไฟล์เทสต์ออก)
 ```
 
 - [ ] **Step 2: Check no doc outside archive still names an old path**
