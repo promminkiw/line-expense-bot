@@ -191,4 +191,34 @@ describe('POST /internal/notifications/monthly', () => {
     expect((await post(base, '/notifications/monthly', 'wrong')).status).toBe(401);
     expect(options.runMonthlySummary).not.toHaveBeenCalled();
   });
+
+  it('returns 500 with the counts when preparing or reserving failed for a user', async () => {
+    const counts = { ...COUNTS, nudged: 0, failed: 1 };
+    const base = await start(deps({ runMonthlySummary: vi.fn().mockResolvedValue(counts) }));
+
+    const res = await post(base, '/notifications/monthly', 's3cret');
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual(counts);
+  });
+
+  it('returns 200 with the counts when only pushes failed', async () => {
+    const counts = { ...COUNTS, nudged: 0, pushFailed: 1 };
+    const base = await start(deps({ runMonthlySummary: vi.fn().mockResolvedValue(counts) }));
+
+    const res = await post(base, '/notifications/monthly', 's3cret');
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(counts);
+  });
+
+  it('returns 500 and logs only the reason when the job throws', async () => {
+    const options = deps({ runMonthlySummary: vi.fn().mockRejectedValue(new Error('db down')) });
+    const base = await start(options);
+
+    const res = await post(base, '/notifications/monthly', 's3cret');
+
+    expect(res.status).toBe(500);
+    expect(options.logger.error).toHaveBeenCalledWith('Monthly summary run failed', { reason: 'db down' });
+  });
 });
