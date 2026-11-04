@@ -100,6 +100,7 @@ function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
     replyFlex: vi.fn().mockResolvedValue(),
+    showLoading: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
     parseQuestion: vi.fn().mockResolvedValue({ isQuestion: false }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
@@ -2270,5 +2271,53 @@ describe('BILL_REPLIES', () => {
       already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
       not_found: 'เฮียไม่พบบิลนี้',
     });
+  });
+});
+
+describe('bot loading animation', () => {
+  it('shows it for a text message before replying', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.showLoading).toHaveBeenCalledWith('U1');
+    expect(deps.showLoading.mock.invocationCallOrder[0]).toBeLessThan(deps.replyText.mock.invocationCallOrder[0]);
+  });
+
+  it('shows it for an image message', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.showLoading).toHaveBeenCalledWith('U1');
+  });
+
+  it('does not show it for a postback or follow event', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
+    await bot.handleEvent(followEvent());
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('does not show it for a group message', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป', { source: { type: 'group', groupId: 'G1' } }));
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('still replies and logs when the animation fails', async () => {
+    const { deps, bot } = setup();
+    const failure = new Error('line down');
+    deps.showLoading.mockRejectedValue(failure);
+
+    await bot.handleEvent(textEvent('สรุป'));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(deps.replyText).toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to show loading animation', { lineUserId: 'U1' }, failure);
   });
 });

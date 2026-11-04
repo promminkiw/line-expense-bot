@@ -47,6 +47,7 @@ function isImageMessage(event) {
 function createBot({
   replyText,
   replyFlex,
+  showLoading,
   parseMessage,
   parseQuestion,
   commentSummary,
@@ -126,6 +127,10 @@ function createBot({
       return;
     }
     const lineUserId = event.source.userId;
+    if (isTextMessage(event) || isImageMessage(event)) {
+      // ไม่ await เพื่อไม่ให้ตอบช้าลง และ animation พังต้องไม่กระทบการบันทึก
+      showLoading(lineUserId).catch((err) => logger.error('Failed to show loading animation', { lineUserId }, err));
+    }
     let reply;
     try {
       reply = await buildReplyBeforeDeadline(event, lineUserId);

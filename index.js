@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { loadConfig } = require('./src/config');
 const { createApp } = require('./src/app');
 const { createBot, SLIP_TTL_MS } = require('./src/chat/bot');
-const { createReplyText, createReplyFlex, createPushText, createPushFlex } = require('./src/chat/line-reply');
+const { createReplyText, createReplyFlex, createPushText, createPushFlex, createShowLoading } = require('./src/chat/line-reply');
 const { createMessageParser } = require('./src/parser/parse-message');
 const { createQuestionParser } = require('./src/query/parse-question');
 const { createRepository } = require('./src/db/repository');
@@ -91,6 +91,7 @@ const bills = createBillService({
 
 const bot = createBot({
   replyText: createReplyText(lineClient),
+  showLoading: createShowLoading(lineClient),
   replyFlex: createReplyFlex(lineClient),
   parseMessage,
   parseQuestion,
