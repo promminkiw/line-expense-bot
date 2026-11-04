@@ -5,10 +5,11 @@ import { createUndoBar } from './undo-bar.mjs';
 function setup() {
   const el = document.createElement('div');
   const textEl = document.createElement('span');
+  const liveEl = document.createElement('p');
   const button = document.createElement('button');
   el.append(textEl, button);
   el.hidden = true;
-  return { el, textEl, button, bar: createUndoBar({ el, textEl, button, durationMs: 5000 }) };
+  return { el, textEl, liveEl, button, bar: createUndoBar({ el, textEl, liveEl, button, durationMs: 5000 }) };
 }
 
 afterEach(() => vi.useRealTimers());
@@ -54,5 +55,38 @@ describe('createUndoBar', () => {
     button.click();
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces the text in the live region and clears it when hidden', () => {
+    vi.useFakeTimers();
+    const { liveEl, bar } = setup();
+
+    bar.show('ลบรายการแล้ว', () => {});
+    expect(liveEl.textContent).toBe('ลบรายการแล้ว');
+
+    bar.hide();
+    expect(liveEl.textContent).toBe('');
+  });
+
+  it('clears the live region when time runs out', () => {
+    vi.useFakeTimers();
+    const { liveEl, bar } = setup();
+
+    bar.show('ลบรายการแล้ว', () => {});
+    vi.advanceTimersByTime(5000);
+
+    expect(liveEl.textContent).toBe('');
+  });
+
+  it('reports whether the bar is visible', () => {
+    vi.useFakeTimers();
+    const { bar } = setup();
+    expect(bar.visible).toBe(false);
+
+    bar.show('ลบรายการแล้ว', () => {});
+    expect(bar.visible).toBe(true);
+
+    bar.hide();
+    expect(bar.visible).toBe(false);
   });
 });

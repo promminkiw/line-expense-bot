@@ -1,4 +1,4 @@
-export function createUndoBar({ el, textEl, button, durationMs }) {
+export function createUndoBar({ el, textEl, liveEl, button, durationMs }) {
   let timer = null;
   let pendingUndo = null;
 
@@ -6,6 +6,8 @@ export function createUndoBar({ el, textEl, button, durationMs }) {
     clearTimeout(timer);
     pendingUndo = null;
     el.hidden = true;
+    // ล้างข้อความเพื่อให้ข้อความเดิมถูกอ่านซ้ำได้ครั้งหน้า
+    liveEl.textContent = '';
   }
 
   button.addEventListener('click', () => {
@@ -20,8 +22,12 @@ export function createUndoBar({ el, textEl, button, durationMs }) {
       pendingUndo = onUndo;
       textEl.textContent = text;
       el.hidden = false;
+      liveEl.textContent = text;
       timer = setTimeout(hide, durationMs);
     },
     hide,
+    get visible() {
+      return !el.hidden;
+    },
   };
 }

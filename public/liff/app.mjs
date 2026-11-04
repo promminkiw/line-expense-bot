@@ -254,6 +254,7 @@ const els = {
   bottomNav: document.getElementById('bottom-nav'),
   undoBar: document.getElementById('undo-bar'),
   undoBarText: document.getElementById('undo-bar-text'),
+  undoBarStatus: document.getElementById('undo-bar-status'),
   undoBarButton: document.getElementById('undo-bar-button'),
 };
 
@@ -731,7 +732,7 @@ function attachSwipe(row) {
 }
 
 const UNDO_DURATION_MS = 5000;
-const undoBar = createUndoBar({ el: els.undoBar, textEl: els.undoBarText, button: els.undoBarButton, durationMs: UNDO_DURATION_MS });
+const undoBar = createUndoBar({ el: els.undoBar, textEl: els.undoBarText, liveEl: els.undoBarStatus, button: els.undoBarButton, durationMs: UNDO_DURATION_MS });
 
 async function refreshAfterTransactionChange(focusId) {
   pendingListFocus = { id: focusId };
@@ -760,6 +761,7 @@ async function deleteBySwipe(item, button) {
     swipeDeleting = false;
   }
   if (!failure || failure.closeAndReload) {
+    undoBar.hide();
     await refreshAfterTransactionChange(focusId);
   } else {
     button.disabled = false;
@@ -774,6 +776,7 @@ function offerUndoDelete(snapshot) {
 }
 
 async function restoreDeleted(snapshot) {
+  showStickyLoadError();
   try {
     await api.restoreTransaction(snapshot);
   } catch (err) {
@@ -782,7 +785,7 @@ async function restoreDeleted(snapshot) {
     if (status !== 409) {
       const failure = describeRestoreFailure(status);
       setBanner(failure.message);
-      if (failure.retryable) offerUndoDelete(snapshot);
+      if (failure.retryable && !undoBar.visible) offerUndoDelete(snapshot);
       return;
     }
   }
@@ -1316,6 +1319,7 @@ async function runEdit(action, kind) {
   }
   els.confirm.close();
   if (!failure) {
+    if (kind === 'delete') undoBar.hide();
     els.editor.close();
     pendingListFocus = { id: focusId };
     await loadMonth();
@@ -1326,6 +1330,7 @@ async function runEdit(action, kind) {
     return;
   }
   if (failure.closeAndReload) {
+    if (kind === 'delete') undoBar.hide();
     els.editor.close();
     pendingListFocus = { id: focusId };
     await loadMonth();
@@ -1817,6 +1822,7 @@ function pushSubPageEntry() {
 
 function enterSubPage(page) {
   if (!activeSubPage) pushSubPageEntry();
+  undoBar.hide();
   activeSubPage = page;
   document.getElementById('app').classList.add('sub-page');
   els.bottomNav.hidden = true;
