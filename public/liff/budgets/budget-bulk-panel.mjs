@@ -1,4 +1,5 @@
 import { createSvgIcon } from '../ui/icons.mjs';
+import { formatMonthLabel } from '../format.mjs';
 import { applyResults, createDraft, draftSummary, entryView, saveDraft, stepDraft } from './budget-bulk.mjs';
 import { formatNumber } from './budgets-format.mjs';
 import { stepBudget } from './budget-edit.mjs';
@@ -130,6 +131,7 @@ export function createBudgetBulkPanel({ doc, els, setBudget, onSaved, onDone }) 
   function show({ budgets, month: nextMonth, first = 'risk' }) {
     draft = createDraft(budgets, { first });
     month = nextMonth;
+    els.month.textContent = `งบเดือน ${formatMonthLabel(month)}`;
     outcomes = new Map();
     busy = false;
     els.cancel.disabled = false;

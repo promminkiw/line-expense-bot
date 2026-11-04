@@ -152,6 +152,7 @@ const els = {
   budgetAllBulkOpen: document.getElementById('budget-all-bulk-open'),
   budgetAllStatus: document.getElementById('budget-all-status'),
   budgetBulkList: document.getElementById('budget-bulk-list'),
+  budgetBulkMonth: document.getElementById('budget-bulk-month'),
   budgetBulkCount: document.getElementById('budget-bulk-count'),
   budgetBulkDelta: document.getElementById('budget-bulk-delta'),
   budgetBulkTotal: document.getElementById('budget-bulk-total'),
@@ -1967,7 +1968,7 @@ openBudgetsAll = ({ tab = 'risk', focusSearch = false } = {}) => {
 const budgetBulkPanel = createBudgetBulkPanel({
   doc: document,
   els: {
-    list: els.budgetBulkList, count: els.budgetBulkCount, delta: els.budgetBulkDelta, total: els.budgetBulkTotal,
+    month: els.budgetBulkMonth, list: els.budgetBulkList, count: els.budgetBulkCount, delta: els.budgetBulkDelta, total: els.budgetBulkTotal,
     cancel: els.budgetBulkCancel, save: els.budgetBulkSave, result: els.budgetBulkResult, resultTitle: els.budgetBulkResultTitle,
     resultSub: els.budgetBulkResultSub, resultList: els.budgetBulkResultList, resultRetry: els.budgetBulkResultRetry,
     resultClose: els.budgetBulkResultClose,

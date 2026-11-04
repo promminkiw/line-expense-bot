@@ -746,6 +746,38 @@ describe('LIFF bulk budget edit', () => {
     expect(byId('budget-bulk-count').textContent).toBe('ยังไม่ได้แก้อะไร');
   });
 
+  it('shows which month the budgets will be saved to', async () => {
+    await openBulk();
+
+    expect(byId('budget-bulk-month').textContent).toBe('งบเดือน 10/2026');
+  });
+
+  it('shows the past month and saves to it when a past month is selected', async () => {
+    await openBudgets();
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+    byId('budget-all-open').click();
+    await settle();
+    byId('budget-all-bulk-open').click();
+    await settle();
+    const bodies = [];
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PUT') bodies.push(JSON.parse(options.body));
+      return original(url, options);
+    });
+
+    expect(byId('budget-bulk-month').textContent).toBe('งบเดือน 09/2026');
+
+    plus('c-shop').click();
+    byId('budget-bulk-save').click();
+    await settle();
+
+    expect(bodies.length).toBeGreaterThan(0);
+    expect(bodies[0].month).toBe('2026-09');
+  });
+
   it('puts the unset categories first when opened from the unset tab', async () => {
     await openBulk('unset');
 
