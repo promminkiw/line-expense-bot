@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createBot,
   SYSTEM_ERROR_REPLY,
+  WELCOME_REPLY,
   RATE_LIMITED_REPLY,
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
@@ -443,7 +444,7 @@ describe('bot text message', () => {
   });
 
   it('uses the agreed wording for the system error message', () => {
-    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ส่งข้อความไม่สำเร็จ รบกวนมาใช้บริการใหม่ภายหลัง');
+    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ถ้าจดรายการไว้ ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าขอสรุปหรือถามยอด ลองใหม่อีกครั้ง');
   });
 });
 
@@ -629,7 +630,7 @@ describe('bot summary command', () => {
 });
 
 describe('bot follow event', () => {
-  it('registers the user without replying', async () => {
+  it('registers the user and greets them', async () => {
     const { deps, bot } = setup();
 
     await bot.handleEvent(followEvent());
@@ -637,7 +638,13 @@ describe('bot follow event', () => {
     expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.resumeMonthlySummary).toHaveBeenCalledWith('U1');
     expect(deps.users.ensureUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
-    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r3', WELCOME_REPLY, undefined);
+  });
+
+  it('keeps the greeting short and shows how to start', () => {
+    expect(WELCOME_REPLY).toBe(
+      'สวัสดี เฮียช่วยจดรายรับรายจ่ายให้คุณเอง\nพิมพ์ชื่อรายการตามด้วยจำนวนเงินได้เลย เช่น กินข้าว 60\nส่งรูปสลิปก็ได้ หรือกด วิธีการใช้ ในเมนูด้านล่างเพื่อดูทั้งหมด'
+    );
   });
 
   it('logs but does not reply when resuming the monthly summary fails', async () => {

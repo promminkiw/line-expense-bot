@@ -5,6 +5,7 @@ const { createPostbackHandlers } = require('./postback');
 const { createTextHandlers } = require('./text');
 const {
   SYSTEM_ERROR_REPLY,
+  WELCOME_REPLY,
   SLOW_PROCESSING_REPLY,
   RATE_LIMITED_REPLY,
   QUESTION_FAILED_REPLY,
@@ -35,7 +36,7 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
-// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบมีปัญหาหรือตอบช้า
+// follow และ unfollow ไม่ส่งข้อความ error และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบ
 function isSilentEvent(event) {
   return event.type === 'follow' || event.type === 'unfollow';
 }
@@ -75,7 +76,7 @@ function createBot({
     if (event.type === 'follow') {
       await users.ensureUser(lineUserId);
       await repository.resumeMonthlySummary(lineUserId);
-      return null;
+      return { text: WELCOME_REPLY };
     }
     if (event.type === 'unfollow') {
       await repository.disableNotifications(lineUserId);
@@ -169,6 +170,7 @@ function createBot({
 module.exports = {
   createBot,
   SYSTEM_ERROR_REPLY,
+  WELCOME_REPLY,
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   RATE_LIMITED_REPLY,
