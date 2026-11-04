@@ -123,7 +123,7 @@
 - friendships: user_id, friend_id, created_at (สองแถวต่อคู่ A->B และ B->A)
 - bills / bill_members: บิล สถานะ open/cancelled ส่วนของสมาชิก pending/confirmed/declined, paid, notified (`013`-`015`)
 - notification_log: user_id, kind, period, created_at (PK ทั้งสาม จองก่อน push)
-- savings_goals / goal_contributions: เป้า และรายการออม (line_event_id ใช้กับปุ่มยกเลิกในแชต) (`023`)
+- savings_goals / goal_contributions: เป้า และรายการออม (line_event_id ใช้กับปุ่มลบในแชต) (`023`)
 - ทุกตารางผูก user_id เปิด RLS ทุกตาราง ตารางใหม่ไม่มี policy ใช้ผ่าน service role เท่านั้น วันที่ที่รับจาก API อยู่ในปี 2000-2100
 
 ## Security

@@ -197,7 +197,7 @@ describe('style.css redesign constraints', () => {
 });
 
 describe('style.css Thai line breaks', () => {
-  // ตัวตัดคำของ browser ตัด เฮียบันทึก เป็น เฮียบัน/ทึก
+  // ตัวตัดคำของ browser ตัด บอทบันทึก เป็น บอทบัน/ทึก
   it('keeps marked word pairs on one line', () => {
     expect(declarations('.nowrap')).toMatch(/white-space:\s*nowrap/);
   });
