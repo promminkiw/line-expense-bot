@@ -1154,7 +1154,7 @@ describe('LIFF viewed month notice', () => {
     byId('month-context-today').click();
     await settle();
 
-    expect(document.activeElement).toBe(byId('month'));
+    expect(document.activeElement).toBe(byId('page-title'));
     expect(byId('month').value).toBe('2026-10');
     expect(byId('month-context').hidden).toBe(true);
   });

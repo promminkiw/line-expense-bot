@@ -63,6 +63,7 @@ const CHART_COLOR_COUNT = 6;
 
 const els = {
   month: document.getElementById('month'),
+  pageTitle: document.getElementById('page-title'),
   monthContext: document.getElementById('month-context'),
   monthContextText: document.getElementById('month-context-text'),
   monthContextToday: document.getElementById('month-context-today'),
@@ -809,12 +810,14 @@ function offerUndoDelete(snapshot) {
 
 async function restoreDeleted(snapshot) {
   showStickyLoadError();
+  const done = undoBar.showBusy('กำลังกู้คืน...');
   try {
     await api.restoreTransaction(snapshot);
   } catch (err) {
     const status = err instanceof ApiError ? err.status : undefined;
     // 409 คือแถวกลับมาแล้วจากการกดครั้งก่อนที่ไม่ได้รับคำตอบ
     if (status !== 409) {
+      done();
       const failure = describeRestoreFailure(status);
       setBanner(failure.message);
       if (failure.retryable && !undoBar.visible) offerUndoDelete(snapshot);
@@ -822,6 +825,7 @@ async function restoreDeleted(snapshot) {
     }
   }
   await refreshAfterTransactionChange(snapshot.id);
+  done();
 }
 
 // แถวที่อยู่ติดกันที่ยังเห็นอยู่ ใช้รับ focus หลังลบ (ถัดไปก่อน ไม่มีก็แถวก่อนหน้า)
@@ -1430,14 +1434,14 @@ els.editor.addEventListener('cancel', (event) => {
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
 els.swipeHintDismiss.addEventListener('click', () => {
-  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ
-  els.month.focus();
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ ไม่ใช้ช่องเดือนเพราะ iOS อาจเปิดตัวเลือกเดือนเอง
+  els.pageTitle.focus();
   dismissSwipeHint();
 });
 els.monthContextToday.addEventListener('click', () => {
   els.month.value = currentMonth(new Date());
-  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ
-  els.month.focus();
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ ไม่ใช้ช่องเดือนเพราะ iOS อาจเปิดตัวเลือกเดือนเอง
+  els.pageTitle.focus();
   loadMonth({ reset: true });
 });
 

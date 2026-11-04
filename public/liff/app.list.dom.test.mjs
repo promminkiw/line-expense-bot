@@ -295,6 +295,45 @@ describe('LIFF list swipe to delete', () => {
     expect(restoreBodies.map((body) => body.id)).toEqual(['restored', 'newer']);
   });
 
+  it('shows that the restore is running until it finishes', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return {};
+      return undefined;
+    });
+    const { release } = watchRestore({ hold: true });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(false);
+    expect(byId('undo-bar-text').textContent).toBe('กำลังกู้คืน...');
+    expect(byId('undo-bar-button').hidden).toBe(true);
+
+    release({ ok: true, status: 200, json: async () => ({}) });
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('explains a 400 restore and offers no bar', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 400 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').textContent).toBe('กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว');
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
   it('hides the undo bar when a sub-page opens', async () => {
     await boot();
     routeFetch((method, path) => (method === 'DELETE' && path.startsWith('/api/transactions/') ? { restore: SNAPSHOT } : undefined));
@@ -627,7 +666,7 @@ describe('LIFF swipe hint', () => {
 
     byId('swipe-hint-dismiss').click();
 
-    expect(document.activeElement).toBe(byId('month'));
+    expect(document.activeElement).toBe(byId('page-title'));
   });
 
   it('does not move focus when a swipe dismisses the hint', async () => {

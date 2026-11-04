@@ -78,6 +78,44 @@ describe('createUndoBar', () => {
     expect(liveEl.textContent).toBe('');
   });
 
+  it('shows a busy text without the button and without a timeout hide', () => {
+    vi.useFakeTimers();
+    const { el, textEl, liveEl, button, bar } = setup();
+
+    bar.showBusy('กำลังกู้คืน...');
+    vi.advanceTimersByTime(60000);
+
+    expect(el.hidden).toBe(false);
+    expect(textEl.textContent).toBe('กำลังกู้คืน...');
+    expect(liveEl.textContent).toBe('กำลังกู้คืน...');
+    expect(button.hidden).toBe(true);
+  });
+
+  it('hides when the busy state is done and brings the button back on the next show', () => {
+    vi.useFakeTimers();
+    const { el, button, bar } = setup();
+
+    const done = bar.showBusy('กำลังกู้คืน...');
+    done();
+    expect(el.hidden).toBe(true);
+
+    bar.showBusy('กำลังกู้คืน...');
+    bar.show('ลบรายการแล้ว', () => {});
+    expect(button.hidden).toBe(false);
+  });
+
+  it('does not hide a newer show when an older busy state finishes', () => {
+    vi.useFakeTimers();
+    const { el, textEl, bar } = setup();
+
+    const done = bar.showBusy('กำลังกู้คืน...');
+    bar.show('ลบรายการแล้ว', () => {});
+    done();
+
+    expect(el.hidden).toBe(false);
+    expect(textEl.textContent).toBe('ลบรายการแล้ว');
+  });
+
   it('reports whether the bar is visible', () => {
     vi.useFakeTimers();
     const { bar } = setup();
