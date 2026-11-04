@@ -162,7 +162,7 @@ describe('help sections', () => {
   });
 
   it('documents the undo button under the saved message', () => {
-    expect(sectionLines('↩️ บันทึกผิด')).toContain('กดปุ่ม "ลบรายการนี้" บนการ์ด "เฮียบันทึกแล้ว" ได้เลย');
+    expect(sectionLines('↩️ บันทึกผิด')).toContain('กดปุ่มลบบนการ์ด "เฮียบันทึกแล้ว" ได้เลย');
   });
 
   it('does not claim the delete button disappears, because it stays on the card', () => {

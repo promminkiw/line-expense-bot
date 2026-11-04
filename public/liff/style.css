@@ -2,7 +2,7 @@
 [hidden] { display: none !important; }
 body { margin: 0; font-family: system-ui, "Leelawadee UI", Tahoma, sans-serif; line-height: 1.5; background: var(--bg); color: var(--text); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-/* ตัวตัดคำไทยของ browser ไม่รู้จักคำยืม บอท จึงตัดคำถัดไปกลางคำ ห่อคู่คำไว้ไม่ให้ขึ้นบรรทัดใหม่ */
+/* ตัวตัดคำไทยของ browser อาจตัดกลางคำที่ไม่รู้จัก จึงห่อคู่คำไว้ไม่ให้ขึ้นบรรทัดใหม่ */
 .nowrap { white-space: nowrap; }
 .top-sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); }
 .bar { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: max(10px, env(safe-area-inset-top)) 16px 12px; background: var(--primary); color: var(--on-primary); border-radius: 0 0 var(--radius-card) var(--radius-card); }

@@ -162,7 +162,7 @@ function createTransactionsRepository(supabase) {
       .select('id');
     // กดเลิกทำซ้ำจนแถวกลับมาแล้ว ไม่ใช่ error ของระบบ
     if (error && error.code === UNIQUE_VIOLATION) return 'exists';
-    // หมวดหรือ event ถูกลบระหว่างตรวจกับ insert
+    // หมวด กระเป๋า หรือ event ถูกลบระหว่างตรวจกับ insert
     if (error && error.code === FOREIGN_KEY_VIOLATION) return 'invalid';
     throwIfError('restoreTransaction', error);
     return 'restored';
