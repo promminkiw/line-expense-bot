@@ -801,3 +801,6 @@ dialog.budget-confirm h2 { margin: 0; text-align: center; font-size: 20px; font-
 .month-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 16px; background: var(--notice-bg); color: var(--notice-text); font-size: 14px; }
 .month-context[hidden] { display: none; }
 .month-context button { min-height: 44px; padding: 0 4px; border: none; background: none; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; white-space: nowrap; }
+.swipe-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 16px 0; color: var(--muted); font-size: 14px; }
+.swipe-hint[hidden] { display: none; }
+.swipe-hint button { min-height: 44px; padding: 0 4px; border: none; background: none; color: var(--primary); font: inherit; font-weight: 700; }

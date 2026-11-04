@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { TRANSACTIONS, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, deleteFirstRow, cleanupGlobals } from './dom-harness.mjs';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { EMPTY_MONTH, TRANSACTIONS, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, deleteFirstRow, cleanupGlobals } from './dom-harness.mjs';
 
 afterEach(cleanupGlobals);
 
@@ -575,5 +575,43 @@ describe('LIFF small tickets', () => {
     await settle();
 
     expect(document.activeElement).toBe(byId('month'));
+  });
+});
+
+describe('LIFF swipe hint', () => {
+  beforeEach(() => localStorage.clear());
+
+  afterEach(() => localStorage.clear());
+
+  it('shows once there are rows and stays dismissed after the button', async () => {
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+
+    byId('swipe-hint-dismiss').click();
+    expect(byId('swipe-hint').hidden).toBe(true);
+
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('dismisses itself when a row is swiped open', async () => {
+    await boot();
+
+    swipeRow(firstRows()[0], 60);
+
+    expect(byId('swipe-hint').hidden).toBe(true);
+    expect(localStorage.getItem('swipe-hint-seen')).toBe('1');
+  });
+
+  it('stays hidden on an empty month', async () => {
+    await boot({ overrides: { '/api/transactions': EMPTY_MONTH } });
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('still works when storage throws', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+    spy.mockRestore();
   });
 });

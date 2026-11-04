@@ -117,7 +117,7 @@ describe('index.html static invariants', () => {
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
     const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
-    expect(tips).toHaveLength(6);
+    expect(tips).toHaveLength(7);
     expect(tips.some((tip) => tip.includes('เดือนนี้กินกาแฟไปเท่าไหร่'))).toBe(true);
     expect(tips.at(-1)).toContain('"ช่วยเหลือ"');
   });
@@ -1246,5 +1246,57 @@ describe('LIFF amount inputs', () => {
     await settle();
 
     expect(sent.amount).toBe(1500);
+  });
+});
+
+describe('LIFF scroll restore', () => {
+  const setScrollY = (value) => Object.defineProperty(window, 'scrollY', { value, configurable: true });
+
+  afterEach(() => setScrollY(0));
+
+  it('returns to where the tab was when switching back', async () => {
+    await boot();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(420);
+    clickTab('summary');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+    setScrollY(0);
+    clickTab('list');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 420);
+    scrollTo.mockRestore();
+  });
+
+  it('forgets saved positions after the month changes', async () => {
+    await boot();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(420);
+    clickTab('summary');
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+
+    clickTab('list');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
+  it('returns to the owner tab position after leaving a sub-page', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(300);
+    byId('wallets-open').click();
+    await settle();
+    setScrollY(0);
+    byId('page-back').click();
+    await settle();
+
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 300);
+    scrollTo.mockRestore();
   });
 });

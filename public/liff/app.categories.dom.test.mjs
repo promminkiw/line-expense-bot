@@ -716,7 +716,7 @@ describe('LIFF usage page under the me tab', () => {
     byId('tips-open').click();
 
     expect(byId('panel-tips').hidden).toBe(false);
-    expect(document.querySelectorAll('#panel-tips .profile-tips li')).toHaveLength(6);
+    expect(document.querySelectorAll('#panel-tips .profile-tips li')).toHaveLength(7);
     expect(byId('page-title').textContent).toBe('วิธีใช้งาน');
     expect(byId('page-back').getAttribute('aria-label')).toBe('กลับไปหน้าฉัน');
 

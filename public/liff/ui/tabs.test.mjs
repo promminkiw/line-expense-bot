@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TABS, DEFAULT_TAB, findTab, createTabController } from './tabs.mjs';
 
-function setup() {
+function setup(overrides = {}) {
   document.body.replaceChildren();
   const nav = document.createElement('nav');
   const titleEl = document.createElement('h1');
@@ -15,7 +15,7 @@ function setup() {
     panels.set(tab.id, panel);
   }
   const onChange = vi.fn();
-  const controller = createTabController({ doc: document, nav, titleEl, monthEl, panelFor: (id) => panels.get(id), onChange });
+  const controller = createTabController({ doc: document, nav, titleEl, monthEl, panelFor: (id) => panels.get(id), onChange, ...overrides });
   return { nav, titleEl, monthEl, panels, onChange, controller };
 }
 
@@ -117,5 +117,24 @@ describe('createTabController', () => {
 
     expect(ctx.controller.current).toBe('profile');
     expect(ctx.panels.get('profile').hidden).toBe(false);
+  });
+});
+
+describe('createTabController onBeforeChange', () => {
+  it('reports the previous tab before switching but not on a forced re-select', () => {
+    const order = [];
+    const { controller } = setup({
+      onBeforeChange: (id) => order.push(`before:${id}`),
+      onChange: (id) => order.push(`change:${id}`),
+    });
+    controller.select('list');
+    order.length = 0;
+
+    controller.select('summary');
+    expect(order).toEqual(['before:list', 'change:summary']);
+
+    order.length = 0;
+    controller.select('summary', { force: true });
+    expect(order).toEqual(['change:summary']);
   });
 });
