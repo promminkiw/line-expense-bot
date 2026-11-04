@@ -1,4 +1,4 @@
-const { throwIfError, UNIQUE_VIOLATION } = require('../errors');
+const { throwIfError, UNIQUE_VIOLATION, FOREIGN_KEY_VIOLATION } = require('../errors');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id, wallet_id';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
@@ -161,9 +161,22 @@ function createTransactionsRepository(supabase) {
       })
       .select('id');
     // กดเลิกทำซ้ำจนแถวกลับมาแล้ว ไม่ใช่ error ของระบบ
-    if (error && error.code === UNIQUE_VIOLATION) return false;
+    if (error && error.code === UNIQUE_VIOLATION) return 'exists';
+    // หมวดหรือ event ถูกลบระหว่างตรวจกับ insert
+    if (error && error.code === FOREIGN_KEY_VIOLATION) return 'invalid';
     throwIfError('restoreTransaction', error);
-    return true;
+    return 'restored';
+  }
+
+  async function ownsLineEvent(userId, webhookEventId) {
+    const { data, error } = await supabase
+      .from('line_events')
+      .select('webhook_event_id')
+      .eq('webhook_event_id', webhookEventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    throwIfError('ownsLineEvent', error);
+    return Boolean(data);
   }
 
   return {
@@ -175,6 +188,7 @@ function createTransactionsRepository(supabase) {
     updateTransaction,
     deleteTransaction,
     restoreTransaction,
+    ownsLineEvent,
   };
 }
 

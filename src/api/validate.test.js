@@ -303,6 +303,16 @@ describe('validateTransactionRestore', () => {
     expect(validateTransactionRestore({ ...BODY, source: 'recurring', lineEventId }).ok).toBe(true);
   });
 
+  it.each([
+    ['a date before 2000', { occurredOn: '1999-12-31' }],
+    ['a Buddhist-era year', { occurredOn: '2569-01-01' }],
+    ['a note of 250 characters', { note: 'ก'.repeat(250) }],
+    ['a note with surrounding spaces kept as stored', { note: ' กินข้าว ' }],
+    ['microseconds in createdAt', { createdAt: '2026-10-01T01:00:00.123456+00:00' }],
+  ])('accepts %s because the chat path stored it', (_label, patch) => {
+    expect(validateTransactionRestore({ ...BODY, ...patch })).toEqual({ ok: true, value: { ...BODY, ...patch } });
+  });
+
   it('lowercases the id because Postgres stores uuid in lowercase', () => {
     const id = 'AAAAAAAA-2222-3333-4444-555555555555';
     expect(validateTransactionRestore({ ...BODY, id }).value.id).toBe(id.toLowerCase());
@@ -317,6 +327,11 @@ describe('validateTransactionRestore', () => {
     ['source', 'bill', 'Invalid source'],
     ['lineEventId', 5, 'Invalid event'],
     ['createdAt', 'not-a-date', 'Invalid time'],
+    ['createdAt', '1', 'Invalid time'],
+    ['createdAt', 'foo 1', 'Invalid time'],
+    ['createdAt', '2026-02-31T01:00:00+00:00', 'Invalid time'],
+    ['note', 'ก'.repeat(2001), 'Invalid note'],
+    ['note', 5, 'Invalid note'],
   ])('rejects a bad %s', (field, value, error) => {
     expect(validateTransactionRestore({ ...BODY, [field]: value })).toEqual({ ok: false, error });
   });

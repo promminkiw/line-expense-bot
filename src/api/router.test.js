@@ -55,7 +55,8 @@ function setup(overrides = {}) {
       ]),
       updateTransaction: vi.fn().mockResolvedValue(true),
       deleteTransaction: vi.fn().mockResolvedValue(DELETED_SNAPSHOT),
-      restoreTransaction: vi.fn().mockResolvedValue(true),
+      restoreTransaction: vi.fn().mockResolvedValue('restored'),
+      ownsLineEvent: vi.fn().mockResolvedValue(true),
       createExportLink: vi.fn().mockResolvedValue(),
       deleteExpiredExportLinks: vi.fn().mockResolvedValue(),
       getBudgetStatus: vi.fn().mockResolvedValue([
@@ -1158,6 +1159,17 @@ describe('DELETE /api/transactions/:id', () => {
     expect(await res.json()).toEqual({ restore: null });
   });
 
+  it('offers no restore for a note longer than restore accepts', async () => {
+    const deps = setup();
+    deps.repository.deleteTransaction.mockResolvedValue({ ...DELETED_SNAPSHOT, note: 'ก'.repeat(2001) });
+    const base = await start(deps);
+
+    const res = await call(base, `/transactions/${ID}`, { method: 'DELETE' });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ restore: null });
+  });
+
   it('returns 404 when nothing was deleted', async () => {
     const deps = setup();
     deps.repository.deleteTransaction.mockResolvedValue(null);
@@ -1211,9 +1223,72 @@ describe('POST /api/transactions/restore', () => {
     expect(deps.repository.restoreTransaction).not.toHaveBeenCalled();
   });
 
+  it("checks category and wallet against the verified caller's data", async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await post(base, { ...DELETED_SNAPSHOT, walletId: WALLET_ID });
+
+    expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
+    expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
+    expect(deps.repository.ownsLineEvent).toHaveBeenCalledWith('user-1', 'ev1');
+  });
+
+  it('ignores a forged userId and type in the body', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    await post(base, { ...DELETED_SNAPSHOT, userId: 'someone-else', type: 'income' });
+
+    expect(deps.repository.restoreTransaction).toHaveBeenCalledWith('user-1', { ...DELETED_SNAPSHOT, type: 'expense' });
+  });
+
+  it('returns 400 from the validator without reading categories', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await post(base, { ...DELETED_SNAPSHOT, amount: 0 });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid amount' });
+    expect(deps.repository.listCategories).not.toHaveBeenCalled();
+  });
+
+  it('skips the event check when there is no event', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await post(base, { ...DELETED_SNAPSHOT, lineEventId: null });
+
+    expect(res.status).toBe(204);
+    expect(deps.repository.ownsLineEvent).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for an event of someone else', async () => {
+    const deps = setup();
+    deps.repository.ownsLineEvent.mockResolvedValue(false);
+    const base = await start(deps);
+
+    const res = await post(base, DELETED_SNAPSHOT);
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'Invalid event' });
+    expect(deps.repository.restoreTransaction).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when the repository reports a removed category or event', async () => {
+    const deps = setup();
+    deps.repository.restoreTransaction.mockResolvedValue('invalid');
+    const base = await start(deps);
+
+    const res = await post(base, DELETED_SNAPSHOT);
+
+    expect(res.status).toBe(400);
+  });
+
   it('returns 409 when the id already exists', async () => {
     const deps = setup();
-    deps.repository.restoreTransaction.mockResolvedValue(false);
+    deps.repository.restoreTransaction.mockResolvedValue('exists');
     const base = await start(deps);
 
     const res = await post(base, DELETED_SNAPSHOT);

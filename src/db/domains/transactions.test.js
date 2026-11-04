@@ -331,7 +331,7 @@ describe('repository.restoreTransaction', () => {
   it('inserts the row under this user with its original id and time', async () => {
     const { supabase, calls } = fakeSupabase({ data: [{ id: 't1' }], error: null });
 
-    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe(true);
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('restored');
     expect(calls).toEqual([
       ['from', 'transactions'],
       ['insert', {
@@ -342,15 +342,48 @@ describe('repository.restoreTransaction', () => {
     ]);
   });
 
-  it('returns false when the id already exists', async () => {
+  it('reports exists when the id already exists', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'dup', code: '23505' } });
 
-    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe(false);
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('exists');
+  });
+
+  it('reports invalid when the category or event was removed meanwhile', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'fk', code: '23503' } });
+
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('invalid');
   });
 
   it('throws DatabaseError on other errors', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 
     await expect(createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.ownsLineEvent', () => {
+  it('is true when the event row belongs to this user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { webhook_event_id: 'ev1' }, error: null });
+
+    expect(await createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'line_events'],
+      ['select', 'webhook_event_id'],
+      ['eq', 'webhook_event_id', 'ev1'],
+      ['eq', 'user_id', 'user-1'],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('is false when there is no such row for this user', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).toBe(false);
+  });
+
+  it('throws DatabaseError on error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).rejects.toBeInstanceOf(DatabaseError);
   });
 });

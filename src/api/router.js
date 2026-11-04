@@ -412,8 +412,8 @@ function createApiRouter({
       res.status(404).json({ error: 'Not found' });
       return;
     }
-    // บิลเก็บลิงก์แบบ on delete set null กู้คืนแล้วยกเลิกบิลจะไม่ลบรายการนี้
-    res.json({ restore: deleted.source === 'bill' ? null : deleted });
+    // เสนอเลิกทำเฉพาะรายการที่ restore รับได้ (บิลถูกตัดเพราะลิงก์ on delete set null ไม่กลับมา)
+    res.json({ restore: validateTransactionRestore(deleted).ok ? deleted : null });
   });
 
   router.post('/transactions/restore', async (req, res) => {
@@ -435,9 +435,18 @@ function createApiRouter({
         return;
       }
     }
-    const restored = await repository.restoreTransaction(req.userId, { ...result.value, type: category.type });
-    if (!restored) {
+    const { lineEventId } = result.value;
+    if (lineEventId !== null && !(await repository.ownsLineEvent(req.userId, lineEventId))) {
+      res.status(400).json({ error: 'Invalid event' });
+      return;
+    }
+    const outcome = await repository.restoreTransaction(req.userId, { ...result.value, type: category.type });
+    if (outcome === 'exists') {
       res.status(409).json({ error: 'Already exists' });
+      return;
+    }
+    if (outcome === 'invalid') {
+      res.status(400).json({ error: 'Invalid category' });
       return;
     }
     res.status(204).end();

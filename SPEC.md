@@ -29,7 +29,7 @@
 - หน้าย่อยซ้อนกันได้ (parent) ปุ่มย้อนกลับกลับหน้าแม่ก่อนออกจากชุดหน้าย่อย
 - เปิดหน้าค้างไว้ข้ามเดือน (เวลาไทย): ตอนกลับมาที่หน้า ช่องเดือนเปลี่ยนเป็นเดือนใหม่แล้วโหลดใหม่ แม้กำลังดูเดือนเก่าอยู่ ถ้ามีแผ่นแก้ไขหรือหน้าย่อยเปิดอยู่จะรอจนปิดก่อน ไม่ใช้ timer
 - API: `GET /api/trend?month=`, `GET /api/profile` (SQL `010_profile_and_trend.sql`)
-- API: `DELETE /api/transactions/:id` ตอบ `{ restore }` (`null` เมื่อเป็นรายการจากบิล), `POST /api/transactions/restore` รับ `restore` กลับมา ตอบ 204 หรือ 409 เมื่อ id มีอยู่แล้ว
+- API: `DELETE /api/transactions/:id` ตอบ `{ restore }` (`null` เมื่อเป็นรายการจากบิลหรือ restore รับไม่ได้ เช่น โน้ตยาวเกิน 2000 ตัวอักษร), `POST /api/transactions/restore` รับ `restore` กลับมา ตอบ 204 หรือ 409 เมื่อ id มีอยู่แล้ว
 
 ### 4. Rich Menu
 - หารบิล / เสนอแนะ / วิธีการใช้ (`ช่วยเหลือ`) / เว็บไซต์ / สรุป สร้างใน LINE OA Manager

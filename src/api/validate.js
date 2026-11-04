@@ -67,6 +67,9 @@ function validateTransactionUpdate(body) {
 // บิลไม่อยู่ในรายการนี้ เพราะกู้คืนแล้วลิงก์กับบิลไม่กลับมา
 const RESTORABLE_SOURCES = ['text', 'slip', 'recurring'];
 const MAX_EVENT_ID_LENGTH = 200;
+// body จำกัด 10kb จึงต้องมีเพดานโน้ตที่รายการจากแชตเก็บได้ไม่จำกัด
+const MAX_RESTORE_NOTE_LENGTH = 2000;
+const CREATED_AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}(:\d{2})?)$/;
 
 function validateTransactionRestore(body) {
   if (!body || typeof body !== 'object') {
@@ -76,8 +79,18 @@ function validateTransactionRestore(body) {
   if (typeof id !== 'string' || !UUID_PATTERN.test(id)) {
     return { ok: false, error: 'Invalid id' };
   }
-  const base = validateTransactionUpdate({ amount, categoryId, occurredOn, note });
-  if (!base.ok) return base;
+  if (!isValidAmount(amount)) {
+    return { ok: false, error: 'Invalid amount' };
+  }
+  if (typeof categoryId !== 'string' || categoryId.length === 0) {
+    return { ok: false, error: 'Invalid category' };
+  }
+  if (!isValidCalendarDate(occurredOn)) {
+    return { ok: false, error: 'Invalid date' };
+  }
+  if (typeof note !== 'string' || note.length > MAX_RESTORE_NOTE_LENGTH) {
+    return { ok: false, error: 'Invalid note' };
+  }
   if (walletId !== null && (typeof walletId !== 'string' || walletId.length === 0)) {
     return { ok: false, error: 'Invalid wallet' };
   }
@@ -87,10 +100,10 @@ function validateTransactionRestore(body) {
   if (lineEventId !== null && (typeof lineEventId !== 'string' || lineEventId.length === 0 || lineEventId.length > MAX_EVENT_ID_LENGTH)) {
     return { ok: false, error: 'Invalid event' };
   }
-  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) {
+  if (typeof createdAt !== 'string' || !CREATED_AT_PATTERN.test(createdAt) || !isValidAppDate(createdAt.slice(0, 10))) {
     return { ok: false, error: 'Invalid time' };
   }
-  return { ok: true, value: { ...base.value, id: id.toLowerCase(), walletId, source, lineEventId, createdAt } };
+  return { ok: true, value: { id: id.toLowerCase(), amount, categoryId, occurredOn, note, walletId, source, lineEventId, createdAt } };
 }
 
 function validateRecurringRule(body) {
