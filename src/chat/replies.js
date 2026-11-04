@@ -1,11 +1,6 @@
 const { buildSavedFlex } = require('../parser/saved-flex');
 
 const SYSTEM_ERROR_REPLY = 'เฮียขออภัย ระบบมีปัญหา ถ้าจดรายการไว้ ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ขอสรุป หรือถามยอด ลองใหม่อีกครั้ง';
-const WELCOME_REPLY = [
-  'สวัสดี เฮียช่วยจดรายรับรายจ่ายให้คุณเอง',
-  'พิมพ์ชื่อรายการตามด้วยจำนวนเงินได้เลย เช่น กินข้าว 60',
-  'ส่งรูปสลิปก็ได้ หรือกด วิธีการใช้ ในเมนูด้านล่างเพื่อดูทั้งหมด',
-].join('\n');
 const SLOW_PROCESSING_REPLY =
   'เฮียตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป เฮียตามไม่ทัน รอสักครู่แล้วลองใหม่อีกครั้ง';
@@ -99,7 +94,6 @@ function buildSummaryQuickReply() {
 
 module.exports = {
   SYSTEM_ERROR_REPLY,
-  WELCOME_REPLY,
   SLOW_PROCESSING_REPLY,
   RATE_LIMITED_REPLY,
   QUESTION_FAILED_REPLY,

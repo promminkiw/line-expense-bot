@@ -5,7 +5,6 @@ const { createPostbackHandlers } = require('./postback');
 const { createTextHandlers } = require('./text');
 const {
   SYSTEM_ERROR_REPLY,
-  WELCOME_REPLY,
   SLOW_PROCESSING_REPLY,
   RATE_LIMITED_REPLY,
   QUESTION_FAILED_REPLY,
@@ -36,17 +35,9 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
-// follow และ unfollow ไม่ส่งข้อความ error และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบ
+// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบ
 function isSilentEvent(event) {
   return event.type === 'follow' || event.type === 'unfollow';
-}
-
-// ผู้ใช้ใหม่ต้องเห็นคำทักทายแม้ฐานข้อมูลพัง ส่วน unfollow ไม่มี replyToken
-function errorReplyFor(event) {
-  if (event.type === 'follow') {
-    return { text: WELCOME_REPLY };
-  }
-  return isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
 }
 
 function isImageMessage(event) {
@@ -84,7 +75,7 @@ function createBot({
     if (event.type === 'follow') {
       await users.ensureUser(lineUserId);
       await repository.resumeMonthlySummary(lineUserId);
-      return { text: WELCOME_REPLY };
+      return null;
     }
     if (event.type === 'unfollow') {
       await repository.disableNotifications(lineUserId);
@@ -147,7 +138,7 @@ function createBot({
       reply = await buildReplyBeforeDeadline(event, lineUserId);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
-      reply = errorReplyFor(event);
+      reply = isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
     }
     if (reply) {
       try {
@@ -178,7 +169,6 @@ function createBot({
 module.exports = {
   createBot,
   SYSTEM_ERROR_REPLY,
-  WELCOME_REPLY,
   SLOW_PROCESSING_REPLY,
   REPLY_DEADLINE_MS,
   RATE_LIMITED_REPLY,
