@@ -313,6 +313,10 @@ describe('validateTransactionRestore', () => {
     expect(validateTransactionRestore({ ...BODY, ...patch })).toEqual({ ok: true, value: { ...BODY, ...patch } });
   });
 
+  it('accepts an empty note and a slip source', () => {
+    expect(validateTransactionRestore({ ...BODY, note: '', source: 'slip' })).toEqual({ ok: true, value: { ...BODY, note: '', source: 'slip' } });
+  });
+
   it('lowercases the id because Postgres stores uuid in lowercase', () => {
     const id = 'AAAAAAAA-2222-3333-4444-555555555555';
     expect(validateTransactionRestore({ ...BODY, id }).value.id).toBe(id.toLowerCase());

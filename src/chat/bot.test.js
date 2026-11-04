@@ -2344,6 +2344,15 @@ describe('bot loading animation', () => {
     expect(deps.showLoading).not.toHaveBeenCalled();
   });
 
+  it('still replies when the animation never settles', async () => {
+    const { deps, bot } = setup();
+    deps.showLoading.mockReturnValue(new Promise(() => {}));
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.replyText).toHaveBeenCalled();
+  });
+
   it('still replies and logs when the animation fails', async () => {
     const { deps, bot } = setup();
     const failure = new Error('line down');
