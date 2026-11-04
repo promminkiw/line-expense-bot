@@ -56,7 +56,7 @@ Goal: merge feat/nielsen-ux ได้เมื่อผู้ใช้ทำข�
 
 ## Done
 - [x] Nielsen UX (2026-11-04, branch feat/nielsen-ux ยังไม่ merge ยังไม่ push): ปัดลบพร้อมเลิกทำ, ข้อความเฮีย, คอมมาในช่องยอดของฟอร์มเดี่ยว ยอดบิล และงบ (ไม่รวมส่วนแบ่งในบิล), กำลังกู้คืน...; แผน plans/2026-11-04-nielsen-ux.md
-    review ทั้ง branch เสร็จ เหลือข้อที่ปักไว้ใน Next; npm test 2653/2653 (--testTimeout=30000) lint ผ่าน; ledger .superpowers/sdd/progress.md ขึ้นต้น NX
+    review ทั้ง branch เสร็จ เหลือข้อที่ปักไว้ใน Next; npm test 2667/2667 (--testTimeout=30000) lint ผ่าน; ledger .superpowers/sdd/progress.md ขึ้นต้น NX
 - [x] สรุปรายเดือน (2026-10-31, merge feat/monthly-summary และ push แล้ว): push วันที่ 1 08:00 สรุปเดือนก่อน การ์ด/ข้อความชวนเดือนว่าง เฮียสำเร็จรูป 6 แบบ endpoint /internal/notifications/monthly; SQL 026; SPEC ข้อ 15
     แผน plans/2026-10-30-monthly-summary.md; final review dragon+viper+panda+coral ผ่านหลังรอบแก้; npm test 2504/2504 lint ผ่าน
 - [x] ช่องเดือนเปลี่ยนเองเมื่อข้ามเดือน (2026-10-30, 38d54fe push แล้ว): public/liff/month-rollover.mjs เช็กตอนกลับมาที่หน้า รอปิด dialog/หน้าย่อย; SPEC เว็บ LIFF; npm test 2463/2463 lint ผ่าน
