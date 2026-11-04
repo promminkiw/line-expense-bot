@@ -756,7 +756,8 @@ dialog.budget-confirm h2 { margin: 0; text-align: center; font-size: 20px; font-
 .budget-all-status:empty { display: none; }
 .budget-all-foot { position: sticky; bottom: 0; padding: 12px 16px 16px; background: var(--bg); }
 .budget-all-foot .budget-cta { margin-top: 0; }
-.budget-bulk-hint { margin: 12px 20px 0; font-size: 13px; color: var(--muted); }
+.budget-bulk-month { margin: 12px 20px 0; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.budget-bulk-hint { margin: 4px 20px 0; font-size: 13px; color: var(--muted); }
 .budget-bulk-list { margin: 8px 16px 0; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-card); overflow: hidden; }
 .budget-bulk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; min-height: 68px; box-sizing: border-box; padding: 6px 10px 6px 16px; border-bottom: 1px solid var(--border); }
 .budget-bulk-row.dirty { background: var(--brand-soft); box-shadow: inset 4px 0 0 var(--primary); }
