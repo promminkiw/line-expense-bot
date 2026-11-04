@@ -775,11 +775,14 @@ describe('parseAmountText', () => {
     ['1,500.50', 1500.5],
     [' 60 ', 60],
     ['60', 60],
+    ['1,000,000', 1000000],
+    ['.5', 0.5],
+    ['1500.5', 1500.5],
   ])('reads %s', (text, amount) => {
     expect(parseAmountText(text)).toBe(amount);
   });
 
-  it.each(['', 'abc', '1.2.3', '-5'])('rejects %s', (text) => {
+  it.each(['', '   ', 'abc', '1.2.3', '-5', '60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000', '1.234'])('rejects %s', (text) => {
     expect(parseAmountText(text)).toBeNaN();
   });
 });

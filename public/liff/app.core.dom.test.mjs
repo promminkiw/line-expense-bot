@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs';
 import { URL as NodeUrl } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { parseAmountText } from './format.mjs';
 import { TABS } from './ui/tabs.mjs';
 import { categoryStyle } from './categories/categories.mjs';
 import { createEmptyState } from './ui/empty-state.mjs';
@@ -1198,6 +1199,35 @@ describe('LIFF amount inputs', () => {
     expect(input.getAttribute('inputmode')).toBe('decimal');
     expect(new RegExp(`^(?:${input.pattern})$`).test('1,500.50')).toBe(true);
     expect(new RegExp(`^(?:${input.pattern})$`).test('abc')).toBe(false);
+    expect(new RegExp(`^(?:${input.pattern})$`).test('60,50')).toBe(false);
+  });
+
+  it.each(['1,500', '1,500.50', '1,000,000', '.5', ' 60 ', '60', '1500.5', '', '   ', 'abc', '1.2.3', '-5', '60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000', '1.234'])(
+    'pattern and parseAmountText agree on %j',
+    async (text) => {
+      await boot();
+      const matches = new RegExp(`^(?:${byId('edit-amount').pattern})$`).test(text);
+
+      expect(matches).toBe(!Number.isNaN(parseAmountText(text)));
+    }
+  );
+
+  it('sends the comma amount as a number when saving a recurring rule', async () => {
+    await boot();
+    let sent;
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'POST' && new URL(url, 'http://localhost').pathname === '/api/recurring') sent = JSON.parse(options.body);
+      return original(url, options);
+    });
+
+    byId('recurring-add').click();
+    byId('recurring-amount').value = '1,500';
+    byId('recurring-day').value = '5';
+    byId('recurring-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(sent.amount).toBe(1500);
   });
 
   it('sends the comma amount as a number when saving an edit', async () => {

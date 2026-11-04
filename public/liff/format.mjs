@@ -70,10 +70,13 @@ export function categoryOptionLabel(category) {
 
 export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
 
+// ต้องตรงกับ pattern ใน index.html คอมมายอมเฉพาะเป็นตัวคั่นหลักพัน
+const AMOUNT_TEXT_SHAPE = /^(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})$/;
+
 // ช่อง number ของ browser ไม่รับ 1,500 จึงใช้ช่อง text แล้วตัดคอมมาเอง
 export function parseAmountText(text) {
-  const cleaned = text.replace(/[,\s]/g, '');
-  return /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN;
+  const trimmed = text.trim();
+  return AMOUNT_TEXT_SHAPE.test(trimmed) ? Number(trimmed.replaceAll(',', '')) : NaN;
 }
 
 export function describeEditFailure(status, action) {
