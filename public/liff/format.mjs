@@ -70,6 +70,22 @@ export function categoryOptionLabel(category) {
 
 export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
 
+// ต้องตรงกับ pattern ใน index.html คอมมายอมเฉพาะเป็นตัวคั่นหลักพัน
+const AMOUNT_TEXT_SHAPE = /^(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})$/;
+
+const THOUSANDS_COMMAS_SHAPE = /^\d{1,3}(,\d{3})+(\.\d*)?$/;
+
+// ข้อความที่มีคอมมาต้องเป็นตัวคั่นหลักพันเท่านั้น กันอ่าน 60,50 เป็น 6050
+export function hasOnlyThousandsCommas(text) {
+  return !text.includes(',') || THOUSANDS_COMMAS_SHAPE.test(text);
+}
+
+// ช่อง number ของ browser ไม่รับ 1,500 จึงใช้ช่อง text แล้วตัดคอมมาเอง
+export function parseAmountText(text) {
+  const trimmed = text.trim();
+  return AMOUNT_TEXT_SHAPE.test(trimmed) ? Number(trimmed.replaceAll(',', '')) : NaN;
+}
+
 export function describeEditFailure(status, action) {
   if (status === 401) {
     return { message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false };
@@ -82,6 +98,12 @@ export function describeEditFailure(status, action) {
   }
   const failed = action === 'delete' ? 'ลบไม่สำเร็จ' : 'บันทึกไม่สำเร็จ';
   return { message: `${failed} ลองใหม่อีกครั้ง`, closeAndReload: false };
+}
+
+export function describeRestoreFailure(status) {
+  if (status === 401) return { message: LOGIN_REQUIRED_MESSAGE, retryable: false };
+  if (status === 400) return { message: 'กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว', retryable: false };
+  return { message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true };
 }
 
 export function describeDeleteTarget(item) {
@@ -272,6 +294,12 @@ const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.
 
 export function thaiMonthShort(month) {
   return THAI_MONTHS[Number(month.split('-')[1]) - 1];
+}
+
+const BUDDHIST_YEAR_OFFSET = 543;
+
+export function describeViewedMonth(month) {
+  return `กำลังดูเดือน ${thaiMonthShort(month)} ${Number(month.split('-')[0]) + BUDDHIST_YEAR_OFFSET}`;
 }
 
 export function formatFullThaiDate(isoDate) {

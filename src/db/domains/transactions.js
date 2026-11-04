@@ -1,4 +1,4 @@
-const { throwIfError } = require('../errors');
+const { throwIfError, UNIQUE_VIOLATION, FOREIGN_KEY_VIOLATION } = require('../errors');
 
 const TRANSACTION_COLUMNS = 'id, type, amount, note, occurred_on, category_id, wallet_id';
 // PostgREST ตัดผลลัพธ์ตาม max-rows (ค่าเริ่มต้นของ Supabase คือ 1000) จึงต้องอ่านทีละหน้าเมื่อต้องการครบทุกแถว
@@ -16,6 +16,22 @@ function toTransaction(row) {
     categoryId: row.category_id,
     // null คือกระเป๋าตั้งต้น
     walletId: row.wallet_id ?? null,
+  };
+}
+
+const RESTORE_COLUMNS = 'id, amount, note, occurred_on, category_id, wallet_id, source, line_event_id, created_at';
+
+function toRestoreSnapshot(row) {
+  return {
+    id: row.id,
+    amount: Number(row.amount),
+    note: row.note,
+    occurredOn: row.occurred_on,
+    categoryId: row.category_id,
+    walletId: row.wallet_id ?? null,
+    source: row.source,
+    lineEventId: row.line_event_id ?? null,
+    createdAt: row.created_at,
   };
 }
 
@@ -117,13 +133,50 @@ function createTransactionsRepository(supabase) {
   }
 
   async function deleteTransaction(userId, id) {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from('transactions')
-      .delete({ count: 'exact' })
+      .delete()
       .eq('user_id', userId)
-      .eq('id', id);
+      .eq('id', id)
+      .select(RESTORE_COLUMNS);
     throwIfError('deleteTransaction', error);
-    return count > 0;
+    return data.length > 0 ? toRestoreSnapshot(data[0]) : null;
+  }
+
+  async function restoreTransaction(userId, fields) {
+    const { error } = await supabase
+      .from('transactions')
+      .insert({
+        id: fields.id,
+        user_id: userId,
+        type: fields.type,
+        amount: fields.amount,
+        note: fields.note,
+        occurred_on: fields.occurredOn,
+        category_id: fields.categoryId,
+        wallet_id: fields.walletId,
+        source: fields.source,
+        line_event_id: fields.lineEventId,
+        created_at: fields.createdAt,
+      })
+      .select('id');
+    // กดเลิกทำซ้ำจนแถวกลับมาแล้ว ไม่ใช่ error ของระบบ
+    if (error && error.code === UNIQUE_VIOLATION) return 'exists';
+    // หมวด กระเป๋า หรือ event ถูกลบระหว่างตรวจกับ insert
+    if (error && error.code === FOREIGN_KEY_VIOLATION) return 'invalid';
+    throwIfError('restoreTransaction', error);
+    return 'restored';
+  }
+
+  async function ownsLineEvent(userId, webhookEventId) {
+    const { data, error } = await supabase
+      .from('line_events')
+      .select('webhook_event_id')
+      .eq('webhook_event_id', webhookEventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    throwIfError('ownsLineEvent', error);
+    return Boolean(data);
   }
 
   return {
@@ -134,6 +187,8 @@ function createTransactionsRepository(supabase) {
     listAllTransactions,
     updateTransaction,
     deleteTransaction,
+    restoreTransaction,
+    ownsLineEvent,
   };
 }
 

@@ -288,29 +288,102 @@ describe('repository.updateTransaction', () => {
 });
 
 describe('repository.deleteTransaction', () => {
-  it('deletes only this user row and reports whether it existed', async () => {
-    const { supabase, calls } = fakeSupabase({ count: 1, error: null });
+  const ROW = {
+    id: 't1', amount: '60.00', note: 'กินข้าว', occurred_on: '2026-10-01', category_id: 'c1',
+    wallet_id: null, source: 'text', line_event_id: 'ev1', created_at: '2026-10-01T01:00:00+00:00',
+  };
 
-    expect(await createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).toBe(true);
+  it('deletes only this user row and returns a snapshot for restoring it', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [ROW], error: null });
+
+    expect(await createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).toEqual({
+      id: 't1', amount: 60, note: 'กินข้าว', occurredOn: '2026-10-01', categoryId: 'c1',
+      walletId: null, source: 'text', lineEventId: 'ev1', createdAt: '2026-10-01T01:00:00+00:00',
+    });
     expect(calls).toEqual([
       ['from', 'transactions'],
-      ['delete', { count: 'exact' }],
+      ['delete'],
       ['eq', 'user_id', 'user-1'],
       ['eq', 'id', 't1'],
+      ['select', 'id, amount, note, occurred_on, category_id, wallet_id, source, line_event_id, created_at'],
     ]);
   });
 
-  it('returns false when no row matched', async () => {
-    const { supabase } = fakeSupabase({ count: 0, error: null });
+  it('returns null when the row does not exist', async () => {
+    const { supabase } = fakeSupabase({ data: [], error: null });
 
-    expect(await createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).toBe(false);
+    expect(await createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).toBeNull();
   });
 
   it('throws DatabaseError when Supabase returns an error', async () => {
-    const { supabase } = fakeSupabase({ count: null, error: { message: 'boom' } });
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
 
-    await expect(createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).rejects.toThrow(
-      'Database deleteTransaction failed: boom'
-    );
+    await expect(createTransactionsRepository(supabase).deleteTransaction('user-1', 't1')).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.restoreTransaction', () => {
+  const FIELDS = {
+    id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-10-01', categoryId: 'c1',
+    walletId: null, source: 'text', lineEventId: 'ev1', createdAt: '2026-10-01T01:00:00+00:00',
+  };
+
+  it('inserts the row under this user with its original id and time', async () => {
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 't1' }], error: null });
+
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('restored');
+    expect(calls).toEqual([
+      ['from', 'transactions'],
+      ['insert', {
+        id: 't1', user_id: 'user-1', type: 'expense', amount: 60, note: 'กินข้าว', occurred_on: '2026-10-01',
+        category_id: 'c1', wallet_id: null, source: 'text', line_event_id: 'ev1', created_at: '2026-10-01T01:00:00+00:00',
+      }],
+      ['select', 'id'],
+    ]);
+  });
+
+  it('reports exists when the id already exists', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'dup', code: '23505' } });
+
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('exists');
+  });
+
+  it('reports invalid when the category or event was removed meanwhile', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'fk', code: '23503' } });
+
+    expect(await createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).toBe('invalid');
+  });
+
+  it('throws DatabaseError on other errors', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createTransactionsRepository(supabase).restoreTransaction('user-1', FIELDS)).rejects.toBeInstanceOf(DatabaseError);
+  });
+});
+
+describe('repository.ownsLineEvent', () => {
+  it('is true when the event row belongs to this user', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { webhook_event_id: 'ev1' }, error: null });
+
+    expect(await createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).toBe(true);
+    expect(calls).toEqual([
+      ['from', 'line_events'],
+      ['select', 'webhook_event_id'],
+      ['eq', 'webhook_event_id', 'ev1'],
+      ['eq', 'user_id', 'user-1'],
+      ['maybeSingle'],
+    ]);
+  });
+
+  it('is false when there is no such row for this user', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: null });
+
+    expect(await createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).toBe(false);
+  });
+
+  it('throws DatabaseError on error', async () => {
+    const { supabase } = fakeSupabase({ data: null, error: { message: 'boom' } });
+
+    await expect(createTransactionsRepository(supabase).ownsLineEvent('user-1', 'ev1')).rejects.toBeInstanceOf(DatabaseError);
   });
 });

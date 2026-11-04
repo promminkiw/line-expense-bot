@@ -51,10 +51,10 @@ const SLIP_QUICK_REPLY = [
 const UNDO_QUICK_REPLY = [
   {
     type: 'action',
-    action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev1', displayText: 'ยกเลิก' },
+    action: { type: 'postback', label: 'ลบ', data: 'action=undo&event=ev1', displayText: 'ลบ' },
   },
 ];
-const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ยกเลิกรายการนี้' } }];
+const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ลบรายการนี้' } }];
 
 const SUMMARY_QUICK_REPLY = [
   { type: 'action', action: { type: 'message', label: 'วันนี้', text: 'สรุปวันนี้' } },
@@ -100,6 +100,7 @@ function setup(overrides = {}) {
   const deps = {
     replyText: vi.fn().mockResolvedValue(),
     replyFlex: vi.fn().mockResolvedValue(),
+    showLoading: vi.fn().mockResolvedValue(),
     parseMessage: vi.fn().mockResolvedValue({ status: 'ok', items: [FOOD_ITEM] }),
     parseQuestion: vi.fn().mockResolvedValue({ isQuestion: false }),
     commentSummary: vi.fn().mockResolvedValue('วันนี้ใช้กับอาหารเป็นหลัก'),
@@ -442,7 +443,7 @@ describe('bot text message', () => {
   });
 
   it('uses the agreed wording for the system error message', () => {
-    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ส่งข้อความไม่สำเร็จ รบกวนมาใช้บริการใหม่ภายหลัง');
+    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ถ้าจดรายการไว้ ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ขอสรุป หรือถามยอด ลองใหม่อีกครั้ง');
   });
 });
 
@@ -741,7 +742,7 @@ describe('bot saving command', () => {
   const UNDO_SAVING_QUICK_REPLY = [
     {
       type: 'action',
-      action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo_saving&event=ev1', displayText: 'ยกเลิก' },
+      action: { type: 'postback', label: 'ลบ', data: 'action=undo_saving&event=ev1', displayText: 'ลบ' },
     },
   ];
 
@@ -833,6 +834,25 @@ describe('bot saving command', () => {
     expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
     expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it.each(['60,50', '1,5', '1,50,000'])('replies with the amount rule and saves nothing for the amount %s', async (amount) => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent(`ออม เที่ยวญี่ปุ่น ${amount}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('still saves 1000 for a thousands-comma amount', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1,000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', expect.objectContaining({ amount: 1000 }));
   });
 
   // ผู้ใช้ตัดสิน 2026-10-19: คนที่ไม่มีเป้าเปิดอยู่ ข้อความอย่าง "ออมสิน 1000" ต้องเป็นรายการตามเดิม
@@ -1663,7 +1683,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ลบรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ลบ' },
         },
       ],
     });
@@ -1811,7 +1831,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ลบรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ลบ' },
         },
       ],
     });
@@ -2261,6 +2281,15 @@ describe('bot bill card buttons', () => {
   });
 });
 
+describe('delete wording on saved entries', () => {
+  it('says the entry was deleted', () => {
+    expect(UNDO_DONE_REPLY).toBe('เฮียลบรายการให้แล้ว');
+    expect(UNDO_NOT_FOUND_REPLY).toBe('เฮียไม่พบรายการที่จะลบ อาจถูกลบไปแล้ว');
+    expect(UNDO_SAVING_DONE_REPLY).toBe('เฮียลบรายการออมให้แล้ว');
+    expect(UNDO_SAVING_NOT_FOUND_REPLY).toBe('เฮียไม่พบรายการออมที่จะลบ อาจถูกลบไปแล้ว');
+  });
+});
+
 describe('BILL_REPLIES', () => {
   it('uses the agreed wording', () => {
     expect(BILL_REPLIES).toEqual({
@@ -2270,5 +2299,81 @@ describe('BILL_REPLIES', () => {
       already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
       not_found: 'เฮียไม่พบบิลนี้',
     });
+  });
+});
+
+describe('bot loading animation', () => {
+  it('shows it for a text message before replying', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.showLoading).toHaveBeenCalledWith('U1');
+    expect(deps.showLoading.mock.invocationCallOrder[0]).toBeLessThan(deps.replyText.mock.invocationCallOrder[0]);
+  });
+
+  it('shows it for an image message', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.showLoading).toHaveBeenCalledWith('U1');
+  });
+
+  it('does not show it for a postback or follow event', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
+    await bot.handleEvent(followEvent());
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('does not show it for a group message', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('สรุป', { source: { type: 'group', groupId: 'G1' } }));
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('does not show it for a redelivered event that was already claimed', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent({ ...textEvent('กินข้าว 60'), deliveryContext: { isRedelivery: true } });
+    await bot.handleEvent({ ...imageEvent(), deliveryContext: { isRedelivery: true } });
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('still replies to an unclaimed redelivered event without the animation', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent({ ...textEvent('สรุป'), deliveryContext: { isRedelivery: true } });
+
+    expect(deps.replyText).toHaveBeenCalled();
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('still replies when the animation never settles', async () => {
+    const { deps, bot } = setup();
+    deps.showLoading.mockReturnValue(new Promise(() => {}));
+
+    await bot.handleEvent(textEvent('สรุป'));
+
+    expect(deps.replyText).toHaveBeenCalled();
+  });
+
+  it('still replies and logs when the animation fails', async () => {
+    const { deps, bot } = setup();
+    const failure = new Error('line down');
+    deps.showLoading.mockRejectedValue(failure);
+
+    await bot.handleEvent(textEvent('สรุป'));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(deps.replyText).toHaveBeenCalled();
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to show loading animation', { lineUserId: 'U1' }, failure);
   });
 });

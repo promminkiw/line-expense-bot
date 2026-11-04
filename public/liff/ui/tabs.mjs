@@ -25,13 +25,15 @@ function buildButton(doc, tab) {
   return button;
 }
 
-export function createTabController({ doc, nav, titleEl, monthEl, panelFor, onChange = () => {} }) {
+export function createTabController({ doc, nav, titleEl, monthEl, panelFor, onChange = () => {}, onBeforeChange = () => {} }) {
   let current = null;
 
   // force ใช้ตอนกลับจากหน้าย่อยที่ซ่อน panel ของแท็บปัจจุบันไป
   function select(id, { force = false } = {}) {
     const tab = findTab(id);
     if (tab.id === current && !force) return;
+    // force มาจากการกลับจากหน้าย่อย ตำแหน่งตอนนั้นเป็นของหน้าย่อย ไม่ใช่ของแท็บ
+    if (current && !force) onBeforeChange(current);
     current = tab.id;
     for (const button of nav.querySelectorAll('button[data-tab]')) {
       if (button.dataset.tab === tab.id) {

@@ -115,6 +115,16 @@ describe('createApi', () => {
     expect(fetchImpl.mock.calls[0][1].method).toBe('DELETE');
   });
 
+  it('posts the snapshot to restore a transaction', async () => {
+    const fetchImpl = fakeFetch(204, null);
+
+    await setup(fetchImpl).restoreTransaction({ id: 't1' });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe('/api/transactions/restore');
+    expect(fetchImpl.mock.calls[0][1].method).toBe('POST');
+    expect(fetchImpl.mock.calls[0][1].body).toBe('{"id":"t1"}');
+  });
+
   it('throws ApiError with the status when the server refuses', async () => {
     const promise = setup(fakeFetch(401, { error: 'Unauthorized' })).listCategories();
 

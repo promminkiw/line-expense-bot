@@ -244,9 +244,13 @@
             <use href="#icon-back"></use>
           </svg>หน้าหลัก</a>
         <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
-        <h1 id="page-title">รายการของฉัน</h1>
+        <h1 id="page-title" tabindex="-1">รายการของฉัน</h1>
         <input type="month" id="month" aria-label="เลือกเดือน">
       </header>
+      <div id="month-context" class="month-context" hidden>
+        <span id="month-context-text"></span>
+        <button type="button" id="month-context-today">กลับเดือนนี้</button>
+      </div>
       <div class="banner-area">
         <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
         <button type="button" id="banner-retry" hidden>ลองใหม่</button>
@@ -284,6 +288,10 @@
         <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
       <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
+      <p id="swipe-hint" class="swipe-hint" hidden>
+        <span>ปัดแถวไปทางซ้ายเพื่อลบ</span>
+        <button type="button" id="swipe-hint-dismiss">รับทราบ</button>
+      </p>
       <ul id="list" class="list"></ul>
     </div>
     <div id="panel-summary" class="panel" hidden>
@@ -458,11 +466,11 @@
     <div id="panel-recurring" class="panel" hidden>
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
         <h2 id="recurring-title">รายการประจำ</h2>
-        <p class="recurring-hint"><span class="nowrap">บอทจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
+        <p class="recurring-hint"><span class="nowrap">เฮียจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
         <details class="recurring-more">
           <summary>เริ่มจดเมื่อไร</summary>
           <p>ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว จะเริ่มเดือนหน้า (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้รายการที่หยุดไว้)
-            ทุกครั้งที่จดจะแจ้งใน LINE และกดยกเลิกได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
+            ทุกครั้งที่จดจะแจ้งใน LINE และกดลบได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
         </details>
         <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
         <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
@@ -579,7 +587,7 @@
         <div class="balance-card">
           <span class="stat-label">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
-          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
+          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม
             ไม่ใช่ยอดเงินในบัญชีจริง</span>
           <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ
             ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
@@ -625,7 +633,7 @@
                     <use href="#tab-repeat"></use>
                   </svg></span>
                 <span class="menu-row-text"><span class="menu-row-title">รายการประจำ</span> <span
-                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง</span></span>
+                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -657,7 +665,7 @@
                     <use href="#icon-book"></use>
                   </svg></span>
                 <span class="menu-row-text"><span class="menu-row-title">วิธีใช้งาน</span> <span
-                    class="menu-row-sub">วิธีใช้บอทและคำสั่งในแชต</span></span>
+                    class="menu-row-sub">วิธีใช้เฮียและคำสั่งในแชต</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -691,7 +699,7 @@
     <div id="panel-notify" class="panel" hidden>
       <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
         <h2 id="notify-title">การแจ้งเตือน</h2>
-        <p class="notify-hint">บอทส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
+        <p class="notify-hint">เฮียส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
         <p id="notify-loading" class="notify-loading" role="status" hidden>กำลังโหลดการตั้งค่า...</p>
         <div id="notify-error" class="budgets-error" hidden>
           <p id="notify-error-text" role="alert"></p>
@@ -746,18 +754,24 @@
     </div>
     <div id="panel-tips" class="panel" hidden>
       <section class="profile-tips" aria-labelledby="tips-title">
-        <h3 id="tips-title">วิธีใช้บอท</h3>
+        <h3 id="tips-title">วิธีใช้เฮีย</h3>
         <ul>
-          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
+          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">เฮียบันทึก</span>ให้ทันที</li>
           <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
-          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
-          <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">เฮียอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
+          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">เฮียตอบยอด</span>ให้</li>
+          <li>บันทึกผิด กดปุ่มลบบนการ์ดที่เฮียตอบกลับได้เลย</li>
+          <li>ในหน้ารายการ แตะแถวเพื่อแก้ไข หรือปัดแถวไปทางซ้ายเพื่อลบ</li>
           <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
         </ul>
       </section>
     </div>
   </main>
+  <p id="undo-bar-status" class="sr-only" role="status" aria-live="polite"></p>
+  <div id="undo-bar" class="undo-bar" hidden>
+    <span id="undo-bar-text"></span>
+    <button type="button" id="undo-bar-button">เลิกทำ</button>
+  </div>
   <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
@@ -767,7 +781,7 @@
           <use href="#icon-close"></use>
         </svg></button>
       <label>จำนวนเงิน (บาท)
-        <input id="edit-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
       </label>
       <label>หมวด
         <select id="edit-category" required></select>
@@ -1003,7 +1017,7 @@
         <select id="recurring-category" required></select>
       </label>
       <label>จำนวนเงิน (บาท)
-        <input id="recurring-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="recurring-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
       </label>
       <label>ทุกวันที่ (1-31)
         <input id="recurring-day" type="number" inputmode="numeric" step="1" min="1" max="31" required>
@@ -1042,7 +1056,7 @@
         <input id="goal-editor-name" type="text" maxlength="30" required>
       </label>
       <label>ยอดเป้า (บาท)
-        <input id="goal-editor-target" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="goal-editor-target" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
       </label>
       <label>อยากถึงเป้าภายในวันที่ (ไม่บังคับ)
         <input id="goal-editor-date" type="date">
@@ -1068,7 +1082,7 @@
     <p id="goal-detail-closed-note" class="confirm-detail" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
     <form id="goal-detail-form">
       <label>ออมเพิ่ม (บาท)
-        <input id="goal-detail-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="goal-detail-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
       </label>
       <label>วันที่
         <input id="goal-detail-date" type="date" required>

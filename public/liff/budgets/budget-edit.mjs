@@ -1,3 +1,4 @@
+import { hasOnlyThousandsCommas } from '../format.mjs';
 import { describeDiff, levelOfPercent } from './budgets-format.mjs';
 
 export const MIN_BUDGET = 0.01;
@@ -7,8 +8,9 @@ export const BUDGET_STEP = 500;
 const toSatang = (value) => Math.round(value * 100);
 
 export function parseBudgetAmount(text) {
-  const cleaned = String(text).replace(/[,\s]/g, '');
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const compact = String(text).replace(/\s/g, '');
+  const cleaned = compact.replaceAll(',', '');
+  if (!hasOnlyThousandsCommas(compact) || !/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   const value = Number(cleaned);
   return value >= MIN_BUDGET && value <= MAX_BUDGET ? value : null;
 }

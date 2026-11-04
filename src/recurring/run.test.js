@@ -58,9 +58,9 @@ describe('createRecurringRunner', () => {
           type: 'action',
           action: {
             type: 'postback',
-            label: 'ยกเลิก',
+            label: 'ลบ',
             data: 'action=undo&event=recurring%3Ar1%3A2026-10',
-            displayText: 'ยกเลิก',
+            displayText: 'ลบ',
           },
         },
       ]

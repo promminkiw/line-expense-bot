@@ -5,7 +5,7 @@ import { COLORS } from '../utils/flex-style.js';
 
 const FOOD = { type: 'expense', category: 'อาหาร', amount: 60, date: '2026-09-29', note: 'กินข้าว' };
 const SALARY = { type: 'income', category: 'เงินเดือน', amount: 25000, date: '2026-09-01', note: '' };
-const UNDO = [{ type: 'action', action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev1', displayText: 'ยกเลิก' } }];
+const UNDO = [{ type: 'action', action: { type: 'postback', label: 'ลบ', data: 'action=undo&event=ev1', displayText: 'ลบ' } }];
 
 // เก็บ text node ทุกอันตามลำดับ เพื่อเทสต์เนื้อหาโดยไม่ผูกกับโครง box
 function collect(node, found = []) {
@@ -58,8 +58,8 @@ describe('buildSavedFlex', () => {
     const one = buildSavedFlex([FOOD], { buttons: UNDO });
     const many = buildSavedFlex([FOOD, SALARY], { buttons: UNDO });
 
-    expect(footerActions(one)).toEqual([{ ...UNDO[0].action, label: 'ยกเลิกรายการนี้' }]);
-    expect(footerActions(many)[0].label).toBe('ยกเลิกทั้งหมด');
+    expect(footerActions(one)).toEqual([{ ...UNDO[0].action, label: 'ลบรายการนี้' }]);
+    expect(footerActions(many)[0].label).toBe('ลบทั้งหมด');
     expect(footerActions(many)[0].data).toBe('action=undo&event=ev1');
     expect(one.contents.footer.contents[0].backgroundColor).toBe(COLORS.brandSoft);
   });

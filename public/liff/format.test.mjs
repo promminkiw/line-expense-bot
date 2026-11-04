@@ -9,6 +9,8 @@ import {
   groupCategoryOptions,
   categoryOptionLabel,
   describeEditFailure,
+  describeRestoreFailure,
+  parseAmountText,
   describeDeleteTarget,
   summaryTotals,
   chartRows,
@@ -28,6 +30,7 @@ import {
   isFilterActive,
   describeFilterResult,
   thaiMonthShort,
+  describeViewedMonth,
   formatFullThaiDate,
   trendBars,
   describeExpenseComparison,
@@ -743,5 +746,43 @@ describe('currentDate', () => {
   it('uses the Bangkok date, like the bot when it saves', () => {
     expect(currentDate(new Date('2026-09-30T18:00:00Z'))).toBe('2026-10-01');
     expect(currentDate(new Date('2026-09-30T16:00:00Z'))).toBe('2026-09-30');
+  });
+});
+
+describe('describeRestoreFailure', () => {
+  it('asks to log in again on 401 without offering a retry', () => {
+    expect(describeRestoreFailure(401)).toEqual({ message: LOGIN_REQUIRED_MESSAGE, retryable: false });
+  });
+
+  it('explains that the old data changed on 400', () => {
+    expect(describeRestoreFailure(400)).toEqual({ message: 'กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว', retryable: false });
+  });
+
+  it('offers a retry on other failures', () => {
+    expect(describeRestoreFailure(undefined)).toEqual({ message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true });
+  });
+});
+
+describe('describeViewedMonth', () => {
+  it('names the month in Thai with the Buddhist year', () => {
+    expect(describeViewedMonth('2026-09')).toBe('กำลังดูเดือน ก.ย. 2569');
+  });
+});
+
+describe('parseAmountText', () => {
+  it.each([
+    ['1,500', 1500],
+    ['1,500.50', 1500.5],
+    [' 60 ', 60],
+    ['60', 60],
+    ['1,000,000', 1000000],
+    ['.5', 0.5],
+    ['1500.5', 1500.5],
+  ])('reads %s', (text, amount) => {
+    expect(parseAmountText(text)).toBe(amount);
+  });
+
+  it.each(['', '   ', 'abc', '1.2.3', '-5', '60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000', '1.234'])('rejects %s', (text) => {
+    expect(parseAmountText(text)).toBeNaN();
   });
 });

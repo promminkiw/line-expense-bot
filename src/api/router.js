@@ -5,6 +5,7 @@ const {
   parseMonth,
   isValidAmount,
   validateTransactionUpdate,
+  validateTransactionRestore,
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
@@ -409,6 +410,43 @@ function createApiRouter({
     const deleted = await repository.deleteTransaction(req.userId, req.params.id);
     if (!deleted) {
       res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    // เสนอเลิกทำเฉพาะรายการที่ restore รับได้ (บิลถูกตัดเพราะลิงก์ on delete set null ไม่กลับมา)
+    res.json({ restore: validateTransactionRestore(deleted).ok ? deleted : null });
+  });
+
+  router.post('/transactions/restore', async (req, res) => {
+    const result = validateTransactionRestore(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const categories = await repository.listCategories(req.userId);
+    const category = categories.find((item) => item.id === result.value.categoryId);
+    if (!category) {
+      res.status(400).json({ error: 'Invalid category' });
+      return;
+    }
+    if (result.value.walletId !== null) {
+      const wallets = await users.loadWallets(req.userId);
+      if (!wallets.some((item) => item.id === result.value.walletId.toLowerCase())) {
+        res.status(400).json({ error: 'Invalid wallet' });
+        return;
+      }
+    }
+    const { lineEventId } = result.value;
+    if (lineEventId !== null && !(await repository.ownsLineEvent(req.userId, lineEventId))) {
+      res.status(400).json({ error: 'Invalid event' });
+      return;
+    }
+    const outcome = await repository.restoreTransaction(req.userId, { ...result.value, type: category.type });
+    if (outcome === 'exists') {
+      res.status(409).json({ error: 'Already exists' });
+      return;
+    }
+    if (outcome === 'invalid') {
+      res.status(400).json({ error: 'Invalid category' });
       return;
     }
     res.status(204).end();

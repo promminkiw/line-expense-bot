@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatNumber } from './budgets-format.mjs';
 import { BUDGET_STEP, MAX_BUDGET, parseBudgetAmount, previewBudget, quickChips, stepBudget } from './budget-edit.mjs';
 
 describe('parseBudgetAmount', () => {
@@ -12,6 +13,19 @@ describe('parseBudgetAmount', () => {
   it('rejects empty, zero, negative, text and too many decimals', () => {
     for (const bad of ['', '   ', '0', '0.00', '-5', 'abc', '12abc', '1.234', '1.', '.5']) {
       expect(parseBudgetAmount(bad), bad).toBeNull();
+    }
+  });
+
+  it('rejects 60,50 and 1,5 because a comma is only a thousands separator', () => {
+    for (const bad of ['60,50', '1,5', '1,5000', ',500']) {
+      expect(parseBudgetAmount(bad), bad).toBeNull();
+    }
+    expect(parseBudgetAmount('1,500')).toBe(1500);
+  });
+
+  it('reads back the values the sheet prefills with formatNumber', () => {
+    for (const value of [0.01, 500, 1234.5, 1234567.89, 10000000]) {
+      expect(parseBudgetAmount(formatNumber(value)), String(value)).toBe(value);
     }
   });
 

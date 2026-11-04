@@ -7,7 +7,7 @@ const { COLORS } = require('../utils/flex-style.js');
 
 const UNDO_BUTTON = {
   type: 'action',
-  action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo_saving&event=ev1', displayText: 'ยกเลิก' },
+  action: { type: 'postback', label: 'ลบ', data: 'action=undo_saving&event=ev1', displayText: 'ลบ' },
 };
 const GOALS_URL = 'https://liff.line.me/liff-1?tab=goals';
 

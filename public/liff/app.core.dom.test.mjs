@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs';
 import { URL as NodeUrl } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { parseAmountText } from './format.mjs';
 import { TABS } from './ui/tabs.mjs';
 import { categoryStyle } from './categories/categories.mjs';
 import { createEmptyState } from './ui/empty-state.mjs';
@@ -53,7 +54,7 @@ describe('index.html static invariants', () => {
   it('names the delete action in the categories hint and avoids the minus sign in balance notes', () => {
     expect(doc.querySelector('#panel-budgets .categories-entry-hint').textContent.trim()).toBe('เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด');
     expect(doc.querySelector('.balance-note').textContent.replace(/\s+/g, ' ').trim()).toBe(
-      'รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
+      'รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
     );
     expect(doc.querySelector('.wallets-hint').textContent).toContain('= รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น');
     expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
@@ -64,7 +65,7 @@ describe('index.html static invariants', () => {
     expect(recurring.classList.contains('menu-row')).toBe(true);
     expect(recurring.hasAttribute('disabled')).toBe(true);
     expect(recurring.querySelector('.menu-row-title').textContent).toBe('รายการประจำ');
-    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง');
     expect(recurring.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
     const categories = doc.getElementById('me-categories-open');
     expect(categories.hasAttribute('disabled')).toBe(true);
@@ -107,8 +108,8 @@ describe('index.html static invariants', () => {
     const tips = doc.getElementById('tips-open');
     expect(tips.hasAttribute('disabled')).toBe(false);
     expect(tips.querySelector('.menu-row-title').textContent).toBe('วิธีใช้งาน');
-    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้บอทและคำสั่งในแชต');
-    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้บอทและคำสั่งในแชต');
+    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้เฮียและคำสั่งในแชต');
+    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้เฮียและคำสั่งในแชต');
     expect(doc.getElementById('panel-tips').contains(doc.querySelector('.profile-tips'))).toBe(true);
     expect(doc.getElementById('profile-card').contains(doc.getElementById('profile-close'))).toBe(false);
     expect(doc.getElementById('panel-profile').contains(doc.getElementById('profile-close'))).toBe(true);
@@ -116,7 +117,7 @@ describe('index.html static invariants', () => {
 
   it('lists the main chat commands in the profile tips and points to the full help', () => {
     const tips = [...doc.querySelectorAll('.profile-tips li')].map((item) => item.textContent.replace(/\s+/g, ' ').trim());
-    expect(tips).toHaveLength(6);
+    expect(tips).toHaveLength(7);
     expect(tips.some((tip) => tip.includes('เดือนนี้กินกาแฟไปเท่าไหร่'))).toBe(true);
     expect(tips.at(-1)).toContain('"ช่วยเหลือ"');
   });
@@ -1129,5 +1130,206 @@ describe('LIFF month rollover while the page stays open', () => {
     await settle();
 
     expect(byId('month').value).toBe('2026-11');
+  });
+});
+
+describe('LIFF viewed month notice', () => {
+  const pickMonth = async (month) => {
+    byId('month').value = month;
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+  };
+
+  it('is hidden on the current month', async () => {
+    await boot();
+    expect(byId('month-context').hidden).toBe(true);
+  });
+
+  it('shows the viewed month and returns to the current month', async () => {
+    await boot();
+    await pickMonth('2026-09');
+    expect(byId('month-context').hidden).toBe(false);
+    expect(byId('month-context-text').textContent).toBe('กำลังดูเดือน ก.ย. 2569');
+
+    byId('month-context-today').click();
+    await settle();
+
+    expect(document.activeElement).toBe(byId('page-title'));
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('month-context').hidden).toBe(true);
+  });
+
+  it('opens with the notice from a monthly summary link', async () => {
+    await boot({ search: '?tab=summary&m=2026-09' });
+    expect(byId('month-context').hidden).toBe(false);
+  });
+
+  it('hides on tabs without a month and comes back', async () => {
+    await boot();
+    await pickMonth('2026-09');
+
+    clickTab('profile');
+    expect(byId('month-context').hidden).toBe(true);
+
+    clickTab('summary');
+    expect(byId('month-context').hidden).toBe(false);
+  });
+
+  it('hides on a sub-page and comes back after leaving it', async () => {
+    await boot();
+    clickTab('budgets');
+    await pickMonth('2026-09');
+
+    byId('categories-open').click();
+    await settle();
+    expect(byId('month-context').hidden).toBe(true);
+
+    byId('page-back').click();
+    await settle();
+    expect(byId('month-context').hidden).toBe(false);
+  });
+});
+
+describe('LIFF amount inputs', () => {
+  it.each(['edit-amount', 'recurring-amount', 'goal-editor-target', 'goal-detail-amount'])('%s accepts typed commas', async (id) => {
+    await boot();
+    const input = byId(id);
+
+    expect(input.type).toBe('text');
+    expect(input.getAttribute('inputmode')).toBe('decimal');
+    expect(new RegExp(`^(?:${input.pattern})$`).test('1,500.50')).toBe(true);
+    expect(new RegExp(`^(?:${input.pattern})$`).test('abc')).toBe(false);
+    expect(new RegExp(`^(?:${input.pattern})$`).test('60,50')).toBe(false);
+  });
+
+  it.each(['1,500', '1,500.50', '1,000,000', '.5', ' 60 ', '60', '1500.5', '', '   ', 'abc', '1.2.3', '-5', '60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000', '1.234'])(
+    'pattern and parseAmountText agree on %j',
+    async (text) => {
+      await boot();
+      const matches = new RegExp(`^(?:${byId('edit-amount').pattern})$`).test(text);
+
+      expect(matches).toBe(!Number.isNaN(parseAmountText(text)));
+    }
+  );
+
+  it('sends the comma amount as a number when saving a recurring rule', async () => {
+    await boot();
+    let sent;
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'POST' && new URL(url, 'http://localhost').pathname === '/api/recurring') sent = JSON.parse(options.body);
+      return original(url, options);
+    });
+
+    byId('recurring-add').click();
+    byId('recurring-amount').value = '1,500';
+    byId('recurring-day').value = '5';
+    byId('recurring-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(sent.amount).toBe(1500);
+  });
+
+  it('sends the comma amount as a number when saving an edit', async () => {
+    await boot();
+    let sent;
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PATCH') sent = JSON.parse(options.body);
+      return original(url, options);
+    });
+
+    document.querySelector('#list .row-button').click();
+    await settle();
+    byId('edit-amount').value = '1,500';
+    byId('edit-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(sent.amount).toBe(1500);
+  });
+});
+
+describe('LIFF scroll restore', () => {
+  const setScrollY = (value) => Object.defineProperty(window, 'scrollY', { value, configurable: true });
+
+  afterEach(() => setScrollY(0));
+
+  it('returns to where the tab was when switching back', async () => {
+    await boot();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(420);
+    clickTab('summary');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+    setScrollY(0);
+    clickTab('list');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 420);
+    scrollTo.mockRestore();
+  });
+
+  it('forgets saved positions after the month changes', async () => {
+    await boot();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(420);
+    clickTab('summary');
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+
+    clickTab('list');
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
+  it('starts from the top when the month changes on the current tab', async () => {
+    await boot();
+    clickTab('summary');
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(400);
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
+  it('keeps the owner tab position when device back leaves a nested sub-page', async () => {
+    await boot();
+    clickTab('budgets');
+    await settle();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(500);
+    byId('budget-all-open').click();
+    await settle();
+    setScrollY(200);
+    byId('budget-all-bulk-open').click();
+    await settle();
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 500);
+    scrollTo.mockRestore();
+  });
+
+  it('returns to the owner tab position after leaving a sub-page', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(300);
+    byId('wallets-open').click();
+    await settle();
+    setScrollY(0);
+    byId('page-back').click();
+    await settle();
+
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 300);
+    scrollTo.mockRestore();
   });
 });

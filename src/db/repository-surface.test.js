@@ -14,8 +14,8 @@ const EXPECTED_METHODS = [
   'getPendingClarification', 'getWalletTotals', 'insertTransactions', 'isBillOwner', 'listAllTransactions',
   'listDueRecurringRules', 'listFriends', 'listGoalContributions', 'listGoals', 'listIncomingBills',
   'listOwnedBills', 'listCategories', 'listRecurringRules', 'listTransactions', 'listUsersToRemind',
-  'listWallets', 'listWeeklySummaryUsers', 'markBillMemberNotified', 'queryTotals', 'removeFriendship',
-  'reserveNotification', 'savePendingClarification', 'savePendingSlip', 'seedDefaultCategories',
+  'listWallets', 'listWeeklySummaryUsers', 'markBillMemberNotified', 'ownsLineEvent', 'queryTotals', 'removeFriendship',
+  'reserveNotification', 'restoreTransaction','savePendingClarification', 'savePendingSlip', 'seedDefaultCategories',
   'seedDefaultWallet', 'setBillMemberPaid', 'setBudget', 'setFriendCode', 'summarizeTransactions',
   'updateCategory', 'updateGoal', 'updateNotificationSettings', 'updateRecurringRule', 'updateTransaction',
   'updateWallet', 'listMonthlySummaryUsers', 'resumeMonthlySummary',
@@ -25,7 +25,7 @@ describe('createRepository surface', () => {
   it('exposes exactly the methods that callers depend on', () => {
     const methods = Object.keys(createRepository({})).sort();
     expect(methods).toEqual([...EXPECTED_METHODS].sort());
-    expect(methods).toHaveLength(77);
+    expect(methods).toHaveLength(79);
   });
 
   it('exposes only functions', () => {

@@ -5,6 +5,7 @@ import {
   describeDeleteTarget,
   formatThaiDate,
   currentMonth,
+  describeViewedMonth,
   groupByDate,
   formatDayNet,
   summaryTotals,
@@ -28,6 +29,8 @@ import {
   isFilterActive,
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
+  describeRestoreFailure,
+  parseAmountText,
 } from './format.mjs';
 import { createFriendsPanel } from './friends/friends-panel.mjs';
 import { createSettingsPanel } from './settings/settings-panel.mjs';
@@ -38,6 +41,7 @@ import { createBillsPanel } from './bills/bills-panel.mjs';
 import { createBillForm } from './bills/bill-form.mjs';
 import { createGoalsPanel } from './goals/goals-panel.mjs';
 import { createBannerSetter } from './ui/banner.mjs';
+import { createUndoBar } from './ui/undo-bar.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './ui/tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories/categories.mjs';
 import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseListLink, parseTabLink } from './deep-link.mjs';
@@ -59,6 +63,12 @@ const CHART_COLOR_COUNT = 6;
 
 const els = {
   month: document.getElementById('month'),
+  pageTitle: document.getElementById('page-title'),
+  monthContext: document.getElementById('month-context'),
+  monthContextText: document.getElementById('month-context-text'),
+  monthContextToday: document.getElementById('month-context-today'),
+  swipeHint: document.getElementById('swipe-hint'),
+  swipeHintDismiss: document.getElementById('swipe-hint-dismiss'),
   totals: document.getElementById('totals'),
   statIncome: document.getElementById('stat-income'),
   statExpense: document.getElementById('stat-expense'),
@@ -250,6 +260,10 @@ const els = {
   categoriesOpen: document.getElementById('categories-open'),
   pageBack: document.getElementById('page-back'),
   bottomNav: document.getElementById('bottom-nav'),
+  undoBar: document.getElementById('undo-bar'),
+  undoBarText: document.getElementById('undo-bar-text'),
+  undoBarStatus: document.getElementById('undo-bar-status'),
+  undoBarButton: document.getElementById('undo-bar-button'),
 };
 
 let api;
@@ -262,6 +276,30 @@ let chartType = 'expense';
 let lastSummary = [];
 let lastTransactions = [];
 let lastTruncated = false;
+const SWIPE_HINT_KEY = 'swipe-hint-seen';
+// ตำแหน่งเลื่อนต่อแท็บ ล้างเมื่อโหลดเดือนใหม่หรือลองใหม่ เพราะเนื้อหาเปลี่ยนแล้ว
+const tabScroll = new Map();
+
+// ถ้า storage ใช้ไม่ได้ ก็แค่เห็นคำใบ้ซ้ำ
+function readSwipeHintSeen() {
+  try {
+    return localStorage.getItem(SWIPE_HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+let swipeHintSeen = readSwipeHintSeen();
+
+function dismissSwipeHint() {
+  swipeHintSeen = true;
+  els.swipeHint.hidden = true;
+  try {
+    localStorage.setItem(SWIPE_HINT_KEY, '1');
+  } catch {
+    // ปิด storage ไว้ ซ่อนเฉพาะรอบนี้
+  }
+}
 let exporting = false;
 let editingRecurring = null;
 let recurringBusy = false;
@@ -678,6 +716,7 @@ let swipeDeleting = false;
 
 function setRowOpen(row, open) {
   if (open) {
+    if (!swipeHintSeen) dismissSwipeHint();
     if (openSwipeRow && openSwipeRow !== row) setRowOpen(openSwipeRow, false);
     openSwipeRow = row;
   } else if (openSwipeRow === row) {
@@ -725,6 +764,18 @@ function attachSwipe(row) {
   row.addEventListener('pointercancel', finish);
 }
 
+const UNDO_DURATION_MS = 5000;
+const undoBar = createUndoBar({ el: els.undoBar, textEl: els.undoBarText, liveEl: els.undoBarStatus, button: els.undoBarButton, durationMs: UNDO_DURATION_MS });
+
+async function refreshAfterTransactionChange(focusId) {
+  pendingListFocus = { id: focusId };
+  await loadMonth();
+  pendingListFocus = null;
+  profileStale = true;
+  loadProfile();
+  walletsPanel.load();
+}
+
 // ปุ่มลบที่เผยจากการปัดลบทันที (ปัด + กดปุ่ม คือสองขั้นที่ผู้ใช้เลือกแทน modal ยืนยัน)
 async function deleteBySwipe(item, button) {
   if (swipeDeleting) return;
@@ -733,25 +784,48 @@ async function deleteBySwipe(item, button) {
   const tab = tabController.current;
   const focusId = neighbourRowId(item.id);
   let failure = null;
+  let snapshot = null;
   try {
-    await api.deleteTransaction(item.id);
+    const result = await api.deleteTransaction(item.id);
+    snapshot = result?.restore ?? null;
   } catch (err) {
     failure = describeEditFailure(err instanceof ApiError ? err.status : undefined, 'delete');
   } finally {
     swipeDeleting = false;
   }
   if (!failure || failure.closeAndReload) {
-    pendingListFocus = { id: focusId };
-    await loadMonth();
-    pendingListFocus = null;
-    profileStale = true;
-    loadProfile();
-    walletsPanel.load();
+    undoBar.hide();
+    await refreshAfterTransactionChange(focusId);
   } else {
     button.disabled = false;
   }
   // ผู้ใช้ย้ายไปแท็บอื่นระหว่างรอแล้ว ข้อความนี้เป็นเรื่องของแท็บรายการ จึงไม่ขึ้นในแท็บใหม่
   if (failure && tabController.current === tab) setBanner(failure.message);
+  if (snapshot) offerUndoDelete(snapshot);
+}
+
+function offerUndoDelete(snapshot) {
+  undoBar.show('ลบรายการแล้ว', () => restoreDeleted(snapshot));
+}
+
+async function restoreDeleted(snapshot) {
+  showStickyLoadError();
+  const done = undoBar.showBusy('กำลังกู้คืน...');
+  try {
+    await api.restoreTransaction(snapshot);
+  } catch (err) {
+    const status = err instanceof ApiError ? err.status : undefined;
+    // 409 คือแถวกลับมาแล้วจากการกดครั้งก่อนที่ไม่ได้รับคำตอบ
+    if (status !== 409) {
+      done();
+      const failure = describeRestoreFailure(status);
+      setBanner(failure.message);
+      if (failure.retryable && !undoBar.visible) offerUndoDelete(snapshot);
+      return;
+    }
+  }
+  await refreshAfterTransactionChange(snapshot.id);
+  done();
 }
 
 // แถวที่อยู่ติดกันที่ยังเห็นอยู่ ใช้รับ focus หลังลบ (ถัดไปก่อน ไม่มีก็แถวก่อนหน้า)
@@ -932,6 +1006,7 @@ function renderList() {
   const shown = filterTransactions(lastTransactions, filter);
   els.list.replaceChildren();
   openSwipeRow = null;
+  els.swipeHint.hidden = true;
   // ซ่อนตัวกรองเมื่อเดือนว่างและไม่ได้กรองอยู่ ไม่งั้นผู้ใช้ติดค้างโดยล้างตัวกรองไม่ได้
   els.filters.hidden = lastTransactions.length === 0 && !active;
   els.filterClear.hidden = !active;
@@ -953,6 +1028,7 @@ function renderList() {
     return;
   }
   setStatus('');
+  els.swipeHint.hidden = swipeHintSeen;
   let rowIndex = 0;
   for (const group of groupByDate(shown)) {
     const heading = document.createElement('li');
@@ -1153,11 +1229,22 @@ async function loadBudgets({ focusCategoryId = null } = {}) {
   }
 }
 
+// แท็บที่ไม่มีช่องเดือนไม่ต้องมีป้าย ส่วนหน้าย่อยผูกกับเดือนที่เลือกไว้ ปุ่มจึงห้ามเปลี่ยนเดือนใต้หน้านั้น
+function updateMonthContext() {
+  const month = els.month.value;
+  const show = !els.month.hidden && Boolean(month) && month !== currentMonth(new Date());
+  els.monthContext.hidden = !show;
+  if (show) els.monthContextText.textContent = describeViewedMonth(month);
+}
+
 // ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ banner เสมอ
 // reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
 async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
+  updateMonthContext();
   if (reset) {
+    tabScroll.clear();
+    window.scrollTo(0, 0);
     loadError = null;
     setBanner('');
     els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
@@ -1165,6 +1252,7 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.filters.hidden = true;
+    els.swipeHint.hidden = true;
     lastTransactions = [];
     lastTruncated = false;
     // การ์ดสูงตามจำนวนหมวด จึงให้ skeleton สูงเท่าการ์ดที่เห็นล่าสุด วัดได้ 0 (แท็บซ่อนอยู่) ก็คงค่าเดิมไว้
@@ -1281,6 +1369,7 @@ async function runEdit(action, kind) {
   }
   els.confirm.close();
   if (!failure) {
+    if (kind === 'delete') undoBar.hide();
     els.editor.close();
     pendingListFocus = { id: focusId };
     await loadMonth();
@@ -1291,6 +1380,7 @@ async function runEdit(action, kind) {
     return;
   }
   if (failure.closeAndReload) {
+    if (kind === 'delete') undoBar.hide();
     els.editor.close();
     pendingListFocus = { id: focusId };
     await loadMonth();
@@ -1309,7 +1399,7 @@ async function runEdit(action, kind) {
 els.form.addEventListener('submit', (event) => {
   event.preventDefault();
   const body = {
-    amount: Number(els.amount.value),
+    amount: parseAmountText(els.amount.value),
     categoryId: els.category.value,
     occurredOn: els.date.value,
     note: els.note.value,
@@ -1343,6 +1433,17 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
+els.swipeHintDismiss.addEventListener('click', () => {
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ ไม่ใช้ช่องเดือนเพราะ iOS อาจเปิดตัวเลือกเดือนเอง
+  els.pageTitle.focus();
+  dismissSwipeHint();
+});
+els.monthContextToday.addEventListener('click', () => {
+  els.month.value = currentMonth(new Date());
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ ไม่ใช้ช่องเดือนเพราะ iOS อาจเปิดตัวเลือกเดือนเอง
+  els.pageTitle.focus();
+  loadMonth({ reset: true });
+});
 
 // ถอด enter ก่อนกรอง ไม่งั้นแถวที่สร้างใหม่จะเล่นแอนิเมชันเข้าฉากตาม CSS แล้วกระพริบตอนพิมพ์
 function refilter() {
@@ -1589,7 +1690,7 @@ els.recurringForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const body = {
     categoryId: els.recurringCategory.value,
-    amount: Number(els.recurringAmount.value),
+    amount: parseAmountText(els.recurringAmount.value),
     dayOfMonth: Number(els.recurringDay.value),
     note: els.recurringNote.value,
     active: els.recurringActive.checked,
@@ -1710,10 +1811,12 @@ const tabController = createTabController({
   titleEl: document.getElementById('page-title'),
   monthEl: els.month,
   panelFor: (id) => document.getElementById(`panel-${id}`),
+  onBeforeChange: (id) => tabScroll.set(id, window.scrollY),
   onChange: (id) => {
     // ข้อความชั่วคราวหายเมื่อสลับแท็บ แต่ error โหลดข้อมูลต้องยังเห็นอยู่
     showStickyLoadError();
-    window.scrollTo(0, 0);
+    updateMonthContext();
+    window.scrollTo(0, tabScroll.get(id) ?? 0);
     if (id === 'list') replayClass(els.list, 'enter');
     if (id === 'summary') {
       playBars(window, els.chartRows);
@@ -1781,13 +1884,16 @@ function pushSubPageEntry() {
 }
 
 function enterSubPage(page) {
+  if (!activeSubPage) tabScroll.set(tabController.current, window.scrollY);
   if (!activeSubPage) pushSubPageEntry();
+  undoBar.hide();
   activeSubPage = page;
   document.getElementById('app').classList.add('sub-page');
   els.bottomNav.hidden = true;
   for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== page.panelId;
   document.getElementById('page-title').textContent = page.title;
   els.month.hidden = true;
+  updateMonthContext();
   els.pageBack.setAttribute('aria-label', page.backLabel);
   els.pageBack.hidden = false;
   showStickyLoadError();
@@ -1919,8 +2025,8 @@ window.addEventListener('popstate', (event) => {
   if (activeSubPage.parent) {
     // entry ถูกใช้ไปแล้ว จึงเปิดหน้าแม่ใหม่พร้อมเพิ่ม entry ให้การกดย้อนครั้งถัดไปออกจากชุดหน้าย่อย
     const { parent } = activeSubPage;
-    activeSubPage = null;
-    subPageEntryPushed = false;
+    // ไม่ล้าง activeSubPage เพื่อไม่ให้ enterSubPage ทับตำแหน่งเลื่อนของแท็บด้วยของหน้าลูก
+    pushSubPageEntry();
     enterSubPage(parent);
     return;
   }

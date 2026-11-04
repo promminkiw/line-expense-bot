@@ -35,7 +35,7 @@ function isTextMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'text';
 }
 
-// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบมีปัญหาหรือตอบช้า
+// follow และ unfollow ไม่ต้องตอบ และ unfollow ไม่มี replyToken จึงห้ามส่งข้อความระบบ
 function isSilentEvent(event) {
   return event.type === 'follow' || event.type === 'unfollow';
 }
@@ -47,6 +47,7 @@ function isImageMessage(event) {
 function createBot({
   replyText,
   replyFlex,
+  showLoading,
   parseMessage,
   parseQuestion,
   commentSummary,
@@ -126,6 +127,12 @@ function createBot({
       return;
     }
     const lineUserId = event.source.userId;
+    // event ที่ส่งซ้ำอาจถูก claim ไปแล้วและไม่มี reply มาปิด animation จึงไม่แสดง
+    const isRedelivery = Boolean(event.deliveryContext && event.deliveryContext.isRedelivery);
+    if (!isRedelivery && (isTextMessage(event) || isImageMessage(event))) {
+      // ไม่ await เพื่อไม่ให้ตอบช้าลง และ animation พังต้องไม่กระทบการบันทึก
+      showLoading(lineUserId).catch((err) => logger.error('Failed to show loading animation', { lineUserId }, err));
+    }
     let reply;
     try {
       reply = await buildReplyBeforeDeadline(event, lineUserId);

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { TRANSACTIONS, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, deleteFirstRow, cleanupGlobals } from './dom-harness.mjs';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { EMPTY_MONTH, TRANSACTIONS, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, deleteFirstRow, cleanupGlobals } from './dom-harness.mjs';
 
 afterEach(cleanupGlobals);
 
@@ -136,6 +136,257 @@ describe('LIFF list swipe to delete', () => {
 
     expect(byId('editor').open).toBe(true);
   });
+
+  const SNAPSHOT = { id: 'restored', amount: 60, note: '', occurredOn: '2026-10-01', categoryId: 'c', walletId: null, source: 'text', lineEventId: null, createdAt: '2026-10-01T01:00:00+00:00' };
+
+  async function swipeDeleteFirst() {
+    const [row] = firstRows();
+    swipeRow(row, 60);
+    row.querySelector('.row-delete').click();
+    await settle();
+  }
+
+  // routeFetch เก็บแค่ METHOD path จึงห่อ fetch อีกชั้นเพื่อเก็บ body และคุมคำตอบของ restore
+  function watchRestore({ hold = false } = {}) {
+    const inner = globalThis.fetch;
+    const restoreBodies = [];
+    const held = [];
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      if (options.method === 'POST' && path === '/api/transactions/restore') {
+        restoreBodies.push(JSON.parse(options.body));
+        if (hold && restoreBodies.length === 1) return new Promise((resolve) => held.push(resolve));
+      }
+      return inner(url, options);
+    });
+    return { restoreBodies, release: (response) => held.shift()(response) };
+  }
+
+  it('offers undo after a swipe delete and restores the entry', async () => {
+    await boot();
+    const calls = routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return {};
+      return undefined;
+    });
+    const { restoreBodies } = watchRestore();
+
+    await swipeDeleteFirst();
+    expect(byId('undo-bar').hidden).toBe(false);
+    expect(byId('undo-bar-text').textContent).toBe('ลบรายการแล้ว');
+    expect(byId('undo-bar-status').hidden).toBe(false);
+    expect(byId('undo-bar-status').textContent).toBe('ลบรายการแล้ว');
+
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+    expect(calls).toContain('POST /api/transactions/restore');
+    expect(restoreBodies).toEqual([SNAPSHOT]);
+    expect(calls.lastIndexOf('GET /api/transactions')).toBeGreaterThan(calls.indexOf('POST /api/transactions/restore'));
+  });
+
+  it('does not keep an older undo after deleting a row with no snapshot', async () => {
+    await boot();
+    let deletes = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: (deletes += 1) === 1 ? SNAPSHOT : null };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    expect(byId('undo-bar').hidden).toBe(false);
+    await swipeDeleteFirst();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+    expect(byId('undo-bar-status').textContent).toBe('');
+  });
+
+  it('does not keep an older undo after deleting from the editor', async () => {
+    await boot();
+    let deletes = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: (deletes += 1) === 1 ? SNAPSHOT : null };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    vi.setSystemTime(Date.now() + 1000);
+    await deleteFirstRow();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('keeps the older undo when a later delete fails', async () => {
+    await boot();
+    let deletes = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return (deletes += 1) === 1 ? { restore: SNAPSHOT } : { status: 500 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    await swipeDeleteFirst();
+
+    expect(byId('undo-bar').hidden).toBe(false);
+  });
+
+  it('clears the failure banner after a successful retry', async () => {
+    await boot();
+    let restores = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return (restores += 1) === 1 ? { status: 500 } : {};
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+    expect(byId('banner').hidden).toBe(false);
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').hidden).toBe(true);
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('clears the failure banner when the retry answers 409', async () => {
+    await boot();
+    let restores = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return (restores += 1) === 1 ? { status: 500 } : { status: 409 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+    expect(byId('banner').hidden).toBe(false);
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').hidden).toBe(true);
+  });
+
+  it('does not replace a newer undo when an older restore fails', async () => {
+    await boot();
+    const newer = { ...SNAPSHOT, id: 'newer' };
+    let deletes = 0;
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: (deletes += 1) === 1 ? SNAPSHOT : newer };
+      if (method === 'POST' && path === '/api/transactions/restore') return {};
+      return undefined;
+    });
+    const { restoreBodies, release } = watchRestore({ hold: true });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+    await swipeDeleteFirst();
+    expect(byId('undo-bar').hidden).toBe(false);
+
+    release({ ok: false, status: 500, json: async () => ({}) });
+    await settle();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(restoreBodies.map((body) => body.id)).toEqual(['restored', 'newer']);
+  });
+
+  it('shows that the restore is running until it finishes', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return {};
+      return undefined;
+    });
+    const { release } = watchRestore({ hold: true });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(false);
+    expect(byId('undo-bar-text').textContent).toBe('กำลังกู้คืน...');
+    expect(byId('undo-bar-button').hidden).toBe(true);
+
+    release({ ok: true, status: 200, json: async () => ({}) });
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('explains a 400 restore and offers no bar', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 400 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').textContent).toBe('กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว');
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('hides the undo bar when a sub-page opens', async () => {
+    await boot();
+    routeFetch((method, path) => (method === 'DELETE' && path.startsWith('/api/transactions/') ? { restore: SNAPSHOT } : undefined));
+
+    await swipeDeleteFirst();
+    expect(byId('undo-bar').hidden).toBe(false);
+    clickTab('budgets');
+    byId('categories-open').click();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('offers no undo when the server returns no snapshot', async () => {
+    await boot();
+    routeFetch((method, path) => (method === 'DELETE' && path.startsWith('/api/transactions/') ? { restore: null } : undefined));
+
+    await swipeDeleteFirst();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('treats 409 as already restored', async () => {
+    await boot();
+    const calls = routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 409 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').hidden).toBe(true);
+    expect(byId('undo-bar').hidden).toBe(true);
+    expect(calls.lastIndexOf('GET /api/transactions')).toBeGreaterThan(calls.indexOf('POST /api/transactions/restore'));
+  });
+
+  it('keeps the undo available after a network failure', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 500 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').textContent).toBe('เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('undo-bar').hidden).toBe(false);
+  });
 });
 
 
@@ -155,10 +406,10 @@ describe('recurring tab style r2', () => {
   it('keeps the hint to one line and folds the timing rules into a details element', async () => {
     await boot({ overrides: { '/api/recurring': RULES } });
 
-    expect(document.querySelector('.recurring-hint').textContent).toBe('บอทจดให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE');
+    expect(document.querySelector('.recurring-hint').textContent).toBe('เฮียจดให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE');
     expect(document.querySelector('.recurring-more summary').textContent).toBe('เริ่มจดเมื่อไร');
     expect(document.querySelector('.recurring-more').textContent).toContain('จะเริ่มเดือนหน้า');
-    expect(document.querySelector('.recurring-more').textContent).toContain('กดยกเลิกได้');
+    expect(document.querySelector('.recurring-more').textContent).toContain('กดลบได้');
   });
 
   it('renders each rule as a calendar day, a name, a signed amount and a paused tag', async () => {
@@ -363,5 +614,75 @@ describe('LIFF small tickets', () => {
     await settle();
 
     expect(document.activeElement).toBe(byId('month'));
+  });
+});
+
+describe('LIFF swipe hint', () => {
+  beforeEach(() => localStorage.clear());
+
+  afterEach(() => localStorage.clear());
+
+  it('shows once there are rows and stays dismissed after the button', async () => {
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+
+    byId('swipe-hint-dismiss').click();
+    expect(byId('swipe-hint').hidden).toBe(true);
+
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('dismisses itself when a row is swiped open', async () => {
+    await boot();
+
+    swipeRow(firstRows()[0], 60);
+
+    expect(byId('swipe-hint').hidden).toBe(true);
+    expect(localStorage.getItem('swipe-hint-seen')).toBe('1');
+  });
+
+  it('stays hidden on an empty month', async () => {
+    await boot({ overrides: { '/api/transactions': EMPTY_MONTH } });
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('hides while the month reloads and stays hidden when the load fails', async () => {
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+
+    routeFetch((method, path) => (path === '/api/transactions' ? { status: 500 } : undefined));
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+
+    expect(byId('swipe-hint').hidden).toBe(true);
+    await settle();
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('moves focus off the dismiss button when the hint hides', async () => {
+    await boot();
+    byId('swipe-hint-dismiss').focus();
+
+    byId('swipe-hint-dismiss').click();
+
+    expect(document.activeElement).toBe(byId('page-title'));
+  });
+
+  it('does not move focus when a swipe dismisses the hint', async () => {
+    await boot();
+    const row = firstRows()[0];
+    row.querySelector('.row-delete').focus();
+
+    swipeRow(row, 60);
+
+    expect(document.activeElement).not.toBe(byId('month'));
+  });
+
+  it('still works when storage throws', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+    spy.mockRestore();
   });
 });

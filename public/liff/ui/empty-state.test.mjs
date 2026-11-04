@@ -21,7 +21,7 @@ describe('createEmptyState', () => {
   it('says the recurring hint covers income and expenses', () => {
     const hint = createEmptyState(document, 'recurring').querySelector('.empty-hint').textContent;
 
-    expect(hint).toBe('เพิ่มรายรับรายจ่ายที่เกิดทุกเดือน เช่น ค่าเน็ต เงินเดือน แล้วบอทจะบันทึกให้เอง');
+    expect(hint).toBe('เพิ่มรายรับรายจ่ายที่เกิดทุกเดือน เช่น ค่าเน็ต เงินเดือน แล้วเฮียจะบันทึกให้เอง');
   });
 
   it('can use another tag so it can live inside a list', () => {

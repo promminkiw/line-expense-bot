@@ -47,4 +47,13 @@ function createPushFlex(client) {
   };
 }
 
-module.exports = { capTextLength, createReplyText, createReplyFlex, createPushText, createPushFlex };
+// LINE รับเฉพาะเลขหาร 5 ลงตัว ตั้งเท่า REPLY_DEADLINE_MS เพราะหลังจากนั้นบอทตอบข้อความแจ้งว่าช้าแล้ว
+const LOADING_SECONDS = 50;
+
+function createShowLoading(client) {
+  return async function showLoading(chatId) {
+    await client.showLoadingAnimation({ chatId, loadingSeconds: LOADING_SECONDS });
+  };
+}
+
+module.exports = { capTextLength, createReplyText, createReplyFlex, createPushText, createPushFlex, createShowLoading };
