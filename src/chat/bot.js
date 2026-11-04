@@ -127,7 +127,9 @@ function createBot({
       return;
     }
     const lineUserId = event.source.userId;
-    if (isTextMessage(event) || isImageMessage(event)) {
+    // event ที่ส่งซ้ำอาจถูก claim ไปแล้วและไม่มี reply มาปิด animation จึงไม่แสดง
+    const isRedelivery = Boolean(event.deliveryContext && event.deliveryContext.isRedelivery);
+    if (!isRedelivery && (isTextMessage(event) || isImageMessage(event))) {
       // ไม่ await เพื่อไม่ให้ตอบช้าลง และ animation พังต้องไม่กระทบการบันทึก
       showLoading(lineUserId).catch((err) => logger.error('Failed to show loading animation', { lineUserId }, err));
     }

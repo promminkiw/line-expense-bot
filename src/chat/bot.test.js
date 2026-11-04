@@ -2309,6 +2309,25 @@ describe('bot loading animation', () => {
     expect(deps.showLoading).not.toHaveBeenCalled();
   });
 
+  it('does not show it for a redelivered event that was already claimed', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent({ ...textEvent('กินข้าว 60'), deliveryContext: { isRedelivery: true } });
+    await bot.handleEvent({ ...imageEvent(), deliveryContext: { isRedelivery: true } });
+
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
+  it('still replies to an unclaimed redelivered event without the animation', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent({ ...textEvent('สรุป'), deliveryContext: { isRedelivery: true } });
+
+    expect(deps.replyText).toHaveBeenCalled();
+    expect(deps.showLoading).not.toHaveBeenCalled();
+  });
+
   it('still replies and logs when the animation fails', async () => {
     const { deps, bot } = setup();
     const failure = new Error('line down');
