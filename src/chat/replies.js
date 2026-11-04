@@ -10,10 +10,10 @@ const SLOW_PROCESSING_REPLY =
   'เฮียตอบช้ากว่าปกติ ถ้าจดรายการหรือกดบันทึกไว้ รายการอาจถูกบันทึกแล้ว ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ลองส่งใหม่อีกครั้ง';
 const RATE_LIMITED_REPLY = 'ส่งข้อความถี่เกินไป เฮียตามไม่ทัน รอสักครู่แล้วลองใหม่อีกครั้ง';
 const QUESTION_FAILED_REPLY = 'ตอนนี้เฮียตอบคำถามยอดไม่ได้ ลองใหม่ภายหลัง หรือดูยอดในหน้าเว็บ ถ้าตั้งใจจดรายการ ลองพิมพ์ใหม่โดยไม่มีคำว่า เท่าไหร่';
-const UNDO_DONE_REPLY = 'เฮียยกเลิกรายการให้แล้ว';
-const UNDO_NOT_FOUND_REPLY = 'เฮียไม่พบรายการที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
-const UNDO_SAVING_DONE_REPLY = 'เฮียยกเลิกการออมให้แล้ว';
-const UNDO_SAVING_NOT_FOUND_REPLY = 'เฮียไม่พบรายการออมที่จะยกเลิก อาจถูกยกเลิกไปแล้ว';
+const UNDO_DONE_REPLY = 'เฮียลบรายการให้แล้ว';
+const UNDO_NOT_FOUND_REPLY = 'เฮียไม่พบรายการที่จะลบ อาจถูกลบไปแล้ว';
+const UNDO_SAVING_DONE_REPLY = 'เฮียลบรายการออมให้แล้ว';
+const UNDO_SAVING_NOT_FOUND_REPLY = 'เฮียไม่พบรายการออมที่จะลบ อาจถูกลบไปแล้ว';
 const BILL_REPLIES = {
   declined: 'เฮียบันทึกว่าคุณปฏิเสธบิลนี้แล้ว',
   cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
@@ -44,9 +44,9 @@ function buildUndoQuickReply(webhookEventId) {
       type: 'action',
       action: {
         type: 'postback',
-        label: 'ยกเลิก',
+        label: 'ลบ',
         data: new URLSearchParams({ action: UNDO_ACTION, event: webhookEventId }).toString(),
-        displayText: 'ยกเลิก',
+        displayText: 'ลบ',
       },
     },
   ];
@@ -58,9 +58,9 @@ function buildUndoSavingQuickReply(webhookEventId) {
       type: 'action',
       action: {
         type: 'postback',
-        label: 'ยกเลิก',
+        label: 'ลบ',
         data: new URLSearchParams({ action: UNDO_SAVING_ACTION, event: webhookEventId }).toString(),
-        displayText: 'ยกเลิก',
+        displayText: 'ลบ',
       },
     },
   ];

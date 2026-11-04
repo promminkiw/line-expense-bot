@@ -52,10 +52,10 @@ const SLIP_QUICK_REPLY = [
 const UNDO_QUICK_REPLY = [
   {
     type: 'action',
-    action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo&event=ev1', displayText: 'ยกเลิก' },
+    action: { type: 'postback', label: 'ลบ', data: 'action=undo&event=ev1', displayText: 'ลบ' },
   },
 ];
-const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ยกเลิกรายการนี้' } }];
+const SAVED_UNDO_FOOTER = [{ ...UNDO_QUICK_REPLY[0], action: { ...UNDO_QUICK_REPLY[0].action, label: 'ลบรายการนี้' } }];
 
 const SUMMARY_QUICK_REPLY = [
   { type: 'action', action: { type: 'message', label: 'วันนี้', text: 'สรุปวันนี้' } },
@@ -749,7 +749,7 @@ describe('bot saving command', () => {
   const UNDO_SAVING_QUICK_REPLY = [
     {
       type: 'action',
-      action: { type: 'postback', label: 'ยกเลิก', data: 'action=undo_saving&event=ev1', displayText: 'ยกเลิก' },
+      action: { type: 'postback', label: 'ลบ', data: 'action=undo_saving&event=ev1', displayText: 'ลบ' },
     },
   ];
 
@@ -1671,7 +1671,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ลบรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ลบ' },
         },
       ],
     });
@@ -1819,7 +1819,7 @@ describe('bot slip confirmation', () => {
       quickReply: [
         {
           type: 'action',
-          action: { type: 'postback', label: 'ยกเลิกรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ยกเลิก' },
+          action: { type: 'postback', label: 'ลบรายการนี้', data: 'action=undo&event=ev-img', displayText: 'ลบ' },
         },
       ],
     });
@@ -2266,6 +2266,15 @@ describe('bot bill card buttons', () => {
 
     expect(deps.bills.respond).not.toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r2', BILL_REPLIES.not_found, undefined);
+  });
+});
+
+describe('delete wording on saved entries', () => {
+  it('says the entry was deleted', () => {
+    expect(UNDO_DONE_REPLY).toBe('เฮียลบรายการให้แล้ว');
+    expect(UNDO_NOT_FOUND_REPLY).toBe('เฮียไม่พบรายการที่จะลบ อาจถูกลบไปแล้ว');
+    expect(UNDO_SAVING_DONE_REPLY).toBe('เฮียลบรายการออมให้แล้ว');
+    expect(UNDO_SAVING_NOT_FOUND_REPLY).toBe('เฮียไม่พบรายการออมที่จะลบ อาจถูกลบไปแล้ว');
   });
 });
 

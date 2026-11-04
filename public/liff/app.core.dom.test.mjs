@@ -53,7 +53,7 @@ describe('index.html static invariants', () => {
   it('names the delete action in the categories hint and avoids the minus sign in balance notes', () => {
     expect(doc.querySelector('#panel-budgets .categories-entry-hint').textContent.trim()).toBe('เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด');
     expect(doc.querySelector('.balance-note').textContent.replace(/\s+/g, ' ').trim()).toBe(
-      'รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
+      'รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง'
     );
     expect(doc.querySelector('.wallets-hint').textContent).toContain('= รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น');
     expect(doc.body.textContent).not.toContain('รายรับ - รายจ่าย');
@@ -64,7 +64,7 @@ describe('index.html static invariants', () => {
     expect(recurring.classList.contains('menu-row')).toBe(true);
     expect(recurring.hasAttribute('disabled')).toBe(true);
     expect(recurring.querySelector('.menu-row-title').textContent).toBe('รายการประจำ');
-    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง');
+    expect(recurring.querySelector('.menu-row-sub').textContent).toBe('รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง');
     expect(recurring.querySelector('use').getAttribute('href')).toBe('#tab-repeat');
     const categories = doc.getElementById('me-categories-open');
     expect(categories.hasAttribute('disabled')).toBe(true);
@@ -107,8 +107,8 @@ describe('index.html static invariants', () => {
     const tips = doc.getElementById('tips-open');
     expect(tips.hasAttribute('disabled')).toBe(false);
     expect(tips.querySelector('.menu-row-title').textContent).toBe('วิธีใช้งาน');
-    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้บอทและคำสั่งในแชต');
-    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้บอทและคำสั่งในแชต');
+    expect(tips.querySelector('.menu-row-sub').textContent).toBe('วิธีใช้เฮียและคำสั่งในแชต');
+    expect(tips.textContent.replace(/\s+/g, ' ').trim()).toBe('วิธีใช้งาน วิธีใช้เฮียและคำสั่งในแชต');
     expect(doc.getElementById('panel-tips').contains(doc.querySelector('.profile-tips'))).toBe(true);
     expect(doc.getElementById('profile-card').contains(doc.getElementById('profile-close'))).toBe(false);
     expect(doc.getElementById('panel-profile').contains(doc.getElementById('profile-close'))).toBe(true);

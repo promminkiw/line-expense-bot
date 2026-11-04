@@ -458,11 +458,11 @@
     <div id="panel-recurring" class="panel" hidden>
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
         <h2 id="recurring-title">รายการประจำ</h2>
-        <p class="recurring-hint"><span class="nowrap">บอทจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
+        <p class="recurring-hint"><span class="nowrap">เฮียจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
         <details class="recurring-more">
           <summary>เริ่มจดเมื่อไร</summary>
           <p>ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว จะเริ่มเดือนหน้า (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้รายการที่หยุดไว้)
-            ทุกครั้งที่จดจะแจ้งใน LINE และกดยกเลิกได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
+            ทุกครั้งที่จดจะแจ้งใน LINE และกดลบได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
         </details>
         <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
         <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
@@ -579,7 +579,7 @@
         <div class="balance-card">
           <span class="stat-label">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
-          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกในบอทตั้งแต่เริ่ม
+          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม
             ไม่ใช่ยอดเงินในบัญชีจริง</span>
           <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ
             ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
@@ -625,7 +625,7 @@
                     <use href="#tab-repeat"></use>
                   </svg></span>
                 <span class="menu-row-text"><span class="menu-row-title">รายการประจำ</span> <span
-                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน บอทจดให้เอง</span></span>
+                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -657,7 +657,7 @@
                     <use href="#icon-book"></use>
                   </svg></span>
                 <span class="menu-row-text"><span class="menu-row-title">วิธีใช้งาน</span> <span
-                    class="menu-row-sub">วิธีใช้บอทและคำสั่งในแชต</span></span>
+                    class="menu-row-sub">วิธีใช้เฮียและคำสั่งในแชต</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -691,7 +691,7 @@
     <div id="panel-notify" class="panel" hidden>
       <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
         <h2 id="notify-title">การแจ้งเตือน</h2>
-        <p class="notify-hint">บอทส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
+        <p class="notify-hint">เฮียส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
         <p id="notify-loading" class="notify-loading" role="status" hidden>กำลังโหลดการตั้งค่า...</p>
         <div id="notify-error" class="budgets-error" hidden>
           <p id="notify-error-text" role="alert"></p>
@@ -746,13 +746,13 @@
     </div>
     <div id="panel-tips" class="panel" hidden>
       <section class="profile-tips" aria-labelledby="tips-title">
-        <h3 id="tips-title">วิธีใช้บอท</h3>
+        <h3 id="tips-title">วิธีใช้เฮีย</h3>
         <ul>
-          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">บอทบันทึก</span>ให้ทันที</li>
+          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">เฮียบันทึก</span>ให้ทันที</li>
           <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">บอทอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
-          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">บอทตอบยอด</span>ให้</li>
-          <li>บันทึกผิด กดปุ่มยกเลิกใต้ข้อความตอบกลับได้เลย</li>
+          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">เฮียอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
+          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">เฮียตอบยอด</span>ให้</li>
+          <li>บันทึกผิด กดปุ่มลบบนการ์ดที่เฮียตอบกลับได้เลย</li>
           <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
         </ul>
       </section>

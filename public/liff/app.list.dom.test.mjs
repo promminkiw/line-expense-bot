@@ -155,10 +155,10 @@ describe('recurring tab style r2', () => {
   it('keeps the hint to one line and folds the timing rules into a details element', async () => {
     await boot({ overrides: { '/api/recurring': RULES } });
 
-    expect(document.querySelector('.recurring-hint').textContent).toBe('บอทจดให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE');
+    expect(document.querySelector('.recurring-hint').textContent).toBe('เฮียจดให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE');
     expect(document.querySelector('.recurring-more summary').textContent).toBe('เริ่มจดเมื่อไร');
     expect(document.querySelector('.recurring-more').textContent).toContain('จะเริ่มเดือนหน้า');
-    expect(document.querySelector('.recurring-more').textContent).toContain('กดยกเลิกได้');
+    expect(document.querySelector('.recurring-more').textContent).toContain('กดลบได้');
   });
 
   it('renders each rule as a calendar day, a name, a signed amount and a paused tag', async () => {

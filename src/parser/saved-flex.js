@@ -110,7 +110,7 @@ function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletR
   if (budgetCheckFailed) altParts.push(BUDGET_CHECK_FAILED_NOTICE);
   if (walletReadFailed) altParts.push(WALLETS_UNREADABLE_NOTICE);
 
-  const cancelLabel = many ? 'ยกเลิกทั้งหมด' : 'ยกเลิกรายการนี้';
+  const deleteLabel = many ? 'ลบทั้งหมด' : 'ลบรายการนี้';
   const footer =
     buttons && buttons.length > 0
       ? {
@@ -118,7 +118,7 @@ function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletR
           layout: 'horizontal',
           spacing: 'sm',
           paddingAll: '10px',
-          contents: buttons.map((item) => softButton(item.action.label === 'ยกเลิก' ? relabel(item.action, cancelLabel) : item.action)),
+          contents: buttons.map((item) => softButton(item.action.label === 'ลบ' ? relabel(item.action, deleteLabel) : item.action)),
         }
       : undefined;
 
