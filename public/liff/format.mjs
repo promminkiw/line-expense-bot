@@ -70,6 +70,12 @@ export function categoryOptionLabel(category) {
 
 export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
 
+// ช่อง number ของ browser ไม่รับ 1,500 จึงใช้ช่อง text แล้วตัดคอมมาเอง
+export function parseAmountText(text) {
+  const cleaned = text.replace(/[,\s]/g, '');
+  return /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN;
+}
+
 export function describeEditFailure(status, action) {
   if (status === 401) {
     return { message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false };

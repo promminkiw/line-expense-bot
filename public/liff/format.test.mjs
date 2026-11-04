@@ -10,6 +10,7 @@ import {
   categoryOptionLabel,
   describeEditFailure,
   describeRestoreFailure,
+  parseAmountText,
   describeDeleteTarget,
   summaryTotals,
   chartRows,
@@ -765,5 +766,20 @@ describe('describeRestoreFailure', () => {
 describe('describeViewedMonth', () => {
   it('names the month in Thai with the Buddhist year', () => {
     expect(describeViewedMonth('2026-09')).toBe('กำลังดูเดือน ก.ย. 2569');
+  });
+});
+
+describe('parseAmountText', () => {
+  it.each([
+    ['1,500', 1500],
+    ['1,500.50', 1500.5],
+    [' 60 ', 60],
+    ['60', 60],
+  ])('reads %s', (text, amount) => {
+    expect(parseAmountText(text)).toBe(amount);
+  });
+
+  it.each(['', 'abc', '1.2.3', '-5'])('rejects %s', (text) => {
+    expect(parseAmountText(text)).toBeNaN();
   });
 });

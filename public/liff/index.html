@@ -776,7 +776,7 @@
           <use href="#icon-close"></use>
         </svg></button>
       <label>จำนวนเงิน (บาท)
-        <input id="edit-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*\d[\d,]*(\.\d{1,2})?\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50" required>
       </label>
       <label>หมวด
         <select id="edit-category" required></select>
@@ -1012,7 +1012,7 @@
         <select id="recurring-category" required></select>
       </label>
       <label>จำนวนเงิน (บาท)
-        <input id="recurring-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="recurring-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*\d[\d,]*(\.\d{1,2})?\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50" required>
       </label>
       <label>ทุกวันที่ (1-31)
         <input id="recurring-day" type="number" inputmode="numeric" step="1" min="1" max="31" required>
@@ -1051,7 +1051,7 @@
         <input id="goal-editor-name" type="text" maxlength="30" required>
       </label>
       <label>ยอดเป้า (บาท)
-        <input id="goal-editor-target" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="goal-editor-target" type="text" inputmode="decimal" autocomplete="off" pattern="\s*\d[\d,]*(\.\d{1,2})?\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50" required>
       </label>
       <label>อยากถึงเป้าภายในวันที่ (ไม่บังคับ)
         <input id="goal-editor-date" type="date">
@@ -1077,7 +1077,7 @@
     <p id="goal-detail-closed-note" class="confirm-detail" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
     <form id="goal-detail-form">
       <label>ออมเพิ่ม (บาท)
-        <input id="goal-detail-amount" type="number" inputmode="decimal" step="0.01" min="0.01" max="10000000" required>
+        <input id="goal-detail-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*\d[\d,]*(\.\d{1,2})?\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50" required>
       </label>
       <label>วันที่
         <input id="goal-detail-date" type="date" required>

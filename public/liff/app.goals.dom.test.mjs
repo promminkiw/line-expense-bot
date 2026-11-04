@@ -287,6 +287,33 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail-amount').value).toBe('');
   });
 
+  it('reads commas in the new goal target', async () => {
+    await openTab();
+    const calls = captureFetch((method, path) => (method === 'POST' && path === '/api/goals' ? { goal: { id: 'g-new' } } : undefined));
+
+    byId('goal-add').click();
+    byId('goal-editor-name').value = 'คอนโด';
+    byId('goal-editor-target').value = '1,500';
+    submitEditor();
+    await settle();
+
+    expect(calls[0].body.targetAmount).toBe(1500);
+  });
+
+  it('reads commas in a contribution', async () => {
+    await openTab();
+    await openDetailOf('goal-rows', 0);
+    const calls = captureFetch((method, path) =>
+      method === 'POST' && path === '/api/goals/g-1/contributions' ? { contribution: { id: 'gc-3' }, saved: 6500 } : undefined
+    );
+
+    byId('goal-detail-amount').value = '1,500';
+    submitDetail();
+    await settle();
+
+    expect(calls[0].body.amount).toBe(1500);
+  });
+
   it('does not add twice when the save button is tapped while the goals reload', async () => {
     await openTab();
     await openDetailOf('goal-rows', 0);

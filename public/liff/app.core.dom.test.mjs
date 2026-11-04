@@ -1188,3 +1188,33 @@ describe('LIFF viewed month notice', () => {
     expect(byId('month-context').hidden).toBe(false);
   });
 });
+
+describe('LIFF amount inputs', () => {
+  it.each(['edit-amount', 'recurring-amount', 'goal-editor-target', 'goal-detail-amount'])('%s accepts typed commas', async (id) => {
+    await boot();
+    const input = byId(id);
+
+    expect(input.type).toBe('text');
+    expect(input.getAttribute('inputmode')).toBe('decimal');
+    expect(new RegExp(`^(?:${input.pattern})$`).test('1,500.50')).toBe(true);
+    expect(new RegExp(`^(?:${input.pattern})$`).test('abc')).toBe(false);
+  });
+
+  it('sends the comma amount as a number when saving an edit', async () => {
+    await boot();
+    let sent;
+    const original = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      if (options.method === 'PATCH') sent = JSON.parse(options.body);
+      return original(url, options);
+    });
+
+    document.querySelector('#list .row-button').click();
+    await settle();
+    byId('edit-amount').value = '1,500';
+    byId('edit-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(sent.amount).toBe(1500);
+  });
+});

@@ -30,6 +30,7 @@ import {
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
   describeRestoreFailure,
+  parseAmountText,
 } from './format.mjs';
 import { createFriendsPanel } from './friends/friends-panel.mjs';
 import { createSettingsPanel } from './settings/settings-panel.mjs';
@@ -1362,7 +1363,7 @@ async function runEdit(action, kind) {
 els.form.addEventListener('submit', (event) => {
   event.preventDefault();
   const body = {
-    amount: Number(els.amount.value),
+    amount: parseAmountText(els.amount.value),
     categoryId: els.category.value,
     occurredOn: els.date.value,
     note: els.note.value,
@@ -1648,7 +1649,7 @@ els.recurringForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const body = {
     categoryId: els.recurringCategory.value,
-    amount: Number(els.recurringAmount.value),
+    amount: parseAmountText(els.recurringAmount.value),
     dayOfMonth: Number(els.recurringDay.value),
     note: els.recurringNote.value,
     active: els.recurringActive.checked,

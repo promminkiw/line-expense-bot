@@ -1,7 +1,7 @@
 import { ApiError } from '../api.mjs';
 import { createLoadingIndicator } from '../ui/skeleton.mjs';
 import { revealError } from '../ui/reveal.mjs';
-import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht } from '../format.mjs';
+import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht, parseAmountText } from '../format.mjs';
 import { splitGoals, goalRow, goalsSummary, goalLabel, contributionRows, describeGoalError } from './goals-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
@@ -162,7 +162,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
   function readEditor() {
     return {
       name: els.editorName.value.trim(),
-      targetAmount: Number(els.editorTarget.value),
+      targetAmount: parseAmountText(els.editorTarget.value),
       targetDate: els.editorDate.value || null,
     };
   }
@@ -346,7 +346,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
   }
 
   async function addContribution() {
-    const amount = Number(els.detailAmount.value);
+    const amount = parseAmountText(els.detailAmount.value);
     const occurredOn = els.detailDate.value;
     const saved = await runDetail(() => getApi().addGoalContribution(viewing, { amount, occurredOn }), `ออมเพิ่ม ${formatBaht(amount)} แล้ว`);
     if (saved) els.detailAmount.value = '';
