@@ -950,6 +950,16 @@ describe('LIFF bills tab', () => {
     expect(byId('bill-form-error').textContent).toBe('');
   });
 
+  it('rejects a total of 60,50 as not a number and does not allow submit', async () => {
+    await openForm();
+    fillValidForm();
+
+    typeInto('bill-form-total', '60,50');
+
+    expect(byId('bill-form-error').textContent).toBe('ใส่ยอดเป็นตัวเลข เช่น 1000');
+    expect(byId('bill-form-submit').disabled).toBe(true);
+  });
+
   it.each([
     ['abc', 'ใส่ยอดเป็นตัวเลข เช่น 1000'],
     ['1.005', 'ใส่ยอดไม่เกินทศนิยม 2 ตำแหน่ง'],

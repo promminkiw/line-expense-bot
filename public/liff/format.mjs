@@ -73,6 +73,13 @@ export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้า�
 // ต้องตรงกับ pattern ใน index.html คอมมายอมเฉพาะเป็นตัวคั่นหลักพัน
 const AMOUNT_TEXT_SHAPE = /^(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})$/;
 
+const THOUSANDS_COMMAS_SHAPE = /^\d{1,3}(,\d{3})+(\.\d*)?$/;
+
+// ข้อความที่มีคอมมาต้องเป็นตัวคั่นหลักพันเท่านั้น กันอ่าน 60,50 เป็น 6050
+export function hasOnlyThousandsCommas(text) {
+  return !text.includes(',') || THOUSANDS_COMMAS_SHAPE.test(text);
+}
+
 // ช่อง number ของ browser ไม่รับ 1,500 จึงใช้ช่อง text แล้วตัดคอมมาเอง
 export function parseAmountText(text) {
   const trimmed = text.trim();

@@ -1,6 +1,6 @@
 import { ApiError } from '../api.mjs';
 import { buildEqualShares, sumShortfall, toSatang, describeBillError, describeReceiptError } from './bills-format.mjs';
-import { formatBaht, currentDate } from '../format.mjs';
+import { formatBaht, currentDate, hasOnlyThousandsCommas } from '../format.mjs';
 
 const DEFAULT_CATEGORY = 'อาหาร';
 const FRIENDS_LOAD_FAILED = 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
@@ -18,9 +18,11 @@ const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 
 // ช่องยอดรวมเป็น text ให้พิมพ์ 1,000 ได้ ช่อง number ของ browser ล้างค่าที่มีจุลภาคทิ้งเงียบๆ
 function readTotal(text) {
-  const cleaned = text.replace(/[,\s]/g, '');
+  const compact = text.replace(/\s/g, '');
+  const cleaned = compact.replaceAll(',', '');
   if (cleaned === '') return { empty: true, amount: NaN };
-  return { empty: false, amount: /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN };
+  const isNumber = hasOnlyThousandsCommas(compact) && /^\d+(\.\d+)?$/.test(cleaned);
+  return { empty: false, amount: isNumber ? Number(cleaned) : NaN };
 }
 
 function describeTotal({ empty, amount }) {
