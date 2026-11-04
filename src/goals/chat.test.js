@@ -27,6 +27,17 @@ describe('parseSavingCommand', () => {
     expect(parseSavingCommand(text)).toEqual(expected);
   });
 
+  it.each([['1,500', 1500], ['1,500.50', 1500.5], ['1,000,000', 1000000]])('reads thousands commas in %s', (amount, expected) => {
+    expect(parseSavingCommand(`ออม ทริป ${amount}`)).toEqual({ name: 'ทริป', amount: expected });
+    expect(parseSavingCommand(`ออม ${amount}`)).toEqual({ name: '', amount: expected });
+  });
+
+  // คอมมาที่ไม่ใช่ตัวคั่นหลักพันต้องไม่ถูกอ่านเป็นยอด ไม่งั้น 60,50 กลายเป็น 6050
+  it.each(['60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000'])('rejects the amount %s without reading it as a number', (amount) => {
+    expect(parseSavingCommand(`ออม ทริป ${amount}`)).toEqual({ name: 'ทริป', amount: null });
+    expect(parseSavingCommand(`ออม ${amount}`)).toEqual({ name: '', amount: null });
+  });
+
   it.each(['กินข้าว 60', 'ออม', 'ออมเงิน', 'ออม ทริป 10.555', 'สรุปเดือนนี้'])('leaves %s to the other paths', (text) => {
     expect(parseSavingCommand(text)).toBeNull();
   });

@@ -37,7 +37,6 @@ Goal: merge feat/nielsen-ux ได้เมื่อผู้ใช้ทำข�
     ยอมรับไว้ก่อน 2026-10-31: ไม่ใช่เพื่อนแต่ flag true (ไม่เคยเพิ่ม/unfollow ก่อน 026) = pushFailed เดือนละครั้ง; unfollow ซ้ำมาช้ากว่า follow = flag false ไม่ได้การ์ด ไม่นับ pushFailed จน follow ใหม่
 - [ ] แผนต่อไปที่ยังไม่ได้เขียน: แยก public/liff/app.mjs (โฟลเดอร์ฟีเจอร์พร้อมแล้ว ส่วนที่แยกออกให้วางในโฟลเดอร์ฟีเจอร์ที่ตรงกัน) และความเสถียร/ความปลอดภัย (ท้ายแผน plans/archive/2026-10-25-code-organization.md)
 - [ ] P3 ที่เหลือใน work-memory/p3-audit.md: ข้อ 2, 8, 10, 12 (ข้อ 9 ทำเฉพาะฟอร์มเดี่ยว; ข้อ 11 ตัดสินและทำแล้ว)
-- [ ] รอผู้ใช้ตัดสิน: แชต ออม เที่ยวญี่ปุ่น 60,50 ยังอ่านเป็น 6050 (src/goals/chat.js:5,8,16) กฎคอมมาเดิม พบตอนรีวิวท้ายสุด
 - [ ] รอบหน้า: หน้าแก้งบหลายหมวดยังไม่แสดงเดือน (ผู้ใช้เลือกทำรอบถัดไป)
 - [ ] ปักไว้จากรีวิวท้ายสุด: restoreDeleted ไม่มี finally รอบ refresh ถ้า refresh โยน error แถบ กำลังกู้คืน... ค้าง (app.mjs:827-828); h1 มีกรอบเหลืองเมื่อใช้ keyboard (style.css:373)
 - [ ] LIFF ต่อยอด: แบนเนอร์ยังบอกลองใหม่หลังแถบเลิกทำหมดเวลา, focus ตอนเลิกทำล้มเหลว, contrast ของ focus ring บนแถบเข้ม
@@ -56,7 +55,7 @@ Goal: merge feat/nielsen-ux ได้เมื่อผู้ใช้ทำข�
 - ความเสี่ยงที่ยอมรับ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้, .limit(500) ไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์
 
 ## Done
-- [x] Nielsen UX (2026-11-04, branch feat/nielsen-ux ยังไม่ merge ยังไม่ push): ปัดลบพร้อมเลิกทำ, ข้อความเฮีย, คอมมาในช่องยอดของฟอร์มเดี่ยว ยอดบิล และงบ (ไม่รวมส่วนแบ่งในบิลและคำสั่งออมในแชต), กำลังกู้คืน...; แผน plans/2026-11-04-nielsen-ux.md
+- [x] Nielsen UX (2026-11-04, branch feat/nielsen-ux ยังไม่ merge ยังไม่ push): ปัดลบพร้อมเลิกทำ, ข้อความเฮีย, คอมมาในช่องยอดของฟอร์มเดี่ยว ยอดบิล และงบ (ไม่รวมส่วนแบ่งในบิล), กำลังกู้คืน...; แผน plans/2026-11-04-nielsen-ux.md
     review ทั้ง branch เสร็จ เหลือข้อที่ปักไว้ใน Next; npm test 2653/2653 (--testTimeout=30000) lint ผ่าน; ledger .superpowers/sdd/progress.md ขึ้นต้น NX
 - [x] สรุปรายเดือน (2026-10-31, merge feat/monthly-summary และ push แล้ว): push วันที่ 1 08:00 สรุปเดือนก่อน การ์ด/ข้อความชวนเดือนว่าง เฮียสำเร็จรูป 6 แบบ endpoint /internal/notifications/monthly; SQL 026; SPEC ข้อ 15
     แผน plans/2026-10-30-monthly-summary.md; final review dragon+viper+panda+coral ผ่านหลังรอบแก้; npm test 2504/2504 lint ผ่าน

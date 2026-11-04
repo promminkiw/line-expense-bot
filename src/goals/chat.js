@@ -12,7 +12,13 @@ const MAX_REPLY_NAME_LENGTH = 30;
 const SAVING_AMOUNT_REPLY = 'จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท';
 const GOAL_GONE_REPLY = 'เฮียไม่พบเป้านี้แล้ว อาจถูกปิดไปแล้ว ดูเป้าที่เปิดอยู่ในหน้าเว็บ แท็บ ออม';
 
+// คอมมายอมเฉพาะเป็นตัวคั่นหลักพัน กันอ่าน 60,50 เป็น 6050
+const AMOUNT_SHAPE = /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/;
+
 function toSavingAmount(text) {
+  if (!AMOUNT_SHAPE.test(text)) {
+    return null;
+  }
   const amount = Number(text.replace(/,/g, ''));
   return isValidAmount(amount) ? amount : null;
 }

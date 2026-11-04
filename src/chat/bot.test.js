@@ -843,6 +843,25 @@ describe('bot saving command', () => {
     expect(deps.parseMessage).not.toHaveBeenCalled();
   });
 
+  it.each(['60,50', '1,5', '1,50,000'])('replies with the amount rule and saves nothing for the amount %s', async (amount) => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent(`ออม เที่ยวญี่ปุ่น ${amount}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('still saves 1000 for a thousands-comma amount', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('ออม เที่ยวญี่ปุ่น 1,000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', expect.objectContaining({ amount: 1000 }));
+  });
+
   // ผู้ใช้ตัดสิน 2026-10-19: คนที่ไม่มีเป้าเปิดอยู่ ข้อความอย่าง "ออมสิน 1000" ต้องเป็นรายการตามเดิม
   it('records the message as an entry when the user has no open goal', async () => {
     const { deps, bot } = setup();
