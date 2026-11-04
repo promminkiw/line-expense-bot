@@ -29,6 +29,7 @@ import {
   isFilterActive,
   describeFilterResult,
   thaiMonthShort,
+  describeViewedMonth,
   formatFullThaiDate,
   trendBars,
   describeExpenseComparison,
@@ -758,5 +759,11 @@ describe('describeRestoreFailure', () => {
 
   it('offers a retry on other failures', () => {
     expect(describeRestoreFailure(undefined)).toEqual({ message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true });
+  });
+});
+
+describe('describeViewedMonth', () => {
+  it('names the month in Thai with the Buddhist year', () => {
+    expect(describeViewedMonth('2026-09')).toBe('กำลังดูเดือน ก.ย. 2569');
   });
 });

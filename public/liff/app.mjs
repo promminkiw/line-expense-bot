@@ -5,6 +5,7 @@ import {
   describeDeleteTarget,
   formatThaiDate,
   currentMonth,
+  describeViewedMonth,
   groupByDate,
   formatDayNet,
   summaryTotals,
@@ -61,6 +62,9 @@ const CHART_COLOR_COUNT = 6;
 
 const els = {
   month: document.getElementById('month'),
+  monthContext: document.getElementById('month-context'),
+  monthContextText: document.getElementById('month-context-text'),
+  monthContextToday: document.getElementById('month-context-today'),
   totals: document.getElementById('totals'),
   statIncome: document.getElementById('stat-income'),
   statExpense: document.getElementById('stat-expense'),
@@ -1191,10 +1195,19 @@ async function loadBudgets({ focusCategoryId = null } = {}) {
   }
 }
 
+// ช่องเดือนซ่อนอยู่แปลว่าหน้านี้ไม่ขึ้นกับเดือน ป้ายจึงซ่อนตาม
+function updateMonthContext() {
+  const month = els.month.value;
+  const show = !els.month.hidden && Boolean(month) && month !== currentMonth(new Date());
+  els.monthContext.hidden = !show;
+  if (show) els.monthContextText.textContent = describeViewedMonth(month);
+}
+
 // ไม่ throw เพื่อให้ทุกจุดเรียกใช้แล้วข้อผิดพลาดขึ้นที่ banner เสมอ
 // reload หลังแก้/ลบไม่ล้างรายการ เพื่อไม่ให้หน้าเด้งกลับไปบนสุด
 async function loadMonth({ reset = false } = {}) {
   const month = els.month.value;
+  updateMonthContext();
   if (reset) {
     loadError = null;
     setBanner('');
@@ -1383,6 +1396,12 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
+els.monthContextToday.addEventListener('click', () => {
+  els.month.value = currentMonth(new Date());
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ
+  els.month.focus();
+  loadMonth({ reset: true });
+});
 
 // ถอด enter ก่อนกรอง ไม่งั้นแถวที่สร้างใหม่จะเล่นแอนิเมชันเข้าฉากตาม CSS แล้วกระพริบตอนพิมพ์
 function refilter() {
@@ -1753,6 +1772,7 @@ const tabController = createTabController({
   onChange: (id) => {
     // ข้อความชั่วคราวหายเมื่อสลับแท็บ แต่ error โหลดข้อมูลต้องยังเห็นอยู่
     showStickyLoadError();
+    updateMonthContext();
     window.scrollTo(0, 0);
     if (id === 'list') replayClass(els.list, 'enter');
     if (id === 'summary') {
@@ -1829,6 +1849,7 @@ function enterSubPage(page) {
   for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== page.panelId;
   document.getElementById('page-title').textContent = page.title;
   els.month.hidden = true;
+  updateMonthContext();
   els.pageBack.setAttribute('aria-label', page.backLabel);
   els.pageBack.hidden = false;
   showStickyLoadError();

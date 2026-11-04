@@ -280,6 +280,12 @@ export function thaiMonthShort(month) {
   return THAI_MONTHS[Number(month.split('-')[1]) - 1];
 }
 
+const BUDDHIST_YEAR_OFFSET = 543;
+
+export function describeViewedMonth(month) {
+  return `กำลังดูเดือน ${thaiMonthShort(month)} ${Number(month.split('-')[0]) + BUDDHIST_YEAR_OFFSET}`;
+}
+
 export function formatFullThaiDate(isoDate) {
   const [year, month, day] = isoDate.split('-');
   return `${Number(day)} ${thaiMonthShort(`${year}-${month}`)} ${Number(year) + 543}`;

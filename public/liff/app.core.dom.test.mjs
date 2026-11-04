@@ -1131,3 +1131,45 @@ describe('LIFF month rollover while the page stays open', () => {
     expect(byId('month').value).toBe('2026-11');
   });
 });
+
+describe('LIFF viewed month notice', () => {
+  const pickMonth = async (month) => {
+    byId('month').value = month;
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+  };
+
+  it('is hidden on the current month', async () => {
+    await boot();
+    expect(byId('month-context').hidden).toBe(true);
+  });
+
+  it('shows the viewed month and returns to the current month', async () => {
+    await boot();
+    await pickMonth('2026-09');
+    expect(byId('month-context').hidden).toBe(false);
+    expect(byId('month-context-text').textContent).toBe('กำลังดูเดือน ก.ย. 2569');
+
+    byId('month-context-today').click();
+    await settle();
+
+    expect(byId('month').value).toBe('2026-10');
+    expect(byId('month-context').hidden).toBe(true);
+  });
+
+  it('opens with the notice from a monthly summary link', async () => {
+    await boot({ search: '?tab=summary&m=2026-09' });
+    expect(byId('month-context').hidden).toBe(false);
+  });
+
+  it('hides on tabs without a month and comes back', async () => {
+    await boot();
+    await pickMonth('2026-09');
+
+    clickTab('profile');
+    expect(byId('month-context').hidden).toBe(true);
+
+    clickTab('summary');
+    expect(byId('month-context').hidden).toBe(false);
+  });
+});
