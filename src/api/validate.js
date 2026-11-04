@@ -3,6 +3,7 @@ const { isValidCalendarDate } = require('../utils/date');
 const { MAX_CATEGORY_NAME_LENGTH, CATEGORY_ICONS, isReservedCategoryName } = require('../parser/categories');
 const { DEFAULT_WALLET_NAME, MAX_WALLET_NAME_LENGTH } = require('../wallets/wallets');
 const { NOTIFICATION_SETTINGS } = require('../notifications/settings');
+const { UUID_PATTERN } = require('../utils/uuid');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
@@ -61,6 +62,35 @@ function validateTransactionUpdate(body) {
     value.walletId = body.walletId;
   }
   return { ok: true, value };
+}
+
+// บิลไม่อยู่ในรายการนี้ เพราะกู้คืนแล้วลิงก์กับบิลไม่กลับมา
+const RESTORABLE_SOURCES = ['text', 'slip', 'recurring'];
+const MAX_EVENT_ID_LENGTH = 200;
+
+function validateTransactionRestore(body) {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: 'Invalid body' };
+  }
+  const { id, amount, categoryId, occurredOn, note, walletId, source, lineEventId, createdAt } = body;
+  if (typeof id !== 'string' || !UUID_PATTERN.test(id)) {
+    return { ok: false, error: 'Invalid id' };
+  }
+  const base = validateTransactionUpdate({ amount, categoryId, occurredOn, note });
+  if (!base.ok) return base;
+  if (walletId !== null && (typeof walletId !== 'string' || walletId.length === 0)) {
+    return { ok: false, error: 'Invalid wallet' };
+  }
+  if (!RESTORABLE_SOURCES.includes(source)) {
+    return { ok: false, error: 'Invalid source' };
+  }
+  if (lineEventId !== null && (typeof lineEventId !== 'string' || lineEventId.length === 0 || lineEventId.length > MAX_EVENT_ID_LENGTH)) {
+    return { ok: false, error: 'Invalid event' };
+  }
+  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) {
+    return { ok: false, error: 'Invalid time' };
+  }
+  return { ok: true, value: { ...base.value, id: id.toLowerCase(), walletId, source, lineEventId, createdAt } };
 }
 
 function validateRecurringRule(body) {
@@ -238,6 +268,7 @@ module.exports = {
   hasInvisibleCharacter,
   isValidAppDate,
   validateTransactionUpdate,
+  validateTransactionRestore,
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,

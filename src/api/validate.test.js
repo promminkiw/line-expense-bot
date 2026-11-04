@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseMonth,
   validateTransactionUpdate,
+  validateTransactionRestore,
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
@@ -284,5 +285,43 @@ describe('invisible characters in names', () => {
   it('still accepts Thai names with tone marks and emoji', () => {
     expect(validateCategoryCreate({ type: 'expense', name: 'ค่าน้ำมัน ⛽' }).ok).toBe(true);
     expect(validateWalletCreate({ name: 'กระเป๋าตังค์ 👛' }).ok).toBe(true);
+  });
+});
+
+describe('validateTransactionRestore', () => {
+  const BODY = {
+    id: '11111111-2222-3333-4444-555555555555', amount: 60, note: 'กินข้าว', occurredOn: '2026-10-01', categoryId: 'c1',
+    walletId: null, source: 'text', lineEventId: 'ev1', createdAt: '2026-10-01T01:00:00+00:00',
+  };
+
+  it('accepts a snapshot from the delete response', () => {
+    expect(validateTransactionRestore(BODY)).toEqual({ ok: true, value: BODY });
+  });
+
+  it('accepts a recurring event id', () => {
+    const lineEventId = 'recurring:r1:2026-10';
+    expect(validateTransactionRestore({ ...BODY, source: 'recurring', lineEventId }).ok).toBe(true);
+  });
+
+  it('lowercases the id because Postgres stores uuid in lowercase', () => {
+    const id = 'AAAAAAAA-2222-3333-4444-555555555555';
+    expect(validateTransactionRestore({ ...BODY, id }).value.id).toBe(id.toLowerCase());
+  });
+
+  it.each([
+    ['id', 'abc', 'Invalid id'],
+    ['amount', 0, 'Invalid amount'],
+    ['categoryId', '', 'Invalid category'],
+    ['occurredOn', '2026-13-01', 'Invalid date'],
+    ['walletId', '', 'Invalid wallet'],
+    ['source', 'bill', 'Invalid source'],
+    ['lineEventId', 5, 'Invalid event'],
+    ['createdAt', 'not-a-date', 'Invalid time'],
+  ])('rejects a bad %s', (field, value, error) => {
+    expect(validateTransactionRestore({ ...BODY, [field]: value })).toEqual({ ok: false, error });
+  });
+
+  it('rejects a missing body', () => {
+    expect(validateTransactionRestore(null)).toEqual({ ok: false, error: 'Invalid body' });
   });
 });

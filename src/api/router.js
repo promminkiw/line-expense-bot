@@ -5,6 +5,7 @@ const {
   parseMonth,
   isValidAmount,
   validateTransactionUpdate,
+  validateTransactionRestore,
   validateRecurringRule,
   validateCategoryCreate,
   validateCategoryUpdate,
@@ -409,6 +410,34 @@ function createApiRouter({
     const deleted = await repository.deleteTransaction(req.userId, req.params.id);
     if (!deleted) {
       res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    // บิลเก็บลิงก์แบบ on delete set null กู้คืนแล้วยกเลิกบิลจะไม่ลบรายการนี้
+    res.json({ restore: deleted.source === 'bill' ? null : deleted });
+  });
+
+  router.post('/transactions/restore', async (req, res) => {
+    const result = validateTransactionRestore(req.body);
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    const categories = await repository.listCategories(req.userId);
+    const category = categories.find((item) => item.id === result.value.categoryId);
+    if (!category) {
+      res.status(400).json({ error: 'Invalid category' });
+      return;
+    }
+    if (result.value.walletId !== null) {
+      const wallets = await users.loadWallets(req.userId);
+      if (!wallets.some((item) => item.id === result.value.walletId.toLowerCase())) {
+        res.status(400).json({ error: 'Invalid wallet' });
+        return;
+      }
+    }
+    const restored = await repository.restoreTransaction(req.userId, { ...result.value, type: category.type });
+    if (!restored) {
+      res.status(409).json({ error: 'Already exists' });
       return;
     }
     res.status(204).end();
