@@ -136,6 +136,75 @@ describe('LIFF list swipe to delete', () => {
 
     expect(byId('editor').open).toBe(true);
   });
+
+  const SNAPSHOT = { id: 'restored', amount: 60, note: '', occurredOn: '2026-10-01', categoryId: 'c', walletId: null, source: 'text', lineEventId: null, createdAt: '2026-10-01T01:00:00+00:00' };
+
+  async function swipeDeleteFirst() {
+    const [row] = firstRows();
+    swipeRow(row, 60);
+    row.querySelector('.row-delete').click();
+    await settle();
+  }
+
+  it('offers undo after a swipe delete and restores the entry', async () => {
+    await boot();
+    const calls = routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return {};
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    expect(byId('undo-bar').hidden).toBe(false);
+    expect(byId('undo-bar-text').textContent).toBe('ลบรายการแล้ว');
+
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+    expect(calls).toContain('POST /api/transactions/restore');
+  });
+
+  it('offers no undo when the server returns no snapshot', async () => {
+    await boot();
+    routeFetch((method, path) => (method === 'DELETE' && path.startsWith('/api/transactions/') ? { restore: null } : undefined));
+
+    await swipeDeleteFirst();
+
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('treats 409 as already restored', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 409 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').hidden).toBe(true);
+    expect(byId('undo-bar').hidden).toBe(true);
+  });
+
+  it('keeps the undo available after a network failure', async () => {
+    await boot();
+    routeFetch((method, path) => {
+      if (method === 'DELETE' && path.startsWith('/api/transactions/')) return { restore: SNAPSHOT };
+      if (method === 'POST' && path === '/api/transactions/restore') return { status: 500 };
+      return undefined;
+    });
+
+    await swipeDeleteFirst();
+    byId('undo-bar-button').click();
+    await settle();
+
+    expect(byId('banner').textContent).toBe('เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง');
+    expect(byId('undo-bar').hidden).toBe(false);
+  });
 });
 
 

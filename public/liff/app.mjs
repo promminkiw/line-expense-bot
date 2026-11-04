@@ -28,6 +28,7 @@ import {
   isFilterActive,
   describeFilterResult,
   LOGIN_REQUIRED_MESSAGE,
+  describeRestoreFailure,
 } from './format.mjs';
 import { createFriendsPanel } from './friends/friends-panel.mjs';
 import { createSettingsPanel } from './settings/settings-panel.mjs';
@@ -38,6 +39,7 @@ import { createBillsPanel } from './bills/bills-panel.mjs';
 import { createBillForm } from './bills/bill-form.mjs';
 import { createGoalsPanel } from './goals/goals-panel.mjs';
 import { createBannerSetter } from './ui/banner.mjs';
+import { createUndoBar } from './ui/undo-bar.mjs';
 import { DEFAULT_TAB, TABS, createTabController } from './ui/tabs.mjs';
 import { categoryStyle, createCategoryBadge } from './categories/categories.mjs';
 import { isBillsPageLink, parseBillLink, parseEditLink, parseFriendLink, parseListLink, parseTabLink } from './deep-link.mjs';
@@ -250,6 +252,9 @@ const els = {
   categoriesOpen: document.getElementById('categories-open'),
   pageBack: document.getElementById('page-back'),
   bottomNav: document.getElementById('bottom-nav'),
+  undoBar: document.getElementById('undo-bar'),
+  undoBarText: document.getElementById('undo-bar-text'),
+  undoBarButton: document.getElementById('undo-bar-button'),
 };
 
 let api;
@@ -725,6 +730,18 @@ function attachSwipe(row) {
   row.addEventListener('pointercancel', finish);
 }
 
+const UNDO_DURATION_MS = 5000;
+const undoBar = createUndoBar({ el: els.undoBar, textEl: els.undoBarText, button: els.undoBarButton, durationMs: UNDO_DURATION_MS });
+
+async function refreshAfterTransactionChange(focusId) {
+  pendingListFocus = { id: focusId };
+  await loadMonth();
+  pendingListFocus = null;
+  profileStale = true;
+  loadProfile();
+  walletsPanel.load();
+}
+
 // ปุ่มลบที่เผยจากการปัดลบทันที (ปัด + กดปุ่ม คือสองขั้นที่ผู้ใช้เลือกแทน modal ยืนยัน)
 async function deleteBySwipe(item, button) {
   if (swipeDeleting) return;
@@ -733,25 +750,43 @@ async function deleteBySwipe(item, button) {
   const tab = tabController.current;
   const focusId = neighbourRowId(item.id);
   let failure = null;
+  let snapshot = null;
   try {
-    await api.deleteTransaction(item.id);
+    const result = await api.deleteTransaction(item.id);
+    snapshot = result?.restore ?? null;
   } catch (err) {
     failure = describeEditFailure(err instanceof ApiError ? err.status : undefined, 'delete');
   } finally {
     swipeDeleting = false;
   }
   if (!failure || failure.closeAndReload) {
-    pendingListFocus = { id: focusId };
-    await loadMonth();
-    pendingListFocus = null;
-    profileStale = true;
-    loadProfile();
-    walletsPanel.load();
+    await refreshAfterTransactionChange(focusId);
   } else {
     button.disabled = false;
   }
   // ผู้ใช้ย้ายไปแท็บอื่นระหว่างรอแล้ว ข้อความนี้เป็นเรื่องของแท็บรายการ จึงไม่ขึ้นในแท็บใหม่
   if (failure && tabController.current === tab) setBanner(failure.message);
+  if (snapshot) offerUndoDelete(snapshot);
+}
+
+function offerUndoDelete(snapshot) {
+  undoBar.show('ลบรายการแล้ว', () => restoreDeleted(snapshot));
+}
+
+async function restoreDeleted(snapshot) {
+  try {
+    await api.restoreTransaction(snapshot);
+  } catch (err) {
+    const status = err instanceof ApiError ? err.status : undefined;
+    // 409 คือแถวกลับมาแล้วจากการกดครั้งก่อนที่ไม่ได้รับคำตอบ
+    if (status !== 409) {
+      const failure = describeRestoreFailure(status);
+      setBanner(failure.message);
+      if (failure.retryable) offerUndoDelete(snapshot);
+      return;
+    }
+  }
+  await refreshAfterTransactionChange(snapshot.id);
 }
 
 // แถวที่อยู่ติดกันที่ยังเห็นอยู่ ใช้รับ focus หลังลบ (ถัดไปก่อน ไม่มีก็แถวก่อนหน้า)

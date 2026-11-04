@@ -9,6 +9,7 @@ import {
   groupCategoryOptions,
   categoryOptionLabel,
   describeEditFailure,
+  describeRestoreFailure,
   describeDeleteTarget,
   summaryTotals,
   chartRows,
@@ -743,5 +744,19 @@ describe('currentDate', () => {
   it('uses the Bangkok date, like the bot when it saves', () => {
     expect(currentDate(new Date('2026-09-30T18:00:00Z'))).toBe('2026-10-01');
     expect(currentDate(new Date('2026-09-30T16:00:00Z'))).toBe('2026-09-30');
+  });
+});
+
+describe('describeRestoreFailure', () => {
+  it('asks to log in again on 401 without offering a retry', () => {
+    expect(describeRestoreFailure(401)).toEqual({ message: LOGIN_REQUIRED_MESSAGE, retryable: false });
+  });
+
+  it('explains that the old data changed on 400', () => {
+    expect(describeRestoreFailure(400)).toEqual({ message: 'กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว', retryable: false });
+  });
+
+  it('offers a retry on other failures', () => {
+    expect(describeRestoreFailure(undefined)).toEqual({ message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true });
   });
 });

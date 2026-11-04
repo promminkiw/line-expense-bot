@@ -84,6 +84,12 @@ export function describeEditFailure(status, action) {
   return { message: `${failed} ลองใหม่อีกครั้ง`, closeAndReload: false };
 }
 
+export function describeRestoreFailure(status) {
+  if (status === 401) return { message: LOGIN_REQUIRED_MESSAGE, retryable: false };
+  if (status === 400) return { message: 'กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว', retryable: false };
+  return { message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true };
+}
+
 export function describeDeleteTarget(item) {
   return {
     title: 'ลบรายการนี้?',

@@ -794,3 +794,6 @@ dialog.budget-confirm h2 { margin: 0; text-align: center; font-size: 20px; font-
 .budget-bulk-result-change { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 #budget-bulk-result .budget-cta { margin-top: 16px; }
 .budget-bulk-result-close { display: block; width: 100%; min-height: 48px; margin-top: 6px; border: none; background: none; color: var(--primary); font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.undo-bar { position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 11; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 8px 4px 16px; border-radius: 12px; background: var(--text); color: var(--surface); font-size: 14px; }
+.undo-bar[hidden] { display: none; }
+.undo-bar button { min-height: 44px; padding: 0 12px; border: none; background: none; color: var(--surface); font: inherit; font-weight: 700; text-decoration: underline; }
