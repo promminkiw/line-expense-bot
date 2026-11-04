@@ -1283,6 +1283,39 @@ describe('LIFF scroll restore', () => {
     scrollTo.mockRestore();
   });
 
+  it('starts from the top when the month changes on the current tab', async () => {
+    await boot();
+    clickTab('summary');
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(400);
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
+  it('keeps the owner tab position when device back leaves a nested sub-page', async () => {
+    await boot();
+    clickTab('budgets');
+    await settle();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+
+    setScrollY(500);
+    byId('budget-all-open').click();
+    await settle();
+    setScrollY(200);
+    byId('budget-all-bulk-open').click();
+    await settle();
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 500);
+    scrollTo.mockRestore();
+  });
+
   it('returns to the owner tab position after leaving a sub-page', async () => {
     await boot();
     clickTab('profile');

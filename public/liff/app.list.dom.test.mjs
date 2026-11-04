@@ -608,6 +608,38 @@ describe('LIFF swipe hint', () => {
     expect(byId('swipe-hint').hidden).toBe(true);
   });
 
+  it('hides while the month reloads and stays hidden when the load fails', async () => {
+    await boot();
+    expect(byId('swipe-hint').hidden).toBe(false);
+
+    routeFetch((method, path) => (path === '/api/transactions' ? { status: 500 } : undefined));
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+
+    expect(byId('swipe-hint').hidden).toBe(true);
+    await settle();
+    expect(byId('swipe-hint').hidden).toBe(true);
+  });
+
+  it('moves focus off the dismiss button when the hint hides', async () => {
+    await boot();
+    byId('swipe-hint-dismiss').focus();
+
+    byId('swipe-hint-dismiss').click();
+
+    expect(document.activeElement).toBe(byId('month'));
+  });
+
+  it('does not move focus when a swipe dismisses the hint', async () => {
+    await boot();
+    const row = firstRows()[0];
+    row.querySelector('.row-delete').focus();
+
+    swipeRow(row, 60);
+
+    expect(document.activeElement).not.toBe(byId('month'));
+  });
+
   it('still works when storage throws', async () => {
     const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
     await boot();

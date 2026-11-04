@@ -276,10 +276,10 @@ let lastSummary = [];
 let lastTransactions = [];
 let lastTruncated = false;
 const SWIPE_HINT_KEY = 'swipe-hint-seen';
-// ตำแหน่งเลื่อนต่อแท็บ ล้างเมื่อเปลี่ยนเดือนเพราะเนื้อหาเปลี่ยนแล้ว
+// ตำแหน่งเลื่อนต่อแท็บ ล้างเมื่อโหลดเดือนใหม่หรือลองใหม่ เพราะเนื้อหาเปลี่ยนแล้ว
 const tabScroll = new Map();
 
-// webview บางตัวปิด storage ถ้าอ่านไม่ได้ก็แค่เห็นคำใบ้ซ้ำ
+// ถ้า storage ใช้ไม่ได้ ก็แค่เห็นคำใบ้ซ้ำ
 function readSwipeHintSeen() {
   try {
     return localStorage.getItem(SWIPE_HINT_KEY) === '1';
@@ -1240,6 +1240,7 @@ async function loadMonth({ reset = false } = {}) {
   updateMonthContext();
   if (reset) {
     tabScroll.clear();
+    window.scrollTo(0, 0);
     loadError = null;
     setBanner('');
     els.list.replaceChildren(createSkeletonRows(document, 6, 'row'));
@@ -1247,6 +1248,7 @@ async function loadMonth({ reset = false } = {}) {
     els.totals.hidden = true;
     els.truncated.hidden = true;
     els.filters.hidden = true;
+    els.swipeHint.hidden = true;
     lastTransactions = [];
     lastTruncated = false;
     // การ์ดสูงตามจำนวนหมวด จึงให้ skeleton สูงเท่าการ์ดที่เห็นล่าสุด วัดได้ 0 (แท็บซ่อนอยู่) ก็คงค่าเดิมไว้
@@ -1427,7 +1429,11 @@ els.editor.addEventListener('cancel', (event) => {
   if (busy) event.preventDefault();
 });
 els.month.addEventListener('change', () => loadMonth({ reset: true }));
-els.swipeHintDismiss.addEventListener('click', dismissSwipeHint);
+els.swipeHintDismiss.addEventListener('click', () => {
+  // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ
+  els.month.focus();
+  dismissSwipeHint();
+});
 els.monthContextToday.addEventListener('click', () => {
   els.month.value = currentMonth(new Date());
   // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ
@@ -2015,8 +2021,8 @@ window.addEventListener('popstate', (event) => {
   if (activeSubPage.parent) {
     // entry ถูกใช้ไปแล้ว จึงเปิดหน้าแม่ใหม่พร้อมเพิ่ม entry ให้การกดย้อนครั้งถัดไปออกจากชุดหน้าย่อย
     const { parent } = activeSubPage;
-    activeSubPage = null;
-    subPageEntryPushed = false;
+    // ไม่ล้าง activeSubPage เพื่อไม่ให้ enterSubPage ทับตำแหน่งเลื่อนของแท็บด้วยของหน้าลูก
+    pushSubPageEntry();
     enterSubPage(parent);
     return;
   }
