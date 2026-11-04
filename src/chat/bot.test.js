@@ -444,7 +444,7 @@ describe('bot text message', () => {
   });
 
   it('uses the agreed wording for the system error message', () => {
-    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ถ้าจดรายการไว้ ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าขอสรุปหรือถามยอด ลองใหม่อีกครั้ง');
+    expect(SYSTEM_ERROR_REPLY).toBe('เฮียขออภัย ระบบมีปัญหา ถ้าจดรายการไว้ ตรวจในหน้าเว็บก่อนส่งซ้ำ ถ้าส่งรูปสลิป ขอสรุป หรือถามยอด ลองใหม่อีกครั้ง');
   });
 });
 
@@ -647,7 +647,7 @@ describe('bot follow event', () => {
     );
   });
 
-  it('logs but does not reply when resuming the monthly summary fails', async () => {
+  it('logs and still greets when resuming the monthly summary fails', async () => {
     const { deps, bot } = setup();
     deps.repository.resumeMonthlySummary.mockRejectedValue(new Error('db down'));
 
@@ -658,11 +658,11 @@ describe('bot follow event', () => {
       { lineUserId: 'U1', eventType: 'follow' },
       expect.any(Error)
     );
-    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r3', WELCOME_REPLY, undefined);
     expect(deps.replyFlex).not.toHaveBeenCalled();
   });
 
-  it('logs but does not reply when registration fails', async () => {
+  it('logs and still greets when registration fails', async () => {
     const users = { ensureUser: vi.fn().mockRejectedValue(new Error('db down')), loadCategoryIds: vi.fn() };
     const { deps, bot } = setup({ users });
 
@@ -673,7 +673,7 @@ describe('bot follow event', () => {
       { lineUserId: 'U1', eventType: 'follow' },
       expect.any(Error)
     );
-    expect(deps.replyText).not.toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r3', WELCOME_REPLY, undefined);
   });
 });
 

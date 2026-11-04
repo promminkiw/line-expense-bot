@@ -41,6 +41,14 @@ function isSilentEvent(event) {
   return event.type === 'follow' || event.type === 'unfollow';
 }
 
+// ผู้ใช้ใหม่ต้องเห็นคำทักทายแม้ฐานข้อมูลพัง ส่วน unfollow ไม่มี replyToken
+function errorReplyFor(event) {
+  if (event.type === 'follow') {
+    return { text: WELCOME_REPLY };
+  }
+  return isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
+}
+
 function isImageMessage(event) {
   return event.type === 'message' && event.message && event.message.type === 'image';
 }
@@ -139,7 +147,7 @@ function createBot({
       reply = await buildReplyBeforeDeadline(event, lineUserId);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
-      reply = isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
+      reply = errorReplyFor(event);
     }
     if (reply) {
       try {
