@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply, formatGoalNameMissingReply } = require('./chat.js');
+const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply, formatGoalNameMissingReply, SAVING_AMOUNT_REPLY } = require('./chat.js');
 
 const GOALS = [
   { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, closed: false },
@@ -96,3 +96,8 @@ describe('formatGoalNameMissingReply', () => {
   });
 });
 
+describe('SAVING_AMOUNT_REPLY', () => {
+  it('keeps the range and tells how to write the amount', () => {
+    expect(SAVING_AMOUNT_REPLY).toBe('จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท\nเขียนยอดแบบ 1,500 หรือ 60.50');
+  });
+});
