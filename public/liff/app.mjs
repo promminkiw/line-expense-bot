@@ -1195,7 +1195,7 @@ async function loadBudgets({ focusCategoryId = null } = {}) {
   }
 }
 
-// ช่องเดือนซ่อนอยู่แปลว่าหน้านี้ไม่ขึ้นกับเดือน ป้ายจึงซ่อนตาม
+// แท็บที่ไม่มีช่องเดือนไม่ต้องมีป้าย ส่วนหน้าย่อยผูกกับเดือนที่เลือกไว้ ปุ่มจึงห้ามเปลี่ยนเดือนใต้หน้านั้น
 function updateMonthContext() {
   const month = els.month.value;
   const show = !els.month.hidden && Boolean(month) && month !== currentMonth(new Date());

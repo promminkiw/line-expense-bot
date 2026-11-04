@@ -1153,6 +1153,7 @@ describe('LIFF viewed month notice', () => {
     byId('month-context-today').click();
     await settle();
 
+    expect(document.activeElement).toBe(byId('month'));
     expect(byId('month').value).toBe('2026-10');
     expect(byId('month-context').hidden).toBe(true);
   });
@@ -1170,6 +1171,20 @@ describe('LIFF viewed month notice', () => {
     expect(byId('month-context').hidden).toBe(true);
 
     clickTab('summary');
+    expect(byId('month-context').hidden).toBe(false);
+  });
+
+  it('hides on a sub-page and comes back after leaving it', async () => {
+    await boot();
+    clickTab('budgets');
+    await pickMonth('2026-09');
+
+    byId('categories-open').click();
+    await settle();
+    expect(byId('month-context').hidden).toBe(true);
+
+    byId('page-back').click();
+    await settle();
     expect(byId('month-context').hidden).toBe(false);
   });
 });
