@@ -77,7 +77,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl() }) };
   }
 
-  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ handleText ทำทางเดิมต่อ เพราะคนที่ไม่ใช้เป้าอาจพิมพ์ "ออมสิน 1000" เป็นรายการ
+  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ผู้เรียกเลือกเอง: คำสั่ง ออม ตรงตัวไปทางปกติ ("ออมสิน 1000" เป็นรายการ) ส่วนทาง intent ตอบ NO_OPEN_GOAL_REPLY
   async function handleSaving(command, userId, webhookEventId) {
     const goals = await repository.listGoals(userId);
     if (!hasOpenGoal(goals)) {

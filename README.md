@@ -119,6 +119,7 @@ render.yaml                 ตั้งค่า Render (Blueprint)
 
 - `npm test` เทสต์ทั้งหมด รวม SQL function บน PGlite (ไม่ต้องต่อ Supabase)
 - `npm run lint`, `npm run try-parse -- "<ข้อความ>"` ลองแยกข้อความกับ Claude จริง
+- `npm run nlu-eval` รันชุดข้อความใน `scripts/nlu-eval-cases.json` กับ Claude API จริง (เสียค่า API) ไม่อยู่ใน `npm test`
 - CI รัน lint, เทสต์ และ `node --check` ของ `index.js` กับ `public/liff/app.mjs` เมื่อ push เข้า `main` หรือเปิด PR
 
 ## ความปลอดภัย
