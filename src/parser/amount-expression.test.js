@@ -14,6 +14,7 @@ describe('evaluateAmountExpression', () => {
     ['2.5*3', 7.5],
     ['10/3', 3.33],
     ['sqrt(2)*10', 14.14],
+    ['40,100', 40100],
   ])('computes %s as %s', (text, expected) => {
     expect(evaluateAmountExpression(text)).toBe(expected);
   });
@@ -46,6 +47,9 @@ describe('evaluateAmountExpression', () => {
     ['40 100'],
     ['40, 100'],
     ['1 0 0'],
+    ['40 ,100'],
+    ['40 .5'],
+    ['40. 5'],
     ['2**3'],
   ])('returns null for %s', (text) => {
     expect(evaluateAmountExpression(text)).toBeNull();

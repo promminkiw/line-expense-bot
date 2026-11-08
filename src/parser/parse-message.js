@@ -107,12 +107,13 @@ function buildSystemPrompt(today, categories, wallets = []) {
     '- intent says what the user wants: "record" to record entries; "question" to ask the total of past entries, e.g. "ยอดเดือนนี้", "เดือนนี้ใช้เงินไปเยอะไหม"; "summary" to ask for a summary or report, e.g. "สรุปหน่อย", "ดูสรุป", "สรุปเดือนที่แล้ว", "รายงาน"; "help" to ask how to use the bot, e.g. "ใช้ยังไง", "ช่วยด้วย", "help"; "saving" to put money into a saving goal, e.g. "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500"; "greeting" for greetings, thanks or small talk, e.g. "สวัสดี", "ขอบคุณ", "555"; "unsupported" for any other request the bot cannot do in chat.',
     '- A message that names an item and an amount is "record" even when it has a question word, e.g. "ข้าวมันไก่ 50 แพงเท่าไหร่". A message that names only an item or only an amount, e.g. "ข้าว" or "60", is "record" and needs clarification.',
     '- When the latest message answers a question the assistant asked, intent is "record".',
-    '- "ออมสิน" is a bank name; "ออมสิน 1000" or paying at ออมสิน is "record", not "saving".',
+    '- "ออมสิน" is a bank name; "ออมสิน 1000" or paying at ออมสิน is "record", not "saving". "ออมสิน 1000" is a complete expense entry and needs no clarification.',
     '- summary_period is "today", "week" or "month" when the summary asks for today, this week or this month; "other" for any other period, e.g. last month or this year; "" when no period is given or intent is not "summary".',
     '- goal_name and saving_amount are the goal name and the amount for intent "saving". Otherwise "" and 0.',
+    '- saving_amount is only a plain number written by the user, e.g. "500" or "1,500". When the saving amount is written as arithmetic, e.g. "500*2" or "รูท25*x10", set saving_amount to 0.',
     '- unsupported_kind for intent "unsupported": "delete" to delete an entry, "edit" to change an entry, "budget" to ask about budgets, "web" to open the web page, "other" for anything else. Otherwise "".',
     '- When intent is not "record", set needs_clarification to false, question to "" and items to [].',
-    '- Otherwise set needs_clarification to false and question to "".',
+    '- When intent is "record" and no entry needs clarification, set needs_clarification to false and question to "".',
   ].join('\n');
 }
 

@@ -73,8 +73,8 @@ function evaluateAmountExpression(text) {
   if (typeof text !== 'string' || text.length === 0 || text.length > MAX_EXPRESSION_LENGTH) {
     return null;
   }
-  // normalize ลบช่องว่าง ถ้าไม่ดักก่อน "40 100" จะกลายเป็น 40100
-  if (/\d[\s,]*\s\d/.test(text)) {
+  // normalize ลบช่องว่าง ถ้าไม่ดักก่อน "40 100" หรือ "40 ,100" จะกลายเป็นยอดเดียว
+  if (/[\d.,]\s+[\d.,]/.test(text)) {
     return null;
   }
   const tokens = tokenize(normalize(text));

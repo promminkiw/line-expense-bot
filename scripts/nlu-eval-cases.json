@@ -37,5 +37,9 @@
   { "text": "เว็บ", "expect": { "status": "intent", "intent": "unsupported", "kind": "web" } },
   { "text": "งบเหลือเท่าไหร่", "parser": "question", "expect": { "isQuestion": false } },
   { "text": "เดือนนี้ใช้ไปเท่าไหร่", "parser": "question", "expect": { "isQuestion": true, "type": "expense" } },
-  { "text": "ใช้ค่ากาแฟไปกี่บาทแล้ว", "parser": "question", "expect": { "isQuestion": true, "keyword": "กาแฟ" } }
+  { "text": "ใช้ค่ากาแฟไปกี่บาทแล้ว", "parser": "question", "expect": { "isQuestion": true, "keyword": "กาแฟ" } },
+  { "text": "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500*2", "expect": { "status": "intent", "intent": "saving", "amount": null } },
+  { "text": "รวม", "history": [{ "role": "user", "text": "กินข้าว 40+10+20" }, { "role": "assistant", "text": "จะให้เฮียจดรวมเป็นรายการเดียว 70 บาท หรือแยกเป็น 3 รายการ" }], "expect": { "status": "ok", "items": [{ "amount": 70 }] } },
+  { "text": "แยก", "history": [{ "role": "user", "text": "กินข้าว 40+10+20" }, { "role": "assistant", "text": "จะให้เฮียจดรวมเป็นรายการเดียว 70 บาท หรือแยกเป็น 3 รายการ" }], "expect": { "status": "ok", "items": [{ "amount": 40 }, { "amount": 10 }, { "amount": 20 }] } },
+  { "text": "60", "history": [{ "role": "user", "text": "ข้าว" }, { "role": "assistant", "text": "ข้าวราคาเท่าไหร่" }], "expect": { "status": "ok", "items": [{ "amount": 60 }] } }
 ]

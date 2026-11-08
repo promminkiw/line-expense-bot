@@ -514,7 +514,11 @@ describe('parseMessage intents', () => {
     expect(system).toContain('amount_expression');
     expect(system).toContain('กินข้าว 40+10+20');
     expect(system).toContain('"ออมสิน 1000" or paying at ออมสิน is "record", not "saving"');
+    expect(system).toContain('"ออมสิน 1000" is a complete expense entry and needs no clarification');
     expect(system).not.toContain('Never add amounts together.');
+    expect(system).toContain('When the saving amount is written as arithmetic');
+    expect(system).toContain('When intent is "record" and no entry needs clarification');
+    expect(system).not.toContain('- Otherwise set needs_clarification to false');
   });
 
   it.each(['question', 'help', 'greeting'])('returns the %s intent', async (intent) => {
