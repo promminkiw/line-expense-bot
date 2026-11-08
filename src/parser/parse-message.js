@@ -2,6 +2,7 @@ const { TEXT_CATEGORIES, normalizeCategory } = require('./categories');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 const { withLowEffort } = require('../utils/claude-effort');
 const { PERSONA_PROMPT } = require('../persona');
+const { evaluateAmountExpression } = require('./amount-expression');
 
 const DEFAULT_CLARIFY_QUESTION = 'บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"';
 const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)';
@@ -14,6 +15,10 @@ const OVERALL_TIMEOUT_MS = 30000;
 // กันตัวเลขที่ Claude อ่านผิดจนใหญ่ผิดปกติ ค่าเดียวกับ check constraint ใน supabase/schema.sql
 const MAX_AMOUNT = 10000000;
 
+const INTENTS = ['record', 'question', 'summary', 'help', 'saving', 'greeting', 'unsupported'];
+const SUMMARY_PERIODS = ['today', 'week', 'month', 'other'];
+const UNSUPPORTED_KINDS = ['delete', 'edit', 'budget', 'web', 'other'];
+
 // messages.create ไม่แปลง schema ให้ จึงต้องใส่ additionalProperties: false เองทุก object
 function buildParseSchema(categories, wallets = []) {
   const names = [...new Set([...categories.expense, ...categories.income])];
@@ -21,10 +26,11 @@ function buildParseSchema(categories, wallets = []) {
     type: { type: 'string', enum: ['expense', 'income'] },
     category: { type: 'string', enum: names },
     amount: { type: 'number' },
+    amount_expression: { type: 'string' },
     date: { type: 'string' },
     note: { type: 'string' },
   };
-  const required = ['type', 'category', 'amount', 'date', 'note'];
+  const required = ['type', 'category', 'amount', 'amount_expression', 'date', 'note'];
   // ใส่ field กระเป๋าเฉพาะผู้ใช้หลายกระเป๋า schema ของผู้ใช้กระเป๋าเดียวจึงเหมือนเดิม
   if (wallets.length > 0) {
     properties.wallet = { type: 'string', enum: [...new Set(wallets), ''] };
@@ -39,8 +45,22 @@ function buildParseSchema(categories, wallets = []) {
         type: 'array',
         items: { type: 'object', properties, required, additionalProperties: false },
       },
+      intent: { type: 'string', enum: INTENTS },
+      summary_period: { type: 'string', enum: [...SUMMARY_PERIODS, ''] },
+      goal_name: { type: 'string' },
+      saving_amount: { type: 'number' },
+      unsupported_kind: { type: 'string', enum: [...UNSUPPORTED_KINDS, ''] },
     },
-    required: ['needs_clarification', 'question', 'items'],
+    required: [
+      'needs_clarification',
+      'question',
+      'items',
+      'intent',
+      'summary_period',
+      'goal_name',
+      'saving_amount',
+      'unsupported_kind',
+    ],
     additionalProperties: false,
   };
 }
@@ -70,7 +90,10 @@ function buildSystemPrompt(today, categories, wallets = []) {
     '',
     'Rules:',
     '- One message may contain several entries, e.g. "กินข้าว 60 กาแฟ 45" is two expense entries. Return one item per entry.',
-    '- amount is the number of Thai baht as a positive number. Never add amounts together.',
+    '- amount is the number of Thai baht as a positive number.',
+    '- When one entry\'s amount is written as arithmetic, put it in amount_expression using only digits, ".", "+", "-", "*", "/", "(", ")" and sqrt(...), and set amount to 0. Examples: "รูท25*x10" is "sqrt(25)*10", "ชานม 2 แก้ว แก้วละ 35" is one entry with "2*35", "ค่าไฟ 1200/3" is "1200/3". Never compute it yourself. Otherwise amount_expression is "".',
+    '- Several items each with its own amount are separate entries, e.g. "กินข้าว 40+น้ำ 10+ขนม 20" is three entries. Never add amounts of different items together.',
+    '- When one item is followed by several amounts joined with "+" and no item names between them, e.g. "กินข้าว 40+10+20", set needs_clarification to true and ask whether to record one total or separate entries.',
     '- date is YYYY-MM-DD. Resolve relative words such as "เมื่อวาน" or "เมื่อวานซืน" from today. Use today when no date is given.',
     '- note is a short Thai description taken from the message, e.g. "กินข้าว".',
     `- Expense categories: ${categories.expense.join(', ')}`,
@@ -81,6 +104,14 @@ function buildSystemPrompt(today, categories, wallets = []) {
     `- ${PERSONA_PROMPT}`,
     '- Never ask about the date in question. A missing date always means today.',
     '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
+    '- intent says what the user wants: "record" to record entries; "question" to ask the total of past entries, e.g. "ยอดเดือนนี้", "เดือนนี้ใช้เงินไปเยอะไหม"; "summary" to ask for a summary or report, e.g. "สรุปหน่อย", "ดูสรุป", "สรุปเดือนที่แล้ว", "รายงาน"; "help" to ask how to use the bot, e.g. "ใช้ยังไง", "ช่วยด้วย", "help"; "saving" to put money into a saving goal, e.g. "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500"; "greeting" for greetings, thanks or small talk, e.g. "สวัสดี", "ขอบคุณ", "555"; "unsupported" for any other request the bot cannot do in chat.',
+    '- A message that names an item and an amount is "record" even when it has a question word, e.g. "ข้าวมันไก่ 50 แพงเท่าไหร่". A message that names only an item or only an amount, e.g. "ข้าว" or "60", is "record" and needs clarification.',
+    '- When the latest message answers a question the assistant asked, intent is "record".',
+    '- "ออมสิน" is a bank name; "ออมสิน 1000" or paying at ออมสิน is "record", not "saving".',
+    '- summary_period is "today", "week" or "month" when the summary asks for today, this week or this month; "other" for any other period, e.g. last month or this year; "" when no period is given or intent is not "summary".',
+    '- goal_name and saving_amount are the goal name and the amount for intent "saving". Otherwise "" and 0.',
+    '- unsupported_kind for intent "unsupported": "delete" to delete an entry, "edit" to change an entry, "budget" to ask about budgets, "web" to open the web page, "other" for anything else. Otherwise "".',
+    '- When intent is not "record", set needs_clarification to false, question to "" and items to [].',
     '- Otherwise set needs_clarification to false and question to "".',
   ].join('\n');
 }
@@ -134,6 +165,60 @@ function toParseResult(data, today, categories, wallets = []) {
   return { status: 'ok', items: data.items.map((item) => normalizeItem(item, today, categories, wallets)) };
 }
 
+// ไม่ใช้ isValidAmount ของ api/validate เพราะ validate require ไฟล์นี้อยู่แล้ว จะเกิด circular import
+function isSavingAmount(amount) {
+  return (
+    typeof amount === 'number' &&
+    Number.isFinite(amount) &&
+    amount > 0 &&
+    amount <= MAX_AMOUNT &&
+    Math.abs(amount * 100 - Math.round(amount * 100)) < 1e-6
+  );
+}
+
+// intent ที่ไม่รู้จักหรือไม่มีถือเป็นการบันทึกรายการ เพื่อไม่ให้ข้อความหายไปเงียบๆ
+function toIntentResult(data) {
+  switch (data.intent) {
+    case 'question':
+    case 'help':
+    case 'greeting':
+      return { status: 'intent', intent: data.intent };
+    case 'summary':
+      return {
+        status: 'intent',
+        intent: 'summary',
+        period: SUMMARY_PERIODS.includes(data.summary_period) ? data.summary_period : 'menu',
+      };
+    case 'saving':
+      return {
+        status: 'intent',
+        intent: 'saving',
+        name: typeof data.goal_name === 'string' ? data.goal_name.trim() : '',
+        amount: isSavingAmount(data.saving_amount) ? data.saving_amount : null,
+      };
+    case 'unsupported':
+      return {
+        status: 'intent',
+        intent: 'unsupported',
+        kind: UNSUPPORTED_KINDS.includes(data.unsupported_kind) ? data.unsupported_kind : 'other',
+      };
+    default:
+      return null;
+  }
+}
+
+// ยอดจากนิพจน์ที่คำนวณไม่ได้กลายเป็น NaN ให้ toParseResult ถามกลับเหมือนยอดที่ไม่ถูกต้อง
+function resolveAmountExpressions(data) {
+  return {
+    ...data,
+    items: data.items.map((item) => {
+      const expression = typeof item.amount_expression === 'string' ? item.amount_expression.trim() : '';
+      if (!expression) return item;
+      return { ...item, amount: evaluateAmountExpression(expression) ?? Number.NaN };
+    }),
+  };
+}
+
 function createMessageParser({ client, model, now = () => new Date() }) {
   return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = []) {
     const today = toBangkokDateString(now());
@@ -180,7 +265,11 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     if (!hasValidShape(data)) {
       throw new ParseError('Claude response does not match the expected shape');
     }
-    return toParseResult(data, today, categories, wallets);
+    const intentResult = toIntentResult(data);
+    if (intentResult) {
+      return intentResult;
+    }
+    return toParseResult(resolveAmountExpressions(data), today, categories, wallets);
   };
 }
 
@@ -198,4 +287,7 @@ module.exports = {
   ALL_CATEGORIES,
   isPlainObject,
   toParseResult,
+  INTENTS,
+  toIntentResult,
+  resolveAmountExpressions,
 };
