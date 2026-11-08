@@ -17,6 +17,16 @@ const BILL_REPLIES = {
   not_found: 'เฮียไม่พบบิลนี้',
 };
 const SUMMARY_MENU_REPLY = 'อยากให้เฮียสรุปช่วงไหน';
+const SUMMARY_OTHER_PERIOD_HINT = 'ในแชตเฮียสรุปได้แค่ วันนี้ สัปดาห์นี้ เดือนนี้ ช่วงอื่นดูได้ในหน้าเว็บ แท็บ สรุป';
+const GREETING_REPLY = 'เฮียพร้อมจดให้ พิมพ์รายการได้เลย เช่น "กินข้าว 60" หรือพิมพ์ ช่วยเหลือ เพื่อดูวิธีใช้';
+const NO_OPEN_GOAL_REPLY = 'ยังไม่มีเป้าออมที่เปิดอยู่ สร้างเป้าได้ในหน้าเว็บ แท็บ ออม';
+// คำสั่งที่ยังไม่มีในแชต ตอบทางที่ทำได้จริง ไม่ทำเหมือนหารายการไม่เจอ
+const UNSUPPORTED_REPLIES = {
+  delete: 'ลบรายการได้จากปุ่ม ลบรายการนี้ บนการ์ดที่เฮียส่งให้ หรือในหน้าเว็บ แท็บ รายการ',
+  edit: 'แก้รายการได้โดยแตะรายการบนการ์ดที่เฮียส่งให้ หรือในหน้าเว็บ แท็บ รายการ',
+  budget: 'ดูงบคงเหลือได้ในหน้าเว็บ แท็บ งบ',
+  other: 'เรื่องนี้เฮียยังทำในแชตไม่ได้ พิมพ์ ช่วยเหลือ เพื่อดูสิ่งที่เฮียทำได้',
+};
 const NO_ENTRIES_COMMENT = 'ช่วงนี้เฮียยังไม่เห็นรายการเลย';
 const SLIP_UNREADABLE_REPLY = 'เฮียอ่านยอดจากรูปนี้ไม่ได้ ลองส่งรูปสลิปที่ชัดขึ้น หรือพิมพ์เองก็ได้ เช่น "กินข้าว 60"';
 const SLIP_TOO_LARGE_REPLY = 'รูปใหญ่เกินไปสำหรับเฮีย (ไม่เกิน 3.5 MB) ลองส่งใหม่หรือย่อรูปก่อน';
@@ -32,6 +42,10 @@ const SUMMARY_PERIOD_BUTTONS = [
 ];
 const UNDO_ACTION = 'undo';
 const UNDO_SAVING_ACTION = 'undo_saving';
+
+function withLink(text, url) {
+  return url ? `${text}\n${url}` : text;
+}
 
 function buildUndoQuickReply(webhookEventId) {
   return [
@@ -103,6 +117,10 @@ module.exports = {
   UNDO_SAVING_NOT_FOUND_REPLY,
   BILL_REPLIES,
   SUMMARY_MENU_REPLY,
+  SUMMARY_OTHER_PERIOD_HINT,
+  GREETING_REPLY,
+  NO_OPEN_GOAL_REPLY,
+  UNSUPPORTED_REPLIES,
   NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
@@ -118,4 +136,5 @@ module.exports = {
   buildSavedReply,
   buildSlipQuickReply,
   buildSummaryQuickReply,
+  withLink,
 };
