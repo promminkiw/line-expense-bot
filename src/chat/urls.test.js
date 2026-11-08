@@ -56,6 +56,17 @@ describe('createUrlBuilders buildGoalsUrl', () => {
   });
 });
 
+describe('createUrlBuilders buildTabUrl', () => {
+  it('builds a tab link', () => {
+    const { buildTabUrl } = createUrlBuilders({ liffUrl: 'https://liff.line.me/liff-1' });
+    expect(buildTabUrl('budgets')).toBe('https://liff.line.me/liff-1?tab=budgets');
+  });
+
+  it('builds no tab link without a LIFF URL', () => {
+    expect(createUrlBuilders({ liffUrl: undefined }).buildTabUrl('list')).toBeUndefined();
+  });
+});
+
 describe('createUrlBuilders buildTotalsListUrl', () => {
   const question = { keyword: 'กาแฟ', category: undefined, wallet: undefined, type: 'expense', to: '2026-10-25' };
   const paramsOf = (url) => Object.fromEntries(new URL(url).searchParams);

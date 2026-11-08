@@ -7,6 +7,7 @@ import {
   DEFAULT_CLARIFY_QUESTION,
   AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
+  INTENTS,
 } from './parse-message.js';
 
 const NOW = () => new Date('2026-09-29T05:00:00Z');
@@ -412,7 +413,7 @@ describe('parseMessage with wallets', () => {
     expect(params.system).toContain('- Wallets: เงินสด, บัตรเครดิต');
     expect(params.output_config.format.schema).toEqual(buildParseSchema(CATEGORIES, WALLETS));
     expect(itemSchema.properties.wallet.enum).toEqual(['เงินสด', 'บัตรเครดิต', '']);
-    expect(itemSchema.required).toEqual(['type', 'category', 'amount', 'date', 'note', 'wallet']);
+    expect(itemSchema.required).toEqual(['type', 'category', 'amount', 'amount_expression', 'date', 'note', 'wallet']);
   });
 
   // ลองกับ Claude จริง "กาแฟ 60 รูดบัตรเครดิต" ได้หมวด อื่นๆ บางครั้งเมื่อมีกระเป๋าในข้อความ
@@ -465,5 +466,144 @@ describe('parseMessage with wallets', () => {
     expect(params.output_config.format.schema).toBe(PARSE_SCHEMA);
     expect(params.system).not.toContain('Wallets');
     expect(result).toEqual({ status: 'ok', items: [item()] });
+  });
+});
+
+describe('parseMessage intents', () => {
+  function intentPayload(fields) {
+    return {
+      needs_clarification: false,
+      question: '',
+      items: [],
+      summary_period: '',
+      goal_name: '',
+      saving_amount: 0,
+      unsupported_kind: '',
+      ...fields,
+    };
+  }
+
+  async function parseWith(payload, text = 'ข้อความ') {
+    return createMessageParser({ client: fakeClient(payload), model: 'm', now: NOW })(text);
+  }
+
+  it('offers every intent in the schema and requires the intent fields', () => {
+    expect(PARSE_SCHEMA.properties.intent.enum).toEqual(INTENTS);
+    expect(INTENTS).toEqual(['record', 'question', 'summary', 'help', 'saving', 'greeting', 'unsupported']);
+    expect(PARSE_SCHEMA.required).toEqual([
+      'needs_clarification',
+      'question',
+      'items',
+      'intent',
+      'summary_period',
+      'goal_name',
+      'saving_amount',
+      'unsupported_kind',
+    ]);
+    expect(PARSE_SCHEMA.properties.items.items.required).toContain('amount_expression');
+  });
+
+  it('describes the intents in the system prompt', async () => {
+    const client = fakeClient(okPayload([item()]));
+    await createMessageParser({ client, model: 'm', now: NOW })('สรุปหน่อย');
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('intent');
+    expect(system).toContain('สรุปหน่อย');
+    expect(system).toContain('เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500');
+    expect(system).toContain('amount_expression');
+    expect(system).toContain('กินข้าว 40+10+20');
+    expect(system).toContain('"ออมสิน 1000" or paying at ออมสิน is "record", not "saving"');
+    expect(system).toContain('"ออมสิน 1000" is a complete expense entry and needs no clarification');
+    expect(system).not.toContain('Never add amounts together.');
+    expect(system).toContain('When the saving amount is written as arithmetic');
+    expect(system).toContain('When intent is "record" and no entry needs clarification');
+    expect(system).not.toContain('- Otherwise set needs_clarification to false');
+  });
+
+  it.each(['question', 'help', 'greeting'])('returns the %s intent', async (intent) => {
+    expect(await parseWith(intentPayload({ intent }))).toEqual({ status: 'intent', intent });
+  });
+
+  it.each([
+    ['today', 'today'],
+    ['week', 'week'],
+    ['month', 'month'],
+    ['other', 'other'],
+    ['', 'menu'],
+    ['year', 'menu'],
+  ])('maps summary period %j to %j', async (summaryPeriod, period) => {
+    expect(await parseWith(intentPayload({ intent: 'summary', summary_period: summaryPeriod }))).toEqual({
+      status: 'intent',
+      intent: 'summary',
+      period,
+    });
+  });
+
+  it('returns the goal name and amount for a saving', async () => {
+    const payload = intentPayload({ intent: 'saving', goal_name: ' เที่ยวญี่ปุ่น ', saving_amount: 500 });
+    expect(await parseWith(payload)).toEqual({ status: 'intent', intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: 500 });
+  });
+
+  it.each([0, -5, MAX_AMOUNT + 1, 10.555, Number.NaN])('returns a null saving amount for %s', async (amount) => {
+    const payload = intentPayload({ intent: 'saving', goal_name: 'เที่ยวญี่ปุ่น', saving_amount: amount });
+    expect((await parseWith(payload)).amount).toBeNull();
+  });
+
+  it.each([
+    ['delete', 'delete'],
+    ['edit', 'edit'],
+    ['budget', 'budget'],
+    ['web', 'web'],
+    ['other', 'other'],
+    ['', 'other'],
+  ])('maps unsupported kind %j to %j', async (unsupportedKind, kind) => {
+    expect(await parseWith(intentPayload({ intent: 'unsupported', unsupported_kind: unsupportedKind }))).toEqual({
+      status: 'intent',
+      intent: 'unsupported',
+      kind,
+    });
+  });
+
+  // mock เดิมและคำตอบที่ไม่มี intent ต้องบันทึกรายการเหมือนเดิม
+  it.each([undefined, 'record', 'dance'])('records entries when intent is %j', async (intent) => {
+    const result = await parseWith({ ...okPayload([item()]), intent });
+    expect(result.status).toBe('ok');
+  });
+});
+
+describe('parseMessage amount expressions', () => {
+  async function parseItems(items) {
+    return createMessageParser({ client: fakeClient(okPayload(items)), model: 'm', now: NOW })('ข้อความ');
+  }
+
+  it('computes the amount from the expression instead of trusting Claude', async () => {
+    const result = await parseItems([item({ amount: 250, amount_expression: 'sqrt(25)*10' })]);
+    expect(result).toEqual({ status: 'ok', items: [{ ...item(), amount: 50 }] });
+  });
+
+  it('computes quantity times unit price', async () => {
+    const result = await parseItems([item({ note: 'ชานม', amount: 0, amount_expression: '2*35' })]);
+    expect(result.items[0].amount).toBe(70);
+  });
+
+  it('keeps the amount when the expression is empty', async () => {
+    const result = await parseItems([item({ amount: 60, amount_expression: '' })]);
+    expect(result.items[0].amount).toBe(60);
+  });
+
+  it('asks back when the expression cannot be computed', async () => {
+    const result = await parseItems([item({ amount: 0, amount_expression: '5/0' })]);
+    expect(result).toEqual({ status: 'clarify', question: DEFAULT_CLARIFY_QUESTION });
+  });
+
+  it('applies the amount limit to a computed amount', async () => {
+    const result = await parseItems([item({ amount: 0, amount_expression: '5000000*3' })]);
+    expect(result).toEqual({ status: 'clarify', question: AMOUNT_TOO_LARGE_QUESTION });
+  });
+
+  it('does not put amount_expression on saved items', async () => {
+    const result = await parseItems([item({ amount_expression: '30*2' })]);
+    expect(result.items[0]).not.toHaveProperty('amount_expression');
   });
 });

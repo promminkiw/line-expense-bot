@@ -18,10 +18,16 @@ const {
   GOAL_GONE_REPLY,
 } = require('../goals/chat');
 const { toBangkokDateString } = require('../utils/date');
+const { DEFAULT_CLARIFY_QUESTION } = require('../parser/parse-message');
 const {
   RATE_LIMITED_REPLY,
   QUESTION_FAILED_REPLY,
   SUMMARY_MENU_REPLY,
+  SUMMARY_OTHER_PERIOD_HINT,
+  GREETING_REPLY,
+  NO_OPEN_GOAL_REPLY,
+  UNSUPPORTED_REPLIES,
+  withLink,
   buildUndoSavingQuickReply,
   buildSavedReply,
   buildSummaryQuickReply,
@@ -31,7 +37,7 @@ const {
 const MAX_HISTORY_MESSAGES = 6;
 
 function createTextHandlers({ parseMessage, parseQuestion, repository, users, allowRequest, liffUrl, now, logger, urls, support }) {
-  const { buildEditUrls, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl } = urls;
+  const { buildEditUrls, buildTabUrl, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl } = urls;
   const {
     loadHistory,
     rememberConversation,
@@ -71,7 +77,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl() }) };
   }
 
-  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ handleText ทำทางเดิมต่อ เพราะคนที่ไม่ใช้เป้าอาจพิมพ์ "ออมสิน 1000" เป็นรายการ
+  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ผู้เรียกเลือกเอง: คำสั่ง ออม ตรงตัวไปทางปกติ ("ออมสิน 1000" เป็นรายการ) ส่วนทาง intent ตอบ NO_OPEN_GOAL_REPLY
   async function handleSaving(command, userId, webhookEventId) {
     const goals = await repository.listGoals(userId);
     if (!hasOpenGoal(goals)) {
@@ -102,6 +108,51 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
         { buttons: buildUndoSavingQuickReply(webhookEventId), goalsUrl: buildGoalsUrl() }
       ),
     };
+  }
+
+  function unsupportedReply(kind) {
+    if (kind === 'web') {
+      return getFixedReply('เปิดเว็บ', { liffUrl });
+    }
+    if (kind === 'budget') {
+      return withLink(UNSUPPORTED_REPLIES.budget, buildTabUrl('budgets'));
+    }
+    if (kind === 'delete' || kind === 'edit') {
+      return withLink(UNSUPPORTED_REPLIES[kind], buildTabUrl('list'));
+    }
+    return UNSUPPORTED_REPLIES.other;
+  }
+
+  async function handleIntent(result, text, userId, webhookEventId, askedQuestion) {
+    switch (result.intent) {
+      case 'question': {
+        // parseQuestion ตอบไปแล้วว่าไม่ใช่คำถาม ไม่ถามซ้ำให้เสีย call
+        if (askedQuestion) {
+          return { text: DEFAULT_CLARIFY_QUESTION };
+        }
+        return (await answerQuestion(text, userId)) ?? { text: DEFAULT_CLARIFY_QUESTION };
+      }
+      case 'summary':
+        if (result.period === 'other') {
+          return {
+            text: `${SUMMARY_MENU_REPLY}\n${withLink(SUMMARY_OTHER_PERIOD_HINT, buildSummaryUrl())}`,
+            quickReply: buildSummaryQuickReply(),
+          };
+        }
+        return handleSummary(result.period, userId);
+      case 'help':
+        return getHelpReply('ช่วยเหลือ');
+      case 'saving':
+        return (
+          (await handleSaving({ name: result.name, amount: result.amount }, userId, webhookEventId)) ?? {
+            text: NO_OPEN_GOAL_REPLY,
+          }
+        );
+      case 'greeting':
+        return { text: GREETING_REPLY };
+      default:
+        return { text: unsupportedReply(result.kind) };
+    }
   }
 
   async function handleText(event, lineUserId, deadline) {
@@ -143,7 +194,8 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     const catalogue = Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
     const { messages: history, loadFailed } = await loadHistory(userId);
     // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม จึงไม่ตีความเป็นคำถามยอด
-    if (history.length === 0 && looksLikeQuestion(event.message.text)) {
+    const askedQuestion = history.length === 0 && looksLikeQuestion(event.message.text);
+    if (askedQuestion) {
       const answer = await answerQuestion(event.message.text, userId);
       if (answer) {
         return answer;
@@ -152,6 +204,13 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     const [textCategories, { wallets, failed: walletsFailed }] = await catalogue;
     const choices = walletChoices(wallets);
     const result = await parseMessage(event.message.text, history, textCategories, choices);
+    if (result.status === 'intent') {
+      // ผู้ใช้เปลี่ยนเรื่องแล้ว บริบทที่ถามกลับค้างไว้ต้องไม่ปนข้อความถัดไป
+      if (history.length > 0 || loadFailed) {
+        await forgetConversation(userId);
+      }
+      return handleIntent(result, event.message.text, userId, event.webhookEventId, askedQuestion);
+    }
     if (result.status === 'clarify') {
       // ผู้ใช้ไม่เคยเห็นคำถามนี้ จึงไม่จำไว้เป็นบริบทของข้อความถัดไป
       if (deadline.passed) {

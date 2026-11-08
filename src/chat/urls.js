@@ -72,7 +72,7 @@ function createUrlBuilders({ liffUrl }) {
     }
   }
 
-  return { buildEditUrls, buildEditUrl, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl };
+  return { buildEditUrls, buildEditUrl, buildTabUrl, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl };
 }
 
 module.exports = { createUrlBuilders };

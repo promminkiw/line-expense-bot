@@ -19,10 +19,15 @@ import {
   QUESTION_FAILED_REPLY,
   UNDO_SAVING_DONE_REPLY,
   UNDO_SAVING_NOT_FOUND_REPLY,
+  GREETING_REPLY,
+  NO_OPEN_GOAL_REPLY,
+  SUMMARY_OTHER_PERIOD_HINT,
+  UNSUPPORTED_REPLIES,
 } from './bot.js';
 import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } from '../menu/fixed-replies.js';
 import { TEXT_CATEGORIES } from '../parser/categories.js';
 import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from '../goals/chat.js';
+import { DEFAULT_CLARIFY_QUESTION } from '../parser/parse-message.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
@@ -2375,5 +2380,152 @@ describe('bot loading animation', () => {
 
     expect(deps.replyText).toHaveBeenCalled();
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to show loading animation', { lineUserId: 'U1' }, failure);
+  });
+});
+
+describe('bot intents', () => {
+  const LIFF_URL = 'https://liff.line.me/liff-1';
+
+  function setupIntent(result, overrides = {}) {
+    return setup({ parseMessage: vi.fn().mockResolvedValue({ status: 'intent', ...result }), ...overrides });
+  }
+
+  it('shows the summary menu for a loose summary request', async () => {
+    const { deps, bot } = setupIntent({ intent: 'summary', period: 'menu' });
+
+    await bot.handleEvent(textEvent('สรุปหน่อย'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SUMMARY_MENU_REPLY, SUMMARY_QUICK_REPLY);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('replies the summary card for a named period', async () => {
+    const { deps, bot } = setupIntent({ intent: 'summary', period: 'week' });
+
+    await bot.handleEvent(textEvent('สรุปอาทิตย์นี้'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-28', '2026-09-29');
+    expect(deps.replyFlex.mock.calls[0][1].altText).toMatch(/^สรุปสัปดาห์นี้/);
+  });
+
+  it('shows the summary menu with a web hint for a period the chat cannot summarize', async () => {
+    const { deps, bot } = setupIntent({ intent: 'summary', period: 'other' }, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent('สรุปเดือนที่แล้ว'));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      `${SUMMARY_MENU_REPLY}\n${SUMMARY_OTHER_PERIOD_HINT}\n${LIFF_URL}?tab=summary`,
+      SUMMARY_QUICK_REPLY
+    );
+  });
+
+  it('shows the help menu', async () => {
+    const { deps, bot } = setupIntent({ intent: 'help' });
+
+    await bot.handleEvent(textEvent('ใช้ยังไง'));
+
+    const help = getHelpReply('ช่วยเหลือ');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', help.text, help.quickReply);
+  });
+
+  it('greets without saving', async () => {
+    const { deps, bot } = setupIntent({ intent: 'greeting' });
+
+    await bot.handleEvent(textEvent('สวัสดี'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', GREETING_REPLY, undefined);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('adds a loose saving message to the named open goal', async () => {
+    const { deps, bot } = setupIntent({ intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: 500 });
+
+    await bot.handleEvent(textEvent('เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', {
+      amount: 500,
+      occurredOn: '2026-09-29',
+      lineEventId: 'ev1',
+    });
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('asks for the amount when a loose saving has no valid amount', async () => {
+    const { deps, bot } = setupIntent({ intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: null });
+
+    await bot.handleEvent(textEvent('ออมเข้าเที่ยวญี่ปุ่นหน่อย'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
+  });
+
+  it('says there is no open goal for a loose saving', async () => {
+    const { deps, bot } = setupIntent({ intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: 500 });
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', NO_OPEN_GOAL_REPLY, undefined);
+    expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['delete', 'ลบรายการล่าสุด', `${UNSUPPORTED_REPLIES.delete}\n${LIFF_URL}?tab=list`],
+    ['edit', 'แก้เป็น 80', `${UNSUPPORTED_REPLIES.edit}\n${LIFF_URL}?tab=list`],
+    ['budget', 'งบเหลือเท่าไหร่', `${UNSUPPORTED_REPLIES.budget}\n${LIFF_URL}?tab=budgets`],
+    ['other', 'จองตั๋วให้หน่อย', UNSUPPORTED_REPLIES.other],
+    ['web', 'เว็บ', `เปิดหน้าเว็บดูและแก้ไขรายการ: ${LIFF_URL}`],
+  ])('points %s requests to what the user can do', async (kind, text, reply) => {
+    const { deps, bot } = setupIntent({ intent: 'unsupported', kind }, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent(text));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', reply, undefined);
+    expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
+  });
+
+  it('leaves out the link when the LIFF URL is not set', async () => {
+    const { deps, bot } = setupIntent({ intent: 'unsupported', kind: 'budget' });
+
+    await bot.handleEvent(textEvent('งบเหลือเท่าไหร่'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', UNSUPPORTED_REPLIES.budget, undefined);
+  });
+
+  it('answers a totals question that has no question word', async () => {
+    const question = { isQuestion: true, type: 'expense', category: '', keyword: '', from: '2026-09-01', to: '2026-09-29' };
+    const { deps, bot } = setupIntent({ intent: 'question' });
+    deps.parseQuestion.mockResolvedValue(question);
+
+    await bot.handleEvent(textEvent('ยอดเดือนนี้'));
+
+    expect(deps.parseQuestion).toHaveBeenCalledTimes(1);
+    expect(deps.repository.queryTotals).toHaveBeenCalledWith('user-1', question);
+    expect(deps.replyFlex).toHaveBeenCalled();
+  });
+
+  it('does not ask the question parser twice', async () => {
+    const { deps, bot } = setupIntent({ intent: 'question' });
+
+    await bot.handleEvent(textEvent('อะไรเท่าไหร่'));
+
+    expect(deps.parseQuestion).toHaveBeenCalledTimes(1);
+    expect(deps.replyText).toHaveBeenCalledWith('r1', DEFAULT_CLARIFY_QUESTION, undefined);
+  });
+
+  it('forgets a pending clarification when the user changes the subject', async () => {
+    const { deps, bot } = setupIntent({ intent: 'greeting' });
+    deps.repository.getPendingClarification.mockResolvedValue({
+      messages: [
+        { role: 'user', text: 'ข้าว' },
+        { role: 'assistant', text: 'ข้าวราคาเท่าไหร่' },
+      ],
+      updatedAt: new Date(NOW_MS).toISOString(),
+    });
+
+    await bot.handleEvent(textEvent('ขอบคุณ'));
+
+    expect(deps.repository.clearPendingClarification).toHaveBeenCalled();
+    expect(deps.replyText).toHaveBeenCalledWith('r1', GREETING_REPLY, undefined);
   });
 });
