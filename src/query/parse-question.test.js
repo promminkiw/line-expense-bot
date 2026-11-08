@@ -54,6 +54,15 @@ describe('parseQuestion request', () => {
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('tells Claude that budget questions are not totals questions', async () => {
+    const { client, parseQuestion } = parserFor(answer());
+
+    await parseQuestion('งบเหลือเท่าไหร่', NAMES);
+
+    const { system } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('Questions about budgets, e.g. "งบเหลือเท่าไหร่", are not totals questions. Set is_question to false.');
+  });
+
   it('builds a schema whose category enum is the names plus an empty string', () => {
     const schema = buildQuestionSchema(['อื่นๆ', 'อาหาร', 'อื่นๆ']);
 

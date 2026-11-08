@@ -53,6 +53,7 @@ function buildSystemPrompt(today, categoryNames, walletNames = []) {
     '',
     'Rules:',
     '- is_question is true only when the user asks for the total of past entries, e.g. "เดือนนี้กินกาแฟไปเท่าไหร่". A message that records a new entry, e.g. "กาแฟ 45", is not a question.',
+    '- Questions about budgets, e.g. "งบเหลือเท่าไหร่", are not totals questions. Set is_question to false.',
     '- type is expense for spending, income for earnings, both when the user asks about both.',
     `- Categories: ${[...new Set(categoryNames)].join(', ')}`,
     '- category is a name from the list only when the user names that category itself. Otherwise "".',
