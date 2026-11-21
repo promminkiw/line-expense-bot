@@ -3,6 +3,7 @@ const { createSupport } = require('./support');
 const { createSlipHandlers, SLIP_TTL_MS } = require('./slip');
 const { createPostbackHandlers } = require('./postback');
 const { createTextHandlers } = require('./text');
+const { createLanguageHandlers } = require('./language');
 const {
   SYSTEM_ERROR_REPLY,
   SLOW_PROCESSING_REPLY,
@@ -69,32 +70,36 @@ function createBot({
   const deps = { parseMessage, parseQuestion, commentSummary, downloadImage, parseSlip, repository, users, bills, allowRequest, liffUrl, now, logger };
   const support = createSupport(deps);
   const urls = createUrlBuilders({ liffUrl });
+  const language = createLanguageHandlers(deps);
   const slip = createSlipHandlers({ ...deps, urls, support });
   const { handleImage } = slip;
-  const { handlePostback } = createPostbackHandlers({ ...deps, slip });
-  const text = createTextHandlers({ ...deps, urls, support });
+  const { handlePostback } = createPostbackHandlers({ ...deps, slip, language });
+  const text = createTextHandlers({ ...deps, urls, support, language });
   const { handleText } = text;
 
   async function buildReply(event, lineUserId, deadline) {
-    if (event.type === 'follow') {
-      await users.ensureUser(lineUserId);
-      await repository.resumeMonthlySummary(lineUserId);
-      return null;
-    }
     if (event.type === 'unfollow') {
       await repository.disableNotifications(lineUserId);
       return null;
     }
+    const isHandled = event.type === 'follow' || event.type === 'postback' || isTextMessage(event) || isImageMessage(event);
+    // event ที่ไม่ตอบอะไร (เช่น สติกเกอร์) ไม่ต้องแตะ DB
+    if (!isHandled) {
+      return null;
+    }
+    // อ่านภาษามาพร้อมตอนหา user ครั้งเดียว แล้วส่งต่อให้ทุก handler
+    const { language: lang } = await users.resolveUser(lineUserId);
+    if (event.type === 'follow') {
+      await repository.resumeMonthlySummary(lineUserId);
+      return null;
+    }
     if (isTextMessage(event)) {
-      return handleText(event, lineUserId, deadline);
+      return handleText(event, lineUserId, deadline, lang);
     }
     if (isImageMessage(event)) {
-      return handleImage(event, lineUserId);
+      return handleImage(event, lineUserId, lang);
     }
-    if (event.type === 'postback') {
-      return handlePostback(event, lineUserId);
-    }
-    return null;
+    return handlePostback(event, lineUserId, lang);
   }
 
   // งานที่ค้างยังทำต่อจนจบ ผลที่มาช้าถูกทิ้งเพราะ reply token อาจหมดอายุแล้ว

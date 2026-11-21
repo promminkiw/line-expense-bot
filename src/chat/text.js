@@ -18,6 +18,7 @@ const {
   GOAL_GONE_REPLY,
 } = require('../goals/chat');
 const { toBangkokDateString } = require('../utils/date');
+const { parseLanguageCommand } = require('./language');
 const { DEFAULT_CLARIFY_QUESTION } = require('../parser/parse-message');
 const {
   RATE_LIMITED_REPLY,
@@ -36,7 +37,7 @@ const {
 // จำกัดความยาวบทสนทนาที่ส่งให้ Claude เพื่อคุมค่าใช้จ่ายเมื่อผู้ใช้ถูกถามซ้ำหลายรอบ
 const MAX_HISTORY_MESSAGES = 6;
 
-function createTextHandlers({ parseMessage, parseQuestion, repository, users, allowRequest, liffUrl, now, logger, urls, support }) {
+function createTextHandlers({ parseMessage, parseQuestion, repository, users, allowRequest, liffUrl, now, logger, urls, support, language }) {
   const { buildEditUrls, buildTabUrl, buildGoalsUrl, buildSummaryUrl, buildTotalsListUrl } = urls;
   const {
     loadHistory,
@@ -155,12 +156,20 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     }
   }
 
-  async function handleText(event, lineUserId, deadline) {
+  async function handleText(event, lineUserId, deadline, lang) {
     const userId = await users.ensureUser(lineUserId);
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
+    }
+    // คำสั่งภาษาไม่เรียก Claude จึงไม่นับ rate limit และต้องมาก่อนทางบันทึกรายการ ไม่งั้นคำว่า English จะถูกส่งให้ Claude ตีความ
+    const languageCommand = parseLanguageCommand(event.message.text);
+    if (languageCommand === 'menu') {
+      return language.buildMenuReply(lang);
+    }
+    if (languageCommand) {
+      return language.switchLanguage(userId, languageCommand, lang);
     }
     // คำสั่งออมไม่เรียก Claude จึงไม่นับ rate limit และต้องมาก่อนทางบันทึกรายการ ไม่งั้นยอดออมจะกลายเป็นรายจ่าย
     const savingCommand = parseSavingCommand(event.message.text);

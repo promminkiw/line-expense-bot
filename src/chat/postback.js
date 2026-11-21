@@ -1,6 +1,7 @@
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('../bills/flex');
 const { formatAmount } = require('../parser/format-reply');
 const { UUID_PATTERN } = require('../utils/uuid');
+const { LANGUAGE_ACTION } = require('./language');
 const {
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
@@ -13,7 +14,7 @@ const {
   UNDO_SAVING_ACTION,
 } = require('./replies');
 
-function createPostbackHandlers({ repository, users, bills, slip }) {
+function createPostbackHandlers({ repository, users, bills, slip, language }) {
   const { handleSlipSave, handleSlipCancel } = slip;
 
   async function handleUndo(params, lineUserId) {
@@ -53,9 +54,12 @@ function createPostbackHandlers({ repository, users, bills, slip }) {
     return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
   }
 
-  async function handlePostback(event, lineUserId) {
+  async function handlePostback(event, lineUserId, lang) {
     const params = new URLSearchParams(event.postback.data);
     const action = params.get('action');
+    if (action === LANGUAGE_ACTION) {
+      return language.handlePostback(params, lineUserId, lang);
+    }
     if (action === UNDO_ACTION) {
       return handleUndo(params, lineUserId);
     }
@@ -68,8 +72,8 @@ function createPostbackHandlers({ repository, users, bills, slip }) {
         return null;
       }
       return action === SLIP_SAVE_ACTION
-        ? handleSlipSave(event, params, lineUserId)
-        : handleSlipCancel(event, params, lineUserId);
+        ? handleSlipSave(event, params, lineUserId, lang)
+        : handleSlipCancel(event, params, lineUserId, lang);
     }
     if (action === BILL_CONFIRM_ACTION || action === BILL_DECLINE_ACTION) {
       // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงตอบว่าไม่พบโดยไม่ส่งไปถึง DB

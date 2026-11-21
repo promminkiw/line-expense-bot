@@ -141,9 +141,11 @@ function setup(overrides = {}) {
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
       disableNotifications: vi.fn().mockResolvedValue(),
       resumeMonthlySummary: vi.fn().mockResolvedValue(),
+      setUserLanguage: vi.fn().mockResolvedValue(),
     },
     now: () => NOW_MS,
     users: {
+      resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'th' }),
       ensureUser: vi.fn().mockResolvedValue('user-1'),
       loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
       loadCategoryIds: vi.fn().mockResolvedValue(
@@ -159,6 +161,13 @@ function setup(overrides = {}) {
     logger: { error: vi.fn(), info: vi.fn() },
     ...overrides,
   };
+  // เทสต์เก่าที่ override users ด้วย ensureUser อย่างเดียว ให้ resolveUser ตามไปด้วยเพื่อคงพฤติกรรมเดิม
+  if (!deps.users.resolveUser) {
+    deps.users = {
+      ...deps.users,
+      resolveUser: (lineUserId) => Promise.resolve(deps.users.ensureUser(lineUserId)).then((userId) => ({ userId, language: 'th' })),
+    };
+  }
   return { deps, bot: createBot(deps) };
 }
 
@@ -639,9 +648,9 @@ describe('bot follow event', () => {
 
     await bot.handleEvent(followEvent());
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.resumeMonthlySummary).toHaveBeenCalledWith('U1');
-    expect(deps.users.ensureUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
+    expect(deps.users.resolveUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -2527,5 +2536,126 @@ describe('bot intents', () => {
 
     expect(deps.repository.clearPendingClarification).toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r1', GREETING_REPLY, undefined);
+  });
+});
+
+describe('bot language switch', () => {
+  const MENU_QUICK_REPLY = [
+    { type: 'action', action: { type: 'postback', label: 'ภาษาไทย', data: 'action=language&lang=th', displayText: 'ภาษาไทย' } },
+    { type: 'action', action: { type: 'postback', label: 'English', data: 'action=language&lang=en', displayText: 'English' } },
+  ];
+  const usersFor = (resolveUser) => ({ users: { ...setup().deps.users, resolveUser } });
+  const withLanguage = (language) => usersFor(vi.fn().mockResolvedValue({ userId: 'user-1', language }));
+
+  it.each(['ภาษา', 'language', 'เปลี่ยนภาษา', 'change language', ' Change  Language '])(
+    'answers %j with two language buttons without calling Claude or the rate limiter',
+    async (text) => {
+      const { deps, bot } = setup();
+
+      await bot.handleEvent(textEvent(text));
+
+      expect(deps.replyText).toHaveBeenCalledWith('r1', 'เลือกภาษาที่อยากให้เฮียใช้', MENU_QUICK_REPLY);
+      expect(deps.allowRequest).not.toHaveBeenCalled();
+      expect(deps.parseMessage).not.toHaveBeenCalled();
+      expect(deps.parseQuestion).not.toHaveBeenCalled();
+    }
+  );
+
+  it('asks in English for an English user', async () => {
+    const { deps, bot } = setup(withLanguage('en'));
+
+    await bot.handleEvent(textEvent('language'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Pick the language you want me to use', MENU_QUICK_REPLY);
+  });
+
+  it('keeps answering the menu when the rate limit is exhausted', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('ภาษา'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เลือกภาษาที่อยากให้เฮียใช้', MENU_QUICK_REPLY);
+  });
+
+  it('switches directly when the user types English', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('english'));
+
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Switched to English. The web app uses English too.', undefined);
+    expect(deps.allowRequest).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('switches directly back to Thai when the user types ภาษาไทย', async () => {
+    const { deps, bot } = setup(withLanguage('en'));
+
+    await bot.handleEvent(textEvent('ภาษาไทย'));
+
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'th');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เฮียเปลี่ยนเป็นภาษาไทยแล้ว หน้าเว็บก็ใช้ภาษาไทยด้วย', undefined);
+  });
+
+  it('does not act on a redelivered language command', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(textEvent('English'));
+
+    expect(deps.repository.setUserLanguage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('switches from the postback button and confirms in the new language', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=language&lang=en'));
+
+    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'Switched to English. The web app uses English too.', undefined);
+  });
+
+  it('ignores a language postback with an unknown language', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=language&lang=fr'));
+    await bot.handleEvent(postbackEvent('action=language'));
+
+    expect(deps.repository.setUserLanguage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('replies with a failure in the current language and logs when saving fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.setUserLanguage.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('English'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เฮียเปลี่ยนภาษาไม่สำเร็จ ลองใหม่อีกครั้ง', undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to change language', { userId: 'user-1', language: 'en' }, expect.any(Error));
+  });
+
+  it('uses the language resolved for the next message', async () => {
+    const resolveUser = vi
+      .fn()
+      .mockResolvedValueOnce({ userId: 'user-1', language: 'th' })
+      .mockResolvedValue({ userId: 'user-1', language: 'en' });
+    const { deps, bot } = setup(usersFor(resolveUser));
+
+    await bot.handleEvent(textEvent('English'));
+    await bot.handleEvent(textEvent('language', { replyToken: 'r2', eventId: 'ev2' }));
+
+    expect(deps.replyText).toHaveBeenLastCalledWith('r2', 'Pick the language you want me to use', MENU_QUICK_REPLY);
+  });
+
+  it('resolves the user once per event', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('กินข้าว 60'));
+
+    expect(deps.users.resolveUser).toHaveBeenCalledTimes(1);
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
   });
 });
