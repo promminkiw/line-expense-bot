@@ -1,5 +1,5 @@
 # STATE
-Updated: 2026-11-21 (ล่าสุด: i18n Task 2 เก็บภาษาต่อผู้ใช้เสร็จบน feat/i18n; รอผู้ใช้ลองหน้าเว็บในแอป LINE ข้อ 19)
+Updated: 2026-11-21 (ล่าสุด: i18n Task 1-6, 9, 11 เสร็จบน feat/i18n; รอผู้ใช้ลองหน้าเว็บในแอป LINE ข้อ 19)
 Goal: รอผู้ใช้ลองข้อ 6-19 แล้วเลือกงานถัดไป
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ และแผนไป docs/superpowers/plans/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
@@ -28,7 +28,8 @@ Goal: รอผู้ใช้ลองข้อ 6-19 แล้วเลือ�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] i18n ไทย/อังกฤษ (branch feat/i18n แผน plans/2026-11-21-i18n.md): Task 1 แกนชุดแปลเสร็จ, Task 2 เก็บภาษาต่อผู้ใช้เสร็จ (users.language, resolveUser) ยังไม่มีที่ใช้ภาษาในข้อความ
+- [ ] i18n ไทย/อังกฤษ (branch feat/i18n แผน plans/2026-11-21-i18n.md, ledger .superpowers/sdd/progress.md ขึ้นต้น I18N): เสร็จ Task 1-6, 9, 11 (แกนชุดแปล, users.language, API, คำสั่ง ภาษา, ข้อความแชต, ช่วยเหลือ, ชื่อหมวด, แกนเว็บ)
+    กำลังทำ 7 (การ์ด Flex), 12 (ตัวเลือกภาษาในเว็บ); เหลือ 8, 10, 13-18
 - [ ] SonarQube follow-up เล็กๆ (PR #8 merge แล้ว): sonar-scan.ps1 จบ exit 0 ตอน scanner ล้ม, repo mount แบบ read-write ใน container, test noLineId ใน service.test.js ไม่ assert ว่า logger.error ไม่ถูกเรียก
     void 39 จุด: ฟังก์ชันจับ error จาก API เอง แต่มี 2 ทางที่ reject ได้เมื่อมี bug (render() ใน load ของ goals-panel/bills-panel, runEdit ตอน editing เป็น null) ยอมรับไว้
 - [ ] NLU intents: merge (63c0fbb) และ push แล้ว 2026-11-08 รอผู้ใช้ลองข้อ 18 ในแอป LINE หลัง Render deploy; nlu-eval 43 ข้อ: 42/43 สองรอบ แล้ว 43/43 สองรอบ
