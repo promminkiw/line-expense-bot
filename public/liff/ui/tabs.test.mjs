@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TABS, DEFAULT_TAB, findTab, createTabController } from './tabs.mjs';
+import { setLang } from '../i18n/current.mjs';
 
 function setup(overrides = {}) {
   document.body.replaceChildren();
@@ -136,5 +137,30 @@ describe('createTabController onBeforeChange', () => {
     order.length = 0;
     controller.select('summary', { force: true });
     expect(order).toEqual(['change:summary']);
+  });
+});
+
+describe('tabs in English', () => {
+  afterEach(() => setLang('th'));
+
+  it('labels the tabs and the page title in the current language', () => {
+    setLang('en');
+    const ctx = setup();
+
+    ctx.controller.select('goals');
+
+    expect([...ctx.nav.querySelectorAll('button[data-tab]')].map((button) => button.textContent)).toEqual(['List', 'Summary', 'Budget', 'Savings', 'Me']);
+    expect(ctx.titleEl.textContent).toBe('Savings goals');
+  });
+
+  it('relabels the buttons and the current title after the language changes', () => {
+    const ctx = setup();
+    ctx.controller.select('summary');
+
+    setLang('en');
+    ctx.controller.relabel();
+
+    expect(ctx.nav.querySelector('[aria-current="page"]').textContent).toBe('Summary');
+    expect(ctx.titleEl.textContent).toBe('Monthly summary');
   });
 });

@@ -25,7 +25,8 @@ import {
   recurringRows,
   describeRecurringFailure,
   shouldCloseRecurringEditor,
-  LOGIN_REQUIRED_MESSAGE,
+  loginRequiredMessage,
+  formatSignedBaht,
   filterTransactions,
   isFilterActive,
   describeFilterResult,
@@ -112,7 +113,7 @@ describe('categoryOptionLabel', () => {
 
 describe('describeEditFailure', () => {
   it('asks to reopen from LINE on 401 and keeps the dialog open', () => {
-    expect(describeEditFailure(401, 'save')).toEqual({ message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false });
+    expect(describeEditFailure(401, 'save')).toEqual({ message: loginRequiredMessage(), closeAndReload: false });
   });
 
   it('closes and reloads on 404 with a not-found message', () => {
@@ -272,7 +273,7 @@ describe('hasChartData', () => {
 
 describe('describeExportFailure', () => {
   it('asks to reopen from LINE on 401', () => {
-    expect(describeExportFailure(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeExportFailure(401)).toBe(loginRequiredMessage());
   });
 
   it('asks to wait on 429', () => {
@@ -354,7 +355,7 @@ describe('formatMonthLabel', () => {
 
 describe('describeBudgetFailure', () => {
   it('explains each failure', () => {
-    expect(describeBudgetFailure(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeBudgetFailure(401)).toBe(loginRequiredMessage());
     expect(describeBudgetFailure(400)).toBe('จำนวนเงินไม่ถูกต้อง ใส่ได้ไม่เกิน 10,000,000 บาท ทศนิยมไม่เกิน 2 ตำแหน่ง');
     expect(describeBudgetFailure(404)).toBe('ไม่พบหมวดนี้แล้ว');
     expect(describeBudgetFailure(500)).toBe('บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง');
@@ -433,7 +434,7 @@ describe('recurringRows', () => {
 
 describe('describeRecurringFailure', () => {
   it('explains each status in Thai', () => {
-    expect(describeRecurringFailure(401, 'save')).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeRecurringFailure(401, 'save')).toBe(loginRequiredMessage());
     expect(describeRecurringFailure(404, 'save')).toBe('ไม่พบรายการประจำนี้แล้ว');
     expect(describeRecurringFailure(409, 'save')).toBe('มีรายการประจำครบ 50 รายการแล้ว ลบอันเก่าก่อนเพิ่มใหม่');
     expect(describeRecurringFailure(400, 'save')).toBe('ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)');
@@ -755,7 +756,7 @@ describe('currentDate', () => {
 
 describe('describeRestoreFailure', () => {
   it('asks to log in again on 401 without offering a retry', () => {
-    expect(describeRestoreFailure(401)).toEqual({ message: LOGIN_REQUIRED_MESSAGE, retryable: false });
+    expect(describeRestoreFailure(401)).toEqual({ message: loginRequiredMessage(), retryable: false });
   });
 
   it('explains that the old data changed on 400', () => {
@@ -788,5 +789,99 @@ describe('parseAmountText', () => {
 
   it.each(['', '   ', 'abc', '1.2.3', '-5', '60,50', '1,5', '1,,5', ',500', '1,500,', '1,50,000', '1.234'])('rejects %s', (text) => {
     expect(parseAmountText(text)).toBeNaN();
+  });
+});
+
+describe('English formatting', () => {
+  const expense = (amount, extra = {}) => ({ type: 'expense', amount, categoryName: 'อาหาร', note: '', ...extra });
+
+  it('formats amounts with the baht sign', () => {
+    expect(formatBaht(25000, 'en')).toBe('฿25,000');
+    expect(formatSignedBaht(expense(60), 'en')).toBe('-฿60');
+  });
+
+  it('names months and dates with the Gregorian year', () => {
+    expect(thaiMonthShort('2026-09', 'en')).toBe('Sep');
+    expect(formatFullThaiDate('2026-09-05', 'en')).toBe('5 Sep 2026');
+    expect(describeViewedMonth('2026-09', 'en')).toBe('Viewing Sep 2026');
+  });
+
+  it('keeps the Thai login message by default', () => {
+    expect(loginRequiredMessage()).toBe('กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง');
+  });
+
+  it('describes HTTP failures in English', () => {
+    expect(loginRequiredMessage('en')).toBe('Please open this page from the LINE app again.');
+    expect(describeEditFailure(404, 'save', 'en')).toEqual({ message: "This entry isn't here anymore.", closeAndReload: true });
+    expect(describeEditFailure(500, 'delete', 'en').message).toBe("Couldn't delete it. Try again.");
+    expect(describeRestoreFailure(500, 'en')).toEqual({ message: "Couldn't undo it. Try again.", retryable: true });
+    expect(describeExportFailure(429, 'en')).toBe("You're pressing Export too fast. Wait a moment and try again.");
+    expect(describeBudgetFailure(404, 'en')).toBe("This category isn't here anymore.");
+    expect(describeRecurringFailure(409, 'save', 'en')).toBe('You already have 50 recurring entries. Delete an old one first.');
+  });
+
+  it('shows default category names in English and keeps custom ones', () => {
+    expect(categoryOptionLabel({ name: 'อาหาร', type: 'expense', hidden: true }, 'en')).toBe('Food (hidden)');
+    expect(categoryOptionLabel({ name: 'ชานม', type: 'expense' }, 'en')).toBe('ชานม');
+    expect(describeDeleteTarget({ ...expense(60), occurredOn: '2026-10-02' }, 'en')).toEqual({
+      title: 'Delete this entry?',
+      category: 'Food',
+      amount: '-฿60',
+      date: '02/10',
+      note: '',
+    });
+  });
+
+  it('sorts chart rows by the English name', () => {
+    const summary = [
+      { type: 'expense', category: 'อาหาร', total: 50 },
+      { type: 'expense', category: 'เดินทาง', total: 50 },
+      { type: 'expense', category: 'Apple', total: 50 },
+    ];
+
+    expect(chartRows(summary, 'expense', 'en').map((row) => row.category)).toEqual(['Apple', 'อาหาร', 'เดินทาง']);
+  });
+
+  it('finds entries by the English category name', () => {
+    const items = [expense(60), expense(40, { categoryName: 'เดินทาง' })];
+
+    expect(filterTransactions(items, { query: 'food' }, 'en')).toEqual([items[0]]);
+    expect(filterTransactions(items, { query: 'อาหาร' }, 'en')).toEqual([items[0]]);
+  });
+
+  it('describes filter results', () => {
+    expect(describeFilterResult([expense(60)], 500, true, 'en')).toBe('Found 1 of 500, net -60 baht (searched only the entries shown)');
+    expect(describeFilterResult([], 20, false, 'en')).toBe('Found 0 of 20');
+  });
+
+  it('describes the trend and the month-over-month change', () => {
+    const months = [
+      { month: '2026-08', income: 20000, expense: 1000 },
+      { month: '2026-09', income: 0, expense: 1250 },
+    ];
+
+    expect(trendBars(months, 'en')[0]).toMatchObject({ label: 'Aug', description: 'Aug income ฿20,000 expenses ฿1,000' });
+    expect(describeExpenseComparison(months, 'en')).toEqual({ level: 'up', text: 'You spent 25% more than last month (+฿250)' });
+  });
+
+  it('builds budget and recurring rows in English', () => {
+    expect(budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: 1000, spent: 250 }], 'en')[0].text).toBe('Spent ฿250 of ฿1,000 (25%)');
+    expect(budgetRows([{ categoryId: 'c1', category: 'อาหาร', budget: null, spent: 0 }], 'en')[0].text).toBe('Spent ฿0 · no budget yet');
+    const rule = { id: 'r1', type: 'expense', categoryId: 'c-food', amount: 300, note: '', dayOfMonth: 31, active: false };
+    const [row] = recurringRows([rule], [{ id: 'c-food', name: 'อาหาร', type: 'expense' }], 'en');
+    expect(row.title).toBe('Food');
+    expect(row.text).toBe('Expense ฿300 · Every month on day 31 (shorter months use the last day) · Paused');
+  });
+
+  it('builds the profile view in English', () => {
+    const view = profileView({ displayName: '', income: 0, expense: 0, balance: 0, entryCount: 1, firstDate: '2026-08-03' }, 'en');
+
+    expect(view.name).toBe('User');
+    expect(view.countText).toBe('1 entry');
+    expect(view.sinceText).toBe('Logging since 3 Aug 2026');
+    expect(profileView({ displayName: 'A', income: 0, expense: 0, balance: 0, entryCount: 2, firstDate: null }, 'en')).toMatchObject({
+      countText: '2 entries',
+      sinceText: 'No entries yet',
+    });
   });
 });

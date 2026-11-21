@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { boot, byId, settle, cleanupGlobals } from './dom-harness.mjs';
+import { boot, byId, settle, clickTab, cleanupGlobals } from './dom-harness.mjs';
 import en from './i18n/messages/en.mjs';
 import th from './i18n/messages/th.mjs';
 
@@ -138,5 +138,119 @@ describe('LIFF page language', () => {
     expect(broken.getItem).toHaveBeenCalled();
     expect(document.querySelectorAll('#list .row-button').length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe('en');
+  });
+});
+
+const bootEnglish = () => {
+  localStorage.setItem('lang', 'en');
+  return boot({ overrides: { '/api/settings': settingsWith('en') } });
+};
+const texts = (selector) => [...document.querySelectorAll(selector)].map((el) => el.textContent);
+
+describe('list tab in English', () => {
+  it('labels the chrome, totals, filters and rows in English', async () => {
+    await bootEnglish();
+
+    expect(texts('#bottom-nav button')).toEqual(['List', 'Summary', 'Budget', 'Savings', 'Me']);
+    expect(byId('page-title').textContent).toBe('My entries');
+    expect(byId('month').getAttribute('aria-label')).toBe('Pick a month');
+    expect(document.querySelector('#totals .stat.balance .stat-label').textContent).toBe('Balance');
+    expect(byId('stat-balance').textContent).toBe('฿24,900');
+    expect(byId('search').getAttribute('placeholder')).toBe('Search by category or note');
+    expect([...byId('filter-category').options].map((option) => option.textContent)).toEqual(['All categories', 'Food', 'Travel', 'Salary']);
+    expect(texts('#list .row-title')).toEqual(['Food', 'Travel', 'Salary']);
+    expect(texts('#list .amount')).toEqual(['-฿60', '-฿40', '+฿25,000']);
+    expect(document.querySelector('#list .row-delete').getAttribute('aria-label')).toBe('Delete Food entry');
+    expect(document.querySelector('#list .row-delete').textContent).toBe('Delete');
+  });
+
+  it('searches by the English category name and reports the result in English', async () => {
+    await bootEnglish();
+
+    byId('search').value = 'food';
+    byId('search').dispatchEvent(new Event('input'));
+
+    expect(texts('#list .row-title')).toEqual(['Food']);
+    expect(byId('filter-status').textContent).toBe('Found 1 of 3, net -60 baht');
+  });
+
+  it('shows the editor and the delete confirmation in English', async () => {
+    await bootEnglish();
+
+    document.querySelector('#list .row-button').click();
+    await settle();
+
+    expect(byId('editor-title').textContent).toBe('Edit entry');
+    expect(byId('edit-amount').closest('label').querySelector('span').textContent).toBe('Amount (baht)');
+    expect(byId('edit-category').selectedOptions[0].textContent).toBe('Food');
+    expect([...byId('edit-category').querySelectorAll('optgroup')].map((group) => group.label)).toEqual(['Expense', 'Income']);
+
+    byId('delete-button').click();
+
+    expect(byId('confirm-title').textContent).toBe('Delete this entry?');
+    expect(byId('confirm-category').textContent).toBe('Food');
+    expect(byId('confirm-amount').textContent).toBe('-฿60');
+    expect(byId('confirm-ok').textContent).toBe('Delete');
+  });
+
+  it('names the viewed month with the Gregorian year', async () => {
+    await bootEnglish();
+
+    byId('month').value = '2026-09';
+    byId('month').dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(byId('month-context-text').textContent).toBe('Viewing Sep 2026');
+    expect(byId('month-context-today').textContent).toBe('Back to this month');
+  });
+
+  it('redraws what was already drawn in Thai once the server says English', async () => {
+    const liff = await boot({ overrides: { '/api/settings': settingsWith('en') } });
+    await settle();
+
+    expect(liff.fetched.filter((path) => path === '/api/transactions')).toHaveLength(2);
+    expect(texts('#list .row-title')).toEqual(['Food', 'Travel', 'Salary']);
+    expect([...byId('filter-category').options].map((option) => option.textContent)[0]).toBe('All categories');
+    expect(byId('page-title').textContent).toBe('My entries');
+    expect(document.querySelector('#summary-empty .empty-title').textContent).toBe(en['web.empty.summary.title']);
+  });
+});
+
+describe('summary tab in English', () => {
+  it('labels the chart, the trend and the comparison in English', async () => {
+    await bootEnglish();
+
+    clickTab('summary');
+
+    expect(byId('page-title').textContent).toBe('Monthly summary');
+    expect(byId('chart-title').textContent).toBe('By category');
+    expect(texts('#chart .tabs button')).toEqual(['Expense', 'Income']);
+    expect(texts('#chart-rows .chart-label')).toEqual(['Food', 'Travel']);
+    expect(texts('#chart-rows .chart-value')).toEqual(['฿60 · 60%', '฿40 · 40%']);
+    expect(byId('trend-title').textContent).toBe('Last 6 months');
+    expect(texts('#trend-bars .trend-label')).toEqual(['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']);
+    expect(document.querySelector('#trend-bars .trend-col.current .sr-only').textContent).toBe('Oct income ฿25,000 expenses ฿100');
+    expect(byId('trend-comparison').textContent).toBe('You spent 50% less than last month (-฿100)');
+    expect(byId('export-button').textContent).toBe('Export CSV');
+  });
+
+  it('shows income categories and the no-income note in English', async () => {
+    await bootEnglish();
+    clickTab('summary');
+
+    document.querySelector('#chart .tabs [data-type="income"]').click();
+
+    expect(texts('#chart-rows .chart-label')).toEqual(['Salary']);
+  });
+
+  it('says there is no income yet in English', async () => {
+    localStorage.setItem('lang', 'en');
+    const expenseOnly = { transactions: [], summary: [{ type: 'expense', category: 'อาหาร', total: 60, entryCount: 1 }], truncated: false };
+    await boot({ overrides: { '/api/settings': settingsWith('en'), '/api/transactions': expenseOnly } });
+    clickTab('summary');
+
+    document.querySelector('#chart .tabs [data-type="income"]').click();
+
+    expect(byId('chart-empty').textContent).toBe('No income this month yet');
   });
 });

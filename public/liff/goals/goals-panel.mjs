@@ -1,7 +1,7 @@
 import { ApiError } from '../api.mjs';
 import { createLoadingIndicator } from '../ui/skeleton.mjs';
 import { revealError } from '../ui/reveal.mjs';
-import { LOGIN_REQUIRED_MESSAGE, currentDate, formatBaht, parseAmountText } from '../format.mjs';
+import { loginRequiredMessage, currentDate, formatBaht, parseAmountText } from '../format.mjs';
 import { splitGoals, goalRow, goalsSummary, goalLabel, contributionRows, describeGoalError } from './goals-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
@@ -95,7 +95,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     // โหลดซ้ำหลังบันทึกแล้วพัง ยังแสดงรายการเดิมไว้
     if (!loaded) els.body.hidden = true;
     const loginRequired = statusOf(err) === 401;
-    els.errorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดเป้าออมไม่สำเร็จ';
+    els.errorText.textContent = loginRequired ? loginRequiredMessage() : 'โหลดเป้าออมไม่สำเร็จ';
     // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
     els.retry.hidden = loginRequired;
     els.error.hidden = false;
@@ -288,7 +288,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
       if (viewing === id) renderHistory(result.contributions);
     } catch (err) {
       if (viewing !== id) return;
-      els.historyError.textContent = statusOf(err) === 401 ? LOGIN_REQUIRED_MESSAGE : 'โหลดประวัติการออมไม่สำเร็จ';
+      els.historyError.textContent = statusOf(err) === 401 ? loginRequiredMessage() : 'โหลดประวัติการออมไม่สำเร็จ';
       els.historyError.hidden = false;
     } finally {
       if (viewing === id) els.historyLoading.hidden = true;

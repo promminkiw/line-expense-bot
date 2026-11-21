@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 // ตรงกับ FRIEND_CODE_PATTERN ฝั่ง server ตรวจซ้ำที่นี่เพื่อบอกผู้ใช้ได้ทันทีโดยไม่ต้องยิง request
 const FRIEND_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
@@ -29,7 +29,7 @@ export function buildInviteMessage(url) {
 }
 
 export function describeFriendError(status, action, error) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 401) return loginRequiredMessage();
   if (action === 'add') {
     if (status === 400 && error === 'Own code') return OWN_CODE_MESSAGE;
     if (status === 400) return INVALID_CODE_MESSAGE;

@@ -1,5 +1,5 @@
 import { displayCategoryName } from '../i18n/names.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const MESSAGES = new Map([
   ['409:Duplicate name', 'มีหมวดชื่อนี้อยู่แล้ว'],
@@ -11,7 +11,7 @@ const MESSAGES = new Map([
 ]);
 
 export function describeCategoryError(status, error) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 401) return loginRequiredMessage();
   if (status === 404) return 'ไม่พบหมวดนี้แล้ว ลองเปิดหน้าใหม่';
   return MESSAGES.get(`${status}:${error}`) ?? 'บันทึกหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
 }

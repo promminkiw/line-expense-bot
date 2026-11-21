@@ -1,4 +1,4 @@
-import { formatBaht, formatFullThaiDate, LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { formatBaht, formatFullThaiDate, loginRequiredMessage } from '../format.mjs';
 
 // คิดเป็นสตางค์และปัดลง ให้ตรงกับเปอร์เซ็นต์ที่บอทตอบในแชต
 export function goalPercent(saved, target) {
@@ -75,7 +75,7 @@ const MESSAGES = new Map([
 ]);
 
 export function describeGoalError(status, error) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 401) return loginRequiredMessage();
   if (status === 404) return 'ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่';
   return MESSAGES.get(`${status}:${error}`) ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
 }

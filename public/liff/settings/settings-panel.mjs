@@ -1,5 +1,5 @@
 import { ApiError } from '../api.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { t } from '../i18n/translate.mjs';
 
 const LOAD_FAILED_MESSAGE = 'โหลดการตั้งค่าไม่สำเร็จ';
@@ -24,7 +24,7 @@ export function createSettingsPanel({ els, getApi, takeBootRead }) {
   function showLoadError(err) {
     els.loadingText.hidden = true;
     const loginRequired = isLoginRequired(err);
-    els.errorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : LOAD_FAILED_MESSAGE;
+    els.errorText.textContent = loginRequired ? loginRequiredMessage() : LOAD_FAILED_MESSAGE;
     // 401 ต้องเปิดจาก LINE ใหม่ กดลองใหม่ก็ได้ผลเดิม
     els.retry.hidden = loginRequired;
     els.error.hidden = false;
@@ -71,7 +71,7 @@ export function createSettingsPanel({ els, getApi, takeBootRead }) {
     } catch (err) {
       // ถือว่า server ยังไม่เปลี่ยน ถ้าที่จริงเปลี่ยนแล้ว เปิดหน้าใหม่จะเห็นค่าจริง
       input.checked = !wanted;
-      els.status.textContent = isLoginRequired(err) ? LOGIN_REQUIRED_MESSAGE : saveFailedMessage(field);
+      els.status.textContent = isLoginRequired(err) ? loginRequiredMessage() : saveFailedMessage(field);
     } finally {
       input.disabled = false;
     }
@@ -119,7 +119,7 @@ export function createLanguagePicker({ els, getApi, getLang, remember, reload })
     } catch (err) {
       // ถือว่า server ยังไม่เปลี่ยน จึงคืนตัวเลือกเดิม
       render();
-      els.status.textContent = isLoginRequired(err) ? LOGIN_REQUIRED_MESSAGE : t(getLang(), 'web.settings.language.saveFailed');
+      els.status.textContent = isLoginRequired(err) ? loginRequiredMessage() : t(getLang(), 'web.settings.language.saveFailed');
     }
     setDisabled(false);
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { describeWalletError, walletRowView, sortWallets, walletOptions, hasSeveralWallets, walletDisplayName } from './wallets-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 400, balance: 24600, entryCount: 2 };
 const CARD = { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 300, balance: -300, entryCount: 1 };
@@ -14,7 +14,7 @@ describe('describeWalletError', () => {
     [400, 'Reserved name', 'ชื่อนี้ใช้กับกระเป๋าตั้งต้นแล้ว ลองชื่ออื่น'],
     [400, 'Default wallet', 'กระเป๋าตั้งต้นแก้ไม่ได้'],
     [404, undefined, 'ไม่พบกระเป๋านี้แล้ว ลองเปิดหน้าใหม่'],
-    [401, undefined, LOGIN_REQUIRED_MESSAGE],
+    [401, undefined, loginRequiredMessage()],
     [500, 'Internal error', 'บันทึกกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง'],
   ])('describes %s %s', (status, error, expected) => {
     expect(describeWalletError(status, error)).toBe(expected);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { goalPercent, goalRow, goalsSummary, goalLabel, splitGoals, contributionRows, describeGoalError } from './goals-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const GOAL = { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: '2026-12-31', closed: false, saved: 6000, contributionCount: 2 };
 
@@ -109,7 +109,7 @@ describe('contributionRows', () => {
 
 describe('describeGoalError', () => {
   it.each([
-    [401, undefined, LOGIN_REQUIRED_MESSAGE],
+    [401, undefined, loginRequiredMessage()],
     [404, 'Not found', 'ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่'],
     [409, 'Duplicate name', 'มีเป้าชื่อนี้อยู่แล้ว'],
     [409, 'Too many goals', 'มีเป้าที่เปิดอยู่ได้ไม่เกิน 20 เป้า ปิดเป้าที่ไม่ใช้ก่อน'],

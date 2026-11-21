@@ -22,7 +22,7 @@ import {
   needsShareLink,
   needsExpenseCleanup,
 } from './bills-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../../src/bills/validate.js';
 
 describe('split helpers', () => {
@@ -67,7 +67,7 @@ describe('labels and messages', () => {
   });
 
   it('explains failures per action', () => {
-    expect(describeBillError(401, 'create')).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeBillError(401, 'create')).toBe(loginRequiredMessage());
     expect(describeBillError(400, 'create', 'Not friends')).toBe('มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง');
     expect(describeBillError(400, 'create', 'Shares do not add up')).toBe('ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล');
     expect(describeBillError(400, 'create', 'Invalid title')).toBe('ข้อมูลบิลไม่ถูกต้อง ตรวจชื่อบิล ยอด และวันที่อีกครั้ง');
@@ -109,7 +109,7 @@ describe('describeReceiptError', () => {
     expect(describeReceiptError(415)).toBe('ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)');
     expect(describeReceiptError(413)).toBe('รูปใหญ่เกินไป (ไม่เกิน 10 MB)');
     expect(describeReceiptError(429)).toBe('อ่านรูปบ่อยเกินไป รอสักครู่แล้วลองใหม่');
-    expect(describeReceiptError(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeReceiptError(401)).toBe(loginRequiredMessage());
     expect(describeReceiptError(500)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
     expect(describeReceiptError(0)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
   });

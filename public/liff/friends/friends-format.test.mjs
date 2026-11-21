@@ -8,7 +8,7 @@ import {
   INVALID_CODE_MESSAGE,
   OWN_CODE_MESSAGE,
 } from './friends-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { normalizeFriendCode as serverNormalize } from '../../../src/friends/code.js';
 
 describe('normalizeFriendCodeInput', () => {
@@ -47,7 +47,7 @@ describe('invite link', () => {
 describe('describeFriendError', () => {
   it('asks to reopen from LINE on 401 for every action', () => {
     for (const action of ['load', 'add', 'remove', 'renew']) {
-      expect(describeFriendError(401, action)).toBe(LOGIN_REQUIRED_MESSAGE);
+      expect(describeFriendError(401, action)).toBe(loginRequiredMessage());
     }
   });
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createSettingsPanel, createLanguagePicker } from './settings-panel.mjs';
 import { ApiError } from '../api.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const byId = (id) => document.getElementById(id);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -97,7 +97,7 @@ describe('createSettingsPanel', () => {
 
     await panel.ensureLoaded();
 
-    expect(byId('notify-error-text').textContent).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(byId('notify-error-text').textContent).toBe(loginRequiredMessage());
     expect(byId('notify-retry').hidden).toBe(true);
   });
 
@@ -197,7 +197,7 @@ describe('createSettingsPanel', () => {
     await flush();
 
     expect(byId('notify-weekly-summary').checked).toBe(true);
-    expect(byId('notify-status').textContent).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(byId('notify-status').textContent).toBe(loginRequiredMessage());
   });
 });
 
@@ -312,7 +312,7 @@ describe('createLanguagePicker', () => {
     choose('en');
     await flush();
 
-    expect(byId('lang-status').textContent).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(byId('lang-status').textContent).toBe(loginRequiredMessage());
   });
 
   it('does not save when the current language is picked again', async () => {

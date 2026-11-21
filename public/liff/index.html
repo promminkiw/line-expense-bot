@@ -239,78 +239,79 @@
   <main id="app">
     <div class="top-sticky">
       <header class="bar">
-        <button type="button" id="page-back" class="bar-back" aria-label="กลับไปจัดการงบ" hidden><svg class="icon"
+        <button type="button" id="page-back" class="bar-back" aria-label="กลับไปจัดการงบ" data-i18n-attr="aria-label:web.back.budgets" hidden><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-back"></use>
           </svg></button>
         <a id="bills-home" class="bar-home" href="./" hidden><svg class="icon" aria-hidden="true"
             focusable="false">
             <use href="#icon-back"></use>
-          </svg>หน้าหลัก</a>
+          </svg><span data-i18n="web.bills.home">หน้าหลัก</span></a>
         <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
-        <h1 id="page-title" tabindex="-1">รายการของฉัน</h1>
-        <input type="month" id="month" aria-label="เลือกเดือน">
+        <h1 id="page-title" tabindex="-1" data-i18n="web.title.list">รายการของฉัน</h1>
+        <input type="month" id="month" aria-label="เลือกเดือน" data-i18n-attr="aria-label:web.month.pick">
       </header>
       <div id="month-context" class="month-context" hidden>
         <span id="month-context-text"></span>
-        <button type="button" id="month-context-today">กลับเดือนนี้</button>
+        <button type="button" id="month-context-today" data-i18n="web.month.today">กลับเดือนนี้</button>
       </div>
       <div class="banner-area">
         <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
-        <button type="button" id="banner-retry" hidden>ลองใหม่</button>
+        <button type="button" id="banner-retry" data-i18n="web.common.retry" hidden>ลองใหม่</button>
       </div>
     </div>
     <div id="panel-list" class="panel">
       <ul id="list-head-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="totals" class="stat-cards" hidden>
-        <div class="stat balance"><span class="stat-label">คงเหลือ</span><span id="stat-balance"
-            class="stat-value"></span><span class="stat-note">รายรับหักรายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
+        <div class="stat balance"><span class="stat-label" data-i18n="web.list.balance">คงเหลือ</span><span id="stat-balance"
+            class="stat-value"></span><span class="stat-note"><span data-i18n="web.list.balanceNote">รายรับหักรายจ่าย</span> <span class="nowrap"
+                data-i18n="web.list.balanceNoteMonth">ของเดือนที่เลือก</span></span></div>
         <div class="stat-sub">
-          <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income"
+          <div class="stat income"><span class="stat-label" data-i18n="type.income">รายรับ</span><span id="stat-income"
               class="stat-value"></span></div>
-          <div class="stat expense"><span class="stat-label">รายจ่าย</span><span id="stat-expense"
+          <div class="stat expense"><span class="stat-label" data-i18n="type.expense">รายจ่าย</span><span id="stat-expense"
               class="stat-value"></span></div>
         </div>
       </div>
-      <p id="truncated" class="notice" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ
-        ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
+      <p id="truncated" class="notice" data-i18n="web.list.truncated" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
       <div id="filters" class="filters" hidden>
         <div class="filter-search">
           <svg class="icon" aria-hidden="true" focusable="false">
             <use href="#icon-search"></use>
           </svg>
-          <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+          <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ"
+            data-i18n-attr="placeholder:web.list.searchPlaceholder;aria-label:web.list.search" maxlength="50">
         </div>
-        <select id="filter-type" aria-label="กรองตามประเภท">
-          <option value="">ทุกประเภท</option>
-          <option value="expense">รายจ่าย</option>
-          <option value="income">รายรับ</option>
+        <select id="filter-type" aria-label="กรองตามประเภท" data-i18n-attr="aria-label:web.list.filterType">
+          <option value="" data-i18n="web.list.allTypes">ทุกประเภท</option>
+          <option value="expense" data-i18n="type.expense">รายจ่าย</option>
+          <option value="income" data-i18n="type.income">รายรับ</option>
         </select>
-        <select id="filter-category" aria-label="กรองตามหมวด"></select>
-        <select id="filter-wallet" aria-label="กรองตามกระเป๋า" hidden></select>
-        <button type="button" id="filter-clear" hidden>ล้างตัวกรอง</button>
+        <select id="filter-category" aria-label="กรองตามหมวด" data-i18n-attr="aria-label:web.list.filterCategory"></select>
+        <select id="filter-wallet" aria-label="กรองตามกระเป๋า" data-i18n-attr="aria-label:web.list.filterWallet" hidden></select>
+        <button type="button" id="filter-clear" data-i18n="web.list.clearFilters" hidden>ล้างตัวกรอง</button>
         <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
-      <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
+      <p id="status" class="status" role="status" aria-live="polite" data-i18n="web.common.loading">กำลังโหลด...</p>
       <p id="swipe-hint" class="swipe-hint" hidden>
-        <span>ปัดแถวไปทางซ้ายเพื่อลบ</span>
-        <button type="button" id="swipe-hint-dismiss">รับทราบ</button>
+        <span data-i18n="web.list.swipeHint">ปัดแถวไปทางซ้ายเพื่อลบ</span>
+        <button type="button" id="swipe-hint-dismiss" data-i18n="web.list.swipeHintDismiss">รับทราบ</button>
       </p>
       <ul id="list" class="list"></ul>
     </div>
     <div id="panel-summary" class="panel" hidden>
       <div class="export">
-        <button type="button" id="export-button" disabled>Export CSV</button>
+        <button type="button" id="export-button" data-i18n="web.export.button" disabled>Export CSV</button>
         <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
       </div>
       <div id="summary-empty" hidden></div>
       <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
         <div class="chart-head">
-          <h2 id="chart-title">สรุปตามหมวด</h2>
-          <div class="tabs" role="group" aria-label="ประเภทกราฟ">
-            <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
-            <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
+          <h2 id="chart-title" data-i18n="web.summary.byCategory">สรุปตามหมวด</h2>
+          <div class="tabs" role="group" aria-label="ประเภทกราฟ" data-i18n-attr="aria-label:web.summary.chartType">
+            <button type="button" data-type="expense" aria-pressed="true" data-i18n="type.expense">รายจ่าย</button>
+            <button type="button" data-type="income" aria-pressed="false" data-i18n="type.income">รายรับ</button>
           </div>
         </div>
         <div id="chart-stack" class="chart-stack" aria-hidden="true"></div>
@@ -318,17 +319,17 @@
         <p id="chart-empty" class="chart-empty" hidden></p>
       </section>
       <section id="trend" class="trend" aria-labelledby="trend-title">
-        <h2 id="trend-title">แนวโน้ม 6 เดือนล่าสุด</h2>
+        <h2 id="trend-title" data-i18n="web.trend.title">แนวโน้ม 6 เดือนล่าสุด</h2>
         <p id="trend-comparison" class="trend-comparison" hidden></p>
-        <p id="trend-empty" class="chart-empty" hidden>ยังไม่มีรายการใน 6 เดือนล่าสุด</p>
-        <p id="trend-loading" class="sr-only" role="status" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
+        <p id="trend-empty" class="chart-empty" data-i18n="web.trend.empty" hidden>ยังไม่มีรายการใน 6 เดือนล่าสุด</p>
+        <p id="trend-loading" class="sr-only" role="status" data-i18n="web.trend.loading" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
         <ul id="trend-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <ul id="trend-bars" class="trend-bars" role="list" hidden></ul>
-        <p id="trend-legend" class="trend-legend" hidden><span class="legend income">รายรับ</span><span
-            class="legend expense">รายจ่าย</span></p>
+        <p id="trend-legend" class="trend-legend" hidden><span class="legend income" data-i18n="type.income">รายรับ</span><span
+            class="legend expense" data-i18n="type.expense">รายจ่าย</span></p>
         <div id="trend-error" class="budgets-error" hidden>
           <p id="trend-error-text"></p>
-          <button type="button" id="trend-retry">ลองใหม่</button>
+          <button type="button" id="trend-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
       </section>
     </div>
@@ -797,7 +798,7 @@
   <p id="undo-bar-status" class="sr-only" role="status" aria-live="polite"></p>
   <div id="undo-bar" class="undo-bar" hidden>
     <span id="undo-bar-text"></span>
-    <button type="button" id="undo-bar-button">เลิกทำ</button>
+    <button type="button" id="undo-bar-button" data-i18n="web.undo.button">เลิกทำ</button>
   </div>
   <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก" data-i18n-attr="aria-label:web.nav.label"></nav>
   <dialog id="editor" aria-labelledby="editor-title">
@@ -807,26 +808,26 @@
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
         </svg></button>
-      <label>จำนวนเงิน (บาท)
-        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
+      <label><span data-i18n="web.editor.amount">จำนวนเงิน (บาท)</span>
+        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" data-i18n-attr="title:web.editor.amountHint" required>
       </label>
-      <label>หมวด
+      <label><span data-i18n="web.editor.category">หมวด</span>
         <select id="edit-category" required></select>
       </label>
-      <label id="edit-wallet-row" hidden>กระเป๋า
+      <label id="edit-wallet-row" hidden><span data-i18n="web.editor.wallet">กระเป๋า</span>
         <select id="edit-wallet"></select>
       </label>
-      <label>วันที่
+      <label><span data-i18n="web.editor.date">วันที่</span>
         <input id="edit-date" type="date" required>
       </label>
-      <label>โน้ต
+      <label><span data-i18n="web.editor.note">โน้ต</span>
         <input id="edit-note" type="text" maxlength="200">
       </label>
       <p id="edit-busy" class="confirm-detail" role="status" hidden></p>
       <p id="edit-error" class="error" role="alert" hidden></p>
       <div class="actions">
-        <button type="button" id="delete-button" class="danger">ลบ</button>
-        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" id="delete-button" class="danger" data-i18n="web.common.delete">ลบ</button>
+        <button type="submit" class="primary" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
@@ -960,14 +961,14 @@
     </form>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
-    <h2 id="confirm-title">ลบรายการนี้?</h2>
+    <h2 id="confirm-title" data-i18n="web.confirm.title">ลบรายการนี้?</h2>
     <p id="confirm-category" class="confirm-category"></p>
     <p id="confirm-amount" class="confirm-amount"></p>
     <p id="confirm-date" class="confirm-detail"></p>
     <p id="confirm-note" class="confirm-detail" hidden></p>
     <div class="actions">
-      <button type="button" id="confirm-cancel" autofocus>ยกเลิก</button>
-      <button type="button" id="confirm-ok" class="danger-solid">ลบ</button>
+      <button type="button" id="confirm-cancel" data-i18n="web.common.cancel" autofocus>ยกเลิก</button>
+      <button type="button" id="confirm-ok" class="danger-solid" data-i18n="web.common.delete">ลบ</button>
     </div>
   </dialog>
   <dialog id="budget-editor" class="budget-sheet" aria-labelledby="budget-title">

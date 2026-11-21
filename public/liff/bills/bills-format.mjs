@@ -1,4 +1,4 @@
-import { LOGIN_REQUIRED_MESSAGE, thaiMonthShort } from '../format.mjs';
+import { loginRequiredMessage, thaiMonthShort } from '../format.mjs';
 
 // ตรงกับ src/bills/validate.js ฝั่ง server เพื่อให้ยอดที่หน้าเว็บแบ่งผ่านการตรวจเสมอ
 export function toSatang(amount) {
@@ -98,7 +98,7 @@ export function needsShareLink(bill) {
 export const MEMBER_STATUS_LABELS = { pending: 'รอตอบ', confirmed: 'ยืนยันแล้ว', declined: 'ปฏิเสธ' };
 
 export function describeBillError(status, action, error) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 401) return loginRequiredMessage();
   if (action === 'create') {
     if (status === 400 && error === 'Not friends') return 'มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง';
     if (status === 400 && error === 'Shares do not add up') return 'ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล';
@@ -120,7 +120,7 @@ const RECEIPT_ERRORS = {
 };
 
 export function describeReceiptError(status) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+  if (status === 401) return loginRequiredMessage();
   return RECEIPT_ERRORS[status] || 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง';
 }
 

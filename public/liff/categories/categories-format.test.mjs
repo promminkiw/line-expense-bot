@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { describeCategoryError, describeCategoryUsage, categoryDisplayName } from './categories-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../../src/parser/categories.js';
 
 describe('describeCategoryError', () => {
   it.each([
-    [401, undefined, LOGIN_REQUIRED_MESSAGE],
+    [401, undefined, loginRequiredMessage()],
     [409, 'Duplicate name', 'มีหมวดชื่อนี้อยู่แล้ว'],
     [409, 'Too many categories', 'มีหมวดที่ใช้อยู่ได้ไม่เกิน 30 หมวดต่อประเภท ซ่อนหมวดที่ไม่ใช้ก่อน'],
     [400, 'Invalid name', 'ชื่อหมวดต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)'],
