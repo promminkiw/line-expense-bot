@@ -2,6 +2,8 @@
 # วิธีใช้ (รันจาก root ของ repo):  powershell -ExecutionPolicy Bypass -File .\scripts\sonar-scan.ps1
 # อ่าน token จาก $env:SONAR_TOKEN ถ้าว่างจะถามให้วาง (ซ่อนตัวอักษร)
 
+param([switch]$SkipCoverage)
+
 $repo = Split-Path $PSScriptRoot -Parent
 $hostUrl = if ($env:SONAR_HOST_URL) { $env:SONAR_HOST_URL } else { 'http://host.docker.internal:9000' }
 
@@ -34,6 +36,23 @@ if (-not $check.valid) {
     exit 1
 }
 $env:SONAR_TOKEN = $token
+
+# รัน test พร้อมเก็บ coverage ก่อนสแกน ไม่งั้น SonarQube นับ coverage ของโค้ดใหม่เป็น 0% แล้ว Quality Gate ไม่ผ่าน
+if (-not $SkipCoverage) {
+    Push-Location $repo
+    try { npm run test:coverage } finally { Pop-Location }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'Tests failed, scan stopped. Fix the tests, or pass -SkipCoverage to scan without coverage.' -ForegroundColor Red
+        exit 1
+    }
+}
+
+# lcov จาก Windows ใช้ \ ในชื่อไฟล์ แต่ scanner รันใน Linux จึงแปลงเป็น / ไม่งั้นหาไฟล์ไม่เจอและ coverage เป็น 0%
+$lcov = Join-Path $repo 'coverage\lcov.info'
+if (Test-Path $lcov) {
+    $lines = Get-Content $lcov | ForEach-Object { if ($_.StartsWith('SF:')) { $_.Replace('\', '/') } else { $_ } }
+    [IO.File]::WriteAllText($lcov, (($lines -join "`n") + "`n"), [Text.UTF8Encoding]::new($false))
+}
 
 docker run --rm `
     -e SONAR_HOST_URL=$hostUrl `

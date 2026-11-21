@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --testTimeout=30000",
     "lint": "eslint .",
     "try-parse": "node scripts/try-parse.js",
     "nlu-eval": "node scripts/nlu-eval.js"
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.39.5",
+    "@vitest/coverage-v8": "5.0.3",
     "eslint": "^9.39.5",
     "globals": "^17.13.0",
     "jsdom": "^28.1.0",

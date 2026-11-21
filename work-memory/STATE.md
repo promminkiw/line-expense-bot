@@ -26,7 +26,7 @@ Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือ�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] SonarQube (2026-11-21): แก้ 46 issue ครบ 4 task บน fix/sonarqube-issues รอผู้ใช้สแกนซ้ำ (scripts/sonar-scan.ps1) และกด Accept false positive 15 จุดใน SonarQube; npm test 2771/2771 lint ผ่าน; แผน plans/2026-11-21-sonarqube-fixes.md
+- [ ] SonarQube (2026-11-21): แก้ 46 issue ครบ 4 task บน fix/sonarqube-issues สแกนซ้ำแล้ว (เหลือ 15 = false positive รอผู้ใช้ Accept) ตั้ง coverage แล้ว (npm run test:coverage lines 95%, sonar-scan.ps1 รันให้) รอสแกนซ้ำให้ Quality Gate หายจาก ERROR; npm test 2771/2771 lint ผ่าน; แผน plans/2026-11-21-sonarqube-fixes.md
     void 39 จุดมีเหตุผลว่าฟังก์ชันจับ error เอง ยกเว้น 2 ทางที่ reject ได้เมื่อมี bug (render() ใน goals-panel/bills-panel load, runEdit ตอน editing เป็น null) ยอมรับไว้
 - [ ] NLU intents: merge (63c0fbb) และ push แล้ว 2026-11-08 รอผู้ใช้ลองข้อ 18 ในแอป LINE หลัง Render deploy; nlu-eval 43 ข้อ: 42/43 สองรอบ แล้ว 43/43 สองรอบ
     (ตกสลับกัน ออมสิน 1000, งบเหลือเท่าไหร่ = model ไม่คงที่ 100%); help ออม ยังไม่มี eval case `ออม <ชื่อ> <ยอด>` ตอนไม่มีเป้า; ความเสี่ยงที่ยอมรับ:
