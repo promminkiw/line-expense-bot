@@ -33,7 +33,7 @@ import {
   parseAmountText,
 } from './format.mjs';
 import { createFriendsPanel } from './friends/friends-panel.mjs';
-import { createSettingsPanel } from './settings/settings-panel.mjs';
+import { createSettingsPanel, createLanguagePicker } from './settings/settings-panel.mjs';
 import { createCategoriesPanel } from './categories/categories-panel.mjs';
 import { createWalletsPanel } from './wallets/wallets-panel.mjs';
 import { walletOptions, sortWallets, hasSeveralWallets } from './wallets/wallets-format.mjs';
@@ -57,7 +57,7 @@ import { createBudgetsAllPanel } from './budgets/budgets-all-panel.mjs';
 import { createBudgetSheet } from './budgets/budget-sheet.mjs';
 import { createBudgetBulkPanel } from './budgets/budget-bulk-panel.mjs';
 import { applyTranslations } from './i18n/dom.mjs';
-import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, languageFromTag } from './i18n/translate.mjs';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, languageFromTag, t } from './i18n/translate.mjs';
 
 const LANGUAGE_KEY = 'lang';
 
@@ -82,10 +82,17 @@ function rememberLanguage(language) {
 // apply ตั้งแต่ตอนโหลด module ก่อนรอ LIFF และเครือข่าย ผู้ใช้อังกฤษจะได้ไม่เห็นภาษาไทยแวบ
 let currentLang = applyTranslations(document, readCachedLanguage() ?? DEFAULT_LANGUAGE);
 
+// แถวภาษาในแท็บ ฉัน บอกภาษาปัจจุบันเป็นข้อความรอง (ชื่อภาษามาจากชุดแปลเดียวกับตัวเลือก)
+function renderLanguageRow() {
+  document.getElementById('language-open-sub').textContent = t(currentLang, `common.language.${currentLang}`);
+}
+renderLanguageRow();
+
 function setLanguage(language) {
   rememberLanguage(language);
   if (language === currentLang) return;
   currentLang = applyTranslations(document, language);
+  renderLanguageRow();
 }
 
 // SDK edge/2 มี getAppLanguage (ภาษาแอป LINE) รุ่นเก่ามีแค่ getLanguage (ภาษาเบราว์เซอร์)
@@ -95,9 +102,20 @@ function lineAppLanguage() {
   return undefined;
 }
 
+// เก็บผลอ่านรอบนี้ไว้ให้แผงแจ้งเตือนใช้ต่อ จะได้มีการอ่าน settings ครั้งเดียวต่อการเปิดหน้า
+let bootSettingsRead = null;
+const takeBootSettingsRead = () => {
+  const read = bootSettingsRead;
+  bootSettingsRead = null;
+  return read;
+};
+
 // null = ผู้ใช้ยังไม่เคยเลือก จึงบันทึกภาษาแอป LINE ครั้งเดียวให้บอทใช้ค่าเดียวกัน
 async function syncLanguage() {
-  const settings = await api.getSettings();
+  bootSettingsRead = api.getSettings();
+  // แผงแจ้งเตือนอาจไม่เคยมาหยิบ (ไม่ได้เปิดแท็บ) จึงกัน unhandled rejection ไว้ก่อน
+  bootSettingsRead.catch(() => {});
+  const settings = await bootSettingsRead;
   if (SUPPORTED_LANGUAGES.includes(settings?.language)) {
     setLanguage(settings.language);
     return;
@@ -456,6 +474,18 @@ const settingsPanel = createSettingsPanel({
     },
   },
   getApi: () => api,
+  takeBootRead: takeBootSettingsRead,
+});
+const languagePicker = createLanguagePicker({
+  els: {
+    radios: { th: document.getElementById('language-th'), en: document.getElementById('language-en') },
+    status: document.getElementById('language-status'),
+  },
+  getApi: () => api,
+  getLang: () => currentLang,
+  remember: rememberLanguage,
+  // โหลดหน้าใหม่เพื่อให้ทุกแท็บ render ในภาษาใหม่ ใช้ location ของ global เพื่อให้เทสต์ stub ได้
+  reload: () => location.reload(),
 });
 const categoriesPanel = createCategoriesPanel({
   doc: document,
@@ -2099,6 +2129,14 @@ const NOTIFY_PAGE = { ...mePage('panel-notify', 'การแจ้งเตื�
 
 els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
 els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
+
+const languageOpen = document.getElementById('language-open');
+// หัวข้อหน้าอ่านจาก currentLang ตอนเปิด ไม่ใช่ตอนโหลดโมดูล เพราะภาษาอาจเปลี่ยนหลังได้คำตอบจาก server
+const languagePage = () => ({
+  ...mePage('panel-language', t(currentLang, 'web.settings.language.title'), languageOpen),
+  render: () => languagePicker.render(),
+});
+languageOpen.addEventListener('click', () => enterSubPage(languagePage()));
 
 const FRIENDS_PAGE = { ...mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen), render: () => friendsPanel.ensureLoaded() };
 

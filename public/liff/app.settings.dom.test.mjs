@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { settle, boot, byId, routeFetch, clickTab, cleanupGlobals } from './dom-harness.mjs';
+import en from './i18n/messages/en.mjs';
+import th from './i18n/messages/th.mjs';
 
-afterEach(cleanupGlobals);
+beforeEach(() => localStorage.clear());
+afterEach(() => {
+  cleanupGlobals();
+  localStorage.clear();
+});
 
 describe('LIFF links between the main page and the bills page', () => {
   it('hides the home link on the main page and links the friends section to the bills page', async () => {
@@ -24,7 +30,7 @@ describe('LIFF links between the main page and the bills page', () => {
 });
 
 describe('LIFF notification settings', () => {
-  // boot อ่าน settings หนึ่งครั้งเพื่อเอาภาษา ส่วนสวิตช์ยังรอจนเปิดแท็บโปรไฟล์
+  // boot อ่าน settings หนึ่งครั้งเพื่อเอาภาษา แผงสวิตช์ใช้ผลนั้นต่อ ไม่อ่านซ้ำ
   it('does not load the switches before the profile tab opens', async () => {
     const liff = await boot();
 
@@ -38,8 +44,7 @@ describe('LIFF notification settings', () => {
     clickTab('profile');
     await settle();
 
-    // หนึ่งครั้งจาก boot (ภาษา) อีกครั้งจากแผงสวิตช์
-    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(2);
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
     expect(byId('notify').hidden).toBe(false);
     expect(byId('notify-body').hidden).toBe(false);
     expect(byId('notify-weekly-summary').checked).toBe(false);
@@ -49,7 +54,7 @@ describe('LIFF notification settings', () => {
     const liff = await boot({ search: '?tab=profile' });
     await settle();
 
-    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(2);
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
     expect(byId('notify-body').hidden).toBe(false);
   });
 
@@ -168,5 +173,72 @@ describe('LIFF profile picture', () => {
     await openProfile();
     expect(byId('profile-avatar').querySelector('img')).toBeNull();
     expect(byId('profile-avatar').textContent).toBe('ส');
+  });
+});
+
+describe('LIFF language picker', () => {
+  const patches = (calls) => calls.filter((call) => call === 'PATCH /api/settings');
+  const openPicker = async (options) => {
+    const liff = await boot(options);
+    clickTab('profile');
+    await settle();
+    byId('language-open').click();
+    await settle();
+    return liff;
+  };
+  const choose = async (language) => {
+    byId(`language-${language}`).checked = true;
+    byId(`language-${language}`).dispatchEvent(new Event('change'));
+    await settle();
+  };
+
+  it('shows the current language as the row hint and opens a page with it checked', async () => {
+    await openPicker();
+
+    expect(byId('language-open').querySelector('.menu-row-sub').textContent).toBe(th['common.language.th']);
+    expect(byId('panel-language').hidden).toBe(false);
+    expect(byId('page-title').textContent).toBe(th['web.settings.language.title']);
+    expect(byId('language-th').checked).toBe(true);
+    expect(byId('language-en').checked).toBe(false);
+    expect(byId('language-th-label').textContent).toBe(th['common.language.th']);
+    expect(byId('language-en-label').textContent).toBe(th['common.language.en']);
+    expect(byId('language-group').getAttribute('aria-labelledby')).toBe('language-title');
+  });
+
+  it('shows the English labels and checks English when the language is English', async () => {
+    await openPicker({ overrides: { '/api/settings': { weeklySummary: false, dailyReminder: false, language: 'en' } } });
+
+    expect(byId('language-open').querySelector('.menu-row-sub').textContent).toBe(en['common.language.en']);
+    expect(byId('page-title').textContent).toBe(en['web.settings.language.title']);
+    expect(byId('language-title').textContent).toBe(en['web.settings.language.title']);
+    expect(byId('language-en').checked).toBe(true);
+  });
+
+  it('saves, remembers the language and reloads the page', async () => {
+    await openPicker();
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    const calls = routeFetch((method, path) => (method === 'PATCH' && path === '/api/settings' ? { language: 'en' } : undefined));
+
+    await choose('en');
+
+    expect(patches(calls)).toHaveLength(1);
+    expect(localStorage.getItem('lang')).toBe('en');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the old choice and shows an error when saving fails', async () => {
+    await openPicker();
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    routeFetch((method, path) => (method === 'PATCH' && path === '/api/settings' ? { status: 500 } : undefined));
+
+    await choose('en');
+
+    expect(byId('language-th').checked).toBe(true);
+    expect(byId('language-en').checked).toBe(false);
+    expect(byId('language-status').textContent).toBe(th['web.settings.language.saveFailed']);
+    expect(localStorage.getItem('lang')).toBe('th');
+    expect(reload).not.toHaveBeenCalled();
   });
 });

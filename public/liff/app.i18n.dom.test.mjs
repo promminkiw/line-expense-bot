@@ -88,6 +88,39 @@ describe('LIFF page language', () => {
     expect(document.documentElement.lang).toBe('en');
   });
 
+  it('keeps loading the page when the settings request hits a network error', async () => {
+    localStorage.setItem('lang', 'en');
+
+    await boot({ overrides: { '/api/settings': new Error('network down') } });
+
+    expect(document.querySelectorAll('#list .row-button').length).toBeGreaterThan(0);
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('applies the detected language and boots normally when saving it fails', async () => {
+    // overrides ผูกกับ path ไม่แยก method จึงให้ครั้งแรก (GET) ได้ null และครั้งต่อไป (PATCH) ล้มเหลว
+    let reads = 0;
+    const overrides = new Proxy({}, {
+      has: (_target, path) => path === '/api/settings',
+      get: (_target, path) => (path === '/api/settings' ? (reads++ === 0 ? settingsWith(null) : { status: 500 }) : undefined),
+    });
+
+    const liff = await boot({ overrides, liffExtras: { getAppLanguage: () => 'en-US' } });
+
+    expect(languagePatches(liff)).toHaveLength(1);
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.querySelectorAll('#list .row-button').length).toBeGreaterThan(0);
+  });
+
+  it('ignores an unsupported cached language', async () => {
+    localStorage.setItem('lang', 'fr');
+
+    await boot({ holdInit: true });
+
+    expect(document.documentElement.lang).toBe('th');
+    expect(document.title).toBe(th['web.page.title']);
+  });
+
   it('still boots when localStorage throws', async () => {
     const broken = {
       getItem: vi.fn(() => {

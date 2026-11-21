@@ -366,6 +366,11 @@ dialog.budget-confirm[open] { animation: pop-in 0.26s cubic-bezier(0.34, 1.56, 0
 .notify-switch input[type="checkbox"]:checked { background: var(--primary); }
 .notify-switch input[type="checkbox"]:checked::before { transform: translateX(20px); }
 .notify-switch input[type="checkbox"]:disabled { opacity: 0.5; cursor: wait; }
+.language-options { margin-top: 8px; }
+.language-option { display: flex; align-items: center; gap: 12px; min-height: 52px; margin: 0; padding: 8px 0; font-size: 16px; font-weight: 700; cursor: pointer; }
+.language-option + .language-option { border-top: 1px solid var(--border); }
+.language-option input[type="radio"] { flex: none; width: 22px; height: 22px; min-height: 0; margin: 0; accent-color: var(--primary); }
+.language-option input[type="radio"]:disabled { cursor: wait; }
 .notify-switch input[type="checkbox"]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .notify-status { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
 .notify-status:empty { display: none; }

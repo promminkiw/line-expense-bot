@@ -224,6 +224,10 @@
     <symbol id="icon-bell" viewBox="0 0 24 24">
       <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 21h4" />
     </symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z" />
+    </symbol>
     <symbol id="icon-users" viewBox="0 0 24 24">
       <circle cx="9" cy="8" r="3.2" />
       <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5a3 3 0 0 1 0 6M18 14.5c1.8.7 3 2.5 3 4.5" />
@@ -647,6 +651,15 @@
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
+            <li><button type="button" id="language-open" class="menu-row">
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-globe"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.settings.language.title">ภาษา / Language</span> <span
+                    id="language-open-sub" class="menu-row-sub"></span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
           </ul>
         </section>
         <section class="menu-group" aria-labelledby="menu-help-title">
@@ -715,6 +728,19 @@
               type="checkbox" role="switch"></label>
         </div>
         <p id="notify-status" class="notify-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+    <div id="panel-language" class="panel" hidden>
+      <section class="notify-settings" aria-labelledby="language-title">
+        <h2 id="language-title" data-i18n="web.settings.language.title">ภาษา / Language</h2>
+        <p class="notify-hint" data-i18n="web.settings.language.hint">เลือกภาษาที่เฮียใช้คุยกับคุณ ทั้งในแชตและในหน้าเว็บ</p>
+        <div id="language-group" class="language-options" role="radiogroup" aria-labelledby="language-title">
+          <label class="language-option"><input id="language-th" type="radio" name="language" value="th"><span id="language-th-label"
+              data-i18n="common.language.th">ภาษาไทย</span></label>
+          <label class="language-option"><input id="language-en" type="radio" name="language" value="en"><span id="language-en-label"
+              data-i18n="common.language.en">English</span></label>
+        </div>
+        <p id="language-status" class="notify-status" role="status" aria-live="polite"></p>
       </section>
     </div>
     <div id="panel-friends" class="panel" hidden>
