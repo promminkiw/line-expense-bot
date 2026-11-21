@@ -93,6 +93,11 @@ function setLanguage(language) {
   if (language === currentLang) return;
   currentLang = applyTranslations(document, language);
   renderLanguageRow();
+  // เปิดหน้าภาษาค้างไว้ระหว่างรอคำตอบ server หัวข้อและตัวเลือกต้องตามภาษาใหม่
+  if (activeSubPage?.panelId === 'panel-language') {
+    document.getElementById('page-title').textContent = t(currentLang, 'web.settings.language.title');
+    languagePicker.render();
+  }
 }
 
 // SDK edge/2 มี getAppLanguage (ภาษาแอป LINE) รุ่นเก่ามีแค่ getLanguage (ภาษาเบราว์เซอร์)
@@ -485,7 +490,15 @@ const languagePicker = createLanguagePicker({
   getLang: () => currentLang,
   remember: rememberLanguage,
   // โหลดหน้าใหม่เพื่อให้ทุกแท็บ render ในภาษาใหม่ ใช้ location ของ global เพื่อให้เทสต์ stub ได้
-  reload: () => location.reload(),
+  reload: () => {
+    // แทน entry หน้าย่อยด้วย entry ที่ไม่มี state และพากลับแท็บ ฉัน ไม่งั้นโหลดใหม่แล้วตกไปแท็บรายการ
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=profile`);
+    } catch {
+      // history ใช้ไม่ได้ก็แค่โหลดหน้าเดิมใหม่
+    }
+    location.reload();
+  },
 });
 const categoriesPanel = createCategoriesPanel({
   doc: document,
@@ -2223,6 +2236,8 @@ for (const button of API_MENU_ROWS) {
 }
 
 function enableApiMenuRows() {
+  // แถวภาษาแสดงชื่อภาษาปัจจุบันเป็นข้อความรองอยู่แล้ว จึงเปิดปุ่มอย่างเดียว ไม่เปลี่ยนข้อความ
+  document.getElementById('language-open').disabled = false;
   for (const button of API_MENU_ROWS) {
     button.disabled = false;
     menuRowHint(button).textContent = button.dataset.readyHint;

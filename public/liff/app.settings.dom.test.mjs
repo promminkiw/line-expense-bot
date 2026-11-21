@@ -242,3 +242,33 @@ describe('LIFF language picker', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 });
+
+describe('LIFF language picker gating and reload target', () => {
+  it('keeps the row disabled until the api is ready', async () => {
+    await boot({ holdInit: true });
+
+    expect(byId('language-open').disabled).toBe(true);
+    expect(byId('language-open-sub').textContent).toBe(th['common.language.th']);
+  });
+
+  it('reloads onto the profile tab and leaves no sub-page history entry', async () => {
+    await boot();
+    clickTab('profile');
+    await settle();
+    byId('language-open').click();
+    await settle();
+    expect(window.history.state).toEqual({ subPage: true });
+    const reload = vi.fn();
+    vi.stubGlobal('location', { ...window.location, reload });
+    routeFetch((method, path) => (method === 'PATCH' && path === '/api/settings' ? { language: 'en' } : undefined));
+
+    byId('language-en').checked = true;
+    byId('language-en').dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(window.history.state).toBeNull();
+    // location ถูก stub จึงอ่านจาก document ซึ่งเป็นของ jsdom จริง
+    expect(document.location.search).toBe('?tab=profile');
+  });
+});

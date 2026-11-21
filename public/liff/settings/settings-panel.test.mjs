@@ -343,3 +343,37 @@ describe('createLanguagePicker', () => {
     await flush();
   });
 });
+
+describe('createLanguagePicker without an api', () => {
+  function build({ getApi, reload = vi.fn() }) {
+    document.body.innerHTML = '<input id="a-th" type="radio"><input id="a-en" type="radio"><p id="a-status"></p>';
+    const picker = createLanguagePicker({
+      els: { radios: { th: byId('a-th'), en: byId('a-en') }, status: byId('a-status') },
+      getApi,
+      getLang: () => 'th',
+      remember: vi.fn(),
+      reload,
+    });
+    picker.render();
+    byId('a-en').checked = true;
+    byId('a-en').dispatchEvent(new Event('change'));
+    return reload;
+  }
+
+  it('does not call the api when getApi() is null', async () => {
+    const reload = build({ getApi: () => null });
+    await flush();
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(byId('a-th').checked).toBe(true);
+    expect(byId('a-status').textContent).toBe('');
+  });
+
+  it('keeps the options locked after a successful save', async () => {
+    build({ getApi: () => ({ updateSettings: vi.fn().mockResolvedValue({}) }) });
+    await flush();
+
+    expect(byId('a-th').disabled).toBe(true);
+    expect(byId('a-en').disabled).toBe(true);
+  });
+});

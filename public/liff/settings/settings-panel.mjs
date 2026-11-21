@@ -102,19 +102,26 @@ export function createLanguagePicker({ els, getApi, getLang, remember, reload })
 
   async function save(language) {
     if (language === getLang()) return;
+    const api = getApi();
+    // ยังไม่มี api (ก่อน login เสร็จ) ไม่เรียกอะไร คืนตัวเลือกเดิม
+    if (!api) {
+      render();
+      return;
+    }
     setDisabled(true);
     els.status.textContent = '';
     try {
-      await getApi().updateSettings({ language });
+      await api.updateSettings({ language });
       remember(language);
       reload();
+      // ล็อกตัวเลือกไว้จนหน้าโหลดใหม่ ไม่ให้กดซ้ำระหว่างรอ
+      return;
     } catch (err) {
       // ถือว่า server ยังไม่เปลี่ยน จึงคืนตัวเลือกเดิม
       render();
       els.status.textContent = isLoginRequired(err) ? LOGIN_REQUIRED_MESSAGE : t(getLang(), 'web.settings.language.saveFailed');
-    } finally {
-      setDisabled(false);
     }
+    setDisabled(false);
   }
 
   for (const language of languages) {
