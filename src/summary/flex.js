@@ -1,9 +1,8 @@
 const { formatAmount } = require('../parser/format-reply');
+const { displayCategoryName } = require('../parser/categories');
+const { typeLabel } = require('../utils/type-labels');
+const { t, formatAmount: formatMoney } = require('../i18n');
 const { COLORS, CHART_COLORS, brandHeader, stackBar, actionRow, separator } = require('../utils/flex-style');
-
-function baht(amount) {
-  return `${formatAmount(amount)} บาท`;
-}
 
 function totalColumn(label, amount, color, align) {
   return {
@@ -17,9 +16,9 @@ function totalColumn(label, amount, color, align) {
   };
 }
 
-function categoryShares(summary) {
-  const entries = [...summary.topExpenses];
-  if (summary.otherExpenseTotal > 0) entries.push({ category: 'หมวดอื่น', total: summary.otherExpenseTotal });
+function categoryShares(summary, lang) {
+  const entries = summary.topExpenses.map((entry) => ({ ...entry, category: displayCategoryName(lang, 'expense', entry.category) }));
+  if (summary.otherExpenseTotal > 0) entries.push({ category: t(lang, 'summary.card.otherCategories'), total: summary.otherExpenseTotal });
   return entries.map((entry, index) => ({
     ...entry,
     percent: Math.round((entry.total / summary.expenseTotal) * 100),
@@ -42,27 +41,29 @@ function legendRow(share) {
   };
 }
 
-function balanceTitle(net) {
-  return net < 0 ? `ติดลบ ${baht(-net)}` : `คงเหลือ ${baht(net)}`;
+function balanceTitle(net, lang) {
+  return net < 0
+    ? t(lang, 'summary.card.negative', { amount: formatMoney(lang, -net) })
+    : t(lang, 'summary.card.left', { amount: formatMoney(lang, net) });
 }
 
-function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
-  const title = `สรุป${summary.label}`;
+function buildSummaryFlex(summary, comment, { summaryUrl, lang = 'th' } = {}) {
+  const title = t(lang, 'summary.card.title', { label: summary.label });
   const body = [
     {
       type: 'box',
       layout: 'horizontal',
       contents: [
-        totalColumn('รายรับ', summary.incomeTotal, COLORS.income, 'start'),
-        totalColumn('รายจ่าย', summary.expenseTotal, COLORS.expense, 'end'),
+        totalColumn(typeLabel(lang, 'income'), summary.incomeTotal, COLORS.income, 'start'),
+        totalColumn(typeLabel(lang, 'expense'), summary.expenseTotal, COLORS.expense, 'end'),
       ],
     },
   ];
   if (summary.topExpenses.length > 0 && summary.expenseTotal > 0) {
-    const shares = categoryShares(summary);
+    const shares = categoryShares(summary, lang);
     body.push(
       separator(),
-      { type: 'text', text: 'รายจ่ายตามหมวด', size: 'xs', weight: 'bold', margin: 'lg' },
+      { type: 'text', text: t(lang, 'summary.card.byCategory'), size: 'xs', weight: 'bold', margin: 'lg' },
       // ขั้นต่ำ 1 ให้หมวดเล็กยังเห็นในแถบ และ flex ของ LINE ต้องเป็นจำนวนเต็ม
       stackBar(shares.map((share) => ({ weight: Math.max(1, share.percent), color: share.color }))),
       ...shares.map(legendRow)
@@ -77,7 +78,7 @@ function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
       cornerRadius: 'md',
       backgroundColor: COLORS.brandSoft,
       contents: [
-        { type: 'text', text: 'เฮียว่า', size: 'xxs', weight: 'bold', color: COLORS.brand },
+        { type: 'text', text: t(lang, 'summary.card.commentLabel'), size: 'xxs', weight: 'bold', color: COLORS.brand },
         { type: 'text', text: comment, size: 'xs', wrap: true },
       ],
     });
@@ -85,16 +86,20 @@ function buildSummaryFlex(summary, comment, { summaryUrl } = {}) {
 
   const bubble = {
     type: 'bubble',
-    header: brandHeader(title, balanceTitle(summary.net)),
+    header: brandHeader(title, balanceTitle(summary.net, lang)),
     body: { type: 'box', layout: 'vertical', contents: body },
   };
-  if (summaryUrl) bubble.footer = actionRow({ type: 'uri', label: 'เปิดหน้าสรุป', uri: summaryUrl });
+  if (summaryUrl) bubble.footer = actionRow({ type: 'uri', label: t(lang, 'summary.card.open'), uri: summaryUrl });
 
   return {
     type: 'flex',
-    altText: `${title}: รายรับ ${baht(summary.incomeTotal)} รายจ่าย ${baht(summary.expenseTotal)}`,
+    altText: t(lang, 'summary.card.altText', {
+      title,
+      income: formatMoney(lang, summary.incomeTotal),
+      expense: formatMoney(lang, summary.expenseTotal),
+    }),
     contents: bubble,
   };
 }
 
-module.exports = { buildSummaryFlex, baht };
+module.exports = { buildSummaryFlex };

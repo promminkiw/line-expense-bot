@@ -2925,4 +2925,59 @@ describe('bot replies in English', () => {
 
     expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.questionFailed'), undefined);
   });
+
+  const headerTexts = (flex) => [flex.contents.header.contents[0].text, flex.contents.header.contents[1].text];
+
+  it('replies the saved card in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: 'Saved it\n- Expense | Food | ฿60 | 29/09 | กินข้าว',
+      quickReply: [{ type: 'action', action: { type: 'postback', label: 'Delete this', data: 'action=undo&event=ev1', displayText: 'Delete' } }],
+    });
+  });
+
+  it('replies the slip card and the saved slip card in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(imageEvent());
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+
+    expect(headerTexts(deps.replyFlex.mock.calls[0][1])).toEqual(['I read the slip · not saved yet', '-฿120']);
+    expect(deps.replyFlex.mock.calls[0][1].altText).toMatch(/^Here is what I read from the slip\n- Expense \| Food \| ฿120/);
+    expect(deps.replyFlex.mock.calls[1][1].altText).toBe('Saved it\n- Expense | Food | ฿120 | 28/09 | โอนให้ ร้านข้าวแกง');
+  });
+
+  it('replies the summary card in English with the no entries comment', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'summary', period: 'today' });
+    deps.repository.summarizeTransactions.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('summary today'));
+
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(flex.altText).toBe('Summary: Today (29/09): income ฿0, expense ฿0');
+    expect(JSON.stringify(flex.contents.body)).toContain(t('en', 'chat.noEntriesComment'));
+  });
+
+  it('replies the totals card in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+    deps.parseQuestion.mockResolvedValue({ isQuestion: true, type: 'expense', category: '', keyword: '', from: '2026-09-01', to: '2026-09-29' });
+
+    await bot.handleEvent(textEvent('spending this month'));
+
+    expect(headerTexts(deps.replyFlex.mock.calls[0][1])).toEqual(['Totals 1-29 Sep 2026', 'Spent ฿450']);
+  });
+
+  it('replies the saving card in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: 500 });
+
+    await bot.handleEvent(textEvent('put 500 into my trip fund'));
+
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(flex.altText).toBe('Saved ฿500 toward เที่ยวญี่ปุ่น.\nSaved so far: ฿6,000 / ฿50,000 (12%)');
+    expect(flex.contents.header.contents[0].text).toBe('Saved toward goal');
+  });
 });

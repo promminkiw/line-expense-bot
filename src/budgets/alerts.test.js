@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge } from './alerts.js';
+import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge, budgetCheckFailedNotice, BUDGET_CHECK_FAILED_NOTICE } from './alerts.js';
 
 function row({ type = 'expense', categoryId = 'c-food', amount = 60, date = '2026-09-29' } = {}) {
   return { type, category_id: categoryId, amount, occurred_on: date };
@@ -176,5 +176,33 @@ describe('describeBudgetGauge', () => {
 
   it('says nothing is left at exactly the budget', () => {
     expect(describeBudgetGauge({ level: 'over', month: '2026-10', category: 'อาหาร', spent: 150, budget: 150 }).value).toBe('100% · เหลือ 0');
+  });
+});
+
+describe('budget alerts in English', () => {
+  const WARN = { level: 'warn', month: '2026-09', category: 'อาหาร', spent: 4030, budget: 5000 };
+  const OVER = { level: 'over', month: '2026-10', category: 'ค่าแมว', spent: 6450.5, budget: 6000 };
+
+  it('writes the alert lines with default category names translated', () => {
+    expect(formatBudgetAlerts([WARN, OVER], 'en')).toBe(
+      'Almost at budget: Food for 09/2026, spent ฿4,030 of ฿5,000 (80%)\nOver budget: ค่าแมว for 10/2026, spent ฿6,450.5 of ฿6,000 (107%)'
+    );
+  });
+
+  it('writes the short alert and the gauge in English', () => {
+    expect(describeBudgetAlert(WARN, 'en')).toEqual({ level: 'warn', title: 'Almost at budget: Food 80%', detail: 'Spent ฿4,030 of ฿5,000 (09/2026)' });
+    expect(describeBudgetGauge(OVER, 'en')).toEqual({
+      level: 'over',
+      percent: 107,
+      label: 'ค่าแมว budget · Over budget',
+      value: '107% · ฿450.5 over',
+      detail: 'Spent ฿6,450.5 of ฿6,000 (10/2026)',
+    });
+    expect(describeBudgetGauge({ ...WARN, spent: 4500 }, 'en').value).toBe('90% · ฿500 left');
+  });
+
+  it('says the budget check failed in both languages', () => {
+    expect(budgetCheckFailedNotice('th')).toBe(BUDGET_CHECK_FAILED_NOTICE);
+    expect(budgetCheckFailedNotice('en')).toBe("I couldn't check your budget. See your budget status on the web.");
   });
 });

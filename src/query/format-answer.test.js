@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { formatThaiRange, formatTotalsAnswer } = require('./format-answer.js');
+const { formatThaiRange, formatDateRange, formatTotalsAnswer } = require('./format-answer.js');
 
 describe('formatThaiRange', () => {
   it.each([
@@ -49,5 +49,33 @@ describe('formatTotalsAnswer', () => {
 
   it('says there are no entries when nothing matches', () => {
     expect(formatTotalsAnswer({ ...base, type: 'income' }, [])).toBe('ช่วง 1-18 ต.ค. 2569: รายรับ 0 บาท (ไม่มีรายการ)');
+  });
+});
+
+describe('formatDateRange', () => {
+  it.each([
+    ['th', '2026-10-01', '2026-10-18', '1-18 ต.ค. 2569'],
+    ['en', '2026-10-18', '2026-10-18', '18 Oct 2026'],
+    ['en', '2026-10-01', '2026-10-18', '1-18 Oct 2026'],
+    ['en', '2026-09-25', '2026-10-05', '25 Sep - 5 Oct 2026'],
+    ['en', '2025-12-25', '2026-01-05', '25 Dec 2025 - 5 Jan 2026'],
+  ])('formats %s %s to %s', (lang, from, to, expected) => {
+    expect(formatDateRange(lang, from, to)).toBe(expected);
+  });
+});
+
+describe('formatTotalsAnswer in English', () => {
+  const base = { type: 'expense', category: '', keyword: '', from: '2026-10-01', to: '2026-10-18' };
+
+  it('names the scope with default names translated', () => {
+    const text = formatTotalsAnswer({ ...base, category: 'อาหาร', wallet: 'เงินสด', keyword: 'coffee' }, [{ type: 'expense', total: 300, entryCount: 1 }], 'en');
+
+    expect(text).toBe('For 1-18 Oct 2026 in Food from wallet Cash matching "coffee": Expense ฿300 (1 entry)');
+  });
+
+  it('answers both types and says there are no entries', () => {
+    const text = formatTotalsAnswer({ ...base, type: 'both' }, [{ type: 'expense', total: 100, entryCount: 2 }], 'en');
+
+    expect(text).toBe('For 1-18 Oct 2026: Income ฿0 (No entries), Expense ฿100 (2 entries)');
   });
 });

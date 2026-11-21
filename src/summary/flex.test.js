@@ -105,3 +105,31 @@ describe('buildSummaryFlex', () => {
     expect(buildSummaryFlex(summary(), '').contents.footer).toBeUndefined();
   });
 });
+
+describe('buildSummaryFlex in English', () => {
+  const english = () => summary({ label: 'This month (01/10 - 28/10)' });
+
+  it('writes the header, totals and category legend in English', () => {
+    const flex = buildSummaryFlex(english(), 'Go easy on food', { summaryUrl: 'https://liff.line.me/l?tab=summary', lang: 'en' });
+
+    expect(flex.altText).toBe('Summary: This month (01/10 - 28/10): income ฿25,000, expense ฿14,320');
+    expect(texts(flex.contents.header)).toEqual(['Summary: This month (01/10 - 28/10)', 'Left ฿10,680']);
+    expect(texts(flex.contents.body)).toEqual([
+      'Income', '25,000', 'Expense', '14,320',
+      'Spending by category',
+      'Food', '5,160 · 36%',
+      'Travel', '3,100 · 22%',
+      'Shopping', '2,450 · 17%',
+      'Other categories', '3,610 · 25%',
+      'My take', 'Go easy on food',
+    ]);
+    expect(texts(flex.contents.footer)).toEqual(['Open Summary']);
+    expect(flex.contents.footer.contents[0].action.label).toBe('Open Summary');
+  });
+
+  it('says a negative balance in English', () => {
+    const flex = buildSummaryFlex(summary({ incomeTotal: 2000, expenseTotal: 3180, net: -1180 }), '', { lang: 'en' });
+
+    expect(texts(flex.contents.header)[1]).toBe('Over ฿1,180');
+  });
+});

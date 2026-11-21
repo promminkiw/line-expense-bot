@@ -63,6 +63,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
       flex: buildSlipConfirmFlex(slip.items, {
         dateAssumed: slip.dateAssumed,
         buttons: buildSlipQuickReply(slipId, lang),
+        lang,
       }),
     };
   }

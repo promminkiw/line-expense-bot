@@ -54,7 +54,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
         return null;
       }
       const rows = await repository.queryTotals(userId, question);
-      return { flex: buildTotalsFlex(question, rows, { listUrl: buildTotalsListUrl(question) }) };
+      return { flex: buildTotalsFlex(question, rows, { listUrl: buildTotalsListUrl(question), lang }) };
     } catch (err) {
       logger.error('Failed to answer totals question', { userId }, err);
       return { text: t(lang, 'chat.questionFailed') };
@@ -65,12 +65,11 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     if (command === 'menu') {
       return { text: t(lang, 'chat.summary.menu'), quickReply: buildSummaryQuickReply(lang) };
     }
-    // ชื่อช่วงเวลาไปอยู่บนการ์ดสรุปซึ่งยังเป็นภาษาไทย จึงยังไม่ส่งภาษา (การ์ดแปลใน Task 7)
-    const range = getPeriodRange(command, new Date(now()));
+    const range = getPeriodRange(command, new Date(now()), lang);
     const rows = await repository.summarizeTransactions(userId, range.from, range.to);
     const summary = buildSummary(rows, range.label);
-    const comment = await commentOn(summary, userId);
-    return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl() }) };
+    const comment = await commentOn(summary, userId, lang);
+    return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl(), lang }) };
   }
 
   // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ผู้เรียกเลือกเอง: คำสั่ง ออม ตรงตัวไปทางปกติ ("ออมสิน 1000" เป็นรายการ) ส่วนทาง intent ตอบ chat.noOpenGoal
@@ -101,7 +100,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     return {
       flex: buildSavingFlex(
         { name: goal.name, amount: command.amount, saved: result.saved, target: goal.targetAmount },
-        { buttons: buildUndoSavingQuickReply(webhookEventId, lang), goalsUrl: buildGoalsUrl() }
+        { buttons: buildUndoSavingQuickReply(webhookEventId, lang), goalsUrl: buildGoalsUrl(), lang }
       ),
     };
   }

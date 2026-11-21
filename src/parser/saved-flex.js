@@ -1,8 +1,10 @@
 const { formatAmount, formatSavedReply, formatSlipConfirmReply } = require('./format-reply');
-const { formatBudgetAlerts, describeBudgetGauge, BUDGET_CHECK_FAILED_NOTICE } = require('../budgets/alerts');
-const { WALLETS_UNREADABLE_NOTICE } = require('../wallets/wallets');
+const { displayCategoryName } = require('./categories');
+const { formatBudgetAlerts, describeBudgetGauge, budgetCheckFailedNotice } = require('../budgets/alerts');
+const { walletsUnreadableNotice, displayWalletName } = require('../wallets/wallets');
 const { capAltText, ALT_TEXT_MAX } = require('../utils/alt-text');
 const { shortDate } = require('../utils/date');
+const { t, formatAmount: formatMoney } = require('../i18n');
 const { COLORS, brandHeader, progressBar, gaugeRow, actionRow, softButton, separator } = require('../utils/flex-style');
 
 const GAUGE_BAR_COLORS = { warn: COLORS.warnBar, over: COLORS.expense };
@@ -13,10 +15,10 @@ function toSatang(amount) {
 }
 
 // ยอดในหัวการ์ดคิดเป็นสตางค์กันทศนิยมเพี้ยน รายรับบวก รายจ่ายลบ
-function signedTotal(items) {
+function signedTotal(items, lang) {
   const satang = items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * toSatang(item.amount), 0);
   const sign = satang > 0 ? '+' : satang < 0 ? '-' : '';
-  return `${sign}${formatAmount(Math.abs(satang) / 100)} บาท`;
+  return `${sign}${formatMoney(lang, Math.abs(satang) / 100)}`;
 }
 
 function sideText(text, color) {
@@ -24,16 +26,19 @@ function sideText(text, color) {
 }
 
 // editUrl ต้องเป็นสตริงเท่านั้น กันค่าอื่น (เช่น index จาก Array.map) หลุดเข้ามาเป็น uri
-function itemRow(item, { editUrl, showAmount }) {
+function itemRow(item, { editUrl, showAmount, lang }) {
   const hasLink = typeof editUrl === 'string' && editUrl !== '';
-  const sub = [item.note ? item.category : '', shortDate(item.date), item.wallet].filter(Boolean).join(' · ');
+  const category = displayCategoryName(lang, item.type, item.category);
+  const wallet = item.wallet ? displayWalletName(lang, item.wallet) : '';
+  const sub = [item.note ? category : '', shortDate(item.date), wallet].filter(Boolean).join(' · ');
+  const editLabel = t(lang, 'card.saved.edit');
   const contents = [
     {
       type: 'box',
       layout: 'vertical',
       flex: 1,
       contents: [
-        { type: 'text', text: item.note || item.category, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: item.note || category, weight: 'bold', size: 'md', wrap: true },
         { type: 'text', text: sub, size: 'xs', color: COLORS.muted, wrap: true },
       ],
     },
@@ -42,14 +47,14 @@ function itemRow(item, { editUrl, showAmount }) {
     const sign = item.type === 'income' ? '+' : '-';
     contents.push(sideText(`${sign}${formatAmount(item.amount)}`, item.type === 'income' ? COLORS.income : COLORS.expense));
   } else if (hasLink) {
-    contents.push(sideText('แก้ไข', COLORS.brand));
+    contents.push(sideText(editLabel, COLORS.brand));
   }
   return {
     type: 'box',
     layout: 'horizontal',
     spacing: 'md',
     margin: 'md',
-    ...(hasLink ? { action: { type: 'uri', label: 'แก้ไข', uri: editUrl } } : {}),
+    ...(hasLink ? { action: { type: 'uri', label: editLabel, uri: editUrl } } : {}),
     contents,
   };
 }
@@ -70,8 +75,8 @@ function noticeStrip(text) {
   };
 }
 
-function budgetGauge(alert) {
-  const gauge = describeBudgetGauge(alert);
+function budgetGauge(alert, lang) {
+  const gauge = describeBudgetGauge(alert, lang);
   return {
     type: 'box',
     layout: 'vertical',
@@ -95,22 +100,24 @@ function bubble(header, body, footer) {
   return contents;
 }
 
-function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletReadFailed = false, buttons, editUrls } = {}) {
+function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletReadFailed = false, buttons, editUrls, lang = 'th' } = {}) {
   // ใช้ลิงก์เมื่อมีครบทุกแถวเท่านั้น กันลิงก์ไปผิดรายการเมื่อจำนวนไม่ตรงกัน
   const links = Array.isArray(editUrls) && editUrls.length === items.length ? editUrls : null;
   const many = items.length > 1;
-  const body = items.map((item, index) => itemRow(item, { editUrl: links && links[index], showAmount: many }));
-  if (many && links && links.some(Boolean)) body.push(hint('แตะรายการเพื่อแก้ไขในเว็บ'));
-  if (alerts.length > 0) body.push(separator(), ...alerts.map(budgetGauge));
-  if (budgetCheckFailed) body.push(noticeStrip(BUDGET_CHECK_FAILED_NOTICE));
-  if (walletReadFailed) body.push(noticeStrip(WALLETS_UNREADABLE_NOTICE));
+  const body = items.map((item, index) => itemRow(item, { editUrl: links && links[index], showAmount: many, lang }));
+  if (many && links && links.some(Boolean)) body.push(hint(t(lang, 'card.saved.editHint')));
+  if (alerts.length > 0) body.push(separator(), ...alerts.map((alert) => budgetGauge(alert, lang)));
+  if (budgetCheckFailed) body.push(noticeStrip(budgetCheckFailedNotice(lang)));
+  if (walletReadFailed) body.push(noticeStrip(walletsUnreadableNotice(lang)));
 
-  const altParts = [formatSavedReply(items)];
-  if (alerts.length > 0) altParts.push(formatBudgetAlerts(alerts));
-  if (budgetCheckFailed) altParts.push(BUDGET_CHECK_FAILED_NOTICE);
-  if (walletReadFailed) altParts.push(WALLETS_UNREADABLE_NOTICE);
+  const altParts = [formatSavedReply(items, lang)];
+  if (alerts.length > 0) altParts.push(formatBudgetAlerts(alerts, lang));
+  if (budgetCheckFailed) altParts.push(budgetCheckFailedNotice(lang));
+  if (walletReadFailed) altParts.push(walletsUnreadableNotice(lang));
 
-  const deleteLabel = many ? 'ลบทั้งหมด' : 'ลบรายการนี้';
+  const deleteLabel = t(lang, many ? 'card.saved.deleteAll' : 'card.saved.deleteOne');
+  // ปุ่มลบมาจาก quick reply ที่ตั้งชื่อตามภาษาเดียวกัน จึงเทียบกับป้ายของภาษานั้น
+  const plainDeleteLabel = t(lang, 'chat.button.delete');
   const footer =
     buttons && buttons.length > 0
       ? {
@@ -118,33 +125,35 @@ function buildSavedFlex(items, { alerts = [], budgetCheckFailed = false, walletR
           layout: 'horizontal',
           spacing: 'sm',
           paddingAll: '10px',
-          contents: buttons.map((item) => softButton(item.action.label === 'ลบ' ? relabel(item.action, deleteLabel) : item.action)),
+          contents: buttons.map((item) => softButton(item.action.label === plainDeleteLabel ? relabel(item.action, deleteLabel) : item.action)),
         }
       : undefined;
 
+  const title = many ? t(lang, 'card.saved.titleMany', { count: items.length }) : t(lang, 'card.saved.title');
   return {
     type: 'flex',
     altText: capAltText(altParts.join('\n\n')),
-    contents: bubble(brandHeader(many ? `เฮียบันทึกแล้ว ${items.length} รายการ` : 'เฮียบันทึกแล้ว', signedTotal(items)), body, footer),
+    contents: bubble(brandHeader(title, signedTotal(items, lang)), body, footer),
   };
 }
 
 // การ์ดสรุปสลิปก่อนกดบันทึก: ข้อความ altText ยังเป็นข้อความเดิมจาก formatSlipConfirmReply
-function buildSlipConfirmFlex(items, { dateAssumed = false, buttons } = {}) {
+function buildSlipConfirmFlex(items, { dateAssumed = false, buttons, lang = 'th' } = {}) {
   const many = items.length > 1;
-  const body = items.map((item) => itemRow(item, { showAmount: many }));
-  if (dateAssumed) body.push(noticeStrip('อ่านวันที่ไม่ได้ จึงใช้วันนี้'));
-  body.push(hint('กดบันทึกภายใน 10 นาที'));
+  const body = items.map((item) => itemRow(item, { showAmount: many, lang }));
+  if (dateAssumed) body.push(noticeStrip(t(lang, 'card.slip.dateAssumed')));
+  body.push(hint(t(lang, 'card.slip.saveHint')));
 
   // ปุ่มแรกที่ส่งมาคือปุ่มหลัก (บันทึก) ที่เหลือเป็นปุ่มรอง
   const [first, ...rest] = (buttons ?? []).map((item) => item.action);
-  const primary = first && many ? relabel(first, 'บันทึกทั้งหมด') : first;
-  const eyebrow = `${many ? `เฮียอ่านสลิปได้ ${items.length} รายการ` : 'เฮียอ่านสลิปได้'} · ยังไม่บันทึก`;
+  const primary = first && many ? relabel(first, t(lang, 'card.slip.saveAll')) : first;
+  const read = many ? t(lang, 'card.slip.readMany', { count: items.length }) : t(lang, 'card.slip.read');
+  const eyebrow = `${read} · ${t(lang, 'card.slip.notSaved')}`;
 
   return {
     type: 'flex',
-    altText: capAltText(formatSlipConfirmReply(items, { dateAssumed })),
-    contents: bubble(brandHeader(eyebrow, signedTotal(items)), body, actionRow(primary, rest)),
+    altText: capAltText(formatSlipConfirmReply(items, { dateAssumed, lang })),
+    contents: bubble(brandHeader(eyebrow, signedTotal(items, lang)), body, actionRow(primary, rest)),
   };
 }
 

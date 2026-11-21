@@ -74,3 +74,32 @@ describe('buildSavingFlex', () => {
     expect(buildSavingFlex(saving, {}).contents.footer).toBeUndefined();
   });
 });
+
+describe('buildSavingFlex in English', () => {
+  const UNDO_EN = { type: 'action', action: { type: 'postback', label: 'Delete', data: 'action=undo_saving&event=ev1', displayText: 'Delete' } };
+  const saving = { name: 'Japan trip', amount: 1000, saved: 6000.5, target: 50000 };
+
+  it('writes the header, progress and links in English', () => {
+    const message = buildSavingFlex(saving, { buttons: [UNDO_EN], goalsUrl: GOALS_URL, lang: 'en' });
+
+    expect(message.altText).toBe('Saved ฿1,000 toward Japan trip.\nSaved so far: ฿6,000.5 / ฿50,000 (12%)');
+    expect(texts(message.contents.header)).toEqual(['Saved toward goal', 'Japan trip', '+1,000']);
+    expect(texts(message.contents.body)).toEqual(['Progress', '12% · ฿43,999.5 to go', 'Saved ฿6,000.5 of ฿50,000']);
+    expect(message.contents.footer.contents.map((node) => node.action.label)).toEqual(['Delete', 'See goal on web']);
+  });
+
+  it('says the goal is reached in English', () => {
+    const message = buildSavingFlex({ name: 'Phone', amount: 500, saved: 30500, target: 30000 }, { goalsUrl: GOALS_URL, lang: 'en' });
+
+    expect(texts(message.contents.body).slice(1)).toEqual([
+      '101% · goal reached',
+      'Saved ฿30,500 of ฿30,000',
+      'Goal reached! You can close it in the Savings tab of the web app.',
+    ]);
+    expect(message.contents.footer.contents.at(-1).action.label).toBe('Close goal on web');
+  });
+
+  it.each(['th', 'en'])('caps the longest saving altText in %s', (lang) => {
+    expect(buildSavingFlex({ ...saving, name: 'n'.repeat(500) }, { lang }).altText.length).toBeLessThanOrEqual(400);
+  });
+});

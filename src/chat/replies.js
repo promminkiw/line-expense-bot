@@ -65,6 +65,7 @@ function buildSavedReply(items, budget, webhookEventId, editUrls, { walletReadFa
     walletReadFailed,
     buttons: buildUndoQuickReply(webhookEventId, lang),
     editUrls,
+    lang,
   });
 }
 

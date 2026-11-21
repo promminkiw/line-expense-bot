@@ -202,3 +202,98 @@ describe('buildSlipConfirmFlex', () => {
     expect(buildSlipConfirmFlex(items).altText.length).toBeLessThanOrEqual(ALT_TEXT_MAX);
   });
 });
+
+describe('cards in English', () => {
+  const UNDO_EN = [{ type: 'action', action: { type: 'postback', label: 'Delete', data: 'action=undo&event=ev1', displayText: 'Delete' } }];
+  const ALERTS = [
+    { level: 'warn', month: '2026-09', category: 'อาหาร', spent: 135, budget: 150 },
+    { level: 'over', month: '2026-09', category: 'เดินทาง', spent: 1200, budget: 1000 },
+  ];
+  const actionLabels = (flex) => JSON.stringify(flex).match(/"label":"[^"]*"/g) ?? [];
+
+  it('writes the saved card in English with default names translated', () => {
+    const flex = buildSavedFlex([{ ...FOOD, wallet: 'เงินสด' }], { buttons: UNDO_EN, lang: 'en' });
+
+    expect(texts(flex.contents.header)).toEqual(['Saved it', '-฿60']);
+    expect(texts(flex.contents.body)).toEqual(['กินข้าว', 'Food · 29/09 · Cash']);
+    expect(footerActions(flex)).toEqual([{ ...UNDO_EN[0].action, label: 'Delete this' }]);
+    expect(flex.altText).toBe('Saved it\n- Expense | Food | ฿60 | 29/09 | กินข้าว');
+  });
+
+  it('writes several saved items, edit links and the delete all button in English', () => {
+    const flex = buildSavedFlex([FOOD, SALARY], {
+      buttons: UNDO_EN,
+      editUrls: ['https://liff.line.me/l?tx=a', 'https://liff.line.me/l?tx=b'],
+      lang: 'en',
+    });
+
+    expect(texts(flex.contents.header)).toEqual(['Saved 2 entries', '+฿24,940']);
+    expect(texts(flex.contents.body)).toEqual(['กินข้าว', 'Food · 29/09', '-60', 'Salary', '01/09', '+25,000', 'Tap an entry to edit it on the web']);
+    expect(rowsOf(flex)[0].action.label).toBe('Edit');
+    expect(footerActions(flex)[0].label).toBe('Delete all');
+  });
+
+  it('shows an English edit label on a single linked row', () => {
+    const flex = buildSavedFlex([FOOD], { editUrls: ['https://liff.line.me/l?tx=a'], lang: 'en' });
+
+    expect(texts(rowsOf(flex)[0])).toContain('Edit');
+  });
+
+  it('writes the budget gauges and notices in English', () => {
+    const flex = buildSavedFlex([FOOD], { alerts: ALERTS, budgetCheckFailed: true, walletReadFailed: true, lang: 'en' });
+
+    expect(texts(flex.contents.body).slice(2)).toEqual([
+      'Food budget · Almost at budget',
+      '90% · ฿15 left',
+      'Spent ฿135 of ฿150 (09/2026)',
+      'Travel budget · Over budget',
+      '120% · ฿200 over',
+      'Spent ฿1,200 of ฿1,000 (09/2026)',
+      "I couldn't check your budget. See your budget status on the web.",
+      "I couldn't read your wallets, so this entry went into Cash. You can change it on the web.",
+    ]);
+    expect(flex.altText).toBe(
+      [
+        'Saved it\n- Expense | Food | ฿60 | 29/09 | กินข้าว',
+        'Almost at budget: Food for 09/2026, spent ฿135 of ฿150 (90%)\nOver budget: Travel for 09/2026, spent ฿1,200 of ฿1,000 (120%)',
+        "I couldn't check your budget. See your budget status on the web.",
+        "I couldn't read your wallets, so this entry went into Cash. You can change it on the web.",
+      ].join('\n\n')
+    );
+  });
+
+  it('writes the slip card in English', () => {
+    const MILK = { type: 'expense', category: 'อาหาร', amount: 120, date: '2026-09-28', note: 'milk' };
+    const SAVE = { type: 'action', action: { type: 'postback', label: 'Save', data: 'action=slip_save&slip=s1', displayText: 'Save' } };
+    const CANCEL = { type: 'action', action: { type: 'postback', label: 'Cancel', data: 'action=slip_cancel&slip=s1', displayText: 'Cancel' } };
+    const one = buildSlipConfirmFlex([MILK], { dateAssumed: true, buttons: [SAVE, CANCEL], lang: 'en' });
+    const many = buildSlipConfirmFlex([MILK, { ...MILK, note: 'bread', amount: 59 }], { buttons: [SAVE, CANCEL], lang: 'en' });
+
+    expect(texts(one.contents.header)).toEqual(['I read the slip · not saved yet', '-฿120']);
+    expect(texts(one.contents.body)).toEqual(['milk', 'Food · 28/09', "Couldn't read the date, so I used today", 'Tap save within 10 minutes']);
+    expect(one.altText).toBe(
+      "Here is what I read from the slip\n- Expense | Food | ฿120 | 28/09 | milk\nCouldn't read the date, so I used today\nTap save to confirm (expires in 10 minutes)"
+    );
+    expect(one.altText).toBe(formatSlipConfirmReply([MILK], { dateAssumed: true, lang: 'en' }));
+    expect(texts(many.contents.header)).toEqual(['I read 2 entries from the slip · not saved yet', '-฿179']);
+    expect(footerActions(many)).toEqual([CANCEL.action, { ...SAVE.action, label: 'Save all' }]);
+  });
+
+  // LINE ตัดป้ายปุ่มที่ยาวเกิน 20 ตัวอักษร
+  it('keeps English button labels within 20 characters', () => {
+    const saved = buildSavedFlex([FOOD, SALARY], { buttons: UNDO_EN, editUrls: ['a', 'b'], lang: 'en' });
+    const labels = [...actionLabels(saved), ...actionLabels(buildSavedFlex([FOOD], { buttons: UNDO_EN, lang: 'en' }))];
+
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) expect(label.length - '"label":""'.length).toBeLessThanOrEqual(20);
+  });
+
+  it.each(['th', 'en'])('keeps the longest saved and slip altText within the LINE limit in %s', (lang) => {
+    const items = Array.from({ length: 20 }, (_, index) => ({ ...FOOD, wallet: 'เงินสด', note: `long product name number ${index} ยาวมาก` }));
+    const saved = buildSavedFlex(items, { alerts: ALERTS, budgetCheckFailed: true, walletReadFailed: true, lang });
+    const slip = buildSlipConfirmFlex(items, { dateAssumed: true, lang });
+
+    expect(saved.altText.length).toBeLessThanOrEqual(ALT_TEXT_MAX);
+    expect(slip.altText.length).toBeLessThanOrEqual(ALT_TEXT_MAX);
+  });
+});
