@@ -416,6 +416,8 @@ describe('012_friends.sql', () => {
 
     for (const char of FRIEND_CODE_ALPHABET) {
       await db.query('update users set friend_code = $1 where id = $2', [char.repeat(8), user]);
+      // อ่านกลับมาเช็ค ไม่งั้น test ผ่านแค่เพราะไม่ throw แม้ค่าไม่ได้ถูกบันทึก
+      expect((await one('select friend_code from users where id = $1', [user])).friend_code).toBe(char.repeat(8));
     }
   });
 
