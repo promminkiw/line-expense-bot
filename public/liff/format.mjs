@@ -83,7 +83,7 @@ export function hasOnlyThousandsCommas(text) {
 // ช่อง number ของ browser ไม่รับ 1,500 จึงใช้ช่อง text แล้วตัดคอมมาเอง
 export function parseAmountText(text) {
   const trimmed = text.trim();
-  return AMOUNT_TEXT_SHAPE.test(trimmed) ? Number(trimmed.replaceAll(',', '')) : NaN;
+  return AMOUNT_TEXT_SHAPE.test(trimmed) ? Number(trimmed.replaceAll(',', '')) : Number.NaN;
 }
 
 export function describeEditFailure(status, action) {
@@ -351,7 +351,8 @@ const graphemeSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new In
 // grapheme แรกของชื่อ: emoji แบบ ZWJ และพยัญชนะไทยพร้อมวรรณยุกต์ไม่ถูกตัดครึ่ง (เบราว์เซอร์เก่าใช้ code point แทน)
 function firstGrapheme(text) {
   if (graphemeSegmenter) {
-    for (const { segment } of graphemeSegmenter.segment(text)) return segment;
+    const first = graphemeSegmenter.segment(text)[Symbol.iterator]().next();
+    if (!first.done) return first.value.segment;
   }
   return Array.from(text)[0];
 }

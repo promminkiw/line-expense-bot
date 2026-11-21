@@ -20,9 +20,9 @@ const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 function readTotal(text) {
   const compact = text.replace(/\s/g, '');
   const cleaned = compact.replaceAll(',', '');
-  if (cleaned === '') return { empty: true, amount: NaN };
+  if (cleaned === '') return { empty: true, amount: Number.NaN };
   const isNumber = hasOnlyThousandsCommas(compact) && /^\d+(\.\d+)?$/.test(cleaned);
-  return { empty: false, amount: isNumber ? Number(cleaned) : NaN };
+  return { empty: false, amount: isNumber ? Number(cleaned) : Number.NaN };
 }
 
 function describeTotal({ empty, amount }) {
@@ -48,7 +48,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   // ค่าที่กรอกไว้ก่อนออกไปเพิ่มเพื่อน เปิดฟอร์มรอบถัดไปจะได้ไม่ต้องกรอกใหม่ ใช้ได้ครั้งเดียว
   let draft = null;
 
-  const amountOf = (input) => (input.value === '' ? NaN : Number(input.value));
+  const amountOf = (input) => (input.value === '' ? Number.NaN : Number(input.value));
   const picked = () => [...els.members.querySelectorAll('.bill-form-member')].filter((row) => row.querySelector('input[type="checkbox"]').checked);
 
   function fillCategories() {
