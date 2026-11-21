@@ -72,6 +72,25 @@ describe('categoryNameFromDisplay', () => {
     expect(categoryNameFromDisplay('en', 'expense', 'Lunch', renamed)).toBe('Lunch');
   });
 
+  it('does not translate Other for a type that has no อื่นๆ', () => {
+    const expenseOnly = [{ type: 'expense', name: 'อื่นๆ' }];
+    expect(categoryNameFromDisplay('en', 'income', 'Other', expenseOnly)).toBe('Other');
+    expect(categoryNameFromDisplay('en', 'expense', 'Other', expenseOnly)).toBe('อื่นๆ');
+  });
+
+  it('maps อื่นๆ in both types when categories are passed', () => {
+    const both = [{ type: 'expense', name: 'อื่นๆ' }, { type: 'income', name: 'อื่นๆ' }];
+    expect(categoryNameFromDisplay('en', 'expense', 'Other', both)).toBe('อื่นๆ');
+    expect(categoryNameFromDisplay('en', 'income', 'Other', both)).toBe('อื่นๆ');
+  });
+
+  it('never rewrites a user-made exact name, and maps case variants to the default', () => {
+    const withUser = [{ type: 'expense', name: 'อาหาร' }, { type: 'expense', name: 'food' }];
+    expect(categoryNameFromDisplay('en', 'expense', 'food', withUser)).toBe('food');
+    // ไม่มีชื่อ food ตรงตัวเลยตีความเป็นชื่อแสดงของ อาหาร
+    expect(categoryNameFromDisplay('en', 'expense', 'Food', withUser)).toBe('อาหาร');
+  });
+
   it('returns unknown names as given', () => {
     expect(categoryNameFromDisplay('en', 'expense', 'Coffee', categories)).toBe('Coffee');
   });

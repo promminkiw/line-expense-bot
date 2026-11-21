@@ -257,6 +257,10 @@ describe('validateTransactionUpdate walletId', () => {
 });
 
 describe('validateWalletCreate', () => {
+  it.each([['Cash'], ['cash'], [' CASH ']])('rejects the English default wallet name %j', (name) => {
+    expect(validateWalletCreate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
   it('trims the name', () => {
     expect(validateWalletCreate({ name: '  บัตรเครดิต ' })).toEqual({ ok: true, value: { name: 'บัตรเครดิต' } });
   });
@@ -275,6 +279,10 @@ describe('validateWalletCreate', () => {
 });
 
 describe('validateWalletUpdate', () => {
+  it.each([['Cash'], ['cash'], [' CASH ']])('rejects the English default wallet name %j', (name) => {
+    expect(validateWalletUpdate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
   it('accepts a name, hidden, or both', () => {
     expect(validateWalletUpdate({ name: 'กสิกร' })).toEqual({ ok: true, value: { name: 'กสิกร' } });
     expect(validateWalletUpdate({ hidden: true })).toEqual({ ok: true, value: { hidden: true } });
