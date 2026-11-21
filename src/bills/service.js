@@ -133,10 +133,9 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     return status === 'confirmed' ? { status, ...answered, categoryName } : { status, ...answered };
   }
 
-  async function respondFromWeb(userId, billId, answer) {
-    const result = await respond(userId, billId, answer);
+  async function pushWebAnswer(userId, billId, result) {
     const text = buildWebAnswerText(result);
-    if (!text) return result;
+    if (!text) return;
     // บันทึกคำตอบแล้ว ส่งข้อความไม่ถึงต้องไม่ทำให้เว็บขึ้นว่าไม่สำเร็จ
     try {
       const lineId = (await repository.getLineUserIds([userId])).get(userId);
@@ -144,6 +143,11 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     } catch (err) {
       logger.error('Failed to push bill answer', { billId, userId }, err);
     }
+  }
+
+  async function respondFromWeb(userId, billId, answer) {
+    const result = await respond(userId, billId, answer);
+    await pushWebAnswer(userId, billId, result);
     return result;
   }
 
