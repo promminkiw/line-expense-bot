@@ -216,6 +216,20 @@ describe('validateSettingsUpdate', () => {
   it('refuses a daily reminder switch that is not a boolean', () => {
     expect(validateSettingsUpdate({ dailyReminder: 1 })).toEqual({ ok: false, error: 'Invalid dailyReminder' });
   });
+
+  it.each(['th', 'en'])('keeps language %s alone or together with a switch', (language) => {
+    expect(validateSettingsUpdate({ language })).toEqual({ ok: true, value: { language } });
+    expect(validateSettingsUpdate({ language, weeklySummary: true })).toEqual({ ok: true, value: { weeklySummary: true, language } });
+  });
+
+  it.each([['fr'], [null], [''], ['EN'], [1], [['en']]])('refuses language %j', (language) => {
+    expect(validateSettingsUpdate({ language })).toEqual({ ok: false, error: 'Invalid language' });
+    expect(validateSettingsUpdate({ language, weeklySummary: true })).toEqual({ ok: false, error: 'Invalid language' });
+  });
+
+  it('treats a missing language as not changing it', () => {
+    expect(validateSettingsUpdate({ weeklySummary: true })).toEqual({ ok: true, value: { weeklySummary: true } });
+  });
 });
 
 describe('validateTransactionUpdate walletId', () => {
