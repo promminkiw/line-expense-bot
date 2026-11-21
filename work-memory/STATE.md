@@ -1,5 +1,5 @@
 # STATE
-Updated: 2026-11-21 (ล่าสุด: แก้ issue SonarQube ครบ 61 จุดบน fix/sonarqube-issues รอสแกนซ้ำและ merge)
+Updated: 2026-11-21 (ล่าสุด: แก้ issue SonarQube ครบ 61 จุดบน fix/sonarqube-issues ยืนยันผลสแกนแล้วเหลือ 0 รอ merge)
 Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือกงานถัดไป
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ และแผนไป docs/superpowers/plans/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
@@ -26,7 +26,7 @@ Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือ�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] SonarQube (2026-11-21): แก้ครบ 61 issue บน fix/sonarqube-issues (46 จุดแรก + อีก 15 จุดแก้ในโค้ดแทนการ Accept: heading 13 มีข้อความตั้งต้น, aria-label ที่ file input, respondFromWeb คืนค่าที่เดียว) รอผู้ใช้สแกนซ้ำยืนยันว่าเหลือ 0 และ Reliability เป็น A ตั้ง coverage แล้ว (npm run test:coverage, sonar-scan.ps1 รันให้) Quality Gate OK ตอนสแกน 2026-11-21 (new coverage 86.4%); npm test 2773/2773 lint ผ่าน; แผน plans/2026-11-21-sonarqube-leftovers.md; แผน plans/2026-11-21-sonarqube-fixes.md
+- [ ] SonarQube (2026-11-21): แก้ครบ 61 issue บน fix/sonarqube-issues (46 จุดแรก + อีก 15 จุดแก้ในโค้ดแทนการ Accept: heading 13 มีข้อความตั้งต้น, aria-label ที่ file input, respondFromWeb คืนค่าที่เดียว) สแกนซ้ำยืนยันแล้ว (2026-11-21 14:05 UTC): issue เปิด 0, Reliability/Security/Maintainability A, Quality Gate OK (new coverage 87.0%, ทั้งโปรเจกต์ 91.8%) ตั้ง coverage แล้ว (npm run test:coverage, sonar-scan.ps1 รันให้) รอ merge; npm test 2773/2773 lint ผ่าน; แผน plans/2026-11-21-sonarqube-leftovers.md; แผน plans/2026-11-21-sonarqube-fixes.md
     void 39 จุดมีเหตุผลว่าฟังก์ชันจับ error เอง ยกเว้น 2 ทางที่ reject ได้เมื่อมี bug (render() ใน goals-panel/bills-panel load, runEdit ตอน editing เป็น null) ยอมรับไว้
 - [ ] NLU intents: merge (63c0fbb) และ push แล้ว 2026-11-08 รอผู้ใช้ลองข้อ 18 ในแอป LINE หลัง Render deploy; nlu-eval 43 ข้อ: 42/43 สองรอบ แล้ว 43/43 สองรอบ
     (ตกสลับกัน ออมสิน 1000, งบเหลือเท่าไหร่ = model ไม่คงที่ 100%); help ออม ยังไม่มี eval case `ออม <ชื่อ> <ยอด>` ตอนไม่มีเป้า; ความเสี่ยงที่ยอมรับ:
