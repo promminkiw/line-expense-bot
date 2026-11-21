@@ -44,7 +44,7 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
             categoryName,
             liffUrl,
           });
-          await pushFlex(lineIds.get(member.userId), flex);
+          await pushFlex(lineIds.get(member.userId)?.lineUserId, flex);
         } catch (err) {
           logger.error('Failed to push bill request', { billId, memberId: member.userId }, err);
           return false;
@@ -138,7 +138,7 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     if (!text) return;
     // บันทึกคำตอบแล้ว ส่งข้อความไม่ถึงต้องไม่ทำให้เว็บขึ้นว่าไม่สำเร็จ
     try {
-      const lineId = (await repository.getLineUserIds([userId])).get(userId);
+      const lineId = (await repository.getLineUserIds([userId])).get(userId)?.lineUserId;
       if (lineId) await pushText(lineId, text);
     } catch (err) {
       logger.error('Failed to push bill answer', { billId, userId }, err);

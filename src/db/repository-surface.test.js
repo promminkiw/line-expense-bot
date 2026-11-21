@@ -8,9 +8,9 @@ const EXPECTED_METHODS = [
   'createRecurringRule', 'createUser', 'createWallet', 'declineBillShare', 'deleteAllExpiredPendingSlips',
   'deleteCategory', 'deleteExpiredExportLinks', 'deleteExpiredPendingSlips', 'deleteGoalContribution',
   'deleteGoalContributionsByEvent', 'deleteRecurringRule', 'deleteTransaction', 'deleteTransactionsByEvent',
-  'disableNotifications', 'fillMissingDisplayName', 'findUserByFriendCode', 'findUserIdByLineId',
+  'disableNotifications', 'fillMissingDisplayName', 'findUserByFriendCode', 'findUserByLineId',
   'getBillShare', 'getBudgetStatus', 'getCategoryIds', 'getDisplayName', 'getFriendCode',
-  'getLifetimeTotals', 'getLineUserIds', 'getMonthlyTotals', 'getNotificationSettings',
+  'getLifetimeTotals', 'getLineUserIds', 'getUserLanguage', 'getMonthlyTotals', 'getNotificationSettings',
   'getPendingClarification', 'getWalletTotals', 'insertTransactions', 'isBillOwner', 'listAllTransactions',
   'listDueRecurringRules', 'listFriends', 'listGoalContributions', 'listGoals', 'listIncomingBills',
   'listOwnedBills', 'listCategories', 'listRecurringRules', 'listTransactions', 'listUsersToRemind',
@@ -18,14 +18,14 @@ const EXPECTED_METHODS = [
   'reserveNotification', 'restoreTransaction','savePendingClarification', 'savePendingSlip', 'seedDefaultCategories',
   'seedDefaultWallet', 'setBillMemberPaid', 'setBudget', 'setFriendCode', 'summarizeTransactions',
   'updateCategory', 'updateGoal', 'updateNotificationSettings', 'updateRecurringRule', 'updateTransaction',
-  'updateWallet', 'listMonthlySummaryUsers', 'resumeMonthlySummary',
+  'updateWallet', 'listMonthlySummaryUsers', 'resumeMonthlySummary', 'setUserLanguage',
 ];
 
 describe('createRepository surface', () => {
   it('exposes exactly the methods that callers depend on', () => {
     const methods = Object.keys(createRepository({})).sort();
     expect(methods).toEqual([...EXPECTED_METHODS].sort());
-    expect(methods).toHaveLength(79);
+    expect(methods).toHaveLength(81);
   });
 
   it('exposes only functions', () => {

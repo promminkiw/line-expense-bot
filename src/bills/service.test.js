@@ -35,7 +35,7 @@ function setup(overrides = {}) {
     ]),
     getDisplayName: vi.fn().mockResolvedValue('เอ'),
     createBill: vi.fn().mockResolvedValue(BILL),
-    getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, 'U-F1'], [F2, 'U-F2']])),
+    getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: null }], [F2, { lineUserId: 'U-F2', language: null }]])),
     markBillMemberNotified: vi.fn().mockResolvedValue(true),
     listOwnedBills: vi.fn().mockResolvedValue([]),
     listIncomingBills: vi.fn().mockResolvedValue([]),

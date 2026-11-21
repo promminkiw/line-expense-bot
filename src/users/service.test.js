@@ -10,9 +10,9 @@ const ALL_DEFAULT_IDS = new Map([
   ),
 ]);
 
-function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedValue('Aom')) {
+function setup(repositoryOverrides = {}, getProfile = vi.fn().mockResolvedValue({ displayName: 'Aom', language: null })) {
   const repository = {
-    findUserIdByLineId: vi.fn().mockResolvedValue(null),
+    findUserByLineId: vi.fn().mockResolvedValue(null),
     createUser: vi.fn().mockResolvedValue('user-1'),
     fillMissingDisplayName: vi.fn().mockResolvedValue(),
     seedDefaultCategories: vi.fn().mockResolvedValue(),
@@ -23,18 +23,18 @@ function setup(repositoryOverrides = {}, getDisplayName = vi.fn().mockResolvedVa
     ...repositoryOverrides,
   };
   const logger = { error: vi.fn() };
-  const service = createUserService({ repository, getDisplayName, logger });
-  return { repository, getDisplayName, logger, service };
+  const service = createUserService({ repository, getProfile, logger });
+  return { repository, getProfile, logger, service };
 }
 
 describe('userService.ensureUser', () => {
   it('returns the existing id without calling LINE or creating anything', async () => {
-    const { repository, getDisplayName, service } = setup({
-      findUserIdByLineId: vi.fn().mockResolvedValue('user-9'),
+    const { repository, getProfile, service } = setup({
+      findUserByLineId: vi.fn().mockResolvedValue({ id: 'user-9', language: null }),
     });
 
     expect(await service.ensureUser('U1')).toBe('user-9');
-    expect(getDisplayName).not.toHaveBeenCalled();
+    expect(getProfile).not.toHaveBeenCalled();
     expect(repository.createUser).not.toHaveBeenCalled();
   });
 
@@ -42,7 +42,7 @@ describe('userService.ensureUser', () => {
     const { repository, service } = setup();
 
     expect(await service.ensureUser('U1')).toBe('user-1');
-    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom' });
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom', language: null });
     expect(repository.seedDefaultCategories).toHaveBeenCalledWith('user-1');
   });
 
@@ -58,7 +58,7 @@ describe('userService.ensureUser', () => {
   });
 
   it('does not seed a wallet for an existing user', async () => {
-    const { repository, service } = setup({ findUserIdByLineId: vi.fn().mockResolvedValue('user-9') });
+    const { repository, service } = setup({ findUserByLineId: vi.fn().mockResolvedValue({ id: 'user-9', language: null }) });
 
     await service.ensureUser('U1');
 
@@ -78,7 +78,7 @@ describe('userService.ensureUser', () => {
     const { repository, logger, service } = setup({}, vi.fn().mockRejectedValue(new Error('404')));
 
     expect(await service.ensureUser('U1')).toBe('user-1');
-    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null });
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null, language: null });
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to fetch LINE profile',
       { lineUserId: 'U1' },
@@ -86,13 +86,13 @@ describe('userService.ensureUser', () => {
     );
   });
 
-  it('rejects when findUserIdByLineId fails and does not call LINE', async () => {
-    const { getDisplayName, service } = setup({
-      findUserIdByLineId: vi.fn().mockRejectedValue(new Error('db down')),
+  it('rejects when findUserByLineId fails and does not call LINE', async () => {
+    const { getProfile, service } = setup({
+      findUserByLineId: vi.fn().mockRejectedValue(new Error('db down')),
     });
 
     await expect(service.ensureUser('U1')).rejects.toThrow('db down');
-    expect(getDisplayName).not.toHaveBeenCalled();
+    expect(getProfile).not.toHaveBeenCalled();
   });
 
   it('rejects and does not seed when createUser fails', async () => {
@@ -110,7 +110,7 @@ describe('userService.ensureUser', () => {
     });
 
     await expect(service.ensureUser('U1')).rejects.toThrow('db down');
-    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom' });
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom', language: null });
   });
 
   describe('profile timeout', () => {
@@ -126,7 +126,7 @@ describe('userService.ensureUser', () => {
       await vi.advanceTimersByTimeAsync(3000);
 
       expect(await pending).toBe('user-1');
-      expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null });
+      expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null, language: null });
       expect(logger.error).toHaveBeenCalledWith(
         'Failed to fetch LINE profile',
         { lineUserId: 'U1' },
@@ -157,8 +157,61 @@ describe('userService.ensureUser', () => {
   });
 });
 
+describe('userService.resolveUser', () => {
+  it.each([
+    ['en-US', 'en'],
+    ['th', 'th'],
+    ['ja', 'th'],
+  ])('stores %s from the LINE profile as %s on signup', async (tag, expected) => {
+    const { repository, service } = setup({}, vi.fn().mockResolvedValue({ displayName: 'Aom', language: tag }));
+
+    expect(await service.resolveUser('U1')).toEqual({ userId: 'user-1', language: expected });
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom', language: expected });
+  });
+
+  it('stores null when the LINE profile has no language, and chat falls back to th', async () => {
+    const { repository, service } = setup();
+
+    expect(await service.resolveUser('U1')).toEqual({ userId: 'user-1', language: 'th' });
+    expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: 'Aom', language: null });
+  });
+
+  it('still signs up with null name and language when the profile times out', async () => {
+    vi.useFakeTimers();
+    try {
+      const { repository, service } = setup({}, vi.fn(() => new Promise(() => {})));
+      const pending = service.resolveUser('U1');
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(await pending).toEqual({ userId: 'user-1', language: 'th' });
+      expect(repository.createUser).toHaveBeenCalledWith({ lineUserId: 'U1', displayName: null, language: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns the stored language of an existing user with one lookup and no extra query', async () => {
+    const { repository, getProfile, service } = setup({
+      findUserByLineId: vi.fn().mockResolvedValue({ id: 'user-9', language: 'en' }),
+      getUserLanguage: vi.fn(),
+    });
+
+    expect(await service.resolveUser('U1')).toEqual({ userId: 'user-9', language: 'en' });
+    expect(repository.findUserByLineId).toHaveBeenCalledTimes(1);
+    expect(repository.getUserLanguage).not.toHaveBeenCalled();
+    expect(getProfile).not.toHaveBeenCalled();
+  });
+
+  it('treats a null stored language as th', async () => {
+    const { service } = setup({ findUserByLineId: vi.fn().mockResolvedValue({ id: 'user-9', language: null }) });
+
+    expect(await service.resolveUser('U1')).toEqual({ userId: 'user-9', language: 'th' });
+  });
+});
+
 describe('userService.ensureUser with a token name', () => {
-  const existing = () => ({ findUserIdByLineId: vi.fn().mockResolvedValue('user-9') });
+  const existing = () => ({ findUserByLineId: vi.fn().mockResolvedValue({ id: 'user-9', language: null }) });
 
   it('fills a missing display name for an existing user', async () => {
     const { repository, service } = setup(existing());
