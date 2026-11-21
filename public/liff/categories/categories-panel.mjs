@@ -273,10 +273,10 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   els.sheetCancel.addEventListener('click', () => closeSheet(returnFocus));
   els.sheetClose.addEventListener('click', () => closeSheet(returnFocus));
   els.sheetDelete.addEventListener('click', () => {
-    if (!busy && editing) askDelete();
+    if (!busy && editing) void askDelete();
   });
   els.sheetConfirmOk.addEventListener('click', () => {
-    if (!busy && editing) confirmDelete();
+    if (!busy && editing) void confirmDelete();
   });
   els.sheetConfirmCancel.addEventListener('click', () => {
     els.sheetConfirm.hidden = true;

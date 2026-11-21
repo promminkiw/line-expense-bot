@@ -115,7 +115,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   function resumePendingInvite() {
     const resumed = pendingInviteCode;
     pendingInviteCode = null;
-    if (resumed) openAdd(resumed);
+    if (resumed) void openAdd(resumed);
   }
 
   function ensureLoaded() {
@@ -343,7 +343,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   });
   els.form.addEventListener('submit', (event) => {
     event.preventDefault();
-    openAdd(els.input.value);
+    void openAdd(els.input.value);
   });
 
   return { ensureLoaded, refresh, openAdd };

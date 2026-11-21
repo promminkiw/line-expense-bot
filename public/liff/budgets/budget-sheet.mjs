@@ -168,7 +168,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
       showError(INVALID_TITLE, describeBudgetFailure(400));
       return;
     }
-    run(amount);
+    void run(amount);
   });
   els.amount.addEventListener('input', () => {
     clearError();
@@ -188,7 +188,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
   els.confirmCancel.addEventListener('click', () => els.confirm.close());
   els.confirmOk.addEventListener('click', () => {
     els.confirm.close();
-    run(null);
+    void run(null);
   });
   // กัน Esc ปิดแผ่นระหว่างรอ request ไม่งั้นผลลัพธ์จะไม่มีที่แสดง
   els.dialog.addEventListener('cancel', (event) => {

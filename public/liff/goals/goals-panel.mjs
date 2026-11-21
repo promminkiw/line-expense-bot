@@ -308,7 +308,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     renderDetailHead();
     els.detail.showModal();
     els.detailTitle.focus();
-    loadHistory();
+    void loadHistory();
   }
 
   function closeDetail() {
@@ -354,7 +354,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
 
   function removeContribution(id) {
     if (detailBusy) return;
-    runDetail(() => getApi().deleteGoalContribution(viewing, id), 'ลบรายการออมแล้ว');
+    void runDetail(() => getApi().deleteGoalContribution(viewing, id), 'ลบรายการออมแล้ว');
   }
 
   els.add.addEventListener('click', () => openEditor(null));

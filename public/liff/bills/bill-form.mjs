@@ -354,7 +354,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
   });
   els.form.addEventListener('submit', (event) => {
     event.preventDefault();
-    submit();
+    void submit();
   });
 
   return { open };

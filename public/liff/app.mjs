@@ -442,7 +442,7 @@ const categoriesPanel = createCategoriesPanel({
   getCategories: () => categories,
   onChanged: (next, { refresh }) => {
     setCategories(next);
-    if (refresh === 'budgets') loadBudgets();
+    if (refresh === 'budgets') void loadBudgets();
     else if (refresh) refreshAfterCategoryChange();
   },
 });
@@ -555,7 +555,7 @@ const billForm = createBillForm({
   },
 });
 document.getElementById('bill-new').addEventListener('click', () => {
-  if (api) billForm.open();
+  if (api) void billForm.open();
 });
 els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
@@ -683,7 +683,7 @@ function setWallets(next) {
   }
   // เปลี่ยนชื่อต้องโหลดรายการใหม่ เพราะ walletName ในแถวมาจาก server
   if (wallets.some((wallet) => namesBefore.has(wallet.id) && namesBefore.get(wallet.id) !== wallet.name)) {
-    loadMonth();
+    void loadMonth();
     return;
   }
   // วาดแถวใหม่เฉพาะเมื่อป้ายหรือตัวกรองเปลี่ยน ไม่งั้นแถวที่ถือ focus อยู่ถูกถอดทิ้ง
@@ -773,8 +773,8 @@ async function refreshAfterTransactionChange(focusId) {
   await loadMonth();
   pendingListFocus = null;
   profileStale = true;
-  loadProfile();
-  walletsPanel.load();
+  void loadProfile();
+  void walletsPanel.load();
 }
 
 // ปุ่มลบที่เผยจากการปัดลบทันที (ปัด + กดปุ่ม คือสองขั้นที่ผู้ใช้เลือกแทน modal ยืนยัน)
@@ -889,7 +889,7 @@ function renderRow(item) {
       setRowOpen(row, false);
       return;
     }
-    openEditor(item);
+    void openEditor(item);
   });
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
@@ -1213,7 +1213,7 @@ function refreshProfileOnEntry() {
     els.profileError.hidden = true;
     profileLoading.set(true);
   }
-  loadProfile();
+  void loadProfile();
 }
 
 // งบโหลดแยกจากรายการ ถ้างบพังรายการยังแสดงได้ และไม่ throw เหมือน loadMonth
@@ -1376,8 +1376,8 @@ async function runEdit(action, kind) {
     await loadMonth();
     pendingListFocus = null;
     profileStale = true;
-    loadProfile();
-    walletsPanel.load();
+    void loadProfile();
+    void walletsPanel.load();
     return;
   }
   if (failure.closeAndReload) {
@@ -1387,8 +1387,8 @@ async function runEdit(action, kind) {
     await loadMonth();
     pendingListFocus = null;
     profileStale = true;
-    loadProfile();
-    walletsPanel.load();
+    void loadProfile();
+    void walletsPanel.load();
     setBanner(failure.message);
     return;
   }
@@ -1407,7 +1407,7 @@ els.form.addEventListener('submit', (event) => {
   };
   // ส่ง walletId เฉพาะเมื่อผู้ใช้เห็นช่องกระเป๋า ไม่ส่ง = server ไม่แตะกระเป๋าเดิม
   if (!els.editWalletRow.hidden) body.walletId = els.editWallet.value;
-  runEdit(() => api.updateTransaction(editing.id, body), 'save');
+  void runEdit(() => api.updateTransaction(editing.id, body), 'save');
 });
 
 // ใช้ dialog ของเราเองแทน confirm ของเบราว์เซอร์ เพื่อแสดงรายละเอียดรายการที่จะลบ
@@ -1443,7 +1443,7 @@ els.monthContextToday.addEventListener('click', () => {
   els.month.value = currentMonth(new Date());
   // ปุ่มนี้กำลังจะซ่อน focus ต้องมีที่ไปต่อ ไม่ใช้ช่องเดือนเพราะ iOS อาจเปิดตัวเลือกเดือนเอง
   els.pageTitle.focus();
-  loadMonth({ reset: true });
+  void loadMonth({ reset: true });
 });
 
 // ถอด enter ก่อนกรอง ไม่งั้นแถวที่สร้างใหม่จะเล่นแอนิเมชันเข้าฉากตาม CSS แล้วกระพริบตอนพิมพ์
@@ -1529,17 +1529,17 @@ function openBudgetEditor(row) {
 els.budgetsRetry.addEventListener('click', () => {
   els.budgetsError.hidden = true;
   budgetsLoading.set(true);
-  loadBudgets();
+  void loadBudgets();
 });
 els.trendRetry.addEventListener('click', () => {
   els.trendError.hidden = true;
   trendLoading.set(true);
-  loadTrend({ animate: true });
+  void loadTrend({ animate: true });
 });
 els.profileRetry.addEventListener('click', () => {
   els.profileError.hidden = true;
   profileLoading.set(true);
-  loadProfile();
+  void loadProfile();
 });
 // closeWindow ใช้ได้เฉพาะในแอป LINE
 els.profileClose.addEventListener('click', () => {
@@ -1697,7 +1697,7 @@ els.recurringForm.addEventListener('submit', (event) => {
     active: els.recurringActive.checked,
   };
   const target = editingRecurring;
-  runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save', target ? target.id : null);
+  void runRecurringAction(() => (target ? api.updateRecurring(target.id, body) : api.createRecurring(body)), 'save', target ? target.id : null);
 });
 // ถามยืนยันก่อนลบ เพื่อกันกดพลาด
 els.recurringDelete.addEventListener('click', () => {
@@ -1708,7 +1708,7 @@ els.recurringDelete.addEventListener('click', () => {
 els.recurringConfirmCancel.addEventListener('click', () => els.recurringConfirm.close());
 els.recurringConfirmOk.addEventListener('click', () => {
   const target = editingRecurring;
-  runRecurringAction(() => api.deleteRecurring(target.id), 'delete');
+  void runRecurringAction(() => api.deleteRecurring(target.id), 'delete');
 });
 els.recurringConfirm.addEventListener('cancel', (event) => {
   if (recurringBusy) event.preventDefault();
@@ -1728,9 +1728,9 @@ els.bannerRetry.addEventListener('click', async () => {
     return;
   }
   if (initialLoadDone) {
-    loadMonth({ reset: true });
+    void loadMonth({ reset: true });
     // กระเป๋าที่โหลดไม่ได้ทำให้ตัวกรองและลิงก์กระเป๋าหายไป จึงลองโหลดใหม่ด้วย
-    if (!walletsPanel.isLoaded()) walletsPanel.load();
+    if (!walletsPanel.isLoaded()) void walletsPanel.load();
     return;
   }
   // boot ล้มก่อนโหลดหมวดและรายการประจำเสร็จ โหลดแค่เดือนจะทิ้งแท็บอื่นว่าง จึงเริ่มโหลดทุกอย่างใหม่
@@ -1746,7 +1746,7 @@ els.bannerRetry.addEventListener('click', async () => {
 els.recurringRetry.addEventListener('click', () => {
   els.recurringError.hidden = true;
   recurringLoading.set(true);
-  loadRecurring();
+  void loadRecurring();
 });
 
 const goalsPanel = createGoalsPanel({
@@ -1831,7 +1831,7 @@ const tabController = createTabController({
       // เพื่อนอาจเพิ่มเราจากอีกเครื่องระหว่างนั้น จึงโหลดรายชื่อใหม่ทุกครั้งที่เข้าแท็บ
       friendsPanel.refresh();
       // ยอดแยกกระเป๋าเปลี่ยนตามรายการที่บันทึกในแชต จึงโหลดใหม่ทุกครั้งที่เข้าแท็บ
-      walletsPanel.load();
+      void walletsPanel.load();
       settingsPanel.ensureLoaded();
     }
   },
@@ -1843,7 +1843,7 @@ function openLinkedTransaction(link) {
   if (loadError) return;
   const item = lastTransactions.find((transaction) => transaction.id === link.id);
   if (item) {
-    openEditor(item);
+    void openEditor(item);
   } else {
     setBanner(LINKED_TRANSACTION_MISSING);
   }
@@ -1866,8 +1866,8 @@ function enterBillsPage() {
 
 // ชื่อหมวดฝังอยู่ในรายการ งบ และรายการประจำ จึงโหลดใหม่ให้ตรงกับชื่อล่าสุด (loader ไม่ throw จึงไม่กระทบผลการแก้หมวด)
 function refreshAfterCategoryChange() {
-  loadMonth();
-  loadRecurring();
+  void loadMonth();
+  void loadRecurring();
 }
 
 // หน้าย่อย (หมวดของฉัน รายการประจำ) ไม่อยู่ในแถบเมนูล่าง จึงซ่อนเมนูและมีปุ่มย้อนกลับพากลับแท็บเจ้าของหน้า
@@ -1932,7 +1932,7 @@ const monthRollover = createMonthRollover({
     && !document.getElementById('app').classList.contains('bills-page') && !document.querySelector('dialog[open]'),
   onRollover: (month) => {
     els.month.value = month;
-    loadMonth({ reset: true });
+    void loadMonth({ reset: true });
   },
 });
 
@@ -2042,7 +2042,7 @@ els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 const WALLETS_PAGE = {
   ...mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen),
   render: () => {
-    if (!walletsPanel.isLoaded()) walletsPanel.load();
+    if (!walletsPanel.isLoaded()) void walletsPanel.load();
   },
 };
 const NOTIFY_PAGE = { ...mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen), render: () => settingsPanel.ensureLoaded() };
@@ -2185,7 +2185,7 @@ async function boot() {
     // ล้างทุกพารามิเตอร์ รวมลิงก์ที่รหัสผิด ไม่ให้เปิดหน้าใหม่แล้วเจอลิงก์เดิมซ้ำ
     if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
     if (billsPage) {
-      if (billId) billsPanel.focusBill(billId);
+      if (billId) void billsPanel.focusBill(billId);
       billsPanel.ensureLoaded();
       friendsPanel.ensureLoaded();
       return;
@@ -2202,7 +2202,7 @@ async function boot() {
       tabController.select('profile');
       // กันกรณีอ่านลิงก์ตอนต้นพลาด ไม่งั้นกล่องยืนยันเด้งทับเมนู
       if (!activeSubPage) enterSubPage(FRIENDS_PAGE);
-      friendsPanel.openAdd(friendCode);
+      void friendsPanel.openAdd(friendCode);
     }
     if (listFilter) {
       // ตั้งตัวกรองก่อน loadAll เพื่อให้ render ครั้งแรกกรองให้เลย
@@ -2227,4 +2227,4 @@ async function boot() {
   }
 }
 
-boot();
+void boot();
