@@ -1,3 +1,6 @@
+// ฟังก์ชันแปลชื่อแสดงอยู่ในไฟล์ ESM เดียวกับที่เว็บใช้ เพราะ LIFF import src/ (CommonJS) ไม่ได้
+const { displayCategoryName, categoryNameFromDisplay } = require('../../public/liff/i18n/names.mjs');
+
 const FALLBACK_CATEGORY = 'อื่นๆ';
 // บอทใส่หมวดนี้ให้รายจ่ายที่อ่านจากรูปสลิปเอง Claude ไม่ได้เลือก
 const SLIP_CATEGORY = 'ใบเสร็จ/สลิปโอนเงิน';
@@ -78,4 +81,6 @@ module.exports = {
   shareableCategoryName,
   toTextCategories,
   normalizeCategory,
+  displayCategoryName,
+  categoryNameFromDisplay,
 };

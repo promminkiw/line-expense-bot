@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeWalletError, walletRowView, sortWallets, walletOptions, hasSeveralWallets } from './wallets-format.mjs';
+import { describeWalletError, walletRowView, sortWallets, walletOptions, hasSeveralWallets, walletDisplayName } from './wallets-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 400, balance: 24600, entryCount: 2 };
@@ -53,5 +53,13 @@ describe('wallet options', () => {
   it('knows whether the user has more than one wallet', () => {
     expect(hasSeveralWallets([CASH])).toBe(false);
     expect(hasSeveralWallets([CASH, OLD])).toBe(true);
+  });
+});
+
+describe('walletDisplayName', () => {
+  it('translates the default wallet by language', () => {
+    expect(walletDisplayName('en', CASH)).toBe('Cash');
+    expect(walletDisplayName('th', CASH)).toBe('เงินสด');
+    expect(walletDisplayName('en', CARD)).toBe('บัตรเครดิต');
   });
 });

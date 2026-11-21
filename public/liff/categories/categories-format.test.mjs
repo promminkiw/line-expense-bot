@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
+import { describeCategoryError, describeCategoryUsage, categoryDisplayName } from './categories-format.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../../src/parser/categories.js';
 
@@ -45,5 +45,13 @@ describe('describeCategoryUsage', () => {
     expect(describeCategoryUsage({ name: 'โบนัส', type: 'income' }, { transactions: 1, recurring: 0, bills: 0 })).toBe(
       'ลบหมวด โบนัส? รายการ 1 รายการ จะย้ายไปหมวด อื่นๆ'
     );
+  });
+});
+
+describe('categoryDisplayName', () => {
+  it('translates a default category by language and leaves custom ones', () => {
+    expect(categoryDisplayName('en', { type: 'expense', name: 'อาหาร' })).toBe('Food');
+    expect(categoryDisplayName('th', { type: 'expense', name: 'อาหาร' })).toBe('อาหาร');
+    expect(categoryDisplayName('en', { type: 'expense', name: 'กาแฟ' })).toBe('กาแฟ');
   });
 });

@@ -1,3 +1,4 @@
+import { displayWalletName } from '../i18n/names.mjs';
 import { LOGIN_REQUIRED_MESSAGE, formatBaht } from '../format.mjs';
 
 const MESSAGES = new Map([
@@ -38,4 +39,9 @@ export function walletOptions(wallets, keepId = null) {
 // ผู้ใช้กระเป๋าเดียวไม่ต้องเลือกหรือกรอง หน้าจอจึงเหมือนก่อนมีกระเป๋า
 export function hasSeveralWallets(wallets) {
   return wallets.length > 1;
+}
+
+// แปลเฉพาะกระเป๋าตั้งต้น call site ยังไม่ส่ง lang เข้ามา จะต่อสายตอนย้ายข้อความทั้งหน้า
+export function walletDisplayName(lang, wallet) {
+  return displayWalletName(lang, wallet.name);
 }

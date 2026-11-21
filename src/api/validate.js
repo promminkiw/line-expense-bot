@@ -4,7 +4,11 @@ const { MAX_CATEGORY_NAME_LENGTH, CATEGORY_ICONS, isReservedCategoryName } = req
 const { DEFAULT_WALLET_NAME, MAX_WALLET_NAME_LENGTH } = require('../wallets/wallets');
 const { NOTIFICATION_SETTINGS } = require('../notifications/settings');
 const { SUPPORTED_LANGUAGES } = require('../i18n');
+const { isDefaultDisplayName } = require('../../public/liff/i18n/names.mjs');
 const { UUID_PATTERN } = require('../utils/uuid');
+
+// ชื่อไทยของหมวด/กระเป๋าตั้งต้นคือชื่อใน DB ซึ่งมีกฎเดิมของมันเอง (ซ้ำแล้ว 409) จึงเช็คเฉพาะชื่อแสดงภาษาอื่น
+const TRANSLATED_LANGUAGES = SUPPORTED_LANGUAGES.filter((lang) => lang !== 'th');
 
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MAX_NOTE_LENGTH = 200;
@@ -153,7 +157,7 @@ function validateCategoryName(value) {
   if (name.length === 0 || name.length > MAX_CATEGORY_NAME_LENGTH || hasForbiddenNameCharacter(name)) {
     return { ok: false, error: 'Invalid name' };
   }
-  if (isReservedCategoryName(name)) {
+  if (isReservedCategoryName(name) || isDefaultDisplayName(name, TRANSLATED_LANGUAGES)) {
     return { ok: false, error: 'Reserved name' };
   }
   return { ok: true, value: name };
@@ -220,7 +224,7 @@ function validateWalletName(value) {
   if (name.length === 0 || name.length > MAX_WALLET_NAME_LENGTH || hasForbiddenNameCharacter(name)) {
     return { ok: false, error: 'Invalid name' };
   }
-  if (name === DEFAULT_WALLET_NAME) {
+  if (name === DEFAULT_WALLET_NAME || isDefaultDisplayName(name, TRANSLATED_LANGUAGES)) {
     return { ok: false, error: 'Reserved name' };
   }
   return { ok: true, value: name };

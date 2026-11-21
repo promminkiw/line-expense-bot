@@ -14,6 +14,8 @@ import {
   isReservedCategoryName,
   shareableCategoryName,
   toTextCategories,
+  displayCategoryName,
+  categoryNameFromDisplay,
 } from './categories.js';
 
 describe('DEFAULT_CATEGORIES', () => {
@@ -153,6 +155,18 @@ describe('CATEGORY_ICONS', () => {
   it('keeps the icons of the default categories', () => {
     for (const key of ['food', 'transport', 'shopping', 'bill', 'health', 'fun', 'salary', 'side', 'receipt', 'other']) {
       expect(CATEGORY_ICONS).toContain(key);
+    }
+  });
+});
+
+describe('display names re-exported for the bot', () => {
+  it('has an English display for every default category', () => {
+    for (const type of ['expense', 'income']) {
+      for (const name of DEFAULT_CATEGORIES[type]) {
+        expect(displayCategoryName('th', type, name)).toBe(name);
+        expect(displayCategoryName('en', type, name)).not.toBe(name);
+        expect(categoryNameFromDisplay('en', type, displayCategoryName('en', type, name))).toBe(name);
+      }
     }
   });
 });

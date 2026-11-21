@@ -141,6 +141,16 @@ describe('validateCategoryCreate', () => {
     expect(validateCategoryCreate({ type: 'income', name: 'ใบเสร็จ/สลิปโอนเงิน' })).toEqual({ ok: false, error: 'Reserved name' });
   });
 
+  // กัน 2 แถวแสดงชื่อเดียวกันเมื่อหมวดตั้งต้นแสดงเป็นอังกฤษ
+  it.each([['Other'], ['other'], [' Food '], ['Receipts & transfer slips'], ['Salary']])('rejects the English default name %j', (name) => {
+    expect(validateCategoryCreate({ type: 'expense', name })).toEqual({ ok: false, error: 'Reserved name' });
+    expect(validateCategoryUpdate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
+  it('keeps allowing a Thai default name that is not a system name', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'อาหาร' }).ok).toBe(true);
+  });
+
   it('rejects a bad type or body', () => {
     expect(validateCategoryCreate({ type: 'saving', name: 'x' })).toEqual({ ok: false, error: 'Invalid type' });
     expect(validateCategoryCreate(null)).toEqual({ ok: false, error: 'Invalid body' });

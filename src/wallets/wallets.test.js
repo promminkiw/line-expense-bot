@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const {
   DEFAULT_WALLET_NAME,
+  displayWalletName,
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
   isDefaultWallet,
@@ -51,5 +52,13 @@ describe('walletQuestionNames', () => {
 describe('walletIdsByName', () => {
   it('maps only visible wallets that are not the default one', () => {
     expect(walletIdsByName([CASH, CARD, OLD])).toEqual(new Map([['บัตรเครดิต', 'w-card']]));
+  });
+});
+
+describe('displayWalletName', () => {
+  it('translates the default wallet only', () => {
+    expect(displayWalletName('en', DEFAULT_WALLET_NAME)).toBe('Cash');
+    expect(displayWalletName('th', DEFAULT_WALLET_NAME)).toBe(DEFAULT_WALLET_NAME);
+    expect(displayWalletName('en', 'บัตรเครดิต')).toBe('บัตรเครดิต');
   });
 });

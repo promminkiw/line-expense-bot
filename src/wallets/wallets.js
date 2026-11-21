@@ -1,3 +1,6 @@
+// ฟังก์ชันแปลชื่อแสดงอยู่ในไฟล์ ESM เดียวกับที่เว็บใช้ เพราะ LIFF import src/ (CommonJS) ไม่ได้
+const { displayWalletName } = require('../../public/liff/i18n/names.mjs');
+
 // รายการที่ wallet_id เป็น null อยู่ในกระเป๋านี้ ต้องตรงกับชื่อใน supabase/024_wallets.sql
 const DEFAULT_WALLET_NAME = 'เงินสด';
 const MAX_WALLET_NAME_LENGTH = 30;
@@ -43,4 +46,5 @@ module.exports = {
   walletChoices,
   walletQuestionNames,
   walletIdsByName,
+  displayWalletName,
 };

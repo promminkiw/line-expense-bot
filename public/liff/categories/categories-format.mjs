@@ -1,3 +1,4 @@
+import { displayCategoryName } from '../i18n/names.mjs';
 import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
 
 const MESSAGES = new Map([
@@ -28,4 +29,9 @@ export function describeCategoryUsage(category, usage) {
       : `${parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} และ${parts[parts.length - 1]}`} จะย้ายไปหมวด อื่นๆ`;
   const budget = category.type === 'expense' ? ' และงบของหมวดนี้จะหายไป' : '';
   return `ลบหมวด ${category.name}? ${moved}${budget}`;
+}
+
+// แปลเฉพาะชื่อตั้งต้น call site ยังไม่ส่ง lang เข้ามา จะต่อสายตอนย้ายข้อความทั้งหน้า
+export function categoryDisplayName(lang, category) {
+  return displayCategoryName(lang, category.type, category.name);
 }
