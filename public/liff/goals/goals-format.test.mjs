@@ -123,3 +123,35 @@ describe('describeGoalError', () => {
     expect(describeGoalError(status, error)).toBe(expected);
   });
 });
+
+describe('goals in English', () => {
+  it('describes a goal row with baht signs and an English date', () => {
+    expect(goalRow(GOAL, 'en')).toMatchObject({
+      text: 'Saved ฿6,000 of ฿50,000 (12%)',
+      amountText: '฿6,000 of ฿50,000',
+      dateText: 'Target date 31 Dec 2026',
+    });
+    expect(goalRow({ ...GOAL, targetDate: null }, 'en').dateText).toBe('No target date');
+  });
+
+  it('summarises the open goals in English', () => {
+    expect(goalsSummary([GOAL], 'en')).toMatchObject({
+      countText: 'Saved across 1 goal',
+      percentText: '12% of ฿50,000 total',
+      remainingText: '฿44,000 to go',
+    });
+    expect(goalsSummary([GOAL, { ...GOAL, id: 'g-2' }], 'en').countText).toBe('Saved across 2 goals');
+  });
+
+  it('describes the history rows in English', () => {
+    expect(contributionRows([{ id: 'gc-1', amount: 1000, occurredOn: '2026-10-14' }], 'en')).toEqual([
+      { id: 'gc-1', text: '14 Oct 2026 · ฿1,000', label: 'Delete the ฿1,000 saving from 14 Oct 2026' },
+    ]);
+  });
+
+  it('explains the refusals in English', () => {
+    expect(describeGoalError(409, 'Duplicate name', 'en')).toBe('You already have a goal with this name.');
+    expect(describeGoalError(404, 'Not found', 'en')).toBe("I can't find this goal or entry anymore. Try reopening the page.");
+    expect(describeGoalError(500, undefined, 'en')).toBe("Couldn't save it. Try again.");
+  });
+});

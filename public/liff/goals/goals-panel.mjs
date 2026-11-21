@@ -3,10 +3,11 @@ import { createLoadingIndicator } from '../ui/skeleton.mjs';
 import { revealError } from '../ui/reveal.mjs';
 import { loginRequiredMessage, currentDate, formatBaht, parseAmountText } from '../format.mjs';
 import { splitGoals, goalRow, goalsSummary, goalLabel, contributionRows, describeGoalError } from './goals-format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
-const DONE_LABEL = 'ครบแล้ว';
 const STALE_STATUSES = new Set([404, 409]);
 
 // แท็บออม: โหลดตอนเข้าแท็บเท่านั้น และโหลดใหม่ทุกครั้งเพราะผู้ใช้อาจออมผ่านแชตระหว่างนั้น
@@ -46,7 +47,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     button.setAttribute('aria-label', goalLabel(row));
     const head = doc.createElement('span');
     head.className = 'goal-card-head';
-    head.append(span('goal-name', row.name), row.reached ? span('goal-done', DONE_LABEL) : span('goal-percent', `${row.percent}%`));
+    head.append(span('goal-name', row.name), row.reached ? span('goal-done', t(getLang(), 'web.goals.done')) : span('goal-percent', `${row.percent}%`));
     // ใช้ span เพราะใน button ใส่ div ไม่ได้
     const track = doc.createElement('span');
     track.className = 'goal-track';
@@ -83,7 +84,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     els.rows.replaceChildren(...open.map(renderRow));
     els.empty.hidden = open.length > 0;
     els.closed.hidden = closed.length === 0;
-    els.closedCount.textContent = `ปิดแล้ว ${closed.length} เป้า`;
+    els.closedCount.textContent = t(getLang(), `web.goals.closedCount.${closed.length === 1 ? 'one' : 'other'}`, { count: closed.length });
     els.closedRows.replaceChildren(...closed.map(renderRow));
     loadingIndicator.set(false);
     els.error.hidden = true;
@@ -95,7 +96,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     // โหลดซ้ำหลังบันทึกแล้วพัง ยังแสดงรายการเดิมไว้
     if (!loaded) els.body.hidden = true;
     const loginRequired = statusOf(err) === 401;
-    els.errorText.textContent = loginRequired ? loginRequiredMessage() : 'โหลดเป้าออมไม่สำเร็จ';
+    els.errorText.textContent = loginRequired ? loginRequiredMessage() : t(getLang(), 'web.goals.loadFailed');
     // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
     els.retry.hidden = loginRequired;
     els.error.hidden = false;
@@ -141,7 +142,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
   function openEditor(goal) {
     editing = goal;
     editorOpen = true;
-    els.editorTitle.textContent = goal ? 'แก้เป้า' : 'สร้างเป้าใหม่';
+    els.editorTitle.textContent = t(getLang(), goal ? 'web.goals.edit' : 'web.goals.new');
     els.editorName.value = goal ? goal.name : '';
     els.editorTarget.value = goal ? String(goal.targetAmount) : '';
     els.editorDate.value = goal && goal.targetDate ? goal.targetDate : '';
@@ -177,10 +178,11 @@ export function createGoalsPanel({ doc, els, getApi }) {
   }
 
   function savedMessage(goal, body, name) {
-    if (!goal) return `สร้างเป้า ${name} แล้ว`;
-    if (body.closed === true) return `ปิดเป้า ${name} แล้ว`;
-    if (body.closed === false) return `เปิดเป้า ${name} อีกครั้งแล้ว`;
-    return `บันทึกเป้า ${name} แล้ว`;
+    const lang = getLang();
+    if (!goal) return t(lang, 'web.goals.created', { name });
+    if (body.closed === true) return t(lang, 'web.goals.closed', { name });
+    if (body.closed === false) return t(lang, 'web.goals.reopened', { name });
+    return t(lang, 'web.goals.saved', { name });
   }
 
   async function submitEditor() {
@@ -242,7 +244,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     const remove = doc.createElement('button');
     remove.type = 'button';
     remove.className = 'friend-remove';
-    remove.textContent = 'ลบ';
+    remove.textContent = t(getLang(), 'web.common.delete');
     remove.setAttribute('aria-label', row.label);
     remove.addEventListener('click', () => askRemove(item, remove, row.id));
     item.append(text, remove);
@@ -261,8 +263,9 @@ export function createGoalsPanel({ doc, els, getApi }) {
       element.addEventListener('click', onClick);
       return element;
     };
-    const confirm = button('ยืนยันลบ', 'confirm-delete', () => removeContribution(id));
-    const cancel = button('ไม่ลบ', 'cancel-delete', () => {
+    const lang = getLang();
+    const confirm = button(t(lang, 'web.goals.history.confirmDelete'), 'confirm-delete', () => removeContribution(id));
+    const cancel = button(t(lang, 'web.common.keep'), 'cancel-delete', () => {
       confirm.remove();
       cancel.replaceWith(remove);
       remove.focus();
@@ -288,7 +291,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
       if (viewing === id) renderHistory(result.contributions);
     } catch (err) {
       if (viewing !== id) return;
-      els.historyError.textContent = statusOf(err) === 401 ? loginRequiredMessage() : 'โหลดประวัติการออมไม่สำเร็จ';
+      els.historyError.textContent = statusOf(err) === 401 ? loginRequiredMessage() : t(getLang(), 'web.goals.history.loadFailed');
       els.historyError.hidden = false;
     } finally {
       if (viewing === id) els.historyLoading.hidden = true;
@@ -348,13 +351,13 @@ export function createGoalsPanel({ doc, els, getApi }) {
   async function addContribution() {
     const amount = parseAmountText(els.detailAmount.value);
     const occurredOn = els.detailDate.value;
-    const saved = await runDetail(() => getApi().addGoalContribution(viewing, { amount, occurredOn }), `ออมเพิ่ม ${formatBaht(amount)} แล้ว`);
+    const saved = await runDetail(() => getApi().addGoalContribution(viewing, { amount, occurredOn }), t(getLang(), 'web.goals.detail.added', { amount: formatBaht(amount) }));
     if (saved) els.detailAmount.value = '';
   }
 
   function removeContribution(id) {
     if (detailBusy) return;
-    void runDetail(() => getApi().deleteGoalContribution(viewing, id), 'ลบรายการออมแล้ว');
+    void runDetail(() => getApi().deleteGoalContribution(viewing, id), t(getLang(), 'web.goals.history.deleted'));
   }
 
   els.add.addEventListener('click', () => openEditor(null));

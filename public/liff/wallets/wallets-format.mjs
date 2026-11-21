@@ -1,29 +1,37 @@
 import { displayWalletName } from '../i18n/names.mjs';
 import { loginRequiredMessage, formatBaht } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
-const MESSAGES = new Map([
-  ['409:Duplicate name', 'มีกระเป๋าชื่อนี้อยู่แล้ว'],
-  ['409:Too many wallets', 'มีกระเป๋าที่ใช้อยู่ได้ไม่เกิน 10 ใบ และรวมที่ซ่อนไม่เกิน 20 ใบ ซ่อนกระเป๋าที่ไม่ใช้ก่อน'],
-  ['400:Invalid name', 'ชื่อกระเป๋าต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)'],
-  ['400:Reserved name', 'ชื่อนี้ใช้กับกระเป๋าตั้งต้นแล้ว ลองชื่ออื่น'],
-  ['400:Default wallet', 'กระเป๋าตั้งต้นแก้ไม่ได้'],
+// Reserved name ยิงทั้งชื่อ เงินสด และชื่อแสดงภาษาอื่น เช่น Cash ข้อความอังกฤษจึงบอกว่าห้ามทั้งสองภาษา
+const MESSAGE_KEYS = new Map([
+  ['409:Duplicate name', 'web.wallets.error.duplicate'],
+  ['409:Too many wallets', 'web.wallets.error.tooMany'],
+  ['400:Invalid name', 'web.wallets.error.invalidName'],
+  ['400:Reserved name', 'web.wallets.error.reserved'],
+  ['400:Default wallet', 'web.wallets.error.defaultWallet'],
 ]);
 
-export function describeWalletError(status, error) {
-  if (status === 401) return loginRequiredMessage();
-  if (status === 404) return 'ไม่พบกระเป๋านี้แล้ว ลองเปิดหน้าใหม่';
-  return MESSAGES.get(`${status}:${error}`) ?? 'บันทึกกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง';
+export function describeWalletError(status, error, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  if (status === 404) return t(lang, 'web.wallets.error.notFound');
+  return t(lang, MESSAGE_KEYS.get(`${status}:${error}`) ?? 'web.wallets.error.saveFailed');
 }
 
-export function walletRowView(wallet) {
+export function walletRowView(wallet, lang = getLang()) {
+  const count = wallet.entryCount;
   return {
-    name: wallet.name,
-    label: wallet.isDefault ? 'ตั้งต้น' : wallet.hidden ? 'ซ่อนอยู่' : '',
-    balanceText: formatBaht(wallet.balance),
+    name: walletDisplayName(lang, wallet),
+    label: wallet.isDefault ? t(lang, 'web.wallets.label.default') : wallet.hidden ? t(lang, 'web.wallets.label.hidden') : '',
+    balanceText: formatBaht(wallet.balance, lang),
     negative: wallet.balance < 0,
-    detailText: `รายรับ ${formatBaht(wallet.income)} · รายจ่าย ${formatBaht(wallet.expense)} · ${wallet.entryCount.toLocaleString('en-US')} รายการ`,
+    detailText: t(lang, `web.wallets.detail.${count === 1 ? 'one' : 'other'}`, {
+      income: formatBaht(wallet.income, lang),
+      expense: formatBaht(wallet.expense, lang),
+      count: count.toLocaleString('en-US'),
+    }),
     canEdit: !wallet.isDefault,
-    hideLabel: wallet.hidden ? 'เลิกซ่อน' : 'ซ่อน',
+    hideLabel: t(lang, wallet.hidden ? 'web.wallets.unhide' : 'web.wallets.hide'),
   };
 }
 
@@ -41,7 +49,7 @@ export function hasSeveralWallets(wallets) {
   return wallets.length > 1;
 }
 
-// แปลเฉพาะกระเป๋าตั้งต้น call site ยังไม่ส่ง lang เข้ามา จะต่อสายตอนย้ายข้อความทั้งหน้า
+// แปลเฉพาะกระเป๋าตั้งต้น ชื่อที่ผู้ใช้ตั้งเองแสดงตามเดิม
 export function walletDisplayName(lang, wallet) {
   return displayWalletName(lang, wallet.name);
 }

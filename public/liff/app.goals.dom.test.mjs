@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { RESPONSES, settle, makeFetch, boot, byId, clickTab, cleanupGlobals } from './dom-harness.mjs';
+import { RESPONSES, settle, makeFetch, boot, byId, routeFetch, clickTab, cleanupGlobals } from './dom-harness.mjs';
 
 afterEach(cleanupGlobals);
 
@@ -482,5 +482,81 @@ describe('LIFF goals tab', () => {
     expect(byId('goal-detail').hasAttribute('open')).toBe(false);
     expect(byId('goal-editor').hasAttribute('open')).toBe(true);
     expect(byId('goal-editor-name').value).toBe('เที่ยวญี่ปุ่น');
+  });
+});
+
+describe('LIFF goals tab in English', () => {
+  afterEach(() => localStorage.clear());
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+  const texts = (selector) => [...document.querySelectorAll(selector)].map((el) => el.textContent.trim());
+
+  async function openGoalsEnglish() {
+    localStorage.setItem('lang', 'en');
+    await boot({ overrides: { '/api/settings': ENGLISH_SETTINGS } });
+    clickTab('goals');
+    await settle();
+  }
+
+  it('shows the savings tab in English and keeps the goal names as typed', async () => {
+    await openGoalsEnglish();
+    const rows = [...byId('goal-rows').querySelectorAll('.goal-row')];
+
+    expect(byId('page-title').textContent).toBe('Savings goals');
+    expect(byId('goals-title').textContent).toBe('Savings goals');
+    expect(texts('#goals .goals-hint')).toEqual([
+      'You can save through the chat too, like save Japan trip 1000',
+      "Savings are tracked separately. They don't come out of your balance or wallets.",
+    ]);
+    expect(byId('goals-hero-count').textContent).toBe('Saved across 2 goals');
+    expect(document.querySelector('.goals-hero-value').textContent).toBe('18,000 baht');
+    expect(byId('goals-hero-percent').textContent).toBe('30% of ฿60,000 total');
+    expect(byId('goals-hero-rest').textContent).toBe('฿42,000 to go');
+    expect(texts('#goal-rows .goal-name')).toEqual(['เที่ยวญี่ปุ่น', 'กองทุนฉุกเฉิน']);
+    expect(rows[0].querySelector('.goal-amount').textContent).toBe('฿6,000 of ฿50,000');
+    expect(rows[0].querySelector('.goal-date').textContent).toBe('Target date 31 Dec 2026');
+    expect(rows[0].querySelector('button').getAttribute('aria-label')).toBe('เที่ยวญี่ปุ่น Saved ฿6,000 of ฿50,000 (12%)');
+    expect(rows[1].querySelector('.goal-done').textContent).toBe('Done');
+    expect(byId('goals-closed-count').textContent).toBe('1 closed goal');
+    expect(byId('goal-add').textContent.trim()).toBe('New goal');
+  });
+
+  it('shows the goal detail, its history and the delete check in English', async () => {
+    await openGoalsEnglish();
+    byId('goal-rows').querySelector('.goal-row button').click();
+    await settle();
+    const historyRow = byId('goal-history').querySelector('li');
+
+    expect(byId('goal-detail-title').textContent).toBe('เที่ยวญี่ปุ่น');
+    expect(byId('goal-detail-progress').textContent).toBe('Saved ฿6,000 of ฿50,000 (12%)');
+    expect(byId('goal-detail-edit').textContent).toBe('Edit goal');
+    expect(byId('goal-detail-close').getAttribute('aria-label')).toBe('Close');
+    expect(texts('#goal-detail-form label > span')).toEqual(['Add savings (baht)', 'Date']);
+    expect(byId('goal-detail-save').textContent).toBe('Add savings');
+    expect(document.querySelector('.goal-history-title').textContent).toBe('Saving history');
+    expect(texts('#goal-history li > span')).toEqual(['14 Oct 2026 · ฿1,000', '1 Oct 2026 · ฿5,000']);
+    expect(historyRow.querySelector('button').textContent).toBe('Delete');
+    expect(historyRow.querySelector('button').getAttribute('aria-label')).toBe('Delete the ฿1,000 saving from 14 Oct 2026');
+
+    historyRow.querySelector('button').click();
+
+    expect(texts('#goal-history li:first-child button')).toEqual(['Yes, delete', 'Keep it']);
+  });
+
+  it('shows the goal sheets in English', async () => {
+    await openGoalsEnglish();
+    byId('goal-add').click();
+
+    expect(byId('goal-editor-title').textContent).toBe('New goal');
+    expect(texts('#goal-editor-form label > span')).toEqual(['Goal name', 'Target amount (baht)', 'Reach it by (optional)', "Close this goal (no more savings, and it won't show up in the chat)"]);
+    expect(byId('goal-editor-target').getAttribute('title')).toBe('Enter a number like 1,500 or 60.50, up to 2 decimals');
+    expect(byId('goal-editor-save').textContent).toBe('Save');
+
+    routeFetch((method, path) => (method === 'POST' && path === '/api/goals' ? { status: 409, error: 'Duplicate name' } : undefined));
+    byId('goal-editor-name').value = 'เที่ยวญี่ปุ่น';
+    byId('goal-editor-target').value = '1000';
+    byId('goal-editor-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    expect(byId('goal-editor-error').textContent).toBe('You already have a goal with this name.');
   });
 });

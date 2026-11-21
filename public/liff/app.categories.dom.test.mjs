@@ -775,3 +775,117 @@ describe('LIFF category icons on rows', () => {
     expect(salary.querySelector('.cat-badge').classList.contains('cat-tone-income')).toBe(true);
   });
 });
+
+describe('LIFF categories page in English', () => {
+  afterEach(() => localStorage.clear());
+  const MANAGED = [
+    { id: 'c-food', name: 'อาหาร', type: 'expense', hidden: false, system: false, icon: null },
+    { id: 'c-trip', name: 'เดินทาง', type: 'expense', hidden: true, system: false, icon: null },
+    { id: 'c-cat', name: 'ค่าแมว', type: 'expense', hidden: false, system: false, icon: 'pet' },
+    { id: 'c-other', name: 'อื่นๆ', type: 'expense', hidden: false, system: true, icon: null },
+    { id: 'c-salary', name: 'เงินเดือน', type: 'income', hidden: false, system: false, icon: null },
+  ];
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+  const texts = (selector) => [...document.querySelectorAll(selector)].map((el) => el.textContent);
+  const tileOf = (id) => document.querySelector(`.category-tile[data-category-id="${id}"]`);
+  const submitSheet = () => byId('category-sheet-form').dispatchEvent(new Event('submit', { cancelable: true }));
+
+  // ภาษามาจาก /api/settings ตอน boot จึงต้องตอบ en ใน stub เดียวกับที่ตอบหมวด
+  async function openPageEnglish(route = () => undefined) {
+    localStorage.setItem('lang', 'en');
+    const liff = await boot({ holdInit: true });
+    const calls = [];
+    const fallback = makeFetch({ '/api/settings': ENGLISH_SETTINGS });
+    vi.stubGlobal('fetch', async (url, options = {}) => {
+      const path = new URL(url, 'http://localhost').pathname;
+      const method = options.method ?? 'GET';
+      calls.push(`${method} ${path}`);
+      const routed = route(method, path);
+      const override = routed !== undefined ? routed : method === 'GET' && path === '/api/categories' ? { categories: MANAGED } : undefined;
+      return override === undefined ? fallback(url, options) : makeFetch({ [path]: override })(url, options);
+    });
+    liff.releaseInit();
+    await settle();
+    clickTab('budgets');
+    return calls;
+  }
+
+  it('shows the entry and the page in English with built-in names translated', async () => {
+    await openPageEnglish();
+
+    expect(byId('categories-open').textContent.trim()).toBe('Manage categories');
+    expect(document.querySelector('#panel-budgets .categories-entry-hint').textContent).toBe('Add, rename, pick icons, hide or delete categories');
+    expect(document.querySelector('#me-categories-open .menu-row-title').textContent).toBe('Manage categories');
+    expect(document.querySelector('#me-categories-open .menu-row-sub').textContent).toBe('Add, edit, hide and delete categories');
+
+    byId('categories-open').click();
+
+    expect(byId('page-title').textContent).toBe('My categories');
+    expect(document.querySelector('.category-segment').getAttribute('aria-label')).toBe('Category type');
+    expect(byId('category-seg-expense').textContent).toBe('Expense · 3');
+    expect(byId('category-seg-income').textContent).toBe('Income · 1');
+    expect(texts('#category-tiles .category-tile-name')).toEqual(['Food', 'ค่าแมว', 'Other', 'Add category']);
+    expect(tileOf('c-food').getAttribute('aria-label')).toBe('Edit Food');
+    expect(document.querySelector('#category-tiles .category-tile.system .sr-only').textContent).toBe("Built-in category, can't be edited");
+    expect(byId('category-hidden-text').textContent).toBe('Hidden (1)');
+    expect(document.querySelector('.category-page-hint').textContent).toBe(
+      "Tap a category to rename it, change its icon or hide it. The ones with a lock are built in and can't be edited."
+    );
+  });
+
+  it('shows the edit sheet in English and does not rename a built-in name left as shown', async () => {
+    const calls = await openPageEnglish();
+    byId('categories-open').click();
+    tileOf('c-food').click();
+    const icons = [...byId('category-sheet-icons').querySelectorAll('button')];
+
+    expect(byId('category-sheet-title').textContent).toBe('Edit category');
+    expect(byId('category-sheet-close').getAttribute('aria-label')).toBe('Close');
+    expect(document.querySelector('.category-sheet-label > span').textContent).toBe('Category name');
+    expect(byId('category-sheet-name').value).toBe('Food');
+    expect(document.querySelector('.category-icon-field legend').textContent).toBe('Icon');
+    expect(icons).toHaveLength(36);
+    expect(icons[0].getAttribute('aria-label')).toBe('Food');
+    expect(byId('category-sheet-icons').querySelector('[data-icon="pet"]').getAttribute('aria-label')).toBe('Pets');
+    expect(texts('.category-switch-text > *')).toEqual(['Hide this category', "Old entries stay, you just can't pick it anymore"]);
+    expect(byId('category-sheet-delete').textContent).toBe('Delete category');
+    expect(byId('category-sheet-cancel').textContent).toBe('Cancel');
+    expect(byId('category-sheet-save').textContent).toBe('Save');
+
+    submitSheet();
+    await settle();
+
+    expect(calls.some((call) => call.startsWith('PATCH'))).toBe(false);
+    expect(byId('category-sheet').hasAttribute('open')).toBe(false);
+  });
+
+  it('shows the add sheet, a reserved name and the delete check in English', async () => {
+    await openPageEnglish((method, path) => {
+      if (method === 'POST' && path === '/api/categories') return { status: 400, error: 'Reserved name' };
+      if (method === 'GET' && path === '/api/categories/c-cat/usage') return { usage: { transactions: 2, recurring: 0, bills: 0 } };
+      return undefined;
+    });
+    byId('categories-open').click();
+    document.querySelector('[data-action="add"]').click();
+
+    expect(byId('category-sheet-title').textContent).toBe('Add expense category');
+    expect(byId('category-sheet-name').getAttribute('placeholder')).toBe('e.g. Cat food');
+
+    byId('category-sheet-name').value = 'Other';
+    submitSheet();
+    await settle();
+
+    expect(byId('category-sheet-error').textContent).toBe(
+      'That name belongs to a built-in category (like Food or Other), in English or Thai. Try another one.'
+    );
+
+    byId('category-sheet-cancel').click();
+    tileOf('c-cat').click();
+    byId('category-sheet-delete').click();
+    await settle();
+
+    expect(byId('category-sheet-confirm-text').textContent).toBe('Delete ค่าแมว? 2 entries will move to Other, and its budget will go away.');
+    expect(byId('category-sheet-confirm-cancel').textContent).toBe('Keep it');
+    expect(byId('category-sheet-confirm-ok').textContent).toBe('Delete it');
+  });
+});

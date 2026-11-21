@@ -1,12 +1,13 @@
 import { ApiError } from '../api.mjs';
 import { createCategoryBadge, effectiveIconKey } from './categories.mjs';
-import { CATEGORY_ICONS } from './category-icons.mjs';
-import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
+import { CATEGORY_ICONS, categoryIconLabel } from './category-icons.mjs';
+import { categoryDisplayName, describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
 import { createSvgIcon } from '../ui/icons.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
-const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 const DEFAULT_NEW_ICON = 'other';
 
 // หน้าหมวดของฉัน แตะการ์ดเพื่อแก้ใน sheet แก้แล้วส่งชุดใหม่ให้ app อัปเดตตัวเลือกหมวดทุกที่
@@ -50,7 +51,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   function appendTileContent(target, category) {
     const name = doc.createElement('span');
     name.className = 'category-tile-name';
-    name.textContent = category.name;
+    // หมวดของระบบและหมวดตั้งต้นแสดงตามภาษา แต่ไอคอนยังเลือกจากชื่อใน DB
+    name.textContent = categoryDisplayName(getLang(), category);
     target.append(createCategoryBadge(doc, category.name, { icon: category.icon, type: category.type }), name);
   }
 
@@ -62,7 +64,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
       appendTileContent(tile, category);
       const note = doc.createElement('span');
       note.className = 'sr-only';
-      note.textContent = 'หมวดของระบบ แก้ไม่ได้';
+      note.textContent = t(getLang(), 'web.categories.systemNote');
       tile.append(createSvgIcon(doc, 'icon-lock', 'icon category-lock'), note);
       item.append(tile);
       return item;
@@ -71,7 +73,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     button.type = 'button';
     button.className = 'category-tile';
     button.dataset.categoryId = category.id;
-    button.setAttribute('aria-label', `แก้หมวด ${category.name}`);
+    button.setAttribute('aria-label', t(getLang(), 'web.categories.editLabel', { name: categoryDisplayName(getLang(), category) }));
     appendTileContent(button, category);
     button.addEventListener('click', () => openSheet(category));
     item.append(button);
@@ -89,7 +91,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     badge.append(createSvgIcon(doc, 'icon-plus'));
     const label = doc.createElement('span');
     label.className = 'category-tile-name';
-    label.textContent = 'เพิ่มหมวด';
+    label.textContent = t(getLang(), 'web.categories.add');
     button.append(badge, label);
     button.addEventListener('click', () => openSheet(null));
     item.append(button);
@@ -97,20 +99,21 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   }
 
   function render() {
+    const lang = getLang();
     const categories = getCategories();
     for (const [segmentType, button] of [
       ['expense', els.segExpense],
       ['income', els.segIncome],
     ]) {
       const count = categories.filter((category) => category.type === segmentType && !category.hidden).length;
-      button.textContent = `${TYPE_LABELS[segmentType]} · ${count}`;
+      button.textContent = t(lang, 'web.categories.segment', { type: t(lang, `type.${segmentType}`), count });
       button.setAttribute('aria-pressed', String(segmentType === type));
     }
     const ofType = categories.filter((category) => category.type === type);
     const hidden = ofType.filter((category) => category.hidden);
     els.tiles.replaceChildren(...ofType.filter((category) => !category.hidden).map(renderTile), renderAddTile());
     els.hiddenToggle.hidden = hidden.length === 0;
-    els.hiddenText.textContent = `ซ่อนอยู่ ${hidden.length} หมวด`;
+    els.hiddenText.textContent = t(lang, 'web.categories.hiddenCount', { count: hidden.length });
     els.hiddenToggle.setAttribute('aria-expanded', String(showHidden && hidden.length > 0));
     els.hiddenTiles.hidden = !showHidden || hidden.length === 0;
     els.hiddenTiles.replaceChildren(...hidden.map(renderTile));
@@ -139,12 +142,13 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   }
 
   function renderIconChoices() {
+    const lang = getLang();
     els.sheetIcons.replaceChildren(
-      ...CATEGORY_ICONS.map(({ key, label }) => {
+      ...CATEGORY_ICONS.map(({ key }) => {
         const button = doc.createElement('button');
         button.type = 'button';
         button.dataset.icon = key;
-        button.setAttribute('aria-label', label);
+        button.setAttribute('aria-label', categoryIconLabel(lang, key));
         button.setAttribute('aria-pressed', String(key === pickedIcon));
         button.append(createSvgIcon(doc, `cat-${key}`));
         button.addEventListener('click', () => pickIcon(key));
@@ -158,8 +162,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     sheetOpen = true;
     returnFocus = category ? tileSelector(category) : '[data-action="add"]';
     pickedIcon = category ? effectiveIconKey(category) : DEFAULT_NEW_ICON;
-    els.sheetTitle.textContent = category ? 'แก้หมวด' : `เพิ่มหมวด${TYPE_LABELS[type]}`;
-    els.sheetName.value = category ? category.name : '';
+    els.sheetTitle.textContent = t(getLang(), category ? 'web.categories.sheet.edit' : `web.categories.sheet.add.${type}`);
+    els.sheetName.value = category ? categoryDisplayName(getLang(), category) : '';
     els.sheetHidden.checked = category ? category.hidden : false;
     els.sheetHiddenRow.hidden = !category;
     els.sheetError.textContent = '';
@@ -199,22 +203,25 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     const created = result.category;
     // หมวดใหม่ยังไม่มีรายการ จึงไม่ต้องโหลดรายการและรายการประจำใหม่ แต่หน้างบแสดงหมวดรายจ่ายทุกหมวดแม้ยังไม่ตั้งงบ
     onChanged([...getCategories(), created], { refresh: created.type === 'expense' ? 'budgets' : false });
-    setStatus(`เพิ่มหมวด ${created.name} แล้ว`);
+    setStatus(t(getLang(), 'web.categories.added', { name: categoryDisplayName(getLang(), created) }));
     closeSheet(tileSelector(created));
   }
 
   function changesFor(category, name) {
     const changes = {};
-    if (name !== category.name) changes.name = name;
+    // ช่องชื่อแสดงชื่อแปลของหมวดตั้งต้น ถ้าไม่ได้แก้ต้องไม่ส่งชื่อแปลไป ไม่งั้น server ตอบ Reserved name
+    if (name !== category.name && name !== categoryDisplayName(getLang(), category)) changes.name = name;
     if (pickedIcon !== effectiveIconKey(category)) changes.icon = pickedIcon;
     if (els.sheetHidden.checked !== category.hidden) changes.hidden = els.sheetHidden.checked;
     return changes;
   }
 
   function savedMessage(updated, changes) {
-    if (changes.hidden === true) return `ซ่อนหมวด ${updated.name} แล้ว`;
-    if (changes.hidden === false) return `เลิกซ่อนหมวด ${updated.name} แล้ว`;
-    return `บันทึกหมวด ${updated.name} แล้ว`;
+    const lang = getLang();
+    const name = categoryDisplayName(lang, updated);
+    if (changes.hidden === true) return t(lang, 'web.categories.hidden', { name });
+    if (changes.hidden === false) return t(lang, 'web.categories.unhidden', { name });
+    return t(lang, 'web.categories.saved', { name });
   }
 
   async function submitEdit(name) {
@@ -257,7 +264,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
       getCategories().filter((item) => item.id !== category.id),
       { refresh: true }
     );
-    setStatus(`ลบหมวด ${category.name} แล้ว`);
+    setStatus(t(getLang(), 'web.categories.deleted', { name: categoryDisplayName(getLang(), category) }));
     closeSheet('[data-action="add"]');
   }
 

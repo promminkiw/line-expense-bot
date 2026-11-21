@@ -1,27 +1,33 @@
 import { formatBaht, formatFullThaiDate, loginRequiredMessage } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
+
+const plural = (count) => (count === 1 ? 'one' : 'other');
 
 // คิดเป็นสตางค์และปัดลง ให้ตรงกับเปอร์เซ็นต์ที่บอทตอบในแชต
 export function goalPercent(saved, target) {
   return Math.floor((Math.round(saved * 100) * 100) / Math.round(target * 100));
 }
 
-export function goalRow(goal) {
+// ชื่อเป้าเป็นข้อมูลของผู้ใช้ ไม่แปล แปลเฉพาะข้อความรอบๆ
+export function goalRow(goal, lang = getLang()) {
   const percent = goalPercent(goal.saved, goal.targetAmount);
+  const amounts = { saved: formatBaht(goal.saved, lang), target: formatBaht(goal.targetAmount, lang) };
   return {
     ...goal,
     percent,
     width: Math.min(percent, 100),
     reached: percent >= 100,
-    text: `ออมแล้ว ${formatBaht(goal.saved)} จาก ${formatBaht(goal.targetAmount)} (${percent}%)`,
-    amountText: `${formatBaht(goal.saved)} จาก ${formatBaht(goal.targetAmount)}`,
-    dateText: dateTextOf(goal, percent >= 100),
+    text: t(lang, 'web.goals.progress', { ...amounts, percent }),
+    amountText: t(lang, 'web.goals.amount', amounts),
+    dateText: dateTextOf(goal, percent >= 100, lang),
   };
 }
 
 // เป้าที่ครบแล้วและไม่มีวัน ไม่ต้องบอกว่าไม่กำหนดวัน เพราะไม่มีอะไรให้รอแล้ว
-function dateTextOf(goal, reached) {
-  if (goal.targetDate) return `ถึงเป้า ${formatFullThaiDate(goal.targetDate)}`;
-  return reached ? '' : 'ไม่กำหนดวัน';
+function dateTextOf(goal, reached, lang) {
+  if (goal.targetDate) return t(lang, 'web.goals.targetDate', { date: formatFullThaiDate(goal.targetDate, lang) });
+  return reached ? '' : t(lang, 'web.goals.noDate');
 }
 
 export function goalLabel(row) {
@@ -29,7 +35,7 @@ export function goalLabel(row) {
 }
 
 // รวมเฉพาะเป้าที่เปิดอยู่ คิดเป็นสตางค์เหมือน goalPercent เพื่อไม่ให้ทศนิยมเพี้ยน
-export function goalsSummary(goals) {
+export function goalsSummary(goals, lang = getLang()) {
   const open = goals.filter((goal) => !goal.closed);
   if (open.length === 0) return null;
   const savedSatang = open.reduce((sum, goal) => sum + Math.round(goal.saved * 100), 0);
@@ -46,36 +52,36 @@ export function goalsSummary(goals) {
     percent,
     width: Math.min(percent, 100),
     savedValue: saved.toLocaleString('en-US', { maximumFractionDigits: 2 }),
-    countText: `ออมแล้วรวม ${open.length} เป้า`,
-    percentText: `${percent}% ของเป้ารวม ${formatBaht(target)}`,
-    remainingText: `เหลืออีก ${formatBaht(remaining)}`,
+    countText: t(lang, `web.goals.hero.count.${plural(open.length)}`, { count: open.length }),
+    percentText: t(lang, 'web.goals.hero.percent', { percent, target: formatBaht(target, lang) }),
+    remainingText: t(lang, 'web.goals.hero.remaining', { amount: formatBaht(remaining, lang) }),
   };
 }
 
-export function splitGoals(goals) {
-  const rows = goals.map(goalRow);
+export function splitGoals(goals, lang = getLang()) {
+  const rows = goals.map((goal) => goalRow(goal, lang));
   return { open: rows.filter((row) => !row.closed), closed: rows.filter((row) => row.closed) };
 }
 
-export function contributionRows(contributions) {
+export function contributionRows(contributions, lang = getLang()) {
   return contributions.map((item) => {
-    const date = formatFullThaiDate(item.occurredOn);
-    const amount = formatBaht(item.amount);
-    return { id: item.id, text: `${date} · ${amount}`, label: `ลบรายการออม ${amount} วันที่ ${date}` };
+    const date = formatFullThaiDate(item.occurredOn, lang);
+    const amount = formatBaht(item.amount, lang);
+    return { id: item.id, text: `${date} · ${amount}`, label: t(lang, 'web.goals.history.deleteLabel', { amount, date }) };
   });
 }
 
-const MESSAGES = new Map([
-  ['409:Duplicate name', 'มีเป้าชื่อนี้อยู่แล้ว'],
-  ['409:Too many goals', 'มีเป้าที่เปิดอยู่ได้ไม่เกิน 20 เป้า ปิดเป้าที่ไม่ใช้ก่อน'],
-  ['409:Goal closed', 'เป้านี้ปิดแล้ว เปิดเป้าอีกครั้งก่อนออมเพิ่ม'],
-  ['400:Invalid name', 'ชื่อเป้าต้องยาว 1-30 ตัวอักษร'],
-  ['400:Invalid amount', 'จำนวนเงินต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท (ทศนิยมไม่เกิน 2 ตำแหน่ง)'],
-  ['400:Invalid date', 'วันที่ไม่ถูกต้อง'],
+const MESSAGE_KEYS = new Map([
+  ['409:Duplicate name', 'web.goals.error.duplicate'],
+  ['409:Too many goals', 'web.goals.error.tooMany'],
+  ['409:Goal closed', 'web.goals.error.closed'],
+  ['400:Invalid name', 'web.goals.error.invalidName'],
+  ['400:Invalid amount', 'web.goals.error.invalidAmount'],
+  ['400:Invalid date', 'web.goals.error.invalidDate'],
 ]);
 
-export function describeGoalError(status, error) {
-  if (status === 401) return loginRequiredMessage();
-  if (status === 404) return 'ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่';
-  return MESSAGES.get(`${status}:${error}`) ?? 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
+export function describeGoalError(status, error, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  if (status === 404) return t(lang, 'web.goals.error.notFound');
+  return t(lang, MESSAGE_KEYS.get(`${status}:${error}`) ?? 'web.error.saveFailed');
 }

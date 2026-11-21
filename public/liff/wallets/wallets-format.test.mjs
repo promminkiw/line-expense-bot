@@ -63,3 +63,25 @@ describe('walletDisplayName', () => {
     expect(walletDisplayName('en', CARD)).toBe('บัตรเครดิต');
   });
 });
+
+describe('wallets in English', () => {
+  it('shows the default wallet translated with English labels', () => {
+    expect(walletRowView(CASH, 'en')).toEqual({
+      name: 'Cash',
+      label: 'Default',
+      balanceText: '฿24,600',
+      negative: false,
+      detailText: 'Income ฿25,000 · Expenses ฿400 · 2 entries',
+      canEdit: false,
+      hideLabel: 'Hide',
+    });
+    expect(walletRowView({ ...OLD, entryCount: 1 }, 'en')).toMatchObject({ label: 'Hidden', hideLabel: 'Unhide', detailText: 'Income ฿0 · Expenses ฿0 · 1 entry' });
+  });
+
+  // server ห้ามทั้ง เงินสด และ Cash ข้อความจึงต้องบอกว่าชื่อตั้งต้นทั้งสองภาษาใช้ไม่ได้
+  it('explains that the default name is taken in either language', () => {
+    expect(describeWalletError(400, 'Reserved name', 'en')).toBe('That name belongs to the default wallet (Cash), in English or Thai. Try another one.');
+    expect(describeWalletError(409, 'Duplicate name', 'en')).toBe('You already have a wallet with this name.');
+    expect(describeWalletError(500, undefined, 'en')).toBe("Couldn't save the wallet. Try again.");
+  });
+});
