@@ -1,165 +1,94 @@
+const { t } = require('../i18n');
+
 // ผู้ใช้อนุญาตให้ใส่ emoji เฉพาะข้อความช่วยเหลือนี้ เพื่อให้แบ่งหัวข้ออ่านง่าย
 // หนึ่งหัวข้อต่อหนึ่งปุ่ม ขึ้นต้นด้วย emoji ที่สื่อเรื่องนั้นให้กวาดตาหาได้ (ปุ่มลอยของ LINE มีได้ไม่เกิน 13 ปุ่ม)
-const HELP_SECTIONS = [
-  {
-    label: '✏️ รายรับรายจ่าย',
-    text: [
-      '✏️ บันทึกรายจ่าย',
-      'พิมพ์ชื่อรายการตามด้วยจำนวนเงิน',
-      'ตัวอย่าง: กินข้าว 60',
-      'หลายรายการในข้อความเดียวได้: กินข้าว 60 กาแฟ 45',
-      '',
-      '💰 บันทึกรายรับ',
-      'ตัวอย่าง: เงินเดือนเข้า 25000',
-      '',
-      '⚠️ จำนวนเงินต่อรายการไม่เกิน 10,000,000 บาท',
-    ].join('\n'),
-  },
-  {
-    label: '📅 ย้อนหลัง',
-    text: [
-      '📅 บันทึกย้อนหลัง',
-      'ใส่คำบอกวันไว้ข้างหน้า',
-      'ตัวอย่าง: เมื่อวานค่าแท็กซี่ 120',
-    ].join('\n'),
-  },
-  {
-    label: '🧾 สลิป',
-    text: [
-      '🧾 ส่งรูปสลิป/ใบเสร็จ',
-      'ส่งรูปสลิปโอนเงินหรือใบเสร็จได้ เฮียอ่านยอดและวันที่',
-      'แล้วแสดงรายการให้กด "บันทึก" หรือ "ยกเลิก"',
-      'ใบเสร็จหลายสินค้าบันทึกเป็นยอดรวมที่จ่ายจริงรายการเดียว (กดภายใน 10 นาที)',
-    ].join('\n'),
-  },
-  {
-    label: '🔁 รายการประจำ',
-    text: [
-      '🔁 รายการประจำ',
-      'ตั้งในหน้าเว็บ แท็บ ฉัน ปุ่ม "รายการประจำ" (เปิดเว็บจากปุ่ม "เว็บไซต์" ในเมนูด้านล่าง) เช่น ค่าเน็ตทุกวันที่ 5',
-      'เฮียบันทึกให้เดือนละครั้งและแจ้งในแชต กด "ลบ" ได้',
-    ].join('\n'),
-  },
-  {
-    label: '↩️ บันทึกผิด',
-    text: [
-      '↩️ บันทึกผิด?',
-      'กดปุ่มลบบนการ์ด "เฮียบันทึกแล้ว" ได้เลย',
-      '(ปุ่มอยู่บนการ์ด กดย้อนหลังได้)',
-    ].join('\n'),
-  },
-  {
-    label: '📊 สรุปยอด',
-    text: [
-      '📊 ดูสรุปยอด',
-      'กดปุ่ม "สรุป" ในเมนูด้านล่าง หรือพิมพ์ สรุป',
-      'แล้วเลือก วันนี้ / สัปดาห์นี้ / เดือนนี้',
-    ].join('\n'),
-  },
-  {
-    label: '🔎 ถามยอด',
-    text: [
-      '🔎 ถามยอด',
-      'พิมพ์ถามได้เลย เช่น เดือนนี้กินกาแฟไปเท่าไหร่',
-      'หรือ ค่าเดินทางเดือนที่แล้วเท่าไร',
-    ].join('\n'),
-  },
-  {
-    label: '🎯 ออมเงิน',
-    text: [
-      '🎯 ออมเงินเข้าเป้า',
-      'สร้างเป้าในหน้าเว็บ แท็บ ออม',
-      'แล้วพิมพ์ เช่น ออม เที่ยวญี่ปุ่น 1000 (กด "ลบ" ได้ถ้าพิมพ์ผิด)',
-      'ถ้ายังไม่มีเป้าที่เปิดอยู่ เฮียจะบอกให้สร้างเป้าในเว็บก่อน',
-      'ส่วน ออมสิน 1000 (ชื่อธนาคาร) จดเป็นรายการตามปกติ',
-    ].join('\n'),
-  },
-  {
-    label: '👛 กระเป๋า',
-    text: [
-      '👛 กระเป๋าเงิน',
-      'เพิ่มกระเป๋าในหน้าเว็บ เช่น บัตรเครดิต',
-      'แล้วพิมพ์ชื่อกระเป๋าต่อท้าย เช่น กาแฟ 60 บัตรเครดิต (ไม่ระบุ = เงินสด)',
-    ].join('\n'),
-  },
-  {
-    label: '🧮 งบประมาณ',
-    text: [
-      '🧮 งบประมาณ',
-      'ตั้งงบรายเดือนต่อหมวดในหน้าเว็บ แท็บ งบ',
-      'เฮียเตือนในข้อความตอบกลับเมื่อใช้ถึง 80% และเมื่อเกินงบ',
-    ].join('\n'),
-  },
-  {
-    label: '🗂️ หมวดหมู่',
-    text: [
-      '🗂️ หมวดของฉัน',
-      'เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวดได้ในหน้าเว็บ',
-    ].join('\n'),
-  },
-  {
-    label: '👥 หารบิล',
-    text: [
-      '👥 หารบิลกับเพื่อน',
-      'กดปุ่ม "หารบิล" ในเมนูด้านล่าง เพิ่มเพื่อนแล้วสร้างบิล',
-      'เพื่อนกดยืนยันจากการ์ดในแชตหรือในหน้าเว็บ',
-    ].join('\n'),
-  },
-  {
-    label: '🔔 แจ้งเตือน',
-    text: [
-      '🔔 การแจ้งเตือน',
-      'เปิดสรุปทุกวันอาทิตย์ และเตือนถ้าวันนี้ยังไม่ได้จด ได้ในหน้าเว็บ',
-    ].join('\n'),
-  },
+// ข้อความจริงอยู่ในชุดแปล key help.sections.<id>.label/body ที่นี่เก็บแค่ลำดับและ id
+const HELP_SECTION_IDS = [
+  'record',
+  'backdate',
+  'slip',
+  'recurring',
+  'undo',
+  'summary',
+  'ask',
+  'saving',
+  'wallet',
+  'budget',
+  'category',
+  'split',
+  'reminders',
 ];
 
-const HELP_MENU_REPLY = 'อยากให้เฮียอธิบายเรื่องไหน';
-const HELP_KEY = 'ช่วยเหลือ';
+// รูปแบบไทยเดิม ({ id, label, text }) คงไว้ให้โค้ดและเทสต์ที่อ้างถึงใช้ต่อได้
+const HELP_SECTIONS = HELP_SECTION_IDS.map((id) => ({
+  id,
+  label: t('th', `help.sections.${id}.label`),
+  text: t('th', `help.sections.${id}.body`),
+}));
+
+const HELP_MENU_REPLY = t('th', 'help.menu');
+const HELP_KEYS = { th: 'ช่วยเหลือ', en: 'help' };
+const SUPPORTED = Object.keys(HELP_KEYS);
 
 // ใช้เมื่อยังไม่ได้ตั้งค่า LIFF เท่านั้น
-const WEB_COMING_SOON_REPLY = 'เฮียกำลังทำหน้าเว็บสำหรับดูและแก้ไขรายการ จะเปิดใช้ได้เร็วๆ นี้';
+const WEB_COMING_SOON_REPLY = t('th', 'menu.webComingSoon');
 
 // ผู้ใช้เลือกเก็บข้อเสนอแนะใน Google Form ใช้ลิงก์ส่งของฟอร์ม เพราะลิงก์ /edit เปิดได้แค่เจ้าของ
 const FEEDBACK_FORM_URL = 'https://forms.gle/byku7LUs8qsXWaP18';
-const FEEDBACK_REPLY = `ขอบคุณที่ช่วยให้เฮียสมัครดีขึ้น บอกเฮียได้ที่ฟอร์มนี้: ${FEEDBACK_FORM_URL}`;
+const FEEDBACK_REPLY = t('th', 'menu.feedback', { url: FEEDBACK_FORM_URL });
 
-const FIXED_REPLIES = {
-  'เปิดเว็บ': WEB_COMING_SOON_REPLY,
-  'เสนอแนะ': FEEDBACK_REPLY,
+// ปุ่ม Rich Menu เป็นรูปภาษาไทยเสมอ จึงรับแค่ข้อความไทย ส่วนคำตอบแปลตามภาษาผู้ใช้
+const FIXED_REPLY_KEYS = {
+  เปิดเว็บ: 'menu.webComingSoon',
+  เสนอแนะ: 'menu.feedback',
 };
 
-function buildWebReply(liffUrl) {
-  return `เปิดหน้าเว็บดูและแก้ไขรายการ: ${liffUrl}`;
+function buildWebReply(liffUrl, lang = 'th') {
+  return t(lang, 'menu.webLink', { url: liffUrl });
 }
 
 function normalizeKey(text) {
-  return text.replace(/\s+/g, '');
+  return text.replace(/\s+/g, '').toLowerCase();
 }
 
-function buildHelpQuickReply() {
-  return HELP_SECTIONS.map((section) => ({
-    type: 'action',
-    action: { type: 'message', label: section.label, text: `${HELP_KEY} ${section.label}` },
-  }));
+function buildHelpQuickReply(lang) {
+  return HELP_SECTION_IDS.map((id) => {
+    const label = t(lang, `help.sections.${id}.label`);
+    return {
+      type: 'action',
+      action: { type: 'message', label, text: `${HELP_KEYS[lang] ?? HELP_KEYS.th} ${label}` },
+    };
+  });
 }
 
 // ปุ่มช่วยเหลือถามหัวข้อก่อน แล้วปุ่มลอยแต่ละอันส่งข้อความกลับมาขอหัวข้อนั้น
-function getHelpReply(text) {
+// รับคำสั่งและป้ายหัวข้อของทุกภาษา (ผู้ใช้อาจพิมพ์คนละภาษากับที่ตั้งไว้) แต่ตอบเป็นภาษาของผู้ใช้
+function getHelpReply(text, lang = 'th') {
   const key = normalizeKey(text);
-  if (key === HELP_KEY) {
-    return { text: HELP_MENU_REPLY, quickReply: buildHelpQuickReply() };
+  for (const commandLang of SUPPORTED) {
+    const command = normalizeKey(HELP_KEYS[commandLang]);
+    if (key === command) {
+      return { text: t(lang, 'help.menu'), quickReply: buildHelpQuickReply(lang) };
+    }
+    if (!key.startsWith(command)) continue;
+    for (const id of HELP_SECTION_IDS) {
+      for (const labelLang of SUPPORTED) {
+        const label = normalizeKey(t(labelLang, `help.sections.${id}.label`));
+        if (key === `${command}${label}`) return { text: t(lang, `help.sections.${id}.body`) };
+      }
+    }
   }
-  const section = HELP_SECTIONS.find((item) => key === `${HELP_KEY}${normalizeKey(item.label)}`);
-  return section ? { text: section.text } : null;
+  return null;
 }
 
-function getFixedReply(text, { liffUrl } = {}) {
+function getFixedReply(text, { liffUrl } = {}, lang = 'th') {
   const key = normalizeKey(text);
   if (key === 'เปิดเว็บ' && liffUrl) {
-    return buildWebReply(liffUrl);
+    return buildWebReply(liffUrl, lang);
   }
-  return Object.hasOwn(FIXED_REPLIES, key) ? FIXED_REPLIES[key] : null;
+  if (!Object.hasOwn(FIXED_REPLY_KEYS, key)) return null;
+  const messageKey = FIXED_REPLY_KEYS[key];
+  return t(lang, messageKey, messageKey === 'menu.feedback' ? { url: FEEDBACK_FORM_URL } : {});
 }
 
 module.exports = {

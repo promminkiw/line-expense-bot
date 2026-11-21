@@ -8,6 +8,7 @@ import {
   WEB_COMING_SOON_REPLY,
   FEEDBACK_REPLY,
 } from './fixed-replies.js';
+import { t } from '../i18n/index.js';
 
 const sectionText = (label) => HELP_SECTIONS.find((section) => section.label === label).text;
 const sectionLines = (label) => sectionText(label).split('\n');
@@ -198,5 +199,77 @@ describe('help sections', () => {
 
   it('does not repeat the old single message title', () => {
     expect(HELP_SECTIONS.map((section) => section.text).join('\n')).not.toContain('📒');
+  });
+});
+
+describe('help menu in English', () => {
+  const ids = HELP_SECTIONS.map((section) => section.id);
+
+  it('has a stable ascii id, label and body for every section in both languages', () => {
+    expect(ids).toHaveLength(13);
+    expect(new Set(ids).size).toBe(13);
+    for (const id of ids) {
+      expect(id).toMatch(/^[a-z]+$/);
+      for (const lang of ['th', 'en']) {
+        expect(t(lang, `help.sections.${id}.label`)).not.toBe(`help.sections.${id}.label`);
+        expect(t(lang, `help.sections.${id}.body`).length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('keeps every quick reply label within the 20 character LINE limit and 13 buttons', () => {
+    for (const lang of ['th', 'en']) {
+      const { quickReply } = getHelpReply(lang === 'th' ? 'ช่วยเหลือ' : 'help', lang);
+      expect(quickReply.length).toBeLessThanOrEqual(13);
+      for (const button of quickReply) {
+        expect(button.action.label.length).toBeLessThanOrEqual(20);
+      }
+    }
+  });
+
+  it('sends help <label> from the English buttons and ช่วยเหลือ <label> from the Thai ones', () => {
+    const en = getHelpReply('help', 'en');
+    expect(en.text).toBe(t('en', 'help.menu'));
+    expect(en.quickReply[0].action.text).toBe(`help ${t('en', 'help.sections.record.label')}`);
+    expect(getHelpReply('ช่วยเหลือ', 'th').quickReply[0].action.text).toBe(
+      `ช่วยเหลือ ${t('th', 'help.sections.record.label')}`
+    );
+  });
+
+  it('answers each English button with its English section', () => {
+    for (const id of ids) {
+      const label = t('en', `help.sections.${id}.label`);
+      expect(getHelpReply(`help ${label}`, 'en')).toEqual({ text: t('en', `help.sections.${id}.body`) });
+      expect(getHelpReply(`HELP ${label.toUpperCase()}`, 'en')).toEqual({
+        text: t('en', `help.sections.${id}.body`),
+      });
+    }
+  });
+
+  it('accepts the other language command and labels but replies in the user language', () => {
+    const label = t('en', 'help.sections.summary.label');
+    expect(getHelpReply(`help ${label}`, 'th')).toEqual({ text: t('th', 'help.sections.summary.body') });
+    const thLabel = t('th', 'help.sections.summary.label');
+    expect(getHelpReply(`ช่วยเหลือ ${thLabel}`, 'en')).toEqual({ text: t('en', 'help.sections.summary.body') });
+    expect(getHelpReply('ช่วยเหลือ', 'en').text).toBe(t('en', 'help.menu'));
+    expect(getHelpReply('help', 'th').text).toBe(HELP_MENU_REPLY);
+  });
+
+  it('does not treat other English text as help', () => {
+    expect(getHelpReply('helpful 60', 'en')).toBeNull();
+    expect(getHelpReply('help me', 'en')).toBeNull();
+  });
+
+  it('mentions the language command in the thai and english notification section', () => {
+    expect(t('th', 'help.sections.reminders.body')).toContain('ภาษา');
+    expect(t('en', 'help.sections.reminders.body')).toContain('language');
+  });
+
+  it('translates the fixed replies', () => {
+    const liffUrl = 'https://liff.line.me/1-A';
+    expect(getFixedReply('เปิดเว็บ', {}, 'en')).toBe(t('en', 'menu.webComingSoon'));
+    expect(getFixedReply('เปิดเว็บ', { liffUrl }, 'en')).toBe(t('en', 'menu.webLink', { url: liffUrl }));
+    expect(getFixedReply('เสนอแนะ', {}, 'en')).toContain('https://forms.gle/byku7LUs8qsXWaP18');
+    expect(getFixedReply('เสนอแนะ', {}, 'en')).not.toBe(FEEDBACK_REPLY);
   });
 });
