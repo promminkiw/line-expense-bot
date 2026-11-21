@@ -1,8 +1,9 @@
 ﻿# ดึงผลสแกนล่าสุดของ line-expense-bot จาก SonarQube ไปเก็บที่ .scannerwork/sonar-report.json (git ignore ไว้แล้ว)
 # วิธีใช้ (รันจาก root ของ repo):  powershell -ExecutionPolicy Bypass -File .\scripts\sonar-report.ps1
 # อ่าน token จาก $env:SONAR_TOKEN ถ้าว่างจะถามให้วาง (ซ่อนตัวอักษร วางด้วยคลิกขวา)
+# ตั้ง $env:SONAR_HOST_URL ถ้า SonarQube ไม่ได้อยู่ที่ http://localhost:9000
 
-$server = 'http://localhost:9000'
+$server = if ($env:SONAR_HOST_URL) { $env:SONAR_HOST_URL.TrimEnd('/') } else { 'http://localhost:9000' }
 $project = 'line-expense-bot'
 $outDir = Join-Path (Split-Path $PSScriptRoot -Parent) '.scannerwork'
 $outFile = Join-Path $outDir 'sonar-report.json'
