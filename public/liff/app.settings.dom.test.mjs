@@ -24,10 +24,11 @@ describe('LIFF links between the main page and the bills page', () => {
 });
 
 describe('LIFF notification settings', () => {
-  it('does not ask for the settings before the profile tab opens', async () => {
+  // boot อ่าน settings หนึ่งครั้งเพื่อเอาภาษา ส่วนสวิตช์ยังรอจนเปิดแท็บโปรไฟล์
+  it('does not load the switches before the profile tab opens', async () => {
     const liff = await boot();
 
-    expect(liff.fetched).not.toContain('/api/settings');
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
     expect(byId('notify').hidden).toBe(true);
   });
 
@@ -37,7 +38,8 @@ describe('LIFF notification settings', () => {
     clickTab('profile');
     await settle();
 
-    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
+    // หนึ่งครั้งจาก boot (ภาษา) อีกครั้งจากแผงสวิตช์
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(2);
     expect(byId('notify').hidden).toBe(false);
     expect(byId('notify-body').hidden).toBe(false);
     expect(byId('notify-weekly-summary').checked).toBe(false);
@@ -47,7 +49,7 @@ describe('LIFF notification settings', () => {
     const liff = await boot({ search: '?tab=profile' });
     await settle();
 
-    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(1);
+    expect(liff.fetched.filter((path) => path === '/api/settings')).toHaveLength(2);
     expect(byId('notify-body').hidden).toBe(false);
   });
 

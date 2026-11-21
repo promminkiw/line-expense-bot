@@ -56,6 +56,56 @@ import { createBudgetsPanel } from './budgets/budgets-panel.mjs';
 import { createBudgetsAllPanel } from './budgets/budgets-all-panel.mjs';
 import { createBudgetSheet } from './budgets/budget-sheet.mjs';
 import { createBudgetBulkPanel } from './budgets/budget-bulk-panel.mjs';
+import { applyTranslations } from './i18n/dom.mjs';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, languageFromTag } from './i18n/translate.mjs';
+
+const LANGUAGE_KEY = 'lang';
+
+// storage ใช้ไม่ได้ก็แค่รอภาษาจาก server เหมือนเปิดครั้งแรก
+function readCachedLanguage() {
+  try {
+    const value = localStorage.getItem(LANGUAGE_KEY);
+    return SUPPORTED_LANGUAGES.includes(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberLanguage(language) {
+  try {
+    localStorage.setItem(LANGUAGE_KEY, language);
+  } catch {
+    // ปิด storage ไว้ รอบหน้าจะแวบภาษาไทยก่อนได้คำตอบจาก server
+  }
+}
+
+// apply ตั้งแต่ตอนโหลด module ก่อนรอ LIFF และเครือข่าย ผู้ใช้อังกฤษจะได้ไม่เห็นภาษาไทยแวบ
+let currentLang = applyTranslations(document, readCachedLanguage() ?? DEFAULT_LANGUAGE);
+
+function setLanguage(language) {
+  rememberLanguage(language);
+  if (language === currentLang) return;
+  currentLang = applyTranslations(document, language);
+}
+
+// SDK edge/2 มี getAppLanguage (ภาษาแอป LINE) รุ่นเก่ามีแค่ getLanguage (ภาษาเบราว์เซอร์)
+function lineAppLanguage() {
+  if (typeof liff.getAppLanguage === 'function') return liff.getAppLanguage();
+  if (typeof liff.getLanguage === 'function') return liff.getLanguage();
+  return undefined;
+}
+
+// null = ผู้ใช้ยังไม่เคยเลือก จึงบันทึกภาษาแอป LINE ครั้งเดียวให้บอทใช้ค่าเดียวกัน
+async function syncLanguage() {
+  const settings = await api.getSettings();
+  if (SUPPORTED_LANGUAGES.includes(settings?.language)) {
+    setLanguage(settings.language);
+    return;
+  }
+  const detected = languageFromTag(lineAppLanguage());
+  setLanguage(detected);
+  await api.updateSettings({ language: detected });
+}
 
 const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
@@ -2172,6 +2222,8 @@ async function boot() {
       return;
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
+    // ไม่รอผล หน้าหลักจะได้ไม่ช้าลงอีกหนึ่ง request ระหว่างนี้ใช้ภาษาที่ cache ไว้ โหลดไม่สำเร็จก็คงภาษาเดิม
+    syncLanguage().catch(() => {});
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
     // ส่วนเหล่านี้โหลดตอนเข้าแท็บหรือหน้าย่อย ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
