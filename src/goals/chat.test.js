@@ -41,6 +41,25 @@ describe('parseSavingCommand', () => {
   it.each(['กินข้าว 60', 'ออม', 'ออมเงิน', 'ออม ทริป 10.555', 'สรุปเดือนนี้'])('leaves %s to the other paths', (text) => {
     expect(parseSavingCommand(text)).toBeNull();
   });
+
+  // regex เดิม backtrack แบบ O(n²) ข้อความที่มีช่องว่างยาวใช้เวลาเกือบวินาที
+  it('reads long whitespace-heavy text in linear time', () => {
+    const text = `ออม a${' '.repeat(20000)}!`;
+    const started = performance.now();
+    expect(parseSavingCommand(text)).toBeNull();
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+
+  it.each([
+    ['ออม ทริป\n1000', { name: 'ทริป', amount: 1000 }],
+    ['ออม\nทริป 1000', { name: 'ทริป', amount: 1000 }],
+    ['ออม ทริป 1000บาท', { name: 'ทริป', amount: 1000 }],
+    ['ออม ทริป\nยาว 1000', null],
+    ['ออม ทริป 1000 บาทบาท', null],
+    ['ออม ทริป บาท', null],
+  ])('keeps the old line-break and baht handling for %j', (text, expected) => {
+    expect(parseSavingCommand(text)).toEqual(expected);
+  });
 });
 
 describe('hasOpenGoal', () => {
