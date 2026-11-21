@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import {
   createMessageParser,
   ParseError,
@@ -629,5 +630,92 @@ describe('parseMessage fixed questions by language', () => {
       status: 'clarify',
       question: defaultClarifyQuestion('en'),
     });
+  });
+});
+
+describe('parseMessage prompts per language', () => {
+  const USER_CATEGORIES = { expense: ['ค่าแมว', 'อาหาร', 'อื่นๆ'], income: ['เงินเดือน', 'อื่นๆ'] };
+  const WALLETS = ['เงินสด', 'บัตรเครดิต'];
+  const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+
+  // hash ของ prompt ไทยก่อนเพิ่มภาษาอังกฤษ prompt ไทยต้องเหมือนเดิมทุกตัวอักษร ผล nlu-eval ที่จูนไว้จะได้ไม่เปลี่ยน
+  it('keeps the Thai system prompt byte-identical', async () => {
+    const client = fakeClient(okPayload([item()]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('x');
+    await parse('x', [], { expense: ['ค่าแมว', 'อาหาร', 'อื่นๆ'], income: ['โบนัส', 'อื่นๆ'] }, WALLETS, 'th');
+
+    const [first, second] = client.messages.create.mock.calls.map(([params]) => sha256(params.system));
+    expect(first).toBe('9b43bda23baf24d05ac58fcc96d3b1093f1e2cea65e05c34c291676a31a6d72c');
+    expect(second).toBe('a7acf75916b713c3020f52d4cf1f69fdefd74d6b2586933ae468e5718a53a6b9');
+    expect(client.messages.create.mock.calls[0][0].system).not.toContain('Thai or English');
+  });
+
+  it('gives an English user the English persona and English category names', async () => {
+    const client = fakeClient(okPayload([item({ category: 'Food' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('lunch 60', [], USER_CATEGORIES, [], 'en');
+
+    const { system, output_config: outputConfig } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('- Write as a friendly, casual man who refers to himself as "I" and calls the user "you".');
+    expect(system).toContain('The message may be in Thai or English.');
+    expect(system).toContain('- note is a short English description');
+    expect(system).toContain('- Expense categories: ค่าแมว, Food, Other');
+    expect(system).toContain('- Income categories: Salary, Other');
+    expect(system).toContain('Use "Other" when nothing fits.');
+    expect(system).not.toContain('เฮีย');
+    expect(outputConfig.format.schema.properties.items.items.properties.category.enum).toEqual([
+      'ค่าแมว',
+      'Food',
+      'Other',
+      'Salary',
+    ]);
+  });
+
+  it('maps English category and wallet names from Claude back to the DB names', async () => {
+    const client = fakeClient(
+      okPayload([
+        item({ category: 'Food', wallet: 'Cash' }),
+        item({ category: 'ค่าแมว', wallet: 'บัตรเครดิต' }),
+        item({ type: 'income', category: 'Salary', wallet: '' }),
+        item({ category: 'Other', wallet: 'Cash' }),
+      ])
+    );
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('x', [], USER_CATEGORIES, WALLETS, 'en');
+
+    expect(result.items.map((entry) => [entry.category, entry.wallet])).toEqual([
+      ['อาหาร', 'เงินสด'],
+      ['ค่าแมว', 'บัตรเครดิต'],
+      ['เงินเดือน', ''],
+      ['อื่นๆ', 'เงินสด'],
+    ]);
+    const { system, output_config: outputConfig } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('- Wallets: Cash, บัตรเครดิต');
+    expect(outputConfig.format.schema.properties.items.items.properties.wallet.enum).toEqual(['Cash', 'บัตรเครดิต', '']);
+  });
+
+  it('builds the English prompt from the default categories when none are given', async () => {
+    const client = fakeClient(okPayload([item({ category: 'Travel' })]));
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    const result = await parse('BTS 40', [], undefined, [], 'en');
+
+    expect(client.messages.create.mock.calls[0][0].system).toContain(
+      '- Expense categories: Food, Travel, Shopping, Bills & services, Health, Entertainment, Other'
+    );
+    expect(result.items[0].category).toBe('เดินทาง');
+  });
+
+  it('asks the clarifying question in English for an English user', async () => {
+    const client = fakeClient({ needs_clarification: true, question: 'How much?', items: [] });
+    const parse = createMessageParser({ client, model: 'm', now: NOW });
+
+    await parse('coffee', [], undefined, [], 'en');
+
+    expect(client.messages.create.mock.calls[0][0].system).toContain('write one short English question in question');
   });
 });

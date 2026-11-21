@@ -49,7 +49,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
   async function answerQuestion(text, { userId, lang }) {
     try {
       const [categoryNames, walletNames] = await Promise.all([loadQuestionCategories(userId), loadQuestionWallets(userId)]);
-      const question = await parseQuestion(text, categoryNames, walletNames);
+      const question = await parseQuestion(text, categoryNames, walletNames, lang);
       if (!question.isQuestion) {
         return null;
       }
@@ -207,7 +207,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     }
     const [textCategories, { wallets, failed: walletsFailed }] = await catalogue;
     const choices = walletChoices(wallets);
-    const result = await parseMessage(event.message.text, history, textCategories, choices);
+    const result = await parseMessage(event.message.text, history, textCategories, choices, lang);
     if (result.status === 'intent') {
       // ผู้ใช้เปลี่ยนเรื่องแล้ว บริบทที่ถามกลับค้างไว้ต้องไม่ปนข้อความถัดไป
       if (history.length > 0 || loadFailed) {

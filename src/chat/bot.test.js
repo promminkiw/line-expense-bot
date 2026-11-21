@@ -174,7 +174,7 @@ describe('bot text message', () => {
 
     expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
         user_id: 'user-1',
@@ -231,7 +231,7 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('500000'));
 
     expect(deps.repository.getPendingClarification).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
@@ -259,7 +259,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(deps.replyFlex).toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
@@ -357,7 +357,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
   });
 
   it('keeps only the last 6 turns while the user keeps being asked', async () => {
@@ -554,7 +554,8 @@ describe('bot summary command', () => {
 
     expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-29', '2026-09-29');
     expect(deps.commentSummary).toHaveBeenCalledWith(
-      expect.objectContaining({ label: 'วันนี้ (29/09)', expenseTotal: 105, entryCount: 2 })
+      expect.objectContaining({ label: 'วันนี้ (29/09)', expenseTotal: 105, entryCount: 2 }),
+      'th'
     );
     const [replyToken, flex] = deps.replyFlex.mock.calls[0];
     expect(replyToken).toBe('r1');
@@ -875,7 +876,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -887,7 +888,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.replyText).not.toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES, [], 'th');
   });
 
   it('counts the rate limit once the message falls through to the normal flow', async () => {
@@ -1108,7 +1109,7 @@ describe('bot text categories', () => {
     await bot.handleEvent(textEvent('อาหารแมว 300'));
 
     expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, [], 'th');
   });
 
   // อ่านหมวดและกระเป๋าไปพร้อมกับบริบทแชต ไม่ต้องรอทีละอย่างก่อนเรียก Claude
@@ -1134,7 +1135,7 @@ describe('bot text categories', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES, [], 'th');
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to load text categories',
       { userId: 'user-1' },
@@ -1272,7 +1273,7 @@ describe('bot totals questions', () => {
 
     await bot.handleEvent(textEvent('ค่าแมวเท่าไหร่'));
 
-    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], []);
+    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], [], 'th');
   });
 
   it('uses the default category names when loading them fails', async () => {
@@ -1295,7 +1296,7 @@ describe('bot totals questions', () => {
     await bot.handleEvent(textEvent('ข้าวมันไก่ 50 แพงเท่าไหร่'));
 
     expect(deps.parseQuestion).toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything(), []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything(), [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -1365,7 +1366,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('กาแฟ 60 บัตรเครดิต'));
 
     expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กาแฟ 60 บัตรเครดิต', [], USER_TEXT_CATEGORIES, ['เงินสด', 'บัตรเครดิต']);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กาแฟ 60 บัตรเครดิต', [], USER_TEXT_CATEGORIES, ['เงินสด', 'บัตรเครดิต'], 'th');
   });
 
   it('saves the chosen wallet id, cash as null, and shows the wallet on the card', async () => {
@@ -1405,7 +1406,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to load wallets', { userId: 'user-1' }, expect.any(Error));
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
     expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
     expect(deps.replyFlex.mock.calls[0][1].altText).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
@@ -1426,7 +1427,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('บัญชีเก่าใช้ไปเท่าไหร่'));
 
     expect(deps.repository.listWallets).toHaveBeenCalledWith('user-1');
-    expect(deps.parseQuestion).toHaveBeenCalledWith('บัญชีเก่าใช้ไปเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], ['เงินสด', 'บัญชีเก่า']);
+    expect(deps.parseQuestion).toHaveBeenCalledWith('บัญชีเก่าใช้ไปเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], ['เงินสด', 'บัญชีเก่า'], 'th');
   });
 
   it('asks without wallets when they cannot be loaded for a question', async () => {
@@ -1452,7 +1453,7 @@ describe('bot slip image', () => {
     expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
     expect(deps.downloadImage).toHaveBeenCalledWith('m1');
-    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
+    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' }, 'th');
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
     expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: [SLIP_QUICK_REPLY[1], SLIP_QUICK_REPLY[0]] });
@@ -2979,5 +2980,41 @@ describe('bot replies in English', () => {
     const flex = deps.replyFlex.mock.calls[0][1];
     expect(flex.altText).toBe('Saved ฿500 toward เที่ยวญี่ปุ่น.\nSaved so far: ฿6,000 / ฿50,000 (12%)');
     expect(flex.contents.header.contents[0].text).toBe('Saved toward goal');
+  });
+});
+
+describe('bot passes the user language to Claude', () => {
+  const english = () => ({ users: { ...setup().deps.users, resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'en' }) } });
+
+  it('parses a record with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('lunch 60', [], USER_TEXT_CATEGORIES, [], 'en');
+  });
+
+  it('reads an English totals question with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('how much did I spend this month'));
+
+    expect(deps.parseQuestion).toHaveBeenCalledWith('how much did I spend this month', expect.any(Array), [], 'en');
+  });
+
+  it('comments on a summary in English', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.commentSummary).toHaveBeenCalledWith(expect.objectContaining({ expenseTotal: 105 }), 'en');
+  });
+
+  it('reads a slip with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' }, 'en');
   });
 });

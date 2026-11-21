@@ -42,6 +42,13 @@ function walletIdsByName(wallets) {
   );
 }
 
+// แปลงชื่อกระเป๋าที่ Claude ตอบมา (ชื่อแสดงหรือชื่อ DB) กลับเป็นชื่อใน DB ชื่อที่ผู้ใช้ตั้งตรงตัวมาก่อน
+function walletNameFromDisplay(lang, shown, names) {
+  if (names.includes(shown)) return shown;
+  const wanted = shown.trim().toLowerCase();
+  return names.find((name) => displayWalletName(lang, name).trim().toLowerCase() === wanted) ?? shown;
+}
+
 module.exports = {
   DEFAULT_WALLET_NAME,
   MAX_WALLET_NAME_LENGTH,
@@ -54,4 +61,5 @@ module.exports = {
   walletQuestionNames,
   walletIdsByName,
   displayWalletName,
+  walletNameFromDisplay,
 };

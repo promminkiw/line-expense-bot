@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const { looksLikeQuestion, createQuestionParser, buildQuestionSchema, MAX_KEYWORD_LENGTH } = require('./parse-question.js');
@@ -34,6 +35,18 @@ describe('looksLikeQuestion', () => {
   );
 
   it.each(['กินข้าว 60', 'สรุปเดือนนี้', 'เงินเดือนเข้า 25000', ''])('stops %s', (text) => {
+    expect(looksLikeQuestion(text)).toBe(false);
+  });
+
+  it.each(['How much did I spend this month', 'how much on coffee', 'Total this week', 'what is my total'])(
+    'lets the English question %s through',
+    (text) => {
+      expect(looksLikeQuestion(text)).toBe(true);
+    }
+  );
+
+  // รูปอังกฤษต้องเป็นคำเต็ม ไม่จับคำที่มีคำนี้อยู่ข้างใน
+  it.each(['lunch 60', 'totally 500', 'muchas 60'])('stops the English text %s', (text) => {
     expect(looksLikeQuestion(text)).toBe(false);
   });
 });
@@ -179,5 +192,51 @@ describe('parseQuestion with wallets', () => {
 
     expect((await known.parseQuestion('เท่าไหร่', NAMES, WALLETS)).wallet).toBe('บัตรเครดิต');
     expect((await unknown.parseQuestion('เท่าไหร่', NAMES, WALLETS)).wallet).toBe('');
+  });
+});
+
+describe('parseQuestion prompts per language', () => {
+  const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+  const WALLETS = ['เงินสด', 'บัตรเครดิต'];
+
+  // hash ของ prompt ไทยก่อนเพิ่มภาษาอังกฤษ ต้องเหมือนเดิมทุกตัวอักษร
+  it('keeps the Thai system prompt byte-identical', async () => {
+    const client = fakeClient(answer());
+    const parseQuestion = createQuestionParser({ client, model: 'm', now: () => new Date('2026-09-29T05:00:00Z') });
+
+    await parseQuestion('x', ['อาหาร', 'อื่นๆ']);
+    await parseQuestion('x', ['อาหาร', 'อื่นๆ'], WALLETS, 'th');
+
+    const [first, second] = client.messages.create.mock.calls.map(([params]) => sha256(params.system));
+    expect(first).toBe('b06d837d980ba27f930da3eb9675121b1cdeb03b81f5c36009e4feeb54058116');
+    expect(second).toBe('db4606422298f2dbfaf496eb9b580f72803ba736c5bf345fa8669ca0b618d109');
+  });
+
+  it('sends English names to Claude for an English user', async () => {
+    const { client, parseQuestion } = parserFor(answer());
+
+    await parseQuestion('how much on coffee', [...NAMES, 'ค่าแมว'], WALLETS, 'en');
+
+    const { system, output_config: outputConfig } = client.messages.create.mock.calls[0][0];
+    expect(system).toContain('The message may be in Thai or English.');
+    expect(system).toContain('- Categories: Food, Travel, Other, Salary, ค่าแมว');
+    expect(system).toContain('- Wallets: Cash, บัตรเครดิต');
+    expect(outputConfig.format.schema.properties.category.enum).toEqual(['Food', 'Travel', 'Other', 'Salary', 'ค่าแมว', '']);
+    expect(outputConfig.format.schema.properties.wallet.enum).toEqual(['Cash', 'บัตรเครดิต', '']);
+  });
+
+  it.each([
+    ['Food', 'อาหาร'],
+    ['Salary', 'เงินเดือน'],
+    ['Other', 'อื่นๆ'],
+    ['ค่าแมว', 'ค่าแมว'],
+    ['Pets', ''],
+  ])('maps the English category %s from Claude back to %j', async (category, expected) => {
+    const { parseQuestion } = parserFor(answer({ category, wallet: 'Cash' }));
+
+    const question = await parseQuestion('how much', [...NAMES, 'ค่าแมว'], WALLETS, 'en');
+
+    expect(question.category).toBe(expected);
+    expect(question.wallet).toBe('เงินสด');
   });
 });

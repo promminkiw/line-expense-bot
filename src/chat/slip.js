@@ -40,7 +40,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
       if (image.status !== 'ok') {
         return { reply: { text: t(lang, 'chat.slip.unsupported') } };
       }
-      return { slip: await parseSlip({ data: image.data, mediaType: image.mediaType }) };
+      return { slip: await parseSlip({ data: image.data, mediaType: image.mediaType }, lang) };
     });
     if (outcome.reply) {
       return outcome.reply;

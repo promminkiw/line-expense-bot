@@ -5,6 +5,7 @@ const require = createRequire(import.meta.url);
 const {
   DEFAULT_WALLET_NAME,
   displayWalletName,
+  walletNameFromDisplay,
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
   isDefaultWallet,
@@ -70,5 +71,26 @@ describe('walletsUnreadableNotice', () => {
     expect(walletsUnreadableNotice('th')).toBe('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
     expect(WALLETS_UNREADABLE_NOTICE).toBe(walletsUnreadableNotice('th'));
     expect(walletsUnreadableNotice('en')).toBe("I couldn't read your wallets, so this entry went into Cash. You can change it on the web.");
+  });
+});
+
+describe('walletNameFromDisplay', () => {
+  const NAMES = ['เงินสด', 'บัตรเครดิต', 'Wallet'];
+
+  it.each([
+    ['Cash', 'เงินสด'],
+    ['cash', 'เงินสด'],
+    ['เงินสด', 'เงินสด'],
+    ['บัตรเครดิต', 'บัตรเครดิต'],
+    ['Wallet', 'Wallet'],
+    ['', ''],
+    ['Unknown', 'Unknown'],
+  ])('maps %j back to %j', (shown, expected) => {
+    expect(walletNameFromDisplay('en', shown, NAMES)).toBe(expected);
+  });
+
+  // ผู้ใช้ที่ตั้งกระเป๋าชื่อ Cash เองต้องได้กระเป๋านั้น ไม่ใช่ เงินสด
+  it('prefers a wallet the user named exactly', () => {
+    expect(walletNameFromDisplay('en', 'Cash', ['เงินสด', 'Cash'])).toBe('Cash');
   });
 });

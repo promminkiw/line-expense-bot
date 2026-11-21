@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { createSlipParser, SLIP_SCHEMA } from './parse-slip.js';
 
@@ -291,5 +292,37 @@ describe('createSlipParser', () => {
     await expect(setup('not json').parseSlip(IMAGE)).rejects.toBeInstanceOf(ParseError);
     await expect(setup({ is_slip: 'yes' }).parseSlip(IMAGE)).rejects.toBeInstanceOf(ParseError);
     await expect(setup(slipJson({ direction: 'transfer' })).parseSlip(IMAGE)).rejects.toBeInstanceOf(ParseError);
+  });
+});
+
+describe('createSlipParser prompts per language', () => {
+  const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+  const rejected = { is_slip: false, rejection_kind: 'other', direction: 'paid', amount: 0, date: '', note: '' };
+
+  // hash ของ prompt และข้อความไทยก่อนเพิ่มภาษาอังกฤษ ต้องเหมือนเดิมทุกตัวอักษร
+  it('keeps the Thai request byte-identical', async () => {
+    const { create, parseSlip } = setup(rejected);
+
+    await parseSlip({ data: 'a', mediaType: 'image/png' });
+    await parseSlip({ data: 'a', mediaType: 'image/png' }, 'th');
+
+    for (const [params] of create.mock.calls) {
+      expect(sha256(params.system)).toBe('a30b70930f3c7b52cb7a87818221a3f1fe0919e083a17114bc987693ce06ecb4');
+      expect(sha256(JSON.stringify(params.messages))).toBe('14a9e8c99e396cd5c5d512df769795cf1949faed3a0ba4120b10a1980798bff3');
+    }
+  });
+
+  it('asks an English note for an English user', async () => {
+    const { create, parseSlip } = setup(slipJson({ note: 'Transfer to Rice Shop' }));
+
+    const result = await parseSlip(IMAGE, 'en');
+
+    const { system, messages } = create.mock.calls[0][0];
+    expect(system).toContain('- note is a short English description');
+    expect(system).toContain('"Transfer to <recipient name>"');
+    expect(system).toContain('"Received from <sender name>"');
+    expect(system).not.toContain('โอนให้');
+    expect(messages[0].content[1]).toEqual({ type: 'text', text: 'Read this slip.' });
+    expect(result.items[0]).toMatchObject({ note: 'Transfer to Rice Shop', category: SLIP_CATEGORY });
   });
 });

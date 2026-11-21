@@ -103,7 +103,7 @@ function createSupport({ repository, users, logger, now, commentSummary }) {
       return t(lang, 'chat.noEntriesComment');
     }
     try {
-      return await commentSummary(summary);
+      return await commentSummary(summary, lang);
     } catch (err) {
       // คำอธิบายเป็นส่วนเสริม ยอดจาก SQL ยังส่งได้แม้ Claude ตอบไม่สำเร็จ
       logger.error('Failed to comment summary', { userId }, err);
