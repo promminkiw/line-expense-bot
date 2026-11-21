@@ -11,6 +11,8 @@ const {
   walletChoices,
   walletQuestionNames,
   walletIdsByName,
+  walletsUnreadableNotice,
+  WALLETS_UNREADABLE_NOTICE,
 } = require('./wallets.js');
 
 const CASH = { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true };
@@ -60,5 +62,13 @@ describe('displayWalletName', () => {
     expect(displayWalletName('en', DEFAULT_WALLET_NAME)).toBe('Cash');
     expect(displayWalletName('th', DEFAULT_WALLET_NAME)).toBe(DEFAULT_WALLET_NAME);
     expect(displayWalletName('en', 'บัตรเครดิต')).toBe('บัตรเครดิต');
+  });
+});
+
+describe('walletsUnreadableNotice', () => {
+  it('keeps the Thai notice and names the default wallet in English', () => {
+    expect(walletsUnreadableNotice('th')).toBe('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
+    expect(WALLETS_UNREADABLE_NOTICE).toBe(walletsUnreadableNotice('th'));
+    expect(walletsUnreadableNotice('en')).toBe("I couldn't read your wallets, so this entry went into Cash. You can change it on the web.");
   });
 });

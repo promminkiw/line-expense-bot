@@ -8,6 +8,9 @@ import {
   AMOUNT_TOO_LARGE_QUESTION,
   MAX_AMOUNT,
   INTENTS,
+  toParseResult,
+  defaultClarifyQuestion,
+  amountTooLargeQuestion,
 } from './parse-message.js';
 
 const NOW = () => new Date('2026-09-29T05:00:00Z');
@@ -605,5 +608,26 @@ describe('parseMessage amount expressions', () => {
   it('does not put amount_expression on saved items', async () => {
     const result = await parseItems([item({ amount_expression: '30*2' })]);
     expect(result.items[0]).not.toHaveProperty('amount_expression');
+  });
+});
+
+describe('parseMessage fixed questions by language', () => {
+  it('keeps the Thai wording and has the English one', () => {
+    expect(defaultClarifyQuestion('th')).toBe('บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"');
+    expect(defaultClarifyQuestion('en')).toBe('Tell me again what you want to record and how much, like "lunch 60".');
+    expect(amountTooLargeQuestion('en')).toBe("That's over the limit I can record (฿10,000,000 max per entry).");
+    expect(DEFAULT_CLARIFY_QUESTION).toBe(defaultClarifyQuestion('th'));
+  });
+
+  it('asks the fixed questions in the language it is given', async () => {
+    const tooLarge = createMessageParser({ client: fakeClient({ needs_clarification: false, question: '', items: [item({ amount: 20000000 })] }), model: 'm', now: NOW });
+    const empty = createMessageParser({ client: fakeClient({ needs_clarification: false, question: '', items: [] }), model: 'm', now: NOW });
+
+    expect(await tooLarge('house 20000000', [], undefined, [], 'en')).toEqual({ status: 'clarify', question: amountTooLargeQuestion('en') });
+    expect(await empty('hmm', [], undefined, [], 'en')).toEqual({ status: 'clarify', question: defaultClarifyQuestion('en') });
+    expect(toParseResult({ needs_clarification: true, question: '', items: [] }, '2026-09-29', undefined, [], 'en')).toEqual({
+      status: 'clarify',
+      question: defaultClarifyQuestion('en'),
+    });
   });
 });

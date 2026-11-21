@@ -1,13 +1,10 @@
 const { BILL_CONFIRM_ACTION, BILL_DECLINE_ACTION } = require('../bills/flex');
-const { formatAmount } = require('../parser/format-reply');
+const { t, formatAmount } = require('../i18n');
+const { displayCategoryName } = require('../parser/categories');
 const { UUID_PATTERN } = require('../utils/uuid');
 const { LANGUAGE_ACTION } = require('./language');
 const {
-  UNDO_DONE_REPLY,
-  UNDO_NOT_FOUND_REPLY,
-  UNDO_SAVING_DONE_REPLY,
-  UNDO_SAVING_NOT_FOUND_REPLY,
-  BILL_REPLIES,
+  billStatusReply,
   SLIP_SAVE_ACTION,
   SLIP_CANCEL_ACTION,
   UNDO_ACTION,
@@ -17,38 +14,40 @@ const {
 function createPostbackHandlers({ repository, bills, slip, language }) {
   const { handleSlipSave, handleSlipCancel } = slip;
 
-  async function handleUndo(params, { userId }) {
+  async function handleUndo(params, { userId, lang }) {
     const webhookEventId = params.get('event');
     if (!webhookEventId) {
       return null;
     }
     const deleted = await repository.deleteTransactionsByEvent(userId, webhookEventId);
-    return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
+    return { text: t(lang, deleted > 0 ? 'chat.undo.done' : 'chat.undo.notFound') };
   }
 
-  async function handleUndoSaving(params, { userId }) {
+  async function handleUndoSaving(params, { userId, lang }) {
     const webhookEventId = params.get('event');
     if (!webhookEventId) {
       return null;
     }
     const deleted = await repository.deleteGoalContributionsByEvent(userId, webhookEventId);
-    return { text: deleted > 0 ? UNDO_SAVING_DONE_REPLY : UNDO_SAVING_NOT_FOUND_REPLY };
+    return { text: t(lang, deleted > 0 ? 'chat.undoSaving.done' : 'chat.undoSaving.notFound') };
   }
 
   // การ์ดบิลอาจถูกกดซ้ำหรือกดอีกปุ่มทีหลัง จึงตอบตามสถานะที่ DB คืนมาเสมอ
-  async function handleBillAnswer(params, { userId }, answer) {
+  async function handleBillAnswer(params, { userId, lang }, answer) {
     const result = await bills.respond(userId, params.get('bill'), answer);
     if (result.status === 'confirmed') {
-      return { text: `เฮียบันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
+      // ส่วนแบ่งบิลบันทึกเป็นรายจ่ายเสมอ
+      const category = displayCategoryName(lang, 'expense', result.categoryName);
+      return { text: t(lang, 'chat.bill.confirmed', { amount: formatAmount(lang, result.share), category }) };
     }
     // การ์ดเก่าแก้ไม่ได้ เมื่อตอบไปแล้ว (เช่นในเว็บ) จึงบอกชื่อบิลให้รู้ว่าไม่ต้องกดอีก
     if (result.status === 'already_confirmed' && result.title) {
-      return { text: `คุณยืนยันบิล ${result.title} ไปแล้ว (ส่วนของคุณ ${formatAmount(result.share)} บาท) ไม่ต้องกดอีก` };
+      return { text: t(lang, 'chat.bill.alreadyConfirmedTitled', { title: result.title, amount: formatAmount(lang, result.share) }) };
     }
     if (result.status === 'already_declined' && result.title) {
-      return { text: `คุณปฏิเสธบิล ${result.title} ไปแล้ว ไม่ต้องกดอีก` };
+      return { text: t(lang, 'chat.bill.alreadyDeclinedTitled', { title: result.title }) };
     }
-    return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
+    return { text: billStatusReply(lang, result.status) };
   }
 
   async function handlePostback(event, user) {
@@ -75,7 +74,7 @@ function createPostbackHandlers({ repository, bills, slip, language }) {
     if (action === BILL_CONFIRM_ACTION || action === BILL_DECLINE_ACTION) {
       // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงตอบว่าไม่พบโดยไม่ส่งไปถึง DB
       if (!UUID_PATTERN.test(params.get('bill') || '')) {
-        return { text: BILL_REPLIES.not_found };
+        return { text: billStatusReply(user.lang, 'not_found') };
       }
       return handleBillAnswer(params, user, action === BILL_CONFIRM_ACTION ? 'confirm' : 'decline');
     }

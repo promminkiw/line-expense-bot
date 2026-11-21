@@ -14,20 +14,14 @@ const {
   findOpenGoal,
   formatGoalNotFoundReply,
   formatGoalNameMissingReply,
-  SAVING_AMOUNT_REPLY,
-  GOAL_GONE_REPLY,
+  savingAmountReply,
+  goalGoneReply,
 } = require('../goals/chat');
 const { toBangkokDateString } = require('../utils/date');
+const { t } = require('../i18n');
 const { parseLanguageCommand } = require('./language');
-const { DEFAULT_CLARIFY_QUESTION } = require('../parser/parse-message');
+const { defaultClarifyQuestion } = require('../parser/parse-message');
 const {
-  RATE_LIMITED_REPLY,
-  QUESTION_FAILED_REPLY,
-  SUMMARY_MENU_REPLY,
-  SUMMARY_OTHER_PERIOD_HINT,
-  GREETING_REPLY,
-  NO_OPEN_GOAL_REPLY,
-  UNSUPPORTED_REPLIES,
   withLink,
   buildUndoSavingQuickReply,
   buildSavedReply,
@@ -52,7 +46,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
   } = support;
 
   // ไม่ส่งต่อไปบันทึกรายการเมื่อพัง เพราะคำถามที่มีวันที่ เช่น "1-15 ต.ค. ใช้ไปเท่าไหร่" อาจกลายเป็นรายการ 15 บาท
-  async function answerQuestion(text, userId) {
+  async function answerQuestion(text, { userId, lang }) {
     try {
       const [categoryNames, walletNames] = await Promise.all([loadQuestionCategories(userId), loadQuestionWallets(userId)]);
       const question = await parseQuestion(text, categoryNames, walletNames);
@@ -63,14 +57,15 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
       return { flex: buildTotalsFlex(question, rows, { listUrl: buildTotalsListUrl(question) }) };
     } catch (err) {
       logger.error('Failed to answer totals question', { userId }, err);
-      return { text: QUESTION_FAILED_REPLY };
+      return { text: t(lang, 'chat.questionFailed') };
     }
   }
 
-  async function handleSummary(command, userId) {
+  async function handleSummary(command, { userId, lang }) {
     if (command === 'menu') {
-      return { text: SUMMARY_MENU_REPLY, quickReply: buildSummaryQuickReply() };
+      return { text: t(lang, 'chat.summary.menu'), quickReply: buildSummaryQuickReply(lang) };
     }
+    // ชื่อช่วงเวลาไปอยู่บนการ์ดสรุปซึ่งยังเป็นภาษาไทย จึงยังไม่ส่งภาษา (การ์ดแปลใน Task 7)
     const range = getPeriodRange(command, new Date(now()));
     const rows = await repository.summarizeTransactions(userId, range.from, range.to);
     const summary = buildSummary(rows, range.label);
@@ -78,21 +73,21 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     return { flex: buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl() }) };
   }
 
-  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ผู้เรียกเลือกเอง: คำสั่ง ออม ตรงตัวไปทางปกติ ("ออมสิน 1000" เป็นรายการ) ส่วนทาง intent ตอบ NO_OPEN_GOAL_REPLY
-  async function handleSaving(command, userId, webhookEventId) {
+  // คืน null เมื่อไม่มีเป้าที่เปิดอยู่ ให้ผู้เรียกเลือกเอง: คำสั่ง ออม ตรงตัวไปทางปกติ ("ออมสิน 1000" เป็นรายการ) ส่วนทาง intent ตอบ chat.noOpenGoal
+  async function handleSaving(command, { userId, lang }, webhookEventId) {
     const goals = await repository.listGoals(userId);
     if (!hasOpenGoal(goals)) {
       return null;
     }
     if (command.amount === null) {
-      return { text: SAVING_AMOUNT_REPLY };
+      return { text: savingAmountReply(lang) };
     }
     if (!command.name) {
-      return { text: formatGoalNameMissingReply(goals) };
+      return { text: formatGoalNameMissingReply(goals, lang) };
     }
     const goal = findOpenGoal(goals, command.name);
     if (!goal) {
-      return { text: formatGoalNotFoundReply(command.name, goals) };
+      return { text: formatGoalNotFoundReply(command.name, goals, lang) };
     }
     const result = await repository.addGoalContribution(userId, goal.id, {
       amount: command.amount,
@@ -101,62 +96,64 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     });
     // เป้าอาจถูกปิดจากหน้าเว็บระหว่างอ่านรายชื่อเป้ากับตอนบันทึก
     if (result.status !== 'ok') {
-      return { text: GOAL_GONE_REPLY };
+      return { text: goalGoneReply(lang) };
     }
     return {
       flex: buildSavingFlex(
         { name: goal.name, amount: command.amount, saved: result.saved, target: goal.targetAmount },
-        { buttons: buildUndoSavingQuickReply(webhookEventId), goalsUrl: buildGoalsUrl() }
+        { buttons: buildUndoSavingQuickReply(webhookEventId, lang), goalsUrl: buildGoalsUrl() }
       ),
     };
   }
 
-  function unsupportedReply(kind) {
+  function unsupportedReply(kind, lang) {
     if (kind === 'web') {
-      return getFixedReply('เปิดเว็บ', { liffUrl });
+      return getFixedReply('เปิดเว็บ', { liffUrl }, lang);
     }
     if (kind === 'budget') {
-      return withLink(UNSUPPORTED_REPLIES.budget, buildTabUrl('budgets'));
+      return withLink(t(lang, 'chat.unsupported.budget'), buildTabUrl('budgets'));
     }
     if (kind === 'delete' || kind === 'edit') {
-      return withLink(UNSUPPORTED_REPLIES[kind], buildTabUrl('list'));
+      return withLink(t(lang, `chat.unsupported.${kind}`), buildTabUrl('list'));
     }
-    return UNSUPPORTED_REPLIES.other;
+    return t(lang, 'chat.unsupported.other');
   }
 
-  async function handleIntent(result, text, userId, webhookEventId, askedQuestion) {
+  async function handleIntent(result, text, user, webhookEventId, askedQuestion) {
+    const { lang } = user;
     switch (result.intent) {
       case 'question': {
         // parseQuestion ตอบไปแล้วว่าไม่ใช่คำถาม ไม่ถามซ้ำให้เสีย call
         if (askedQuestion) {
-          return { text: DEFAULT_CLARIFY_QUESTION };
+          return { text: defaultClarifyQuestion(lang) };
         }
-        return (await answerQuestion(text, userId)) ?? { text: DEFAULT_CLARIFY_QUESTION };
+        return (await answerQuestion(text, user)) ?? { text: defaultClarifyQuestion(lang) };
       }
       case 'summary':
         if (result.period === 'other') {
           return {
-            text: `${SUMMARY_MENU_REPLY}\n${withLink(SUMMARY_OTHER_PERIOD_HINT, buildSummaryUrl())}`,
-            quickReply: buildSummaryQuickReply(),
+            text: `${t(lang, 'chat.summary.menu')}\n${withLink(t(lang, 'chat.summary.otherPeriodHint'), buildSummaryUrl())}`,
+            quickReply: buildSummaryQuickReply(lang),
           };
         }
-        return handleSummary(result.period, userId);
+        return handleSummary(result.period, user);
       case 'help':
-        return getHelpReply('ช่วยเหลือ');
+        return getHelpReply('ช่วยเหลือ', lang);
       case 'saving':
         return (
-          (await handleSaving({ name: result.name, amount: result.amount }, userId, webhookEventId)) ?? {
-            text: NO_OPEN_GOAL_REPLY,
+          (await handleSaving({ name: result.name, amount: result.amount }, user, webhookEventId)) ?? {
+            text: t(lang, 'chat.noOpenGoal'),
           }
         );
       case 'greeting':
-        return { text: GREETING_REPLY };
+        return { text: t(lang, 'chat.greeting') };
       default:
-        return { text: unsupportedReply(result.kind) };
+        return { text: unsupportedReply(result.kind, lang) };
     }
   }
 
-  async function handleText(event, lineUserId, deadline, { userId, lang }) {
+  async function handleText(event, lineUserId, deadline, user) {
+    const { userId, lang } = user;
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
@@ -173,30 +170,30 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     // คำสั่งออมไม่เรียก Claude จึงไม่นับ rate limit และต้องมาก่อนทางบันทึกรายการ ไม่งั้นยอดออมจะกลายเป็นรายจ่าย
     const savingCommand = parseSavingCommand(event.message.text);
     if (savingCommand) {
-      const savingReply = await handleSaving(savingCommand, userId, event.webhookEventId);
+      const savingReply = await handleSaving(savingCommand, user, event.webhookEventId);
       if (savingReply) {
         return savingReply;
       }
     }
     // ปุ่มเมนูตอบข้อความคงที่ ไม่เรียก Claude จึงไม่ต้องนับ rate limit
-    const helpReply = getHelpReply(event.message.text);
+    const helpReply = getHelpReply(event.message.text, lang);
     if (helpReply) {
       return helpReply;
     }
-    const fixedReply = getFixedReply(event.message.text, { liffUrl });
+    const fixedReply = getFixedReply(event.message.text, { liffUrl }, lang);
     if (fixedReply) {
       return { text: fixedReply };
     }
     const summaryCommand = parseSummaryCommand(event.message.text);
     // เมนูสรุปเป็นแค่ปุ่มเลือกช่วงเวลา ไม่เรียก Claude จึงไม่นับ rate limit
     if (summaryCommand === 'menu') {
-      return handleSummary(summaryCommand, userId);
+      return handleSummary(summaryCommand, user);
     }
     if (!allowRequest(lineUserId)) {
-      return { text: RATE_LIMITED_REPLY };
+      return { text: t(lang, 'chat.rateLimited') };
     }
     if (summaryCommand) {
-      return handleSummary(summaryCommand, userId);
+      return handleSummary(summaryCommand, user);
     }
     // อ่านไปพร้อมกับบริบทแชต สองตัวนี้ไม่ throw เพราะจับ error แล้วใช้ค่าสำรองเอง
     const catalogue = Promise.all([loadTextCategories(userId), loadTextWallets(userId)]);
@@ -204,7 +201,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     // ระหว่างที่บอทถามกลับ ข้อความถัดไปคือคำตอบของรายการเดิม จึงไม่ตีความเป็นคำถามยอด
     const askedQuestion = history.length === 0 && looksLikeQuestion(event.message.text);
     if (askedQuestion) {
-      const answer = await answerQuestion(event.message.text, userId);
+      const answer = await answerQuestion(event.message.text, user);
       if (answer) {
         return answer;
       }
@@ -217,7 +214,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
       if (history.length > 0 || loadFailed) {
         await forgetConversation(userId);
       }
-      return handleIntent(result, event.message.text, userId, event.webhookEventId, askedQuestion);
+      return handleIntent(result, event.message.text, user, event.webhookEventId, askedQuestion);
     }
     if (result.status === 'clarify') {
       // ผู้ใช้ไม่เคยเห็นคำถามนี้ จึงไม่จำไว้เป็นบริบทของข้อความถัดไป
@@ -252,7 +249,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
       await forgetConversation(userId);
     }
     const budget = await checkBudgets(userId, rows);
-    return { flex: buildSavedReply(items, budget, event.webhookEventId, buildEditUrls(rows, ids), { walletReadFailed: walletsFailed }) };
+    return { flex: buildSavedReply(items, budget, event.webhookEventId, buildEditUrls(rows, ids), { walletReadFailed: walletsFailed, lang }) };
   }
 
   return { handleText };

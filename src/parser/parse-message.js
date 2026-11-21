@@ -3,9 +3,19 @@ const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 const { withLowEffort } = require('../utils/claude-effort');
 const { PERSONA_PROMPT } = require('../persona');
 const { evaluateAmountExpression } = require('./amount-expression');
+const { t } = require('../i18n');
 
-const DEFAULT_CLARIFY_QUESTION = 'บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"';
-const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)';
+function defaultClarifyQuestion(lang) {
+  return t(lang, 'parser.clarifyDefault');
+}
+
+function amountTooLargeQuestion(lang) {
+  return t(lang, 'parser.amountTooLarge');
+}
+
+// ค่าไทยคงไว้ให้ผู้เรียกที่ยังไม่ส่งภาษา
+const DEFAULT_CLARIFY_QUESTION = defaultClarifyQuestion('th');
+const AMOUNT_TOO_LARGE_QUESTION = amountTooLargeQuestion('th');
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
@@ -143,13 +153,13 @@ function normalizeItem(item, today, categories, wallets) {
   return normalized;
 }
 
-function toParseResult(data, today, categories, wallets = []) {
+function toParseResult(data, today, categories, wallets = [], lang = 'th') {
   if (data.needs_clarification === true) {
-    return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
+    return { status: 'clarify', question: data.question || defaultClarifyQuestion(lang) };
   }
 
   if (data.items.some((item) => Number.isFinite(item.amount) && item.amount > MAX_AMOUNT)) {
-    return { status: 'clarify', question: AMOUNT_TOO_LARGE_QUESTION };
+    return { status: 'clarify', question: amountTooLargeQuestion(lang) };
   }
 
   const hasInvalidAmount = data.items.some(
@@ -160,7 +170,7 @@ function toParseResult(data, today, categories, wallets = []) {
       Math.round(item.amount * 100) === 0
   );
   if (data.items.length === 0 || hasInvalidAmount) {
-    return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
+    return { status: 'clarify', question: defaultClarifyQuestion(lang) };
   }
 
   return { status: 'ok', items: data.items.map((item) => normalizeItem(item, today, categories, wallets)) };
@@ -221,7 +231,7 @@ function resolveAmountExpressions(data) {
 }
 
 function createMessageParser({ client, model, now = () => new Date() }) {
-  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = []) {
+  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = [], lang = 'th') {
     const today = toBangkokDateString(now());
     // ใช้ schema ที่สร้างไว้แล้วเมื่อเป็นหมวดเริ่มต้นและไม่มีกระเป๋า ไม่ต้องสร้างใหม่ทุกข้อความ
     const schema =
@@ -270,7 +280,7 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     if (intentResult) {
       return intentResult;
     }
-    return toParseResult(resolveAmountExpressions(data), today, categories, wallets);
+    return toParseResult(resolveAmountExpressions(data), today, categories, wallets, lang);
   };
 }
 
@@ -281,6 +291,8 @@ module.exports = {
   buildParseSchema,
   DEFAULT_CLARIFY_QUESTION,
   AMOUNT_TOO_LARGE_QUESTION,
+  defaultClarifyQuestion,
+  amountTooLargeQuestion,
   MAX_AMOUNT,
   REQUEST_TIMEOUT_MS,
   MAX_RETRIES,

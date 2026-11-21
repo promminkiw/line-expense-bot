@@ -1,5 +1,6 @@
 // ฟังก์ชันแปลชื่อแสดงอยู่ในไฟล์ ESM เดียวกับที่เว็บใช้ เพราะ LIFF import src/ (CommonJS) ไม่ได้
 const { displayWalletName } = require('../../public/liff/i18n/names.mjs');
+const { t } = require('../i18n');
 
 // รายการที่ wallet_id เป็น null อยู่ในกระเป๋านี้ ต้องตรงกับชื่อใน supabase/024_wallets.sql
 const DEFAULT_WALLET_NAME = 'เงินสด';
@@ -10,7 +11,12 @@ const MAX_VISIBLE_WALLETS = 10;
 const MAX_TOTAL_WALLETS = 20;
 
 // ขึ้นบนการ์ดบันทึกเมื่ออ่านกระเป๋าไม่ได้และรายการไปอยู่ในกระเป๋าตั้งต้น
-const WALLETS_UNREADABLE_NOTICE = 'เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+function walletsUnreadableNotice(lang) {
+  return t(lang, 'wallet.unreadableNotice', { wallet: displayWalletName(lang, DEFAULT_WALLET_NAME) });
+}
+
+// ค่าไทยคงไว้ให้การ์ดที่ยังไม่ส่งภาษา
+const WALLETS_UNREADABLE_NOTICE = walletsUnreadableNotice('th');
 
 function isDefaultWallet(name) {
   return name === DEFAULT_WALLET_NAME;
@@ -42,6 +48,7 @@ module.exports = {
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
   WALLETS_UNREADABLE_NOTICE,
+  walletsUnreadableNotice,
   isDefaultWallet,
   walletChoices,
   walletQuestionNames,

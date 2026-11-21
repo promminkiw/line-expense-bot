@@ -28,6 +28,7 @@ import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } f
 import { TEXT_CATEGORIES } from '../parser/categories.js';
 import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from '../goals/chat.js';
 import { DEFAULT_CLARIFY_QUESTION } from '../parser/parse-message.js';
+import { t } from '../i18n/index.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
@@ -2662,5 +2663,266 @@ describe('bot language switch', () => {
     expect(deps.users.resolveUser).toHaveBeenCalledTimes(1);
     expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.users.ensureUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot replies in English', () => {
+  const LIFF_URL = 'https://liff.line.me/liff-1';
+  const BILL = '55555555-5555-5555-5555-555555555555';
+  const english = () => vi.fn().mockResolvedValue({ userId: 'user-1', language: 'en' });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function deferred() {
+    let resolve;
+    const promise = new Promise((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  }
+
+  function setupEn(overrides = {}) {
+    const base = setup().deps;
+    return setup({ ...overrides, users: { ...base.users, resolveUser: english(), ...overrides.users } });
+  }
+
+  function setupEnIntent(result, overrides = {}) {
+    return setupEn({ parseMessage: vi.fn().mockResolvedValue({ status: 'intent', ...result }), ...overrides });
+  }
+
+  it('says the rate limit in English', async () => {
+    const { deps, bot } = setupEn({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.rateLimited'), undefined);
+  });
+
+  it('says the system error in English once the user is known', async () => {
+    const { deps, bot } = setupEn({ parseMessage: vi.fn().mockRejectedValue(new Error('boom')) });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.systemError'), undefined);
+  });
+
+  it('falls back to Thai for the system error when the user cannot be resolved', async () => {
+    const { deps, bot } = setupEn({ users: { resolveUser: vi.fn().mockRejectedValue(new Error('db down')) } });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('says the slow message in English at the deadline', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setupEn({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('lunch 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.slowProcessing'), undefined);
+    parse.resolve({ status: 'ok', items: [FOOD_ITEM] });
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('says the slow message in Thai when the user lookup itself hangs', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setupEn({ users: { resolveUser: vi.fn(() => new Promise(() => {})) }, replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('lunch 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+  });
+
+  it('answers the undo buttons in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.deleteGoalContributionsByEvent.mockResolvedValue(0);
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
+    await bot.handleEvent(postbackEvent('action=undo_saving&event=ev1'));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'Deleted it for you.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.undoSaving.notFound'), undefined);
+  });
+
+  it('confirms a bill share in English with the default category name translated', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'Recorded your share of ฿300 under Food.', undefined);
+  });
+
+  it('answers the other bill outcomes in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.bills.respond.mockResolvedValueOnce({ status: 'already_confirmed', title: 'BBQ', share: 200 });
+    deps.bills.respond.mockResolvedValueOnce({ status: 'declined' });
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+    await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
+    await bot.handleEvent(postbackEvent('action=bill_confirm&bill=nope'));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'You already confirmed the bill BBQ (your share is ฿200). No need to tap again.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.bill.declined'), undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(3, 'r2', "I can't find this bill.", undefined);
+  });
+
+  it('answers slip problems in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.downloadImage.mockResolvedValueOnce({ status: 'too_large' }).mockResolvedValueOnce({ status: 'unsupported' });
+    deps.parseSlip.mockResolvedValueOnce({ status: 'unreadable', reason: 'blurry' });
+
+    await bot.handleEvent(imageEvent({ eventId: 'a' }));
+    await bot.handleEvent(imageEvent({ eventId: 'b' }));
+    await bot.handleEvent(imageEvent({ eventId: 'c' }));
+
+    expect(deps.replyText.mock.calls.map((call) => call[1])).toEqual([
+      t('en', 'chat.slip.tooLarge'),
+      t('en', 'chat.slip.unsupported'),
+      t('en', 'chat.slip.unreadable'),
+    ]);
+  });
+
+  it('labels the slip buttons in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(replyFlexOf(deps).quickReply.map((button) => button.action.displayText).sort()).toEqual(['Cancel', 'Save']);
+  });
+
+  it('answers slip cancel and expired slips in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.claimPendingSlip.mockResolvedValueOnce({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }).mockResolvedValueOnce(null);
+
+    await bot.handleEvent(postbackEvent(`action=slip_cancel&slip=${SLIP_ID}`));
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'Cancelled the slip. Nothing was saved.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.slip.expired'), undefined);
+  });
+
+  it('shows the summary menu in English with English command buttons', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('summary'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Which period should I sum up?', [
+      { type: 'action', action: { type: 'message', label: 'Today', text: 'summary today' } },
+      { type: 'action', action: { type: 'message', label: 'This week', text: 'summary this week' } },
+      { type: 'action', action: { type: 'message', label: 'This month', text: 'summary this month' } },
+    ]);
+  });
+
+  it.each(['summary this week', 'สรุปสัปดาห์นี้'])('sums up the week for %j without asking Claude to parse it', async (text) => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent(text));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-28', '2026-09-29');
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('takes the English summary command from a Thai user too', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('Summary Today'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-29', '2026-09-29');
+  });
+
+  it('answers help with the English help menu', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('help'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'help.menu'), expect.any(Array));
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('saves to a goal with the English save command', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', { amount: 1000, occurredOn: '2026-09-29', lineEventId: 'ev1' });
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('answers saving problems in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.addGoalContribution.mockResolvedValueOnce({ status: 'closed' });
+
+    await bot.handleEvent(textEvent('save Condo 1000', { eventId: 'a' }));
+    await bot.handleEvent(textEvent('save 1000', { eventId: 'b' }));
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 0', { eventId: 'c' }));
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 10', { eventId: 'd' }));
+
+    expect(deps.replyText.mock.calls.map((call) => call[1])).toEqual([
+      'I can\'t find the goal "Condo".\nOpen goals: เที่ยวญี่ปุ่น\nType something like: save เที่ยวญี่ปุ่น 1000',
+      'Tell me the goal name too, like: save เที่ยวญี่ปุ่น 1000\nOpen goals: เที่ยวญี่ปุ่น',
+      t('en', 'goals.savingAmountInvalid'),
+      t('en', 'goals.gone'),
+    ]);
+  });
+
+  it.each([
+    [{ intent: 'greeting' }, () => t('en', 'chat.greeting')],
+    [{ intent: 'unsupported', kind: 'other' }, () => t('en', 'chat.unsupported.other')],
+    [{ intent: 'unsupported', kind: 'budget' }, () => `${t('en', 'chat.unsupported.budget')}\n${LIFF_URL}?tab=budgets`],
+    [{ intent: 'unsupported', kind: 'edit' }, () => `${t('en', 'chat.unsupported.edit')}\n${LIFF_URL}?tab=list`],
+    [{ intent: 'unsupported', kind: 'web' }, () => t('en', 'menu.webLink', { url: LIFF_URL })],
+  ])('answers the intent %j in English', async (result, expected) => {
+    const { deps, bot } = setupEnIntent(result, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent('something'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', expected(), undefined);
+  });
+
+  it('says there is no open goal in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'saving', name: 'Trip', amount: 500 });
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('put 500 in my trip goal'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.noOpenGoal'), undefined);
+  });
+
+  it('points other summary periods to the web in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'summary', period: 'other' }, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent('summary for last year'));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      `Which period should I sum up?\n${t('en', 'chat.summary.otherPeriodHint')}\n${LIFF_URL}?tab=summary`,
+      expect.any(Array)
+    );
+  });
+
+  it('asks again in English when a question intent cannot be answered', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+
+    await bot.handleEvent(textEvent('hmm'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Tell me again what you want to record and how much, like "lunch 60".', undefined);
+  });
+
+  it('says a failed totals question in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+    deps.repository.queryTotals.mockRejectedValue(new Error('db down'));
+    deps.parseQuestion.mockResolvedValue({ isQuestion: true, type: 'expense', category: '', keyword: '', from: '2026-09-01', to: '2026-09-29' });
+
+    await bot.handleEvent(textEvent('spending this month'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.questionFailed'), undefined);
   });
 });

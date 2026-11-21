@@ -1,16 +1,8 @@
 const { createConcurrencyLimit } = require('../slip/concurrency-limit');
 const { buildSlipConfirmFlex } = require('../parser/saved-flex');
 const { toTransactionRows } = require('../db/transaction-rows');
-const {
-  RATE_LIMITED_REPLY,
-  SLIP_UNREADABLE_REPLY,
-  SLIP_TOO_LARGE_REPLY,
-  SLIP_UNSUPPORTED_REPLY,
-  SLIP_EXPIRED_REPLY,
-  SLIP_CANCELLED_REPLY,
-  buildSavedReply,
-  buildSlipQuickReply,
-} = require('./replies');
+const { t } = require('../i18n');
+const { buildSavedReply, buildSlipQuickReply } = require('./replies');
 
 // เกินเวลานี้ปุ่มบันทึกของสลิปใช้ไม่ได้ กันกดสลิปเก่าค้างแชตโดยไม่ตั้งใจ
 const SLIP_TTL_MS = 10 * 60 * 1000;
@@ -31,22 +23,22 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     }
   }
 
-  async function handleImage(event, lineUserId, { userId }) {
+  async function handleImage(event, lineUserId, { userId, lang }) {
     // LINE ส่ง event เดิมซ้ำได้ จึงจอง event ก่อนเรียก Claude เพื่อไม่ให้ตอบและเสียค่าอ่านซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
       return null;
     }
     if (!allowRequest(lineUserId)) {
-      return { text: RATE_LIMITED_REPLY };
+      return { text: t(lang, 'chat.rateLimited') };
     }
     const outcome = await runSlipTask(async () => {
       const image = await downloadImage(event.message.id);
       if (image.status === 'too_large') {
-        return { reply: { text: SLIP_TOO_LARGE_REPLY } };
+        return { reply: { text: t(lang, 'chat.slip.tooLarge') } };
       }
       if (image.status !== 'ok') {
-        return { reply: { text: SLIP_UNSUPPORTED_REPLY } };
+        return { reply: { text: t(lang, 'chat.slip.unsupported') } };
       }
       return { slip: await parseSlip({ data: image.data, mediaType: image.mediaType }) };
     });
@@ -63,14 +55,14 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
         rejectedAmounts: slip.rejectedAmounts,
         rejectionKind: slip.rejectionKind,
       });
-      return { text: SLIP_UNREADABLE_REPLY };
+      return { text: t(lang, 'chat.slip.unreadable') };
     }
     await clearExpiredSlips(userId);
     const slipId = await repository.savePendingSlip(userId, event.webhookEventId, slip.items);
     return {
       flex: buildSlipConfirmFlex(slip.items, {
         dateAssumed: slip.dateAssumed,
-        buttons: buildSlipQuickReply(slipId),
+        buttons: buildSlipQuickReply(slipId, lang),
       }),
     };
   }
@@ -85,7 +77,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     return repository.claimEvent(event.webhookEventId, userId);
   }
 
-  async function handleSlipSave(event, params, { userId }) {
+  async function handleSlipSave(event, params, { userId, lang }) {
     if (!(await claimPostback(event, userId))) {
       return null;
     }
@@ -93,7 +85,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     const categoryIds = await users.loadCategoryIds(userId);
     const slip = await claimSlip(params, userId);
     if (!slip) {
-      return { text: SLIP_EXPIRED_REPLY };
+      return { text: t(lang, 'chat.slip.expired') };
     }
     const rows = toTransactionRows({
       items: slip.items,
@@ -104,15 +96,15 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     });
     const ids = await repository.insertTransactions(rows);
     const budget = await checkBudgets(userId, rows);
-    return { flex: buildSavedReply(slip.items, budget, slip.webhookEventId, buildEditUrls(rows, ids)) };
+    return { flex: buildSavedReply(slip.items, budget, slip.webhookEventId, buildEditUrls(rows, ids), { lang }) };
   }
 
-  async function handleSlipCancel(event, params, { userId }) {
+  async function handleSlipCancel(event, params, { userId, lang }) {
     if (!(await claimPostback(event, userId))) {
       return null;
     }
     const slip = await claimSlip(params, userId);
-    return { text: slip ? SLIP_CANCELLED_REPLY : SLIP_EXPIRED_REPLY };
+    return { text: t(lang, slip ? 'chat.slip.cancelled' : 'chat.slip.expired') };
   }
 
   return { handleImage, handleSlipSave, handleSlipCancel };
