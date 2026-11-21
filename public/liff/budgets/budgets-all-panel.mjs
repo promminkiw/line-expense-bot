@@ -1,12 +1,11 @@
 import { createSvgIcon } from '../ui/icons.mjs';
 import { setSuccessStatus } from '../ui/success-mark.mjs';
-import { describeDiff, filterBudgetRows, formatNumber, groupBudgetRows, sectionsForTab, sortBudgetRows } from './budgets-format.mjs';
+import { budgetCategoryName, describeDiff, filterBudgetRows, formatNumber, groupBudgetRows, sectionsForTab, sortBudgetRows } from './budgets-format.mjs';
+import { formatBaht } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
-const TABS = [
-  { id: 'risk', label: 'ต้องดูแล' },
-  { id: 'calm', label: 'ปกติ' },
-  { id: 'unset', label: 'ไม่มีงบ' },
-];
+const TABS = ['risk', 'calm', 'unset'];
 const MARKS = { over: 'icon-close', warn: 'icon-alert', ok: 'icon-check' };
 
 function node(doc, tag, className, text) {
@@ -21,7 +20,8 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
   let focusId = null;
   const state = { tab: 'risk', query: '', sort: 'usage' };
 
-  function renderRow(row, tab) {
+  function renderRow(row, tab, lang) {
+    const name = budgetCategoryName(row.category, lang);
     const item = node(doc, tab === 'unset' ? 'div' : 'button', 'budget-all-row');
     if (tab !== 'unset') item.type = 'button';
     item.dataset.categoryId = row.categoryId;
@@ -33,22 +33,23 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
       icon.append(dot);
     }
     const text = node(doc, 'span', 'budget-all-text');
-    text.append(node(doc, 'span', 'budget-all-name', row.category));
+    text.append(node(doc, 'span', 'budget-all-name', name));
     text.append(node(doc, 'span', 'budget-all-sub', tab === 'unset'
-      ? `ใช้ไปเดือนนี้ ${formatNumber(row.spent)} บาท`
-      : `ใช้ ${formatNumber(row.spent)} จาก ${formatNumber(row.budget)}`));
+      ? t(lang, 'web.budgets.spentThisMonth', { amount: formatBaht(row.spent, lang) })
+      : t(lang, 'web.budgets.all.usage', { spent: formatNumber(row.spent), budget: formatNumber(row.budget) })));
     item.append(icon, text);
     if (tab === 'unset') {
-      const set = node(doc, 'button', 'budget-all-set', 'ตั้งงบ');
+      const set = node(doc, 'button', 'budget-all-set', t(lang, 'web.budgets.set'));
       set.type = 'button';
-      set.setAttribute('aria-label', `ตั้งงบ ${row.category}`);
+      set.setAttribute('aria-label', t(lang, 'web.budgets.setFor', { name }));
       set.addEventListener('click', () => onEdit(row));
       item.append(set);
     } else {
+      const diff = describeDiff(row, lang);
       const figure = node(doc, 'span', `budget-all-figure level-${row.level}`);
-      figure.append(node(doc, 'span', 'budget-all-pct', `${row.percent}%`), node(doc, 'span', 'budget-all-diff', describeDiff(row)));
+      figure.append(node(doc, 'span', 'budget-all-pct', `${row.percent}%`), node(doc, 'span', 'budget-all-diff', diff));
       item.append(figure, createSvgIcon(doc, 'icon-chevron'));
-      item.setAttribute('aria-label', `${row.category} ใช้ไป ${row.percent}% ของงบ ${describeDiff(row)}`);
+      item.setAttribute('aria-label', t(lang, 'web.budgets.all.rowLabel', { name, percent: row.percent, diff }));
       item.addEventListener('click', () => onEdit(row));
     }
     if (focusId === row.categoryId) (item.matches('button') ? item : item.querySelector('button')).focus();
@@ -56,34 +57,35 @@ export function createBudgetsAllPanel({ doc, els, badgeFor, onEdit, getMonthLabe
   }
 
   function draw() {
+    const lang = getLang();
     const filtered = {};
-    for (const tab of TABS) filtered[tab.id] = sortBudgetRows(filterBudgetRows(groups[tab.id], state.query), state.sort);
+    for (const tab of TABS) filtered[tab] = sortBudgetRows(filterBudgetRows(groups[tab], state.query, lang), state.sort, lang);
     for (const button of els.tabs.querySelectorAll('button[data-tab]')) {
-      const tab = TABS.find((entry) => entry.id === button.dataset.tab);
-      button.textContent = `${tab.label} ${filtered[tab.id].length}`;
+      const tab = button.dataset.tab;
+      button.textContent = t(lang, 'web.budgets.groupCount', { label: t(lang, `web.budgets.group.${tab}`), count: filtered[tab].length });
       button.setAttribute('aria-pressed', String(button.dataset.tab === state.tab));
     }
-    const total = TABS.reduce((sum, tab) => sum + filtered[tab.id].length, 0);
+    const total = TABS.reduce((sum, tab) => sum + filtered[tab].length, 0);
     const shownRows = filtered[state.tab];
     const trimmed = state.query.trim();
     els.clear.hidden = state.query === '';
     const notFound = total === 0 && trimmed !== '';
     els.empty.hidden = !notFound;
-    els.emptyTitle.textContent = `ไม่พบหมวด "${trimmed}"`;
+    els.emptyTitle.textContent = t(lang, 'web.budgets.all.notFound', { query: trimmed });
     els.list.hidden = notFound;
     els.tabEmpty.hidden = notFound || shownRows.length > 0;
-    const hasAnyRows = TABS.some((tab) => groups[tab.id].length > 0);
+    const hasAnyRows = TABS.some((tab) => groups[tab].length > 0);
     els.bulk.hidden = !hasAnyRows || notFound;
-    els.bulk.textContent = state.tab === 'unset' ? 'ตั้งงบหลายหมวดพร้อมกัน' : 'แก้งบหลายหมวดพร้อมกัน';
-    els.count.textContent = `${getMonthLabel()} · แสดง ${shownRows.length} จาก ${groups[state.tab].length} หมวด`;
+    els.bulk.textContent = t(lang, state.tab === 'unset' ? 'web.budgets.all.bulkSet' : 'web.budgets.all.bulkEdit');
+    els.count.textContent = t(lang, 'web.budgets.all.count', { month: getMonthLabel(), shown: shownRows.length, total: groups[state.tab].length });
     els.list.replaceChildren();
     if (notFound) return;
-    for (const section of sectionsForTab(state.tab, shownRows)) {
+    for (const section of sectionsForTab(state.tab, shownRows, lang)) {
       if (section.title) {
         const level = section.rows[0].level === 'over' ? 'over' : section.rows[0].level === 'warn' ? 'warn' : 'ok';
-        els.list.append(node(doc, 'div', `budget-all-head level-${level}`, `${section.title} ${section.rows.length} หมวด`));
+        els.list.append(node(doc, 'div', `budget-all-head level-${level}`, t(lang, 'web.budgets.all.sectionHead', { title: section.title, count: section.rows.length })));
       }
-      for (const row of section.rows) els.list.append(renderRow(row, state.tab));
+      for (const row of section.rows) els.list.append(renderRow(row, state.tab, lang));
     }
   }
 

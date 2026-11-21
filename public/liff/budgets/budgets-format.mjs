@@ -1,4 +1,7 @@
-import { budgetRows } from '../format.mjs';
+import { budgetRows, formatBaht } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
+import { categoryDisplayName } from '../categories/categories-format.mjs';
 
 // คิดเป็นสตางค์ทั้งหมด กันเศษทศนิยมลอยตอนบวกลบ
 const toSatang = (value) => Math.round(value * 100);
@@ -6,6 +9,11 @@ const round1 = (value) => Math.round(value * 10) / 10;
 
 export function formatNumber(value) {
   return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+// งบมีเฉพาะหมวดรายจ่าย row.category เป็นชื่อใน DB จึงแปลเฉพาะตอนแสดง
+export function budgetCategoryName(category, lang = getLang()) {
+  return categoryDisplayName(lang, { type: 'expense', name: category });
 }
 
 export function levelOfPercent(percent) {
@@ -47,15 +55,17 @@ export function summarizeBudgets(budgets) {
   };
 }
 
-export function describeHero(summary) {
-  const restText = summary.left >= 0 ? `เหลือ ${formatNumber(summary.left)} บาท` : `เกินงบรวม ${formatNumber(-summary.left)} บาท`;
+export function describeHero(summary, lang = getLang()) {
+  const restText = summary.left >= 0
+    ? t(lang, 'web.budgets.hero.left', { amount: formatBaht(summary.left, lang) })
+    : t(lang, 'web.budgets.hero.over', { amount: formatBaht(-summary.left, lang) });
   return { percentText: `${summary.percent}%`, restText, level: summary.level };
 }
 
-export function describeDiff(row) {
+export function describeDiff(row, lang = getLang()) {
   const diff = (toSatang(row.budget) - toSatang(row.spent)) / 100;
-  if (diff < 0) return `เกิน ${formatNumber(-diff)}`;
-  return diff === 0 ? 'เต็มพอดี' : `เหลือ ${formatNumber(diff)}`;
+  if (diff < 0) return t(lang, 'web.budgets.diff.over', { amount: formatNumber(-diff) });
+  return diff === 0 ? t(lang, 'web.budgets.diff.full') : t(lang, 'web.budgets.diff.left', { amount: formatNumber(diff) });
 }
 
 // ส่วนสีแดงเหนือเส้น 100% ตัดที่ 30% ไม่ให้ตัวเลขบนแท่งหลุดกรอบ
@@ -76,30 +86,33 @@ export function pageBudgetRows(rows, page, pageSize = 6) {
   return { items: rows.slice(safePage * pageSize, (safePage + 1) * pageSize), page: safePage, pageCount };
 }
 
-export function filterBudgetRows(rows, query) {
+// ค้นได้ทั้งชื่อที่แสดงและชื่อใน DB ผู้ใช้อังกฤษพิมพ์ food หรือ อาหาร ก็เจอ
+export function filterBudgetRows(rows, query, lang = getLang()) {
   const needle = query.trim().toLowerCase();
   if (!needle) return rows;
-  return rows.filter((row) => row.category.toLowerCase().includes(needle));
+  return rows.filter((row) => `${row.category} ${budgetCategoryName(row.category, lang)}`.toLowerCase().includes(needle));
 }
 
-export function sortBudgetRows(rows, mode) {
+// เรียงตามชื่อที่ผู้ใช้เห็นในภาษานั้น ไม่ใช่ชื่อไทยใน DB
+export function sortBudgetRows(rows, mode, lang = getLang()) {
   const copy = [...rows];
-  if (mode === 'name') return copy.sort((a, b) => a.category.localeCompare(b.category, 'th'));
+  const shown = (row) => budgetCategoryName(row.category, lang);
+  if (mode === 'name') return copy.sort((a, b) => shown(a).localeCompare(shown(b), lang));
   // หมวดที่ไม่ตั้งงบไม่มีเปอร์เซ็นต์ จึงไปท้ายสุด
   return copy.sort((a, b) => (b.percent ?? -1) - (a.percent ?? -1) || b.spent - a.spent);
 }
 
-export function sectionsForTab(tab, rows) {
+export function sectionsForTab(tab, rows, lang = getLang()) {
   let sections;
   if (tab === 'risk') {
     sections = [
-      { title: 'เต็มหรือเกินงบ', rows: rows.filter((row) => row.level === 'over') },
-      { title: 'ใกล้เต็ม', rows: rows.filter((row) => row.level === 'warn') },
+      { title: t(lang, 'web.budgets.section.over'), rows: rows.filter((row) => row.level === 'over') },
+      { title: t(lang, 'web.budgets.section.warn'), rows: rows.filter((row) => row.level === 'warn') },
     ];
   } else if (tab === 'calm') {
     sections = [
-      { title: 'ใช้ 50-79% ของงบ', rows: rows.filter((row) => row.percent >= 50) },
-      { title: 'ใช้ต่ำกว่า 50%', rows: rows.filter((row) => row.percent < 50) },
+      { title: t(lang, 'web.budgets.section.calmHigh'), rows: rows.filter((row) => row.percent >= 50) },
+      { title: t(lang, 'web.budgets.section.calmLow'), rows: rows.filter((row) => row.percent < 50) },
     ];
   } else {
     sections = [{ title: null, rows }];

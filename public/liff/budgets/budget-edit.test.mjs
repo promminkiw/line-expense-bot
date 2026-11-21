@@ -120,3 +120,17 @@ describe('quickChips', () => {
     expect(quickChips({ budget: null, spent: 620.5 })[0].value).toBe(621);
   });
 });
+
+describe('budget edit in English', () => {
+  it('labels the quick chips in English', () => {
+    expect(quickChips({ budget: 3000, spent: 3450 }, 'en').map((chip) => chip.label)).toEqual(['What you spent', '+10%', '+20%']);
+    expect(quickChips({ budget: null, spent: 620 }, 'en').map((chip) => chip.label)).toEqual(['What you spent', 'Round up', 'Round up']);
+  });
+
+  it('describes the preview diff in English', () => {
+    expect(previewBudget({ budget: 3000, spent: 3450 }, 4000, 'en')).toEqual({
+      before: { percent: 115, level: 'over', diffText: '450 over' },
+      after: { percent: 86, level: 'warn', diffText: '550 left' },
+    });
+  });
+});

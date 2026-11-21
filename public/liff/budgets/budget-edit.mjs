@@ -1,5 +1,7 @@
 import { hasOnlyThousandsCommas } from '../format.mjs';
 import { describeDiff, levelOfPercent } from './budgets-format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 export const MIN_BUDGET = 0.01;
 export const MAX_BUDGET = 10000000;
@@ -23,31 +25,34 @@ export function stepBudget(current, direction, step = BUDGET_STEP) {
   return next >= MIN_BUDGET ? next : current;
 }
 
-function snapshot(budget, spent) {
+function snapshot(budget, spent, lang) {
   if (budget === null) return null;
   const percent = Math.floor((toSatang(spent) * 100) / toSatang(budget));
-  return { percent, level: levelOfPercent(percent), diffText: describeDiff({ budget, spent }) };
+  return { percent, level: levelOfPercent(percent), diffText: describeDiff({ budget, spent }, lang) };
 }
 
-export function previewBudget(row, amount) {
-  return { before: snapshot(row.budget, row.spent), after: amount === null ? null : snapshot(amount, row.spent) };
+export function previewBudget(row, amount, lang = getLang()) {
+  return { before: snapshot(row.budget, row.spent, lang), after: amount === null ? null : snapshot(amount, row.spent, lang) };
 }
 
 const roundUp = (value, unit) => Math.ceil(value / unit) * unit;
 // คิดเป็นสตางค์ก่อน กัน 3000*1.1 ได้ 3300.0000000000005 แล้วปัดขึ้นเกิน
 const withPercent = (value, percent) => Math.round(value * (100 + percent)) / 100;
 
-export function quickChips(row) {
+export function quickChips(row, lang = getLang()) {
+  const spentLabel = t(lang, 'web.budgets.chip.spent');
+  const roundUpLabel = t(lang, 'web.budgets.chip.roundUp');
+  const addPercent = (percent) => t(lang, 'web.budgets.chip.addPercent', { percent });
   const candidates = row.budget === null
     ? [
-      ['เท่าที่ใช้จริง', Math.ceil(row.spent)],
-      ['ปัดขึ้น', roundUp(row.spent, 100)],
-      ['ปัดขึ้น', roundUp(row.spent, 1000)],
+      [spentLabel, Math.ceil(row.spent)],
+      [roundUpLabel, roundUp(row.spent, 100)],
+      [roundUpLabel, roundUp(row.spent, 1000)],
     ]
     : [
-      ['เท่าที่ใช้จริง', Math.ceil(row.spent)],
-      ['เพิ่ม 10%', roundUp(withPercent(row.budget, 10), 50)],
-      ['เพิ่ม 20%', roundUp(withPercent(row.budget, 20), 50)],
+      [spentLabel, Math.ceil(row.spent)],
+      [addPercent(10), roundUp(withPercent(row.budget, 10), 50)],
+      [addPercent(20), roundUp(withPercent(row.budget, 20), 50)],
     ];
   const seen = new Set();
   return candidates

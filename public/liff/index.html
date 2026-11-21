@@ -334,17 +334,17 @@
       </section>
     </div>
     <div id="panel-budgets" class="panel" hidden>
-      <p id="budgets-loading" class="sr-only" role="status" hidden>กำลังโหลดงบ...</p>
+      <p id="budgets-loading" class="sr-only" role="status" data-i18n="web.budgets.loading" hidden>กำลังโหลดงบ...</p>
       <ul id="budgets-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="budgets-error" class="budget-error-card" hidden>
-        <p class="budget-error-title">ตอนนี้เฮียโหลดงบให้ไม่ได้</p>
+        <p class="budget-error-title" data-i18n="web.budgets.loadFailedTitle">ตอนนี้เฮียโหลดงบให้ไม่ได้</p>
         <p id="budgets-error-text" class="budget-error-text"></p>
-        <button type="button" id="budgets-retry" class="budget-cta">ลองใหม่</button>
+        <button type="button" id="budgets-retry" class="budget-cta" data-i18n="web.common.retry">ลองใหม่</button>
       </div>
-      <section id="budgets" class="budgets-page" aria-label="งบประมาณรายจ่าย" hidden>
+      <section id="budgets" class="budgets-page" aria-label="งบประมาณรายจ่าย" data-i18n-attr="aria-label:web.budgets.pageLabel" hidden>
         <div id="budget-hero" class="budget-hero">
           <div class="budget-hero-bubble">
-            <p class="budget-hero-lead"><b>เฮียสมัครบอกว่า</b> ใช้งบไปแล้ว</p>
+            <p class="budget-hero-lead"><b data-i18n="web.budgets.hero.speaker">เฮียสมัครบอกว่า</b> <span data-i18n="web.budgets.hero.lead">ใช้งบไปแล้ว</span></p>
             <p class="budget-hero-value"><span id="budget-hero-percent" class="budget-hero-percent"></span> <span id="budget-hero-rest" class="budget-hero-rest"></span></p>
           </div>
         </div>
@@ -354,8 +354,8 @@
         </div>
         <section id="budget-risk" class="budget-card" aria-labelledby="budget-risk-title" hidden>
           <div class="budget-card-head">
-            <h2 id="budget-risk-title">ต้องดูแล</h2>
-            <span class="budget-card-note">แตะแท่งเพื่อแก้งบ</span>
+            <h2 id="budget-risk-title" data-i18n="web.budgets.group.risk">ต้องดูแล</h2>
+            <span class="budget-card-note" data-i18n="web.budgets.risk.hint">แตะแท่งเพื่อแก้งบ</span>
           </div>
           <div id="budget-risk-plot" class="budget-plot">
             <span class="budget-axis budget-axis-100">100%</span>
@@ -366,17 +366,17 @@
           </div>
           <div id="budget-risk-names" class="budget-names"></div>
           <div id="budget-risk-pager" class="budget-pager" hidden>
-            <button type="button" id="budget-risk-prev" class="budget-pager-button" aria-label="หน้าก่อนหน้า">‹</button>
+            <button type="button" id="budget-risk-prev" class="budget-pager-button" aria-label="หน้าก่อนหน้า" data-i18n-attr="aria-label:web.budgets.pager.prev">‹</button>
             <div class="budget-pager-middle">
               <span id="budget-risk-page"></span>
               <span id="budget-risk-dots" class="budget-dots" aria-hidden="true"></span>
             </div>
-            <button type="button" id="budget-risk-next" class="budget-pager-button" aria-label="หน้าถัดไป">›</button>
+            <button type="button" id="budget-risk-next" class="budget-pager-button" aria-label="หน้าถัดไป" data-i18n-attr="aria-label:web.budgets.pager.next">›</button>
           </div>
         </section>
         <section id="budget-calm" class="budget-card" aria-labelledby="budget-calm-title" hidden>
           <div id="budget-calm-head" class="budget-card-head">
-            <h2 id="budget-calm-title">ปกติ</h2>
+            <h2 id="budget-calm-title" data-i18n="web.budgets.group.calm">ปกติ</h2>
             <span id="budget-calm-note" class="budget-card-note"></span>
           </div>
           <div id="budget-calm-list" class="budget-calm-list"></div>
@@ -384,11 +384,11 @@
         </section>
         <div id="budget-unset" class="budget-unset" hidden>
           <span id="budget-unset-text"></span>
-          <button type="button" id="budget-unset-open">ตั้งงบ</button>
+          <button type="button" id="budget-unset-open" data-i18n="web.budgets.set">ตั้งงบ</button>
         </div>
       </section>
       <section id="budget-empty" class="budget-card budget-empty" aria-labelledby="budget-empty-title" hidden>
-        <h2 id="budget-empty-title">ยังไม่ได้ตั้งงบเลย</h2>
+        <h2 id="budget-empty-title" data-i18n="web.budgets.empty.title">ยังไม่ได้ตั้งงบเลย</h2>
         <p id="budget-empty-hint" class="budget-card-note"></p>
         <ul id="budget-empty-list" class="budget-empty-list"></ul>
       </section>
@@ -405,51 +405,52 @@
         <svg class="icon" aria-hidden="true" focusable="false">
           <use href="#icon-search"></use>
         </svg>
-        <input id="budget-all-search" type="search" placeholder="ค้นหาหมวด" aria-label="ค้นหาหมวด" autocomplete="off">
-        <button type="button" id="budget-all-clear" aria-label="ล้างคำค้น" hidden>
+        <input id="budget-all-search" type="search" placeholder="ค้นหาหมวด" aria-label="ค้นหาหมวด" autocomplete="off"
+          data-i18n-attr="placeholder:web.budgets.all.search;aria-label:web.budgets.all.search">
+        <button type="button" id="budget-all-clear" aria-label="ล้างคำค้น" data-i18n-attr="aria-label:web.budgets.all.clearSearch" hidden>
           <svg class="icon" aria-hidden="true" focusable="false">
             <use href="#icon-close"></use>
           </svg>
         </button>
       </div>
-      <div id="budget-all-tabs" class="budget-all-tabs" role="group" aria-label="กลุ่มของหมวด">
+      <div id="budget-all-tabs" class="budget-all-tabs" role="group" aria-label="กลุ่มของหมวด" data-i18n-attr="aria-label:web.budgets.all.groups">
         <button type="button" data-tab="risk" aria-pressed="true"></button>
         <button type="button" data-tab="calm" aria-pressed="false"></button>
         <button type="button" data-tab="unset" aria-pressed="false"></button>
       </div>
       <div class="budget-all-bar">
         <span id="budget-all-count" role="status" aria-live="polite"></span>
-        <label class="budget-all-sort">เรียง:
-          <select id="budget-all-sort" aria-label="เรียงลำดับ">
-            <option value="usage">ใช้มากสุด</option>
-            <option value="name">ชื่อ</option>
+        <label class="budget-all-sort"><span data-i18n="web.budgets.all.sortLabel">เรียง:</span>
+          <select id="budget-all-sort" aria-label="เรียงลำดับ" data-i18n-attr="aria-label:web.budgets.all.sort">
+            <option value="usage" data-i18n="web.budgets.all.sortUsage">ใช้มากสุด</option>
+            <option value="name" data-i18n="web.budgets.all.sortName">ชื่อ</option>
           </select>
         </label>
       </div>
-      <p id="budget-all-tab-empty" class="budget-all-tab-empty" hidden>ไม่มีหมวดในกลุ่มนี้</p>
+      <p id="budget-all-tab-empty" class="budget-all-tab-empty" data-i18n="web.budgets.all.tabEmpty" hidden>ไม่มีหมวดในกลุ่มนี้</p>
       <div id="budget-all-list" class="budget-all-list"></div>
       <div id="budget-all-empty" class="budget-all-empty" hidden>
         <img class="budget-all-empty-art" src="assets/mascot.webp" alt="" width="88" height="88">
-        <h2 id="budget-all-empty-title">ไม่พบหมวด</h2>
-        <p>ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
-        <button type="button" id="budget-all-empty-clear" class="budget-cta">ล้างคำค้น</button>
+        <h2 id="budget-all-empty-title" data-i18n="web.budgets.all.notFoundDefault">ไม่พบหมวด</h2>
+        <p data-i18n="web.budgets.all.notFoundHint">ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
+        <button type="button" id="budget-all-empty-clear" class="budget-cta" data-i18n="web.budgets.all.clearSearch">ล้างคำค้น</button>
       </div>
       <p id="budget-all-status" class="budget-all-status" role="status" aria-live="polite"></p>
       <div class="budget-all-foot">
-        <button type="button" id="budget-all-bulk-open" class="budget-cta">แก้งบหลายหมวดพร้อมกัน</button>
+        <button type="button" id="budget-all-bulk-open" class="budget-cta" data-i18n="web.budgets.all.bulkEdit">แก้งบหลายหมวดพร้อมกัน</button>
       </div>
     </div>
     <div id="panel-budget-bulk" class="panel" hidden>
       <p id="budget-bulk-month" class="budget-bulk-month"></p>
-      <p class="budget-bulk-hint">กด − / + ปรับทีละ 500 แล้วบันทึกทีเดียว % ใหม่ขึ้นให้ดูทันที แถวที่แก้จะมีเส้นน้ำเงินด้านซ้าย</p>
+      <p class="budget-bulk-hint" data-i18n="web.budgets.bulk.hint">กด − / + ปรับทีละ 500 แล้วบันทึกทีเดียว % ใหม่ขึ้นให้ดูทันที แถวที่แก้จะมีเส้นน้ำเงินด้านซ้าย</p>
       <div id="budget-bulk-list" class="budget-bulk-list"></div>
       <div class="budget-bulk-bar">
         <div class="budget-bulk-summary">
-          <span id="budget-bulk-count" role="status" aria-live="polite">ยังไม่ได้แก้อะไร</span>
+          <span id="budget-bulk-count" role="status" aria-live="polite" data-i18n="web.budgets.bulk.noChanges">ยังไม่ได้แก้อะไร</span>
           <span><strong id="budget-bulk-delta"></strong> <span id="budget-bulk-total"></span></span>
         </div>
-        <button type="button" id="budget-bulk-cancel" class="budget-bulk-cancel">ยกเลิก</button>
-        <button type="button" id="budget-bulk-save" class="budget-cta" disabled>บันทึกทั้งหมด</button>
+        <button type="button" id="budget-bulk-cancel" class="budget-bulk-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
+        <button type="button" id="budget-bulk-save" class="budget-cta" data-i18n="web.budgets.bulk.saveAll" disabled>บันทึกทั้งหมด</button>
       </div>
     </div>
     <div id="panel-categories" class="panel" hidden>
@@ -977,10 +978,10 @@
       <div class="budget-sheet-head">
         <span id="budget-sheet-badge" class="budget-sheet-badge"></span>
         <div class="budget-sheet-heading">
-          <h2 id="budget-title">ตั้งงบ</h2>
+          <h2 id="budget-title" data-i18n="web.budgets.set">ตั้งงบ</h2>
           <p id="budget-sheet-sub"></p>
         </div>
-        <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
+        <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-close"></use>
           </svg></button>
@@ -993,32 +994,32 @@
         <div id="budget-preview-after" class="budget-preview-side" aria-live="polite"></div>
       </div>
       <div class="budget-sheet-field">
-        <label for="budget-amount" class="budget-sheet-label">งบต่อเดือน (บาท)</label>
+        <label for="budget-amount" class="budget-sheet-label" data-i18n="web.budgets.sheet.amountLabel">งบต่อเดือน (บาท)</label>
         <div class="budget-stepper">
-          <button type="button" id="budget-minus" aria-label="ลดงบ 500 บาท">−</button>
+          <button type="button" id="budget-minus" aria-label="ลดงบ 500 บาท" data-i18n-attr="aria-label:web.budgets.sheet.minus">−</button>
           <input id="budget-amount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="budget-scope">
-          <button type="button" id="budget-plus" aria-label="เพิ่มงบ 500 บาท">+</button>
+          <button type="button" id="budget-plus" aria-label="เพิ่มงบ 500 บาท" data-i18n-attr="aria-label:web.budgets.sheet.plus">+</button>
         </div>
       </div>
       <div id="budget-chips" class="budget-chips"></div>
       <p id="budget-scope" class="confirm-detail"></p>
-      <p id="budget-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="budget-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
       <div id="budget-error" class="budget-sheet-error" role="alert" hidden>
         <strong id="budget-error-title"></strong>
         <span id="budget-error-text"></span>
       </div>
       <div class="budget-sheet-actions">
-        <button type="button" id="budget-remove" class="budget-remove">ไม่ตั้งงบ</button>
-        <button type="submit" id="budget-submit" class="budget-cta">บันทึก</button>
+        <button type="button" id="budget-remove" class="budget-remove" data-i18n="web.budgets.sheet.remove">ไม่ตั้งงบ</button>
+        <button type="submit" id="budget-submit" class="budget-cta" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="budget-remove-confirm" class="budget-confirm" aria-labelledby="budget-confirm-title">
-    <h2 id="budget-confirm-title">เลิกตั้งงบ</h2>
+    <h2 id="budget-confirm-title" data-i18n="web.budgets.confirm.title">เลิกตั้งงบ</h2>
     <div id="budget-confirm-body" class="budget-confirm-body"></div>
     <div class="budget-confirm-actions">
-      <button type="button" id="budget-confirm-cancel">ไม่ลบ</button>
-      <button type="button" id="budget-confirm-ok" class="danger">เลิกตั้งงบ</button>
+      <button type="button" id="budget-confirm-cancel" data-i18n="web.budgets.confirm.cancel">ไม่ลบ</button>
+      <button type="button" id="budget-confirm-ok" class="danger" data-i18n="web.budgets.confirm.title">เลิกตั้งงบ</button>
     </div>
   </dialog>
   <dialog id="budget-bulk-result" class="budget-sheet" aria-labelledby="budget-bulk-result-title">
@@ -1026,13 +1027,13 @@
     <div class="budget-bulk-result-head">
       <img src="assets/mascot.webp" alt="" width="56" height="56">
       <div>
-        <h2 id="budget-bulk-result-title">ผลการบันทึกงบ</h2>
+        <h2 id="budget-bulk-result-title" data-i18n="web.budgets.bulk.resultHeading">ผลการบันทึกงบ</h2>
         <p id="budget-bulk-result-sub"></p>
       </div>
     </div>
     <div id="budget-bulk-result-list" class="budget-bulk-result-list"></div>
-    <button type="button" id="budget-bulk-result-retry" class="budget-cta">ลองบันทึกหมวดที่ไม่สำเร็จ</button>
-    <button type="button" id="budget-bulk-result-close" class="budget-bulk-result-close">ปิด</button>
+    <button type="button" id="budget-bulk-result-retry" class="budget-cta" data-i18n="web.budgets.bulk.retryFailed">ลองบันทึกหมวดที่ไม่สำเร็จ</button>
+    <button type="button" id="budget-bulk-result-close" class="budget-bulk-result-close" data-i18n="web.common.close">ปิด</button>
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
