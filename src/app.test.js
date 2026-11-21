@@ -281,6 +281,8 @@ describe('GET /liff/', () => {
     '/liff/dom-harness.mjs',
     '/liff/format%2Etest.mjs',
     '/liff/FORMAT.TEST.MJS',
+    '/liff/i18n/translate.test.mjs',
+    '/liff/i18n/catalog.test.mjs',
   ])('does not serve test-only file %s', async (path) => {
     const baseUrl = await start(vi.fn());
 
@@ -315,6 +317,16 @@ describe('GET /liff/', () => {
     expect(moduleRes.status).toBe(200);
     expect(moduleRes.headers.get('content-type')).toContain('javascript');
     expect(testRes.status).toBe(404);
+  });
+
+  it('serves the i18n modules', async () => {
+    const baseUrl = await start(vi.fn());
+
+    const moduleRes = await fetch(`${baseUrl}/liff/i18n/translate.mjs`);
+    const messagesRes = await fetch(`${baseUrl}/liff/i18n/messages/en.mjs`);
+
+    expect(moduleRes.status).toBe(200);
+    expect(messagesRes.status).toBe(200);
   });
 });
 
