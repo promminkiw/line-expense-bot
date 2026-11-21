@@ -31,8 +31,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     }
   }
 
-  async function handleImage(event, lineUserId) {
-    const userId = await users.ensureUser(lineUserId);
+  async function handleImage(event, lineUserId, { userId }) {
     // LINE ส่ง event เดิมซ้ำได้ จึงจอง event ก่อนเรียก Claude เพื่อไม่ให้ตอบและเสียค่าอ่านซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {
@@ -86,8 +85,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     return repository.claimEvent(event.webhookEventId, userId);
   }
 
-  async function handleSlipSave(event, params, lineUserId) {
-    const userId = await users.ensureUser(lineUserId);
+  async function handleSlipSave(event, params, { userId }) {
     if (!(await claimPostback(event, userId))) {
       return null;
     }
@@ -109,8 +107,7 @@ function createSlipHandlers({ repository, users, allowRequest, downloadImage, pa
     return { flex: buildSavedReply(slip.items, budget, slip.webhookEventId, buildEditUrls(rows, ids)) };
   }
 
-  async function handleSlipCancel(event, params, lineUserId) {
-    const userId = await users.ensureUser(lineUserId);
+  async function handleSlipCancel(event, params, { userId }) {
     if (!(await claimPostback(event, userId))) {
       return null;
     }

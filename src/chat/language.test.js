@@ -40,7 +40,6 @@ describe('buildLanguageQuickReply', () => {
 function setup({ setUserLanguage = vi.fn().mockResolvedValue() } = {}) {
   const deps = {
     repository: { setUserLanguage },
-    users: { ensureUser: vi.fn().mockResolvedValue('user-1') },
     logger: { error: vi.fn(), info: vi.fn() },
   };
   return { deps, handlers: createLanguageHandlers(deps) };
@@ -86,14 +85,15 @@ describe('language handlers', () => {
   it('handles a language postback from the sender and ignores unknown languages', async () => {
     const { deps, handlers } = setup();
 
-    expect(await handlers.handlePostback(new URLSearchParams('action=language&lang=en'), 'U1', 'th')).toEqual({
+    const user = { userId: 'user-1', lang: 'th' };
+    expect(await handlers.handlePostback(new URLSearchParams('action=language&lang=en'), user)).toEqual({
       text: 'Switched to English. The web app uses English too.',
     });
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
 
     deps.repository.setUserLanguage.mockClear();
     for (const query of ['action=language&lang=fr', 'action=language', 'action=language&lang=EN']) {
-      expect(await handlers.handlePostback(new URLSearchParams(query), 'U1', 'th')).toBeNull();
+      expect(await handlers.handlePostback(new URLSearchParams(query), user)).toBeNull();
     }
     expect(deps.repository.setUserLanguage).not.toHaveBeenCalled();
   });

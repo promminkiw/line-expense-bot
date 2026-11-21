@@ -34,7 +34,7 @@ function buildLanguageQuickReply() {
   });
 }
 
-function createLanguageHandlers({ repository, users, logger }) {
+function createLanguageHandlers({ repository, logger }) {
   function buildMenuReply(lang) {
     return { text: t(lang, 'chat.language.prompt'), quickReply: buildLanguageQuickReply() };
   }
@@ -50,13 +50,12 @@ function createLanguageHandlers({ repository, users, logger }) {
     return { text: t(newLang, 'chat.language.changed') };
   }
 
-  async function handlePostback(params, lineUserId, currentLang) {
+  async function handlePostback(params, { userId, lang: currentLang }) {
     const newLang = params.get('lang');
     // ค่านอกรายการเมินเหมือน postback ที่ไม่รู้จัก ไม่ส่งไปถึง DB
     if (!SUPPORTED_LANGUAGES.includes(newLang)) {
       return null;
     }
-    const userId = await users.ensureUser(lineUserId);
     return switchLanguage(userId, newLang, currentLang);
   }
 

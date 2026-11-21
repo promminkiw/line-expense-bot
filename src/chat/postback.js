@@ -14,32 +14,29 @@ const {
   UNDO_SAVING_ACTION,
 } = require('./replies');
 
-function createPostbackHandlers({ repository, users, bills, slip, language }) {
+function createPostbackHandlers({ repository, bills, slip, language }) {
   const { handleSlipSave, handleSlipCancel } = slip;
 
-  async function handleUndo(params, lineUserId) {
+  async function handleUndo(params, { userId }) {
     const webhookEventId = params.get('event');
     if (!webhookEventId) {
       return null;
     }
-    const userId = await users.ensureUser(lineUserId);
     const deleted = await repository.deleteTransactionsByEvent(userId, webhookEventId);
     return { text: deleted > 0 ? UNDO_DONE_REPLY : UNDO_NOT_FOUND_REPLY };
   }
 
-  async function handleUndoSaving(params, lineUserId) {
+  async function handleUndoSaving(params, { userId }) {
     const webhookEventId = params.get('event');
     if (!webhookEventId) {
       return null;
     }
-    const userId = await users.ensureUser(lineUserId);
     const deleted = await repository.deleteGoalContributionsByEvent(userId, webhookEventId);
     return { text: deleted > 0 ? UNDO_SAVING_DONE_REPLY : UNDO_SAVING_NOT_FOUND_REPLY };
   }
 
   // การ์ดบิลอาจถูกกดซ้ำหรือกดอีกปุ่มทีหลัง จึงตอบตามสถานะที่ DB คืนมาเสมอ
-  async function handleBillAnswer(params, lineUserId, answer) {
-    const userId = await users.ensureUser(lineUserId);
+  async function handleBillAnswer(params, { userId }, answer) {
     const result = await bills.respond(userId, params.get('bill'), answer);
     if (result.status === 'confirmed') {
       return { text: `เฮียบันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว` };
@@ -54,17 +51,17 @@ function createPostbackHandlers({ repository, users, bills, slip, language }) {
     return { text: BILL_REPLIES[result.status] || BILL_REPLIES.not_found };
   }
 
-  async function handlePostback(event, lineUserId, lang) {
+  async function handlePostback(event, user) {
     const params = new URLSearchParams(event.postback.data);
     const action = params.get('action');
     if (action === LANGUAGE_ACTION) {
-      return language.handlePostback(params, lineUserId, lang);
+      return language.handlePostback(params, user);
     }
     if (action === UNDO_ACTION) {
-      return handleUndo(params, lineUserId);
+      return handleUndo(params, user);
     }
     if (action === UNDO_SAVING_ACTION) {
-      return handleUndoSaving(params, lineUserId);
+      return handleUndoSaving(params, user);
     }
     if (action === SLIP_SAVE_ACTION || action === SLIP_CANCEL_ACTION) {
       // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงไม่ส่งไปถึง DB
@@ -72,15 +69,15 @@ function createPostbackHandlers({ repository, users, bills, slip, language }) {
         return null;
       }
       return action === SLIP_SAVE_ACTION
-        ? handleSlipSave(event, params, lineUserId, lang)
-        : handleSlipCancel(event, params, lineUserId, lang);
+        ? handleSlipSave(event, params, user)
+        : handleSlipCancel(event, params, user);
     }
     if (action === BILL_CONFIRM_ACTION || action === BILL_DECLINE_ACTION) {
       // id ที่ไม่ใช่ UUID ทำให้ Postgres error จึงตอบว่าไม่พบโดยไม่ส่งไปถึง DB
       if (!UUID_PATTERN.test(params.get('bill') || '')) {
         return { text: BILL_REPLIES.not_found };
       }
-      return handleBillAnswer(params, lineUserId, action === BILL_CONFIRM_ACTION ? 'confirm' : 'decline');
+      return handleBillAnswer(params, user, action === BILL_CONFIRM_ACTION ? 'confirm' : 'decline');
     }
     return null;
   }

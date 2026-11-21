@@ -87,19 +87,20 @@ function createBot({
     if (!isHandled) {
       return null;
     }
-    // อ่านภาษามาพร้อมตอนหา user ครั้งเดียว แล้วส่งต่อให้ทุก handler
-    const { language: lang } = await users.resolveUser(lineUserId);
+    // หา user ครั้งเดียวต่อ event แล้วส่ง id กับภาษาต่อให้ handler จะได้ไม่ query ซ้ำ
+    const { userId, language: lang } = await users.resolveUser(lineUserId);
+    const user = { userId, lang };
     if (event.type === 'follow') {
       await repository.resumeMonthlySummary(lineUserId);
       return null;
     }
     if (isTextMessage(event)) {
-      return handleText(event, lineUserId, deadline, lang);
+      return handleText(event, lineUserId, deadline, user);
     }
     if (isImageMessage(event)) {
-      return handleImage(event, lineUserId, lang);
+      return handleImage(event, lineUserId, user);
     }
-    return handlePostback(event, lineUserId, lang);
+    return handlePostback(event, user);
   }
 
   // งานที่ค้างยังทำต่อจนจบ ผลที่มาช้าถูกทิ้งเพราะ reply token อาจหมดอายุแล้ว

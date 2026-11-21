@@ -156,8 +156,7 @@ function createTextHandlers({ parseMessage, parseQuestion, repository, users, al
     }
   }
 
-  async function handleText(event, lineUserId, deadline, lang) {
-    const userId = await users.ensureUser(lineUserId);
+  async function handleText(event, lineUserId, deadline, { userId, lang }) {
     // LINE ส่ง event เดิมซ้ำได้ (redelivery) จึงจอง event ก่อนเพื่อไม่ให้บันทึกซ้ำ
     const claimed = await repository.claimEvent(event.webhookEventId, userId);
     if (!claimed) {

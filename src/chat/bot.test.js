@@ -146,7 +146,8 @@ function setup(overrides = {}) {
     now: () => NOW_MS,
     users: {
       resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'th' }),
-      ensureUser: vi.fn().mockResolvedValue('user-1'),
+      // handler ต้องใช้ userId ที่ bot หามาแล้ว ห้ามเรียก ensureUser ซ้ำ เทสต์ตรวจว่าไม่ถูกเรียก
+      ensureUser: vi.fn(),
       loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
       loadCategoryIds: vi.fn().mockResolvedValue(
         new Map([
@@ -161,13 +162,6 @@ function setup(overrides = {}) {
     logger: { error: vi.fn(), info: vi.fn() },
     ...overrides,
   };
-  // เทสต์เก่าที่ override users ด้วย ensureUser อย่างเดียว ให้ resolveUser ตามไปด้วยเพื่อคงพฤติกรรมเดิม
-  if (!deps.users.resolveUser) {
-    deps.users = {
-      ...deps.users,
-      resolveUser: (lineUserId) => Promise.resolve(deps.users.ensureUser(lineUserId)).then((userId) => ({ userId, language: 'th' })),
-    };
-  }
   return { deps, bot: createBot(deps) };
 }
 
@@ -177,7 +171,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
     expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
@@ -437,7 +431,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60', { source: { type: 'group', groupId: 'G1', userId: 'U1' } }));
 
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -452,7 +446,7 @@ describe('bot text message', () => {
       message: { type: 'sticker' },
     });
 
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -670,7 +664,7 @@ describe('bot follow event', () => {
   });
 
   it('logs but does not reply when registration fails', async () => {
-    const users = { ensureUser: vi.fn().mockRejectedValue(new Error('db down')), loadCategoryIds: vi.fn() };
+    const users = { resolveUser: vi.fn().mockRejectedValue(new Error('db down')), loadCategoryIds: vi.fn() };
     const { deps, bot } = setup({ users });
 
     await bot.handleEvent(followEvent());
@@ -691,7 +685,7 @@ describe('bot unfollow event', () => {
     await bot.handleEvent(unfollowEvent());
 
     expect(deps.repository.disableNotifications).toHaveBeenCalledWith('U1');
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.replyFlex).not.toHaveBeenCalled();
   });
@@ -718,19 +712,19 @@ describe('bot undo postback', () => {
 
     await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
     expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_DONE_REPLY, undefined);
   });
 
   it('resolves the owner from the event sender, not from postback data', async () => {
-    const ensureUser = vi.fn(async (id) => (id === 'U1' ? 'user-1' : 'user-other'));
-    const { deps, bot } = setup({ users: { ensureUser, loadCategoryIds: vi.fn() } });
+    const resolveUser = vi.fn(async (id) => ({ userId: id === 'U1' ? 'user-1' : 'user-other', language: 'th' }));
+    const { deps, bot } = setup({ users: { resolveUser, loadCategoryIds: vi.fn() } });
 
     await bot.handleEvent(postbackEvent('action=undo&event=ev1&user=U2'));
 
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
-    expect(ensureUser).not.toHaveBeenCalledWith('U2');
+    expect(resolveUser).not.toHaveBeenCalledWith('U2');
   });
 
   it('tells the user when nothing was deleted', async () => {
@@ -1090,7 +1084,7 @@ describe('bot budget alerts', () => {
     const { deps, bot } = setup({
       parseMessage,
       users: {
-        ensureUser: vi.fn().mockResolvedValue('user-1'),
+        resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'th' }),
         loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
         loadCategoryIds: vi.fn().mockResolvedValue(new Map([['income:อื่นๆ', 'cat-income-other']])),
         loadWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
@@ -1454,7 +1448,7 @@ describe('bot slip image', () => {
 
     await bot.handleEvent(imageEvent());
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
     expect(deps.downloadImage).toHaveBeenCalledWith('m1');
     expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
@@ -1788,7 +1782,7 @@ describe('bot slip confirmation', () => {
   it("slip save and cancel claim with the pressing user's id, never the slip owner's", async () => {
     for (const data of [SAVE, CANCEL]) {
       const { deps, bot } = setup();
-      deps.users.ensureUser.mockImplementation((id) => ({ U1: 'user-1', U2: 'user-2' })[id]);
+      deps.users.resolveUser.mockImplementation(async (id) => ({ userId: { U1: 'user-1', U2: 'user-2' }[id], language: 'th' }));
       deps.repository.claimPendingSlip.mockImplementation(async (userId) =>
         userId === 'user-2' ? null : { webhookEventId: 'ev-img', items: [SLIP_ITEM] }
       );
@@ -2178,7 +2172,7 @@ describe('bot reply deadline', () => {
   it('sends nothing for a follow event that passes the deadline', async () => {
     vi.useFakeTimers();
     const { deps, bot } = setup({ replyDeadlineMs: 1000 });
-    deps.users.ensureUser.mockImplementation(() => new Promise(() => {}));
+    deps.users.resolveUser.mockImplementation(() => new Promise(() => {}));
 
     const handled = bot.handleEvent(followEvent());
     await vi.advanceTimersByTimeAsync(1000);
@@ -2612,7 +2606,6 @@ describe('bot language switch', () => {
 
     await bot.handleEvent(postbackEvent('action=language&lang=en'));
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
     expect(deps.replyText).toHaveBeenCalledWith('r2', 'Switched to English. The web app uses English too.', undefined);
   });
@@ -2650,12 +2643,24 @@ describe('bot language switch', () => {
     expect(deps.replyText).toHaveBeenLastCalledWith('r2', 'Pick the language you want me to use', MENU_QUICK_REPLY);
   });
 
-  it('resolves the user once per event', async () => {
+  it.each([
+    ['text', () => textEvent('กินข้าว 60')],
+    ['language text', () => textEvent('English')],
+    ['image', () => imageEvent()],
+    ['undo postback', () => postbackEvent('action=undo&event=ev1')],
+    ['undo saving postback', () => postbackEvent('action=undo_saving&event=ev1')],
+    ['slip save postback', () => postbackEvent(`action=slip_save&slip=${SLIP_ID}`)],
+    ['slip cancel postback', () => postbackEvent(`action=slip_cancel&slip=${SLIP_ID}`)],
+    ['bill postback', () => postbackEvent('action=bill_confirm&bill=7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d')],
+    ['language postback', () => postbackEvent('action=language&lang=en')],
+    ['follow', () => followEvent()],
+  ])('resolves the user once and never calls ensureUser for a %s event', async (_name, makeEvent) => {
     const { deps, bot } = setup();
 
-    await bot.handleEvent(textEvent('กินข้าว 60'));
+    await bot.handleEvent(makeEvent());
 
     expect(deps.users.resolveUser).toHaveBeenCalledTimes(1);
     expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).not.toHaveBeenCalled();
   });
 });
