@@ -2,6 +2,7 @@ const express = require('express');
 const { parseMonth } = require('../api/validate');
 const { hashLinkToken, isLinkToken } = require('./link-token');
 const { buildTransactionsCsv, exportFileName } = require('./csv');
+const { normalizeLanguage } = require('../i18n');
 
 const EXPIRED_MESSAGE = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
 const FAILED_MESSAGE = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
@@ -43,12 +44,17 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
       return;
     }
     const range = parseMonth(link.month);
-    const [rows, categories] = await Promise.all([
+    // อ่านภาษาพร้อมกับรายการ จึงไม่ทำให้ดาวน์โหลดช้าลง
+    const [rows, categories, language] = await Promise.all([
       repository.listAllTransactions(link.userId, range.from, range.to),
       repository.listCategories(link.userId),
+      repository.getUserLanguage(link.userId),
     ]);
     const names = new Map(categories.map((category) => [category.id, category.name]));
-    const csv = buildTransactionsCsv(rows.map((row) => ({ ...row, categoryName: names.get(row.categoryId) || '' })));
+    const csv = buildTransactionsCsv(
+      rows.map((row) => ({ ...row, categoryName: names.get(row.categoryId) || '' })),
+      normalizeLanguage(language)
+    );
     res
       .status(200)
       .type('text/csv; charset=utf-8')

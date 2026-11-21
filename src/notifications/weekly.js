@@ -1,16 +1,19 @@
 const { getPeriodRange } = require('../summary/period');
 const { buildSummary } = require('../summary/summary');
 const { buildSummaryFlex } = require('../summary/flex');
+const { normalizeLanguage } = require('../i18n');
 
 const WEEKLY_SUMMARY_KIND = 'weekly_summary';
 
 function createWeeklySummaryRunner({ repository, pushFlex, summaryUrl, now = () => new Date(), logger = console }) {
   return async function run() {
-    const range = getPeriodRange('week', now());
+    const today = now();
     const users = await repository.listWeeklySummaryUsers();
     const result = { eligible: users.length, sent: 0, skipped: 0, failed: 0, pushFailed: 0 };
     // ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น
     for (const user of users) {
+      const lang = normalizeLanguage(user.language);
+      const range = getPeriodRange('week', today, lang);
       let summary;
       try {
         const rows = await repository.summarizeTransactions(user.userId, range.from, range.to);
@@ -38,7 +41,7 @@ function createWeeklySummaryRunner({ repository, pushFlex, summaryUrl, now = () 
       }
       try {
         // ไม่เรียก Claude เขียนคอมเมนต์ ให้ทัน timeout 30 วินาทีของ cron-job.org และไม่เสียค่า Claude
-        await pushFlex(user.lineUserId, buildSummaryFlex(summary, '', { summaryUrl }));
+        await pushFlex(user.lineUserId, buildSummaryFlex(summary, '', { summaryUrl, lang }));
         result.sent += 1;
       } catch (err) {
         // ไม่ลบการจองและไม่ลองซ้ำเพราะ LINE อาจส่งถึงแล้ว นับแยกจาก failed เพื่อไม่ให้ cron ตอบ 500 เหมือนรายการประจำ

@@ -15,6 +15,7 @@ function setup(overrides = {}) {
         { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c-food' },
       ]),
       listCategories: vi.fn().mockResolvedValue([{ id: 'c-food', name: 'อาหาร', type: 'expense' }]),
+      getUserLanguage: vi.fn().mockResolvedValue(null),
     },
     now: () => new Date('2026-09-30T03:01:00.000Z'),
     logger: { error: vi.fn() },
@@ -55,6 +56,20 @@ describe('GET /exports/:token', () => {
     expect(deps.repository.claimExportLink).toHaveBeenCalledWith(hashLinkToken(token), '2026-09-30T03:01:00.000Z');
     expect(deps.repository.listAllTransactions).toHaveBeenCalledWith('user-1', '2026-09-01', '2026-09-30');
     expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
+  });
+
+  // หัวคอลัมน์ตามภาษาของเจ้าของลิงก์ ไม่ใช่ภาษา browser เพราะเปิดนอก LINE
+  it('writes the CSV in the language of the user who made the link', async () => {
+    const deps = setup();
+    deps.repository.getUserLanguage.mockResolvedValue('en');
+    const base = await start(deps);
+    const { token } = createLinkToken();
+
+    const res = await fetch(`${base}/${token}`);
+
+    const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array(await res.arrayBuffer()));
+    expect(text).toBe('﻿Date,Type,Category,Amount,Note\r\n2026-09-29,Expense,Food,60.00,กินข้าว\r\n');
+    expect(deps.repository.getUserLanguage).toHaveBeenCalledWith('user-1');
   });
 
   it('returns 410 for a malformed token without touching the database', async () => {

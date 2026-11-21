@@ -142,3 +142,22 @@ describe('createWeeklySummaryRunner', () => {
     expect(repository.summarizeTransactions).not.toHaveBeenCalled();
   });
 });
+
+describe('createWeeklySummaryRunner languages', () => {
+  // ผู้รับแต่ละคนต้องได้การ์ดภาษาของตัวเองในรอบเดียวกัน
+  it('sends each user the card in their own language in the same run', async () => {
+    const { pushFlex, run } = setup([
+      { userId: 'user-1', lineUserId: 'U1', language: null },
+      { userId: 'user-2', lineUserId: 'U2', language: 'en' },
+    ]);
+
+    await run();
+
+    expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(buildSummary(ROWS, LABEL), '', { summaryUrl: SUMMARY_URL }));
+    expect(pushFlex).toHaveBeenCalledWith(
+      'U2',
+      buildSummaryFlex(buildSummary(ROWS, 'This week (12/10 - 18/10)'), '', { summaryUrl: SUMMARY_URL, lang: 'en' }),
+    );
+    expect(JSON.stringify(pushFlex.mock.calls[1][1])).not.toContain('รายรับ');
+  });
+});

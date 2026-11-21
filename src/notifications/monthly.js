@@ -2,16 +2,20 @@ const { getPreviousMonthRange } = require('../summary/period');
 const { buildSummary } = require('../summary/summary');
 const { buildSummaryFlex } = require('../summary/flex');
 const { pickMonthlyComment, buildEmptyMonthText } = require('./monthly-comment');
+const { normalizeLanguage } = require('../i18n');
 
 const MONTHLY_SUMMARY_KIND = 'monthly_summary';
 
 function createMonthlySummaryRunner({ repository, pushFlex, pushText, buildSummaryUrl, now = () => new Date(), logger = console }) {
   return async function run() {
-    const range = getPreviousMonthRange(now());
+    const today = now();
     const users = await repository.listMonthlySummaryUsers();
     const result = { eligible: users.length, sent: 0, nudged: 0, skipped: 0, failed: 0, pushFailed: 0 };
     // ส่งทีละคน ความผิดพลาดของคนหนึ่งไม่หยุดคนอื่น
     for (const user of users) {
+      const lang = normalizeLanguage(user.language);
+      // ช่วงวันเหมือนกันทุกภาษา ต่างแค่ชื่อเดือนใน label และคอมเมนต์
+      const range = getPreviousMonthRange(today, lang);
       let summary;
       try {
         const rows = await repository.summarizeTransactions(user.userId, range.from, range.to);
@@ -30,11 +34,11 @@ function createMonthlySummaryRunner({ repository, pushFlex, pushText, buildSumma
       }
       try {
         if (summary.entryCount === 0) {
-          await pushText(user.lineUserId, buildEmptyMonthText(range));
+          await pushText(user.lineUserId, buildEmptyMonthText(range, lang));
           result.nudged += 1;
         } else {
-          const comment = pickMonthlyComment(summary, range.monthName);
-          await pushFlex(user.lineUserId, buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl(range.month) }));
+          const comment = pickMonthlyComment(summary, range.monthName, lang);
+          await pushFlex(user.lineUserId, buildSummaryFlex(summary, comment, { summaryUrl: buildSummaryUrl(range.month), lang }));
           result.sent += 1;
         }
       } catch (err) {

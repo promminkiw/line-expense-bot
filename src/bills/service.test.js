@@ -355,3 +355,35 @@ describe('billService.respondFromWeb', () => {
     expect(noLineId.pushText).not.toHaveBeenCalled();
   });
 });
+
+describe('billService languages', () => {
+  // เจ้าของกับเพื่อนอาจใช้คนละภาษา การ์ดต้องตามภาษาของเพื่อนแต่ละคน
+  it('pushes each member the bill card in their own language', async () => {
+    const { service, pushFlex } = setup({
+      getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'th' }], [F2, { lineUserId: 'U-F2', language: 'en' }]])),
+    });
+
+    await service.create(OWNER, body());
+
+    const [thaiCard, englishCard] = pushFlex.mock.calls.map(([, flex]) => flex);
+    expect(thaiCard.altText).toBe('เอ ขอให้ยืนยันส่วนแบ่งบิล เนื้อย่าง 300 บาท');
+    expect(englishCard.altText).not.toContain('ขอให้ยืนยัน');
+    expect(englishCard.altText).toContain('฿300');
+    expect(JSON.stringify(englishCard)).toContain('· Food');
+  });
+
+  it('tells an English user in English that the bill was confirmed or declined on the web', async () => {
+    const english = { getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'en' }]])) };
+    const confirmed = setup(english);
+    const declined = setup(english);
+
+    await confirmed.service.respondFromWeb(F1, BILL, 'confirm');
+    await declined.service.respondFromWeb(F1, BILL, 'decline');
+
+    expect(confirmed.pushText).toHaveBeenCalledWith(
+      'U-F1',
+      'You confirmed เนื้อย่าง on the web. I logged your share of ฿300 under Food. No need to tap the bill card again',
+    );
+    expect(declined.pushText).toHaveBeenCalledWith('U-F1', 'You declined เนื้อย่าง on the web. No need to tap the bill card again');
+  });
+});

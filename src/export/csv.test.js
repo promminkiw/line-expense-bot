@@ -63,3 +63,17 @@ describe('exportFileName', () => {
     expect(exportFileName('2026-09')).toBe('transactions-2026-09.csv');
   });
 });
+
+describe('buildTransactionsCsv in English', () => {
+  // หัวคอลัมน์และประเภทตามภาษาผู้ export ชื่อหมวดตั้งต้นแปล ส่วนหมวดที่ตั้งเองคงตามเดิม
+  it('writes the English header, type labels and default category names', () => {
+    const csv = buildTransactionsCsv(
+      [row(), row({ type: 'income', categoryName: 'เงินเดือน', amount: 25000.5, note: '' }), row({ categoryName: 'ค่าเทอม', note: null })],
+      'en',
+    );
+
+    expect(csv).toBe(
+      `${BOM}Date,Type,Category,Amount,Note\r\n2026-09-29,Expense,Food,60.00,กินข้าว\r\n2026-09-29,Income,Salary,25000.50,\r\n2026-09-29,Expense,ค่าเทอม,60.00,\r\n`
+    );
+  });
+});

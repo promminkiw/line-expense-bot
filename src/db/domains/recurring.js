@@ -83,7 +83,7 @@ function createRecurringRepository(supabase) {
     const todayDay = Number(today.slice(8, 10));
     let query = supabase
       .from('recurring_rules')
-      .select(`${RULE_COLUMNS}, user_id, users(line_user_id), categories(name)`)
+      .select(`${RULE_COLUMNS}, user_id, users(line_user_id, language), categories(name)`)
       .eq('active', true)
       .or(`last_run_on.is.null,last_run_on.lt.${monthStartOf(today)}`);
     if (todayDay < lastDayOf(today)) {
@@ -95,6 +95,7 @@ function createRecurringRepository(supabase) {
       ...toRule(row),
       userId: row.user_id,
       lineUserId: row.users.line_user_id,
+      language: row.users.language,
       categoryName: row.categories.name,
     }));
   }
