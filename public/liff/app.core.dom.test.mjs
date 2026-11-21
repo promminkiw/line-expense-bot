@@ -41,6 +41,24 @@ describe('index.html static invariants', () => {
     expect(doc.getElementById('categories-open').textContent.trim()).toBe('จัดการหมวดหมู่');
   });
 
+  // heading ว่างทำให้ screen reader อ่านชื่อ dialog ไม่ได้ถ้า JS ยังไม่ทำงาน และ SonarQube ตีเป็น S6850
+  it('gives every heading text before any script runs', () => {
+    const empty = [...doc.querySelectorAll('h1, h2, h3, h4, h5, h6')]
+      .filter((heading) => heading.textContent.trim() === '')
+      .map((heading) => heading.id || heading.className);
+
+    expect(empty).toEqual([]);
+  });
+
+  it('gives every form field an accessible name', () => {
+    const unnamed = [...doc.querySelectorAll('input:not([type="hidden"]), select, textarea')]
+      .filter((field) => !field.hasAttribute('aria-label') && !field.hasAttribute('aria-labelledby') && !field.hasAttribute('title'))
+      .filter((field) => !field.closest('label') && !(field.id && doc.querySelector(`label[for="${field.id}"]`)))
+      .map((field) => field.id || field.name || field.type);
+
+    expect(unnamed).toEqual([]);
+  });
+
   it('explains what each balance counts', () => {
     expect(doc.querySelector('#totals .stat.balance .stat-label').textContent.trim()).toBe('คงเหลือ');
     expect(doc.querySelector('#totals .stat.balance .stat-note').textContent.trim()).toBe('รายรับหักรายจ่าย ของเดือนที่เลือก');

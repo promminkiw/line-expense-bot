@@ -2,7 +2,12 @@ const { formatAmount } = require('../parser/format-reply');
 const { isValidAmount } = require('../api/validate');
 
 // รูปแบบตายตัวจึงไม่ต้องใช้ Claude ชื่อเป้ามีตัวเลขได้ เพราะยอดต้องอยู่ท้ายสุดเสมอ
-const SAVING_PATTERN = /^ออม\s*(.+?)\s+([\d,]+(?:\.\d{1,2})?)\s*(?:บาท)?$/;
+const SAVING_PREFIX = 'ออม';
+const BAHT_SUFFIX = 'บาท';
+const SAVING_AMOUNT_TOKEN = /^[\d,]+(?:\.\d{1,2})?$/;
+const WHITESPACE = /\s/;
+// . ไม่จับตัวขึ้นบรรทัด ชื่อเป้าที่ขึ้นบรรทัดกลางชื่อจึงไม่ผ่านเหมือน regex เดิม
+const SINGLE_LINE = /^.+$/;
 
 // "ออม 1000" ไม่มีชื่อเป้า ถ้าไม่จับไว้จะถูกจดเป็นรายจ่าย
 const NAMELESS_SAVING_PATTERN = /^ออม\s*([\d,]+(?:\.\d{1,2})?)\s*(?:บาท)?$/;
@@ -23,16 +28,30 @@ function toSavingAmount(text) {
   return isValidAmount(amount) ? amount : null;
 }
 
+// หาช่องว่างตัวสุดท้ายแทน regex ตัวเดียว เพราะ regex เดิม backtrack แบบ O(n²) กับข้อความที่มีช่องว่างยาว
+function splitNamedSaving(text) {
+  if (!text.startsWith(SAVING_PREFIX)) return null;
+  let rest = text.slice(SAVING_PREFIX.length);
+  if (rest.endsWith(BAHT_SUFFIX)) rest = rest.slice(0, -BAHT_SUFFIX.length);
+  rest = rest.trimEnd();
+  let start = rest.length;
+  while (start > 0 && !WHITESPACE.test(rest[start - 1])) start -= 1;
+  const amountText = rest.slice(start);
+  const name = rest.slice(0, start).trim();
+  if (!name || !SINGLE_LINE.test(name) || !SAVING_AMOUNT_TOKEN.test(amountText)) return null;
+  return { name, amountText };
+}
+
 function parseSavingCommand(text) {
   const nameless = NAMELESS_SAVING_PATTERN.exec(text.trim());
   if (nameless) {
     return { name: '', amount: toSavingAmount(nameless[1]) };
   }
-  const match = SAVING_PATTERN.exec(text.trim());
-  if (!match) {
+  const named = splitNamedSaving(text.trim());
+  if (!named) {
     return null;
   }
-  return { name: match[1].trim(), amount: toSavingAmount(match[2]) };
+  return { name: named.name, amount: toSavingAmount(named.amountText) };
 }
 
 // คนที่ไม่มีเป้าเปิดอยู่ไม่ได้ใช้คำสั่งออม ข้อความอย่าง "ออมสิน 1000" ของเขาต้องเป็นรายการตามเดิม

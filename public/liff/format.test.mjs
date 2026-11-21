@@ -696,6 +696,10 @@ describe('profileView', () => {
     expect(profileView({ ...profile, displayName: '\u{1F600} Sam' }).initial).toBe('\u{1F600}');
   });
 
+  it('keeps a Thai consonant with its tone mark and vowel as one initial', () => {
+    expect(profileView({ ...profile, displayName: 'น้ำ' }).initial).toBe('น้ำ');
+  });
+
   it('handles a user without any entries', () => {
     const view = profileView({ displayName: null, income: 0, expense: 0, balance: 0, entryCount: 0, firstDate: null });
 

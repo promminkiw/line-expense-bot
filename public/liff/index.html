@@ -349,7 +349,7 @@
         </div>
         <section id="budget-risk" class="budget-card" aria-labelledby="budget-risk-title" hidden>
           <div class="budget-card-head">
-            <h2 id="budget-risk-title"></h2>
+            <h2 id="budget-risk-title">ต้องดูแล</h2>
             <span class="budget-card-note">แตะแท่งเพื่อแก้งบ</span>
           </div>
           <div id="budget-risk-plot" class="budget-plot">
@@ -371,7 +371,7 @@
         </section>
         <section id="budget-calm" class="budget-card" aria-labelledby="budget-calm-title" hidden>
           <div id="budget-calm-head" class="budget-card-head">
-            <h2 id="budget-calm-title"></h2>
+            <h2 id="budget-calm-title">ปกติ</h2>
             <span id="budget-calm-note" class="budget-card-note"></span>
           </div>
           <div id="budget-calm-list" class="budget-calm-list"></div>
@@ -425,7 +425,7 @@
       <div id="budget-all-list" class="budget-all-list"></div>
       <div id="budget-all-empty" class="budget-all-empty" hidden>
         <img class="budget-all-empty-art" src="assets/mascot.webp" alt="" width="88" height="88">
-        <h2 id="budget-all-empty-title"></h2>
+        <h2 id="budget-all-empty-title">ไม่พบหมวด</h2>
         <p>ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
         <button type="button" id="budget-all-empty-clear" class="budget-cta">ล้างคำค้น</button>
       </div>
@@ -581,7 +581,7 @@
         <div class="profile-head">
           <span id="profile-avatar" class="profile-avatar" aria-hidden="true"></span>
           <div>
-            <h2 id="profile-name" class="profile-name"></h2>
+            <h2 id="profile-name" class="profile-name">ผู้ใช้</h2>
             <p id="profile-since" class="profile-since"></p>
           </div>
         </div>
@@ -818,7 +818,7 @@
     </form>
   </dialog>
   <dialog id="friend-dialog" aria-labelledby="friend-dialog-title">
-    <h2 id="friend-dialog-title"></h2>
+    <h2 id="friend-dialog-title">เพื่อน</h2>
     <p id="friend-dialog-text" class="confirm-detail"></p>
     <p id="friend-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
     <p id="friend-dialog-error" class="error" role="alert"></p>
@@ -869,7 +869,7 @@
     </form>
   </dialog>
   <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
-    <h2 id="bill-dialog-title"></h2>
+    <h2 id="bill-dialog-title">บิล</h2>
     <p id="bill-dialog-text" class="confirm-detail"></p>
     <p id="bill-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
     <p id="bill-dialog-error" class="error" role="alert"></p>
@@ -892,7 +892,7 @@
         </label>
         <div class="bill-form-receipt">
           <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
-          <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+          <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true" aria-label="เลือกรูปใบเสร็จ">
           <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
         </div>
       </div>
@@ -934,7 +934,7 @@
     </form>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
-    <h2 id="confirm-title"></h2>
+    <h2 id="confirm-title">ลบรายการนี้?</h2>
     <p id="confirm-category" class="confirm-category"></p>
     <p id="confirm-amount" class="confirm-amount"></p>
     <p id="confirm-date" class="confirm-detail"></p>
@@ -950,7 +950,7 @@
       <div class="budget-sheet-head">
         <span id="budget-sheet-badge" class="budget-sheet-badge"></span>
         <div class="budget-sheet-heading">
-          <h2 id="budget-title"></h2>
+          <h2 id="budget-title">ตั้งงบ</h2>
           <p id="budget-sheet-sub"></p>
         </div>
         <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
@@ -987,7 +987,7 @@
     </form>
   </dialog>
   <dialog id="budget-remove-confirm" class="budget-confirm" aria-labelledby="budget-confirm-title">
-    <h2 id="budget-confirm-title"></h2>
+    <h2 id="budget-confirm-title">เลิกตั้งงบ</h2>
     <div id="budget-confirm-body" class="budget-confirm-body"></div>
     <div class="budget-confirm-actions">
       <button type="button" id="budget-confirm-cancel">ไม่ลบ</button>
@@ -999,7 +999,7 @@
     <div class="budget-bulk-result-head">
       <img src="assets/mascot.webp" alt="" width="56" height="56">
       <div>
-        <h2 id="budget-bulk-result-title"></h2>
+        <h2 id="budget-bulk-result-title">ผลการบันทึกงบ</h2>
         <p id="budget-bulk-result-sub"></p>
       </div>
     </div>
@@ -1009,7 +1009,7 @@
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
-      <h2 id="recurring-editor-title" tabindex="-1" autofocus></h2>
+      <h2 id="recurring-editor-title" tabindex="-1" autofocus>รายการประจำ</h2>
       <button type="button" id="recurring-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -1048,7 +1048,7 @@
   </dialog>
   <dialog id="goal-editor" aria-labelledby="goal-editor-title">
     <form id="goal-editor-form">
-      <h2 id="goal-editor-title" tabindex="-1"></h2>
+      <h2 id="goal-editor-title" tabindex="-1">เป้าออม</h2>
       <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -1073,7 +1073,7 @@
     </form>
   </dialog>
   <dialog id="goal-detail" aria-labelledby="goal-detail-title">
-    <h2 id="goal-detail-title" tabindex="-1"></h2>
+    <h2 id="goal-detail-title" tabindex="-1">เป้าออม</h2>
     <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
         aria-hidden="true" focusable="false">
         <use href="#icon-close"></use>
