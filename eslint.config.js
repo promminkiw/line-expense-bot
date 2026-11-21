@@ -2,7 +2,7 @@ const js = require('@eslint/js');
 const globals = require('globals');
 
 module.exports = [
-  { ignores: ['node_modules/**', 'work-memory/**', '.superpowers/**', 'docs/**', 'public/liff/vendor/**'] },
+  { ignores: ['node_modules/**', 'work-memory/**', '.superpowers/**', 'docs/**', 'public/liff/vendor/**', 'coverage/**', '.scannerwork/**'] },
   js.configs.recommended,
   {
     files: ['**/*.js'],
