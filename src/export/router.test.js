@@ -3,7 +3,10 @@ import express from 'express';
 import { createExportRouter } from './router.js';
 import { createLinkToken, hashLinkToken } from './link-token.js';
 
-const EXPIRED = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
+// ส่งก่อนรู้ว่าเป็นใคร จึงมีทั้งสองภาษา ไทยขึ้นก่อน
+const EXPIRED = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง / This link has expired or was already used. Go back and tap Export CSV on the web again';
+const FAILED = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง / Export failed. Go back and tap Export CSV on the web again';
+const NOT_FOUND = 'ไม่พบหน้านี้ / Page not found';
 
 let server;
 
@@ -72,6 +75,20 @@ describe('GET /exports/:token', () => {
     expect(deps.repository.getUserLanguage).toHaveBeenCalledWith('user-1');
   });
 
+  // ลิงก์ถูกใช้ไปแล้วตอน claim ถ้าพังเพราะอ่านภาษาไม่ได้ ผู้ใช้จะเสียลิงก์ไปเปล่าๆ
+  it('falls back to Thai CSV when the language lookup fails', async () => {
+    const deps = setup();
+    deps.repository.getUserLanguage.mockRejectedValue(new Error('db down'));
+    const base = await start(deps);
+    const { token } = createLinkToken();
+
+    const res = await fetch(`${base}/${token}`);
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('วันที่,ประเภท,หมวด,จำนวนเงิน,โน้ต\r\n2026-09-29,รายจ่าย,อาหาร,60.00,กินข้าว\r\n');
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to read export language', { userId: 'user-1', reason: 'db down' });
+  });
+
   it('returns 410 for a malformed token without touching the database', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -105,7 +122,7 @@ describe('GET /exports/:token', () => {
     const res = await fetch(`${base}/${createLinkToken().token}`);
 
     expect(res.status).toBe(500);
-    expect(await res.text()).toBe('Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง');
+    expect(await res.text()).toBe(FAILED);
     expect(deps.logger.error).toHaveBeenCalledWith('Export failed', error);
   });
 
@@ -178,7 +195,7 @@ describe('other paths under /exports', () => {
       expect(res.status).toBe(404);
       expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
       expect(res.headers.get('cache-control')).toBe('no-store');
-      expect(await res.text()).toBe('ไม่พบหน้านี้');
+      expect(await res.text()).toBe(NOT_FOUND);
       expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     }
   });

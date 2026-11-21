@@ -2,12 +2,17 @@ const express = require('express');
 const { parseMonth } = require('../api/validate');
 const { hashLinkToken, isLinkToken } = require('./link-token');
 const { buildTransactionsCsv, exportFileName } = require('./csv');
-const { normalizeLanguage } = require('../i18n');
+const { t, normalizeLanguage } = require('../i18n');
 
-const EXPIRED_MESSAGE = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
-const FAILED_MESSAGE = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
+// ข้อความเหล่านี้ส่งก่อนรู้ว่าลิงก์เป็นของใคร จึงใส่ทั้งสองภาษา ไทยขึ้นก่อนเพราะผู้ใช้ส่วนใหญ่เป็นคนไทย
+function bilingual(key) {
+  return `${t('th', key)} / ${t('en', key)}`;
+}
 
-const NOT_FOUND_MESSAGE = 'ไม่พบหน้านี้';
+const EXPIRED_MESSAGE = bilingual('export.error.expired');
+const FAILED_MESSAGE = bilingual('export.error.failed');
+
+const NOT_FOUND_MESSAGE = bilingual('export.error.notFound');
 
 // nosniff กัน browser เดาชนิดไฟล์เองจากเนื้อหาที่มีข้อความของผู้ใช้
 function sendText(res, status, text) {
@@ -45,10 +50,14 @@ function createExportRouter({ repository, now = () => new Date(), logger = conso
     }
     const range = parseMonth(link.month);
     // อ่านภาษาพร้อมกับรายการ จึงไม่ทำให้ดาวน์โหลดช้าลง
+    // ลิงก์ถูกใช้ไปแล้วตอน claim อ่านภาษาไม่ได้จึงให้เป็นไทยแทนการตอบ 500 ที่ทำให้เสียลิงก์
     const [rows, categories, language] = await Promise.all([
       repository.listAllTransactions(link.userId, range.from, range.to),
       repository.listCategories(link.userId),
-      repository.getUserLanguage(link.userId),
+      repository.getUserLanguage(link.userId).catch((err) => {
+        logger.error('Failed to read export language', { userId: link.userId, reason: err?.message ?? String(err) });
+        return null;
+      }),
     ]);
     const names = new Map(categories.map((category) => [category.id, category.name]));
     const csv = buildTransactionsCsv(

@@ -347,4 +347,7 @@ export default {
   'export.header.category': 'หมวด',
   'export.header.amount': 'จำนวนเงิน',
   'export.header.note': 'โน้ต',
+  'export.error.expired': 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง',
+  'export.error.failed': 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง',
+  'export.error.notFound': 'ไม่พบหน้านี้',
 };

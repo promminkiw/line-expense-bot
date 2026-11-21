@@ -347,4 +347,7 @@ export default {
   'export.header.category': 'Category',
   'export.header.amount': 'Amount',
   'export.header.note': 'Note',
+  'export.error.expired': 'This link has expired or was already used. Go back and tap Export CSV on the web again',
+  'export.error.failed': 'Export failed. Go back and tap Export CSV on the web again',
+  'export.error.notFound': 'Page not found',
 };
