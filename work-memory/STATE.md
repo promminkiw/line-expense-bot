@@ -1,6 +1,6 @@
 # STATE
-Updated: 2026-11-21 (ล่าสุด: แก้ issue SonarQube ครบ 61 จุดบน fix/sonarqube-issues ยืนยันผลสแกนแล้วเหลือ 0 รอ merge)
-Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือกงานถัดไป
+Updated: 2026-11-21 (ล่าสุด: merge PR #8 SonarQube เข้า main แล้ว รอผู้ใช้ลองหน้าเว็บในแอป LINE ข้อ 19)
+Goal: รอผู้ใช้ลองข้อ 6-19 แล้วเลือกงานถัดไป
 
 กติกา: ทั้งไฟล์ไม่เกินประมาณ 60 บรรทัด, รายการละไม่เกิน 2 บรรทัด (รายละเอียดชี้ไปที่ไฟล์แผนหรือ commit), Done เก็บแค่ 5 รายการล่าสุด, งานที่ merge แล้วย้ายไป work-memory/archive/ และแผนไป docs/superpowers/plans/archive/ (ของเก่า: archive/STATE-2026-09-to-10.md)
 
@@ -22,12 +22,13 @@ Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือ�
 17. สรุปรายเดือน: (ก) รัน 026 และเช็กแล้ว 2026-10-31; (ข) สร้างงานใน cron-job.org แล้ว 2026-10-31 (Test run ได้ 404 เพราะยังไม่ deploy ปกติ) ห้ามกด Test run ก่อนวันที่ 1 (ส่งสรุปเดือนก่อนหน้าที่ไม่ใช่เดือนล่าสุด) รันเองวันที่ 1 ขึ้นไปได้ การจองกันส่งซ้ำ
     (ค) 2026-11-01 หลัง 08:00: การ์ดเข้า LINE, ปุ่มเปิดแท็บสรุปเดือนตุลาคม, History ใน cron-job.org ขึ้น 200 และ failed = 0 (pushFailed >= 1 ปกติสำหรับคนที่ไม่ใช่เพื่อนบอท)
 18. หลัง merge และ deploy NLU intents: ส่งใน LINE จริง สรุปหน่อย (เมนูสรุป), กินข้าว รูท25*x10 (50 บาท), ออมสิน 1000 (บันทึกรายจ่าย), เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500 (ออมเข้าเป้า), ใช้ยังไง (เมนูช่วยเหลือ), งบเหลือเท่าไหร่ (ลิงก์แท็บงบ) และ กินข้าว 40+10+20 ตามด้วย รวม (การ์ด 70 บาท)
+19. หลัง deploy PR #8 (SonarQube): เปิดหน้าเว็บ LIFF ในแอป LINE แล้วเปิด dialog และแผ่นที่แก้ heading: เพื่อน, บิล, งบ (แผ่นแก้งบ, ยืนยันเลิกตั้งงบ, ผลบันทึกหลายหมวด), รายการประจำ, เป้าออม (สร้าง/แก้/รายละเอียด), ยืนยันลบ และการ์ดโปรไฟล์ ดูว่าหัวข้อขึ้นถูกและไม่มีข้อความตั้งต้นแวบให้เห็น
 - ยืนยันแล้ว (ไม่ต้องทำอีก): Nielsen UX ในแอป LINE (2026-11-04), cron weekly/daily ถูกต้อง (2026-10-26), ออม/กระเป๋า/ตัวกรอง (2026-10-19), UX P1/P2 และแท็บ ฉัน (2026-10-20)
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] SonarQube (2026-11-21): แก้ครบ 61 issue บน fix/sonarqube-issues (46 จุดแรก + อีก 15 จุดแก้ในโค้ดแทนการ Accept: heading 13 มีข้อความตั้งต้น, aria-label ที่ file input, respondFromWeb คืนค่าที่เดียว) สแกนซ้ำยืนยันแล้ว (2026-11-21 14:19 UTC ด้วยสคริปต์ล่าสุด): issue เปิด 0, Reliability/Security/Maintainability A, Quality Gate OK (new coverage 87.0%, ทั้งโปรเจกต์ 92.7%) ตั้ง coverage แล้ว (npm run test:coverage, sonar-scan.ps1 รันให้) รอ merge; npm test 2773/2773 lint ผ่าน; follow-up เล็กๆ จาก review ปิดแล้ว (ไม่นับตัวช่วย test ใน coverage, eslint ไม่ไล่ coverage/, sonar-scan.ps1 ใช้ -ReuseCoverage และ pin image) ยังเหลือ: sonar-scan.ps1 exit 0 ตอน scanner ล้ม; แผน plans/2026-11-21-sonarqube-leftovers.md; แผน plans/2026-11-21-sonarqube-fixes.md
-    void 39 จุดมีเหตุผลว่าฟังก์ชันจับ error เอง ยกเว้น 2 ทางที่ reject ได้เมื่อมี bug (render() ใน goals-panel/bills-panel load, runEdit ตอน editing เป็น null) ยอมรับไว้
+- [ ] SonarQube follow-up เล็กๆ (PR #8 merge แล้ว): sonar-scan.ps1 จบ exit 0 ตอน scanner ล้ม, repo mount แบบ read-write ใน container, test noLineId ใน service.test.js ไม่ assert ว่า logger.error ไม่ถูกเรียก
+    void 39 จุด: ฟังก์ชันจับ error จาก API เอง แต่มี 2 ทางที่ reject ได้เมื่อมี bug (render() ใน load ของ goals-panel/bills-panel, runEdit ตอน editing เป็น null) ยอมรับไว้
 - [ ] NLU intents: merge (63c0fbb) และ push แล้ว 2026-11-08 รอผู้ใช้ลองข้อ 18 ในแอป LINE หลัง Render deploy; nlu-eval 43 ข้อ: 42/43 สองรอบ แล้ว 43/43 สองรอบ
     (ตกสลับกัน ออมสิน 1000, งบเหลือเท่าไหร่ = model ไม่คงที่ 100%); help ออม ยังไม่มี eval case `ออม <ชื่อ> <ยอด>` ตอนไม่มีเป้า; ความเสี่ยงที่ยอมรับ:
     - intent ที่ไม่ใช่ record แต่มีรายการจริงจะทิ้งรายการ (prompt บังคับ items []) ผู้ใช้ไม่เห็นการ์ดบันทึก
@@ -63,6 +64,8 @@ Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือ�
 - ความเสี่ยงที่ยอมรับ (2026-10-01): ไม่มี rate limit ที่ endpoint cron (secret 48 ตัว), เพดาน 50 กฎแข่งกันได้, .limit(500) ไม่กันกฎที่พังถาวร, Bearer แยกตัวพิมพ์
 
 ## Done
+- [x] SonarQube 61 issue + coverage (2026-11-21, PR #8 merge เป็น 592579c ที่ main): regex คำสั่งออมไม่ backtrack, void 39 จุด, heading 13 มีข้อความตั้งต้น, aria-label ที่ file input, respondFromWeb คืนค่าที่เดียว, coverage v8 (npm run test:coverage) และ scripts/sonar-scan.ps1
+    สแกนล่าสุด 2026-11-21 14:19 UTC: issue เปิด 0, A/A/A, Quality Gate OK (new coverage 87.0%, ทั้งโปรเจกต์ 92.7%); npm test 2773/2773 CI เขียว; แผน plans/2026-11-21-sonarqube-{fixes,leftovers,minors}.md
 - [x] NLU intents + นิพจน์ยอด (2026-11-08, branch feat/nlu-intents b663d7c..eb8117f ยังไม่ merge/push): Claude ตอบ intent ในครั้งเดียว ยอดคำนวณในโค้ด (amount-expression.js ไม่ใช้ eval) งบถามแล้วส่งลิงก์เว็บ ออมหลวมเข้าเป้า
     แผน plans/2026-11-08-nlu-intents.md; npm test 2759/2759 (--testTimeout=30000) lint ผ่าน; nlu-eval (claude-haiku-5-5) 39/39 สามรอบ ไม่ต้องปรับ prompt
 - [x] Nielsen UX (2026-11-04, merge feat/nielsen-ux และ push แล้ว): ปัดลบพร้อมเลิกทำ, ข้อความเฮีย, loading animation, คอมมาในช่องยอดของฟอร์มเดี่ยว ยอดบิล งบ และคำสั่งออม (ไม่รวมส่วนแบ่งในบิล), กำลังกู้คืน...; แผน plans/archive/2026-11-04-nielsen-ux.md
@@ -70,7 +73,6 @@ Goal: รอผู้ใช้ลองข้อ 6-18 แล้วเลือ�
 - [x] สรุปรายเดือน (2026-10-31, merge feat/monthly-summary และ push แล้ว): push วันที่ 1 08:00 สรุปเดือนก่อน การ์ด/ข้อความชวนเดือนว่าง เฮียสำเร็จรูป 6 แบบ endpoint /internal/notifications/monthly; SQL 026; SPEC ข้อ 15
     แผน plans/2026-10-30-monthly-summary.md; final review dragon+viper+panda+coral ผ่านหลังรอบแก้; npm test 2504/2504 lint ผ่าน
 - [x] ช่องเดือนเปลี่ยนเองเมื่อข้ามเดือน (2026-10-30, 38d54fe push แล้ว): public/liff/month-rollover.mjs เช็กตอนกลับมาที่หน้า รอปิด dialog/หน้าย่อย; SPEC เว็บ LIFF; npm test 2463/2463 lint ผ่าน
-- [x] จัดโฟลเดอร์ (2026-10-30, d246a19..1f94385, merge และ push แล้ว 4e89a1f): ไม่ส่งไฟล์เทสต์ทาง /liff, ย้ายไฟล์หลวมใน src/, budget -> budgets, LIFF แยกโฟลเดอร์ตามฟีเจอร์; แผน plans/2026-10-30-folder-structure-cleanup.md; npm test 2453/2453 lint ผ่าน
 
 ## Blocked
 - คำตอบของบอทส่งออกไปที่ LINE API โดยตรง ไม่ผ่าน ngrok จึงต้องให้ผู้ใช้ยืนยันจากแอป LINE เอง
