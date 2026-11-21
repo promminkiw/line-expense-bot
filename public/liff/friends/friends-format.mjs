@@ -1,14 +1,23 @@
 import { loginRequiredMessage } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 // ตรงกับ FRIEND_CODE_PATTERN ฝั่ง server ตรวจซ้ำที่นี่เพื่อบอกผู้ใช้ได้ทันทีโดยไม่ต้องยิง request
 const FRIEND_CODE_PATTERN = /^[A-HJ-NP-Z2-9]{8}$/;
 // ตรงกับฝั่ง server: ตัดขีดยาวที่ติดมาตอนคัดลอกรหัสด้วย
 const DASHES_AND_SPACES = /[\s\-\u2010-\u2015\u2212]/g;
 
-export const INVALID_CODE_MESSAGE = 'รหัสเพื่อนต้องเป็นตัวอักษรหรือตัวเลข 8 ตัว';
-export const OWN_CODE_MESSAGE = 'นี่คือรหัสของคุณเอง ส่งรหัสนี้ให้เพื่อนแทน';
+// ค่าไทยตั้งต้นคงไว้ให้ผู้ใช้เดิมของ export นี้ หน้าเว็บเรียก t ตามภาษาที่เปิดอยู่
+export const INVALID_CODE_MESSAGE = t('th', 'web.friends.error.invalidCode');
+export const OWN_CODE_MESSAGE = t('th', 'web.friends.error.ownCode');
 
-export const INVITE_KEPT_LOAD_MESSAGE = 'โหลดรายชื่อเพื่อนไม่สำเร็จ กดลองใหม่แล้วจะเพิ่มเพื่อนต่อให้';
+// ตรงกับ FALLBACK_DISPLAY_NAME ใน src/friends/service.js server ส่งชื่อไทยนี้มาแทนเพื่อนที่ไม่มีชื่อ LINE
+const SERVER_FALLBACK_NAME = 'ผู้ใช้ LINE';
+
+// ชื่อเพื่อนเป็นข้อมูลของผู้ใช้ แปลเฉพาะชื่อสำรองที่ server ใส่ให้
+export function displayFriendName(name, lang = getLang()) {
+  return name === SERVER_FALLBACK_NAME ? t(lang, 'web.friends.fallbackName') : name;
+}
 
 export function normalizeFriendCodeInput(text) {
   if (typeof text !== 'string') return null;
@@ -24,20 +33,23 @@ export function buildInviteUrl(liffId, code) {
   return `https://liff.line.me/${liffId}?friend=${encodeURIComponent(code)}`;
 }
 
-export function buildInviteMessage(url) {
-  return `มาเป็นเพื่อนกันในบอทบันทึกรายรับรายจ่าย จะได้หารบิลกันง่ายๆ กดลิงก์นี้ได้เลย ${url}`;
+// ข้อความนี้ส่งถึงเพื่อนที่อาจยังไม่รู้จักบอท จึงเป็นข้อความกลางๆ ไม่ใช้บุคลิกเฮีย (ข้อยกเว้นตาม SPEC)
+export function buildInviteMessage(url, lang = getLang()) {
+  return t(lang, 'web.friends.invite', { url });
 }
 
-export function describeFriendError(status, action, error) {
-  if (status === 401) return loginRequiredMessage();
+function friendErrorKey(status, action, error) {
   if (action === 'add') {
-    if (status === 400 && error === 'Own code') return OWN_CODE_MESSAGE;
-    if (status === 400) return INVALID_CODE_MESSAGE;
-    if (status === 404) return 'ไม่พบรหัสเพื่อนนี้ อาจพิมพ์ผิดหรือเพื่อนเปลี่ยนรหัสแล้ว';
-    if (status === 429) return 'ลองหลายครั้งเกินไป รอสักครู่แล้วลองใหม่';
-    return 'เพิ่มเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
+    if (status === 400) return error === 'Own code' ? 'web.friends.error.ownCode' : 'web.friends.error.invalidCode';
+    if (status === 404) return 'web.friends.error.notFound';
+    return status === 429 ? 'web.friends.error.tooManyTries' : 'web.friends.error.addFailed';
   }
-  if (action === 'remove') return 'ลบเพื่อนไม่สำเร็จ ลองใหม่อีกครั้ง';
-  if (action === 'renew') return status === 429 ? 'เปลี่ยนรหัสบ่อยเกินไป รอสักครู่แล้วลองใหม่' : 'เปลี่ยนรหัสไม่สำเร็จ ลองใหม่อีกครั้ง';
-  return 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
+  if (action === 'remove') return 'web.friends.error.removeFailed';
+  if (action === 'renew') return status === 429 ? 'web.friends.error.renewTooFast' : 'web.friends.error.renewFailed';
+  return 'web.friends.error.loadFailed';
+}
+
+export function describeFriendError(status, action, error, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  return t(lang, friendErrorKey(status, action, error));
 }

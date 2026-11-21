@@ -117,6 +117,9 @@ function relocalize() {
   els.recurringEmpty.replaceChildren(createEmptyState(document, 'recurring'));
   // เปิดหน้าภาษาค้างไว้ระหว่างรอคำตอบ server ตัวเลือกต้องตามภาษาใหม่
   if (activeSubPage?.panelId === 'panel-language') languagePicker.render();
+  // หน้าหารบิลไม่ผ่าน loadAll การ์ดบิลและรายชื่อเพื่อนจึงต้องวาดใหม่เอง
+  billsPanel.relabel();
+  friendsPanel.relabel();
   if (loadError) showStickyLoadError();
   // รายการ กราฟ และยอดที่วาดไปแล้วเป็นภาษาเดิม โหลดใหม่ครั้งเดียวดีกว่าตามแก้ทีละส่วน
   if (initialLoadDone) void reloadForLanguage();

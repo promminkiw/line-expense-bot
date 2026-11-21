@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { memberStatusLabel } from './bills-format.mjs';
 import {
   toSatang,
   splitEvenly,
@@ -192,5 +193,30 @@ describe('bill list helpers', () => {
     expect(needsShareLink(owned({ members: [member({ status: 'pending', notified: false })] }))).toBe(true);
     expect(needsShareLink(owned({ members: [member({ status: 'confirmed', notified: false })] }))).toBe(false);
     expect(needsShareLink(owned({ status: 'cancelled', members: [member({ status: 'pending', notified: false })] }))).toBe(false);
+  });
+});
+
+describe('bill texts in English', () => {
+  const member = (over) => ({ userId: 'f', displayName: 'บี', share: 100, status: 'confirmed', paid: false, notified: true, ...over });
+  const owned = (over) => ({ status: 'open', members: [member()], ...over });
+  const incoming = (over) => ({ status: 'open', myStatus: 'pending', paid: false, ...over });
+
+  it('sums up bills and members in English', () => {
+    expect(ownedBillSummary(owned({ members: [member({ paid: true }), member()] }), 'en')).toBe('Owed to you · 1/2 paid back');
+    expect(ownedBillSummary(owned({ status: 'cancelled' }), 'en')).toBe('Cancelled');
+    expect(incomingBillState(incoming(), 'en')).toBe('Waiting for you');
+    expect(incomingBillState(incoming({ myStatus: 'confirmed' }), 'en')).toBe('Not paid back yet');
+    expect(memberStatusLabel('pending', 'en')).toBe('Waiting');
+    expect(memberStatusLabel('declined', 'th')).toBe('ปฏิเสธ');
+    expect(calendarParts('2026-10-08', 'en')).toEqual({ month: 'Oct', day: '8' });
+  });
+
+  it('explains failures in English', () => {
+    expect(describeBillError(400, 'create', 'Shares do not add up', 'en')).toBe("Everyone's shares don't add up to the bill total");
+    expect(describeBillError(404, 'respond', undefined, 'en')).toBe("This bill isn't here anymore.");
+    expect(describeBillError(401, 'load', undefined, 'en')).toBe(loginRequiredMessage('en'));
+    expect(describeReceiptError(413, 'en')).toBe('That image is too big (10 MB max)');
+    expect(describeReceiptError(500, 'en')).toBe("Couldn't read the photo. Try again, or type the total yourself.");
+    expect(describeBillAnswer('already_confirmed', 'en')).toBe('You already confirmed this bill.');
   });
 });

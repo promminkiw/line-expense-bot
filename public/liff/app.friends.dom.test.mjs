@@ -653,3 +653,85 @@ describe('LIFF friends section guards and failure paths', () => {
     expect(byId('friend-qr').innerHTML).not.toBe(before);
   });
 });
+
+describe('LIFF friends page in English', () => {
+  afterEach(() => localStorage.clear());
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+
+  async function openFriendsEnglish({ route = () => undefined, ...liffOverrides } = {}) {
+    localStorage.setItem('lang', 'en');
+    const liff = await boot({ overrides: { '/api/settings': ENGLISH_SETTINGS } });
+    Object.assign(liff, liffOverrides);
+    const calls = routeFetch((method, path) => route(method, path) ?? (method === 'GET' && path === '/api/settings' ? ENGLISH_SETTINGS : undefined));
+    clickTab('profile');
+    await settle();
+    byId('friends-open').click();
+    await settle();
+    return calls;
+  }
+
+  it('shows my code, the actions and the friend list in English', async () => {
+    await openFriendsEnglish();
+
+    expect(byId('page-title').textContent).toBe('Friends & split bills');
+    expect(byId('friends-title').textContent).toBe('Friends');
+    expect(document.querySelector('.friends-hint').textContent).toBe('Add your friends first, then you can pick them when you split a bill');
+    expect(byId('friends-bills-link').textContent).toBe('Split a bill with friends');
+    expect(document.querySelector('.friend-code-card .stat-label').textContent).toBe('My friend code');
+    expect(byId('friend-share').textContent).toBe('Send invite link');
+    expect(byId('friend-qr-toggle').textContent).toBe('Show QR');
+    byId('friend-qr-toggle').click();
+    expect(byId('friend-qr-toggle').textContent).toBe('Hide QR');
+    expect(byId('friend-code-renew').textContent).toBe('Change code');
+    expect(document.querySelector('label[for="friend-code-input"]').textContent).toBe('Add a friend by code');
+    expect(byId('friend-add-submit').textContent).toBe('Search');
+    const remove = document.querySelector('#friend-rows .friend-remove');
+    expect(remove.textContent).toBe('Remove');
+    expect(remove.getAttribute('aria-label')).toBe('Remove บี from friends');
+  });
+
+  it('looks up a code and adds the friend in English', async () => {
+    await openFriendsEnglish({
+      route: (method, path) => (method === 'POST' && path === '/api/friends' ? { friend: { id: 'f-2', displayName: 'ซี' } } : undefined),
+    });
+
+    byId('friend-code-input').value = 'abc';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-add-error').textContent).toBe('A friend code is 8 letters or numbers');
+
+    byId('friend-code-input').value = 'wxyz-2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('friend-dialog-title').textContent).toBe('Add friend');
+    expect(byId('friend-dialog-text').textContent).toBe('Add ซี as a friend?');
+    expect(byId('friend-dialog-ok').textContent).toBe('Add friend');
+    expect(byId('friend-dialog-cancel').textContent).toBe('Cancel');
+
+    byId('friend-dialog-ok').click();
+    await settle();
+    expect(byId('friend-status').textContent).toBe('Added ซี as a friend.');
+  });
+
+  it('sends the invite in English', async () => {
+    const shareTargetPicker = vi.fn().mockResolvedValue({ status: 'success' });
+    await openFriendsEnglish({ isApiAvailable: (name) => name === 'shareTargetPicker', shareTargetPicker });
+
+    byId('friend-share').click();
+    await settle();
+
+    const [[messages]] = shareTargetPicker.mock.calls;
+    expect(messages[0].text).toBe(
+      "Let's be friends on this expense tracker bot so we can split bills easily. Just tap this link: https://liff.line.me/liff-1?friend=ABCD2345"
+    );
+    expect(byId('friend-status').textContent).toBe('Link sent');
+  });
+
+  it('names a friend without a LINE name in English', async () => {
+    await openFriendsEnglish({
+      route: (method, path) => (method === 'GET' && path === '/api/friends' ? { code: 'ABCD2345', friends: [{ id: 'f-9', displayName: 'ผู้ใช้ LINE' }] } : undefined),
+    });
+
+    expect(document.querySelector('#friend-rows .friend-name').textContent).toBe('LINE user');
+  });
+});

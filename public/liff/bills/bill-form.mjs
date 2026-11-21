@@ -1,13 +1,13 @@
 import { ApiError } from '../api.mjs';
 import { buildEqualShares, sumShortfall, toSatang, describeBillError, describeReceiptError } from './bills-format.mjs';
 import { formatBaht, currentDate, hasOnlyThousandsCommas } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
+import { categoryDisplayName } from '../categories/categories-format.mjs';
+import { displayFriendName } from '../friends/friends-format.mjs';
 
+// ชื่อหมวดใน DB ไม่ใช่ชื่อที่แสดง จึงเทียบได้ทุกภาษา
 const DEFAULT_CATEGORY = 'อาหาร';
-const FRIENDS_LOAD_FAILED = 'โหลดรายชื่อเพื่อนไม่สำเร็จ';
-const CREATE_RESULT_UNKNOWN = 'ไม่ทราบผล ตรวจรายการบิลก่อนสร้างใหม่';
-const NO_EXPENSE_CATEGORY = 'ไม่มีหมวดรายจ่ายให้เลือก';
-const CATEGORIES_LOAD_FAILED = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
-const RECEIPT_READING = 'กำลังอ่านยอดจากรูป...';
 // เพดานเดียวกับ server
 const MAX_TITLE_LENGTH = 60;
 const MAX_MEMBERS = 20;
@@ -25,14 +25,19 @@ function readTotal(text) {
   return { empty: false, amount: isNumber ? Number(cleaned) : Number.NaN };
 }
 
-function describeTotal({ empty, amount }) {
-  if (empty) return 'ใส่ยอดรวม';
-  if (Number.isNaN(amount)) return 'ใส่ยอดเป็นตัวเลข เช่น 1000';
+function totalProblemKey({ empty, amount }) {
+  if (empty) return 'web.bills.form.needTotal';
+  if (Number.isNaN(amount)) return 'web.bills.form.totalNotNumber';
   const satang = toSatang(amount);
-  if (satang === null) return 'ใส่ยอดไม่เกินทศนิยม 2 ตำแหน่ง';
-  if (satang === 0) return 'ใส่ยอดรวม';
-  if (satang > MAX_TOTAL_SATANG) return 'ยอดรวมต้องไม่เกิน 10,000,000 บาท';
-  return '';
+  if (satang === null) return 'web.bills.form.totalDecimals';
+  if (satang === 0) return 'web.bills.form.needTotal';
+  if (satang > MAX_TOTAL_SATANG) return 'web.bills.form.totalTooLarge';
+  return null;
+}
+
+function describeTotal(total) {
+  const key = totalProblemKey(total);
+  return key ? t(getLang(), key) : '';
 }
 
 export function createBillForm({ doc, els, getApi, getCategories, ensureCategories, onCreated, onUncertain, onOpenFriends }) {
@@ -57,7 +62,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
       ...expense.map((category) => {
         const option = doc.createElement('option');
         option.value = category.id;
-        option.textContent = category.name;
+        option.textContent = categoryDisplayName(getLang(), category);
         option.selected = category.name === DEFAULT_CATEGORY;
         return option;
       })
@@ -84,13 +89,13 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
         const name = doc.createElement('label');
         name.className = 'bill-form-name';
         name.htmlFor = box.id;
-        name.textContent = friend.displayName;
+        name.textContent = displayFriendName(friend.displayName);
         const share = doc.createElement('input');
         share.type = 'number';
         share.inputMode = 'decimal';
         share.step = '0.01';
         share.min = '0.01';
-        share.setAttribute('aria-label', `ส่วนของ ${friend.displayName} (บาท)`);
+        share.setAttribute('aria-label', t(getLang(), 'web.bills.form.friendShare', { name: displayFriendName(friend.displayName) }));
         share.disabled = true;
         share.addEventListener('input', validate);
         if (previous.has(friend.id)) {
@@ -125,7 +130,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     } catch (err) {
       if (token !== openToken) return;
       friendsState = 'failed';
-      els.friendsErrorText.textContent = statusOf(err) === 401 ? describeBillError(401, 'load') : FRIENDS_LOAD_FAILED;
+      els.friendsErrorText.textContent = statusOf(err) === 401 ? describeBillError(401, 'load') : t(getLang(), 'web.friends.error.loadFailed');
     }
     // ตรวจ token ก่อนเขียน state ไม่งั้นรายชื่อของการเปิดฟอร์มรอบเก่าจะทับรอบใหม่
     if (token !== openToken) return;
@@ -141,7 +146,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
 
   function showCategoriesState() {
     els.categoriesError.hidden = categoriesState !== 'failed';
-    els.categoriesErrorText.textContent = CATEGORIES_LOAD_FAILED;
+    els.categoriesErrorText.textContent = t(getLang(), 'web.editor.categoriesFailed');
   }
 
   async function loadCategories() {
@@ -178,15 +183,17 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
 
   function describeMissing() {
     const title = els.title.value.trim();
-    if (!title) return { message: 'ใส่ชื่อบิล', field: null };
-    if (Array.from(title).length > MAX_TITLE_LENGTH) return { message: `ชื่อบิลยาวเกิน ${MAX_TITLE_LENGTH} ตัวอักษร`, field: null };
+    const lang = getLang();
+    if (!title) return { message: t(lang, 'web.bills.form.needTitle'), field: null };
+    if (Array.from(title).length > MAX_TITLE_LENGTH) return { message: t(lang, 'web.bills.form.titleTooLong', { max: MAX_TITLE_LENGTH }), field: null };
     const totalMessage = describeTotal(readTotal(els.total.value));
     if (totalMessage) return { message: totalMessage, field: els.total.value.trim() ? els.total : null };
-    if (!DATE_PATTERN.test(els.date.value)) return { message: 'เลือกวันที่', field: null };
+    if (!DATE_PATTERN.test(els.date.value)) return { message: t(lang, 'web.bills.form.needDate'), field: null };
     return null;
   }
 
   function validate() {
+    const lang = getLang();
     let message = '';
     let invalidField = null;
     const total = readTotal(els.total.value).amount;
@@ -195,24 +202,24 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     const noCategory = categoriesState === 'ready' && missingCategory;
     const missing = describeMissing();
     if (noCategory) {
-      message = NO_EXPENSE_CATEGORY;
+      message = t(lang, 'web.bills.form.noCategory');
     } else if (missing) {
       // ช่องว่างบอกเมื่อเริ่มกรอกแล้ว ส่วนค่าที่กรอกผิดบอกทันที
       if (touched || missing.field) message = missing.message;
       invalidField = missing.field;
     } else if (chosen.length === 0) {
-      message = els.splitControls.hidden ? '' : 'เลือกเพื่อนอย่างน้อย 1 คน';
+      message = els.splitControls.hidden ? '' : t(lang, 'web.bills.form.needFriend');
     } else if (chosen.length > MAX_MEMBERS) {
-      message = `เลือกเพื่อนได้ไม่เกิน ${MAX_MEMBERS} คน`;
+      message = t(lang, 'web.bills.form.tooManyFriends', { max: MAX_MEMBERS });
     } else {
       const shares = chosen.map((row) => amountOf(row.querySelector('input[type="number"]')));
       const ownerShare = amountOf(els.ownerShare);
       const shortfall = sumShortfall(total, ownerShare, shares);
       // sumShortfall นับช่องว่างเป็น 0 จึงต้องกันช่องว่างก่อน
-      if (toSatang(ownerShare) === null) message = 'ใส่ส่วนของฉัน';
-      else if (shares.some((share) => !toSatang(share))) message = 'ใส่ยอดของเพื่อนทุกคนที่เลือก';
-      else if (shortfall > 0) message = `ยอดรวมของทุกคนยังขาดอีก ${formatBaht(shortfall)}`;
-      else if (shortfall < 0) message = `ยอดรวมของทุกคนเกินยอดบิล ${formatBaht(-shortfall)}`;
+      if (toSatang(ownerShare) === null) message = t(lang, 'web.bills.form.needOwnerShare');
+      else if (shares.some((share) => !toSatang(share))) message = t(lang, 'web.bills.form.needFriendShares');
+      else if (shortfall > 0) message = t(lang, 'web.bills.form.short', { amount: formatBaht(shortfall, lang) });
+      else if (shortfall < 0) message = t(lang, 'web.bills.form.over', { amount: formatBaht(-shortfall, lang) });
     }
     els.error.textContent = message;
     if (invalidField) els.total.setAttribute('aria-invalid', 'true');
@@ -235,7 +242,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     if (!file) return;
     const token = openToken;
     readingReceipt = true;
-    showReceiptState(RECEIPT_READING);
+    showReceiptState(t(getLang(), 'web.bills.form.receiptReading'));
     validate();
     let message;
     try {
@@ -243,7 +250,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
       if (token !== openToken) return;
       els.total.value = String(amount);
       splitEven();
-      message = `อ่านยอดได้ ${formatBaht(amount)} ตรวจให้ตรงกับใบเสร็จก่อนหารบิล`;
+      message = t(getLang(), 'web.bills.form.receiptRead', { amount: formatBaht(amount) });
     } catch (err) {
       if (token !== openToken) return;
       message = describeReceiptError(statusOf(err));
@@ -289,7 +296,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     const token = openToken;
     submitting = true;
     validate();
-    els.submit.textContent = 'กำลังสร้าง...';
+    els.submit.textContent = t(getLang(), 'web.bills.form.submitting');
     const body = {
       title: els.title.value.trim(),
       total: readTotal(els.total.value).amount,
@@ -307,14 +314,14 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
       failure = describeBillError(status, 'create', err.error);
       if (status === 0 || status >= 500) {
         // ไม่มีคำตอบหรือ server พังกลางทาง บิลอาจถูกสร้างไปแล้ว จึงโหลดรายการให้ผู้ใช้ตรวจ
-        failure = CREATE_RESULT_UNKNOWN;
+        failure = t(getLang(), 'web.bills.form.resultUnknown');
         await onUncertain();
       } else if (status === 400 && err.error === 'Not friends') {
         await loadFriends();
       }
     }
     submitting = false;
-    els.submit.textContent = 'หารบิล';
+    els.submit.textContent = t(getLang(), 'web.bills.form.submit');
     validate();
     if (result) {
       els.dialog.close();

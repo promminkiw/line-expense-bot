@@ -3,8 +3,12 @@ import { formatBaht } from '../format.mjs';
 import { createLoadingIndicator } from '../ui/skeleton.mjs';
 import { createSvgIcon } from '../ui/icons.mjs';
 import { setSuccessStatus } from '../ui/success-mark.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
+import { categoryDisplayName } from '../categories/categories-format.mjs';
+import { displayFriendName } from '../friends/friends-format.mjs';
 import {
-  MEMBER_STATUS_LABELS,
+  memberStatusLabel,
   BILL_LIST_LIMIT,
   outstandingAmount,
   describeBillError,
@@ -22,6 +26,9 @@ import {
 } from './bills-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
+const tr = (key, params) => t(getLang(), key, params);
+// บิลมีเฉพาะหมวดรายจ่าย และ server ส่งชื่อหมวดใน DB มา จึงแปลเฉพาะตอนแสดง
+const categoryName = (bill) => categoryDisplayName(getLang(), { type: 'expense', name: bill.categoryName });
 
 // โหลดเมื่อเข้าแท็บครั้งแรก และหลังตอบหรือยกเลิกบิล เพราะสถานะของเพื่อนเปลี่ยนจากฝั่งอื่นได้ ส่วนติ๊กคืนแล้วแก้ในหน่วยความจำ
 export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard }) {
@@ -127,22 +134,22 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     const { item, detail } = renderCard(bill, {
       finished: isIncomingBillFinished(bill),
       awaiting,
-      summary: `${bill.ownerName} · ${incomingBillState(bill)}`,
+      summary: `${displayFriendName(bill.ownerName)} · ${incomingBillState(bill)}`,
       amount: bill.myShare,
     });
     // server ไม่ส่งชื่อหมวดที่เจ้าของบิลตั้งเองมาให้เพื่อน
-    const total = `รวม ${formatBaht(bill.total)}`;
-    detail.append(el('p', 'bill-meta', bill.categoryName ? `${bill.categoryName} · ${total}` : total));
+    const total = tr('web.bills.total', { amount: formatBaht(bill.total) });
+    detail.append(el('p', 'bill-meta', bill.categoryName ? `${categoryName(bill)} · ${total}` : total));
     // อยู่นอกส่วนที่พับ ผู้ใช้ต้องเห็นเองว่าต้องไปลบรายจ่าย
     if (needsExpenseCleanup(bill)) {
-      item.append(el('p', 'bill-note', 'บิลถูกยกเลิก แต่รายจ่ายส่วนของคุณยังบันทึกอยู่ ลบเองได้ในหน้าเว็บหลัก'));
+      item.append(el('p', 'bill-note', tr('web.bills.cancelledExpenseNote')));
     }
     // ปุ่มตอบอยู่นอกส่วนที่พับ ตอบได้โดยไม่ต้องกาง ปุ่มปฏิเสธอยู่ซ้ายตามที่ผู้ใช้เลือก
     if (awaiting) {
       const actions = el('div', 'bill-actions');
       actions.append(
-        button('bill-decline', 'ปฏิเสธ', () => askDecline(bill, actions), `ปฏิเสธบิล ${bill.title}`),
-        button('bill-confirm', 'ยืนยัน', () => answerFromCard(bill, actions), `ยืนยันบิล ${bill.title}`)
+        button('bill-decline', tr('web.bills.decline'), () => askDecline(bill, actions), tr('web.bills.declineLabel', { title: bill.title })),
+        button('bill-confirm', tr('web.bills.confirm'), () => answerFromCard(bill, actions), tr('web.bills.confirmLabel', { title: bill.title }))
       );
       setActionsDisabled(actions, sending.has(bill.id));
       item.append(actions);
@@ -154,8 +161,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     const row = el('li', 'bill-member');
     row.dataset.userId = member.userId;
     row.append(
-      el('span', 'bill-member-name', member.displayName),
-      el('span', 'bill-member-status', MEMBER_STATUS_LABELS[member.status]),
+      el('span', 'bill-member-name', displayFriendName(member.displayName)),
+      el('span', 'bill-member-status', memberStatusLabel(member.status)),
       el('span', 'bill-member-share', formatBaht(member.share))
     );
     // คนที่ยังไม่ตอบบิลที่ยกเลิกแล้วไม่มีส่วนที่ต้องคืน
@@ -164,14 +171,14 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       const box = doc.createElement('input');
       box.type = 'checkbox';
       box.checked = member.paid;
-      box.setAttribute('aria-label', `${member.displayName} คืนแล้ว`);
+      box.setAttribute('aria-label', tr('web.bills.paidLabel', { name: displayFriendName(member.displayName) }));
       box.addEventListener('change', () => setPaid(bill, member, box));
-      label.append(box, doc.createTextNode('คืนแล้ว'));
+      label.append(box, doc.createTextNode(tr('web.bills.paid')));
       row.append(label);
     }
     // push พังได้หลายสาเหตุ ไม่ใช่แค่เพื่อนยังไม่เพิ่มบอท ปุ่มส่งลิงก์มีปุ่มเดียวต่อบิลในแถวปุ่ม
     if (!member.notified && member.status === 'pending' && bill.status === 'open') {
-      row.append(el('p', 'bill-member-note', 'แจ้งเตือนไม่ถึง ส่งลิงก์บิลให้เพื่อนแทน'));
+      row.append(el('p', 'bill-member-note', tr('web.bills.unreached')));
     }
     return row;
   }
@@ -184,14 +191,16 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       summary: ownedBillSummary(bill),
       amount: finished ? bill.total : outstandingAmount(bill),
     });
-    detail.append(el('p', 'bill-meta', `${bill.categoryName} · รวม ${formatBaht(bill.total)}`));
+    detail.append(el('p', 'bill-meta', `${categoryName(bill)} · ${tr('web.bills.total', { amount: formatBaht(bill.total) })}`));
     const members = el('ul', 'bill-members');
     members.append(...bill.members.map((member) => renderMember(bill, member)));
     detail.append(members);
     if (bill.status === 'open') {
       const actions = el('div', 'bill-actions');
-      actions.append(button('bill-cancel', 'ยกเลิกบิล', () => askCancel(bill), `ยกเลิกบิล ${bill.title}`));
-      if (needsShareLink(bill)) actions.append(button('bill-share-link', 'ส่งลิงก์บิล', () => shareBill(bill), `ส่งลิงก์บิล ${bill.title}`));
+      actions.append(button('bill-cancel', tr('web.bills.cancel'), () => askCancel(bill), tr('web.bills.cancelLabel', { title: bill.title })));
+      if (needsShareLink(bill)) {
+        actions.append(button('bill-share-link', tr('web.bills.shareLink'), () => shareBill(bill), tr('web.bills.shareLinkLabel', { title: bill.title })));
+      }
       detail.append(actions);
     }
     return item;
@@ -206,7 +215,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     done.hidden = finished.length === 0;
     empty.textContent = bills.length === 0 ? noneText : allDoneText;
     empty.hidden = active.length > 0;
-    limit.textContent = `แสดง ${BILL_LIST_LIMIT} บิลล่าสุด`;
+    limit.textContent = tr('web.bills.limit', { count: BILL_LIST_LIMIT });
     limit.hidden = bills.length < BILL_LIST_LIMIT;
   }
 
@@ -227,7 +236,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     els.awaiting.textContent = String(count);
     els.awaiting.hidden = count === 0;
     // ป้ายตัวเลขอย่างเดียวไม่บอกความหมายกับ screen reader
-    if (count > 0) els.showIncoming.setAttribute('aria-label', `เพื่อนส่งมา รอคุณตอบ ${count} บิล`);
+    if (count > 0) els.showIncoming.setAttribute('aria-label', tr('web.bills.awaitingLabel', { count }));
     else els.showIncoming.removeAttribute('aria-label');
   }
 
@@ -241,8 +250,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       limit: els.incomingLimit,
       isFinished: isIncomingBillFinished,
       renderOne: renderIncoming,
-      noneText: 'ยังไม่มีบิลที่เพื่อนส่งมา',
-      allDoneText: 'ไม่มีบิลที่ต้องตอบหรือต้องคืน',
+      noneText: tr('web.bills.incomingNone'),
+      allDoneText: tr('web.bills.incomingAllDone'),
     });
     renderSection(data.owned, {
       list: els.owned,
@@ -253,8 +262,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
       limit: els.ownedLimit,
       isFinished: isOwnedBillFinished,
       renderOne: renderOwned,
-      noneText: 'ยังไม่มีบิลที่คุณสร้าง',
-      allDoneText: 'ไม่มีบิลที่เพื่อนยังค้าง',
+      noneText: tr('web.bills.ownedNone'),
+      allDoneText: tr('web.bills.ownedAllDone'),
     });
     renderAwaiting();
     if (!view) view = pickInitialBillsView(data);
@@ -345,8 +354,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     // ใช้คำเดียวกับที่บอทตอบในแชต
     // เครื่องหมายถูกเฉพาะตอนเพิ่งยืนยันสำเร็จ ส่วนข้อความตอบซ้ำหรือปฏิเสธเป็นข้อความธรรมดา
     if (earlier) setStatus(earlier);
-    else if (answer === 'confirm') setSuccess('ยืนยันแล้ว บันทึกเป็นรายจ่ายของคุณ');
-    else setStatus('ปฏิเสธบิลนี้แล้ว');
+    else if (answer === 'confirm') setSuccess(tr('web.bills.confirmed'));
+    else setStatus(tr('web.bills.declined'));
     applyAnswerLocally(bill, resultStatus);
     focusCard(findCard(bill.id));
     await load({ afterAction: true });
@@ -393,8 +402,8 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     const url = buildBillUrl(getLiffId(), bill.id);
     if (typeof liff.isApiAvailable === 'function' && liff.isApiAvailable('shareTargetPicker')) {
       try {
-        const result = await liff.shareTargetPicker([{ type: 'text', text: `ยืนยันส่วนแบ่งบิล ${bill.title} ได้ที่ลิงก์นี้ ${url}` }]);
-        if (result) setSuccess('ส่งลิงก์บิลแล้ว');
+        const result = await liff.shareTargetPicker([{ type: 'text', text: tr('web.bills.shareMessage', { title: bill.title, url }) }]);
+        if (result) setSuccess(tr('web.bills.linkSent'));
         return;
       } catch {
         // เปิดหน้าเลือกแชตไม่ได้ ใช้การคัดลอกลิงก์แทน
@@ -402,9 +411,9 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     }
     try {
       await clipboard.writeText(url);
-      setStatus('คัดลอกลิงก์บิลแล้ว ส่งให้เพื่อนได้เลย');
+      setStatus(tr('web.bills.linkCopied'));
     } catch {
-      setStatus(`ส่งลิงก์นี้ให้เพื่อน: ${url}`);
+      setStatus(tr('web.bills.linkManual', { url }));
     }
   }
 
@@ -416,7 +425,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   }
 
   // run คืนข้อความ error ที่จะแสดงใน dialog หรือ null เมื่อสำเร็จ
-  function openDialog({ title, text, okLabel, cancelLabel = 'ยกเลิก', run }) {
+  function openDialog({ title, text, okLabel, cancelLabel = tr('web.common.cancel'), run }) {
     els.dialogTitle.textContent = title;
     els.dialogText.textContent = text;
     els.dialogOk.textContent = okLabel;
@@ -429,21 +438,21 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
 
   function askDecline(bill, actions) {
     openDialog({
-      title: 'ปฏิเสธบิล',
-      text: `ปฏิเสธบิล ${bill.title} ของ ${bill.ownerName}?`,
-      okLabel: 'ปฏิเสธ',
+      title: tr('web.bills.dialog.declineTitle'),
+      text: tr('web.bills.dialog.declineText', { title: bill.title, owner: displayFriendName(bill.ownerName) }),
+      okLabel: tr('web.bills.decline'),
       run: () => respond(bill, 'decline', actions),
     });
   }
 
   function askCancel(bill) {
-    const ownerPart = bill.ownerShare > 0 ? ' รายจ่ายส่วนของคุณจะถูกลบ' : '';
+    const textKey = bill.ownerShare > 0 ? 'web.bills.dialog.cancelTextOwner' : 'web.bills.dialog.cancelText';
     openDialog({
-      title: 'ยกเลิกบิล',
-      text: `ยกเลิกบิล ${bill.title}? เพื่อนที่ยังไม่ตอบจะยืนยันไม่ได้${ownerPart} ส่วนที่เพื่อนยืนยันแล้วยังอยู่`,
-      okLabel: 'ยกเลิกบิล',
+      title: tr('web.bills.cancel'),
+      text: tr(textKey, { title: bill.title }),
+      okLabel: tr('web.bills.cancel'),
       // ปุ่มปิดเขียนว่า ยกเลิก จะสับสนกับปุ่ม ยกเลิกบิล
-      cancelLabel: 'กลับ',
+      cancelLabel: tr('web.bills.dialog.back'),
       run: async () => {
         try {
           await getApi().cancelBill(bill.id);
@@ -452,7 +461,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
           if (statusOf(err) !== 0) await load({ afterAction: true });
           return message;
         }
-        setStatus('ยกเลิกบิลแล้ว');
+        setStatus(tr('web.bills.cancelled'));
         // server ลบรายจ่ายส่วนของเจ้าของไปพร้อมการยกเลิก
         await load({ afterAction: true });
         return null;
@@ -467,7 +476,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     const card = findCard(id);
     if (!card) {
       // บิลที่ยกเลิกแล้วยังอยู่ในรายการ ที่หาไม่เจอคือบิลเก่าเกินรายการหรือไม่ได้ส่งถึงผู้ใช้คนนี้
-      setStatus('ไม่พบบิลนี้ในรายการ อาจเป็นบิลเก่าหรือไม่ได้ส่งถึงคุณ');
+      setStatus(tr('web.bills.notInList'));
       return;
     }
     // บิลจากลิงก์ต้องเห็นได้ทันที จึงสลับหน้า กางส่วนที่จบแล้ว และกางการ์ด
@@ -486,7 +495,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     try {
       message = await dialogAction();
     } catch {
-      message = 'ทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง';
+      message = tr('web.bills.actionFailed');
     } finally {
       setDialogBusy(false);
     }
@@ -507,5 +516,10 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   els.showIncoming.addEventListener('click', () => setView('incoming'));
   els.showOwned.addEventListener('click', () => setView('owned'));
 
-  return { ensureLoaded, reload: load, focusBill, showStatus: setStatus };
+  // ภาษาจาก server มาถึงหลังวาดการ์ดแล้ว วาดใหม่จากข้อมูลเดิมโดยไม่ยิง request
+  function relabel() {
+    if (data) render();
+  }
+
+  return { ensureLoaded, reload: load, focusBill, showStatus: setStatus, relabel };
 }

@@ -1,12 +1,12 @@
 import { ApiError } from '../api.mjs';
 import { loginRequiredMessage } from '../format.mjs';
 import { t } from '../i18n/translate.mjs';
+import { getLang as currentLang } from '../i18n/current.mjs';
 
-const LOAD_FAILED_MESSAGE = 'โหลดการตั้งค่าไม่สำเร็จ';
-// สถานะมีบรรทัดเดียวใช้ร่วมกันทุกสวิตช์ จึงต้องบอกชื่อสวิตช์ในข้อความ
-const SWITCH_NAMES = { weeklySummary: 'ส่งสรุปทุกวันอาทิตย์', dailyReminder: 'เตือนถ้าวันนี้ยังไม่ได้จด' };
-const savedMessage = (field) => `บันทึก ${SWITCH_NAMES[field]} แล้ว`;
-const saveFailedMessage = (field) => `บันทึก ${SWITCH_NAMES[field]} ไม่สำเร็จ ลองใหม่อีกครั้ง`;
+// สถานะมีบรรทัดเดียวใช้ร่วมกันทุกสวิตช์ จึงต้องบอกชื่อสวิตช์ในข้อความ (ชื่อเดียวกับป้ายสวิตช์ใน index.html)
+const switchName = (field) => t(currentLang(), `web.settings.notify.${field}`);
+const savedMessage = (field) => t(currentLang(), 'web.settings.notify.saved', { name: switchName(field) });
+const saveFailedMessage = (field) => t(currentLang(), 'web.settings.notify.saveFailed', { name: switchName(field) });
 
 const isLoginRequired = (err) => err instanceof ApiError && err.status === 401;
 
@@ -24,7 +24,7 @@ export function createSettingsPanel({ els, getApi, takeBootRead }) {
   function showLoadError(err) {
     els.loadingText.hidden = true;
     const loginRequired = isLoginRequired(err);
-    els.errorText.textContent = loginRequired ? loginRequiredMessage() : LOAD_FAILED_MESSAGE;
+    els.errorText.textContent = loginRequired ? loginRequiredMessage() : t(currentLang(), 'web.settings.notify.loadFailed');
     // 401 ต้องเปิดจาก LINE ใหม่ กดลองใหม่ก็ได้ผลเดิม
     els.retry.hidden = loginRequired;
     els.error.hidden = false;
