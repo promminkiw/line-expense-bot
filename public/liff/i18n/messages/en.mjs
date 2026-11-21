@@ -75,7 +75,7 @@ export default {
   'web.list.allWallets': 'All wallets',
   'web.list.clearFilters': 'Clear filters',
   'web.list.filterResult': 'Found {shown} of {total}',
-  'web.list.filterResultNet': 'Found {shown} of {total}, net {net} baht',
+  'web.list.filterResultNet': 'Found {shown} of {total}, net {net}',
   'web.list.filterTruncated': '{text} (searched only the entries shown)',
   'web.list.swipeHint': 'Swipe a row left to delete it',
   'web.list.swipeHintDismiss': 'Got it',

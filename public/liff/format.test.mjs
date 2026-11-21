@@ -850,7 +850,7 @@ describe('English formatting', () => {
   });
 
   it('describes filter results', () => {
-    expect(describeFilterResult([expense(60)], 500, true, 'en')).toBe('Found 1 of 500, net -60 baht (searched only the entries shown)');
+    expect(describeFilterResult([expense(60)], 500, true, 'en')).toBe('Found 1 of 500, net -฿60 (searched only the entries shown)');
     expect(describeFilterResult([], 20, false, 'en')).toBe('Found 0 of 20');
   });
 

@@ -75,7 +75,7 @@ export default {
   'web.list.allWallets': 'ทุกกระเป๋า',
   'web.list.clearFilters': 'ล้างตัวกรอง',
   'web.list.filterResult': 'พบ {shown} จาก {total} รายการ',
-  'web.list.filterResultNet': 'พบ {shown} จาก {total} รายการ รวม {net} บาท',
+  'web.list.filterResultNet': 'พบ {shown} จาก {total} รายการ รวม {net}',
   'web.list.filterTruncated': '{text} (ค้นเฉพาะรายการที่แสดง)',
   'web.list.swipeHint': 'ปัดแถวไปทางซ้ายเพื่อลบ',
   'web.list.swipeHintDismiss': 'รับทราบ',

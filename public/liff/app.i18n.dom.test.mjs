@@ -171,7 +171,7 @@ describe('list tab in English', () => {
     byId('search').dispatchEvent(new Event('input'));
 
     expect(texts('#list .row-title')).toEqual(['Food']);
-    expect(byId('filter-status').textContent).toBe('Found 1 of 3, net -60 baht');
+    expect(byId('filter-status').textContent).toBe('Found 1 of 3, net -฿60');
   });
 
   it('shows the editor and the delete confirmation in English', async () => {
@@ -252,5 +252,65 @@ describe('summary tab in English', () => {
     document.querySelector('#chart .tabs [data-type="income"]').click();
 
     expect(byId('chart-empty').textContent).toBe('No income this month yet');
+  });
+});
+
+describe('late server language', () => {
+  // json() คืน promise ที่ค้างไว้ คำตอบ settings จึงมาถึงเมื่อเทสต์สั่ง
+  function deferredSettings() {
+    let resolve;
+    const pending = new Promise((done) => (resolve = done));
+    return { pending, resolve };
+  }
+  const transactionReads = (liff) => liff.fetched.filter((path) => path === '/api/transactions').length;
+
+  it("keeps the editor's category when the server language arrives while the editor is open", async () => {
+    const settings = deferredSettings();
+    const liff = await boot({ overrides: { '/api/settings': settings.pending } });
+    document.querySelectorAll('#list .row-button')[1].click();
+    await settle();
+    expect(byId('edit-category').value).toBe('c-trip');
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(byId('edit-category').value).toBe('c-trip');
+    expect(transactionReads(liff)).toBe(1);
+    byId('edit-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    const patch = liff.requests.find((request) => request.method === 'PATCH' && request.path === '/api/transactions/t2');
+    expect(JSON.parse(patch.body).categoryId).toBe('c-trip');
+
+    // stub ของ harness ไม่ยิง close เอง จึงยิงแทน browser แล้วการโหลดใหม่ที่รอไว้ต้องเกิดตอนนี้
+    byId('editor').dispatchEvent(new Event('close'));
+    await settle();
+    expect(transactionReads(liff)).toBeGreaterThan(2);
+    expect(texts('#list .row-title')).toEqual(['Food', 'Travel', 'Salary']);
+  });
+
+  it('shows the load error when the reload after a language change fails', async () => {
+    const settings = deferredSettings();
+    const overrides = { '/api/settings': settings.pending };
+    await boot({ overrides });
+    overrides['/api/categories'] = { status: 500 };
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(byId('banner').textContent).toBe(en['web.error.loadFailed']);
+    expect(byId('banner-retry').hidden).toBe(false);
+  });
+
+  it('translates a boot load error once the server language arrives', async () => {
+    const settings = deferredSettings();
+    await boot({ overrides: { '/api/settings': settings.pending, '/api/categories': { status: 500 } } });
+    expect(byId('banner').textContent).toBe(th['web.error.loadFailed']);
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(byId('banner').textContent).toBe(en['web.error.loadFailed']);
+    expect(byId('status').hidden).toBe(true);
+    expect(byId('status').textContent).toBe('');
   });
 });

@@ -52,8 +52,12 @@ export function groupByDate(transactions) {
 }
 
 // ปัดเป็นสตางค์ก่อนเทียบ กัน float noise เช่น 0.1 + 0.2
+function netCents(items) {
+  return items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+}
+
 export function formatDayNet(items) {
-  const cents = items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+  const cents = netCents(items);
   if (cents === 0) return '0';
   const text = (Math.abs(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
   return `${cents > 0 ? '+' : '-'}${text}`;
@@ -300,8 +304,11 @@ export function isFilterActive({ query = '', categoryId = '', type = '', walletI
 
 export function describeFilterResult(shown, total, truncated, lang = getLang()) {
   const counts = { shown: shown.length, total };
+  const cents = netCents(shown);
+  // เครื่องหมายอยู่หน้าสกุลเงิน ไทยได้ +60 บาท อังกฤษได้ +฿60 ตามรูปแบบยอดเงินของแต่ละภาษา
+  const net = `${cents > 0 ? '+' : cents < 0 ? '-' : ''}${formatBaht(Math.abs(cents) / 100, lang)}`;
   const text = shown.length > 0
-    ? t(lang, 'web.list.filterResultNet', { ...counts, net: formatDayNet(shown) })
+    ? t(lang, 'web.list.filterResultNet', { ...counts, net })
     : t(lang, 'web.list.filterResult', counts);
   return truncated ? t(lang, 'web.list.filterTruncated', { text }) : text;
 }

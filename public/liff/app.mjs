@@ -102,6 +102,7 @@ function setLanguage(language) {
 let initialLoadDone = false;
 let loadAllStarted = false;
 let reloadAfterBoot = false;
+let languageReloadPending = false;
 
 // applyTranslations เปลี่ยนแค่ข้อความใน HTML ส่วนที่ JS เขียนไว้แล้วต้องเขียนใหม่เอง
 function relocalize() {
@@ -116,9 +117,30 @@ function relocalize() {
   els.recurringEmpty.replaceChildren(createEmptyState(document, 'recurring'));
   // เปิดหน้าภาษาค้างไว้ระหว่างรอคำตอบ server ตัวเลือกต้องตามภาษาใหม่
   if (activeSubPage?.panelId === 'panel-language') languagePicker.render();
+  if (loadError) showStickyLoadError();
   // รายการ กราฟ และยอดที่วาดไปแล้วเป็นภาษาเดิม โหลดใหม่ครั้งเดียวดีกว่าตามแก้ทีละส่วน
-  if (initialLoadDone) void loadAll();
+  if (initialLoadDone) void reloadForLanguage();
   else if (loadAllStarted) reloadAfterBoot = true;
+}
+
+// loadAll เติมตัวเลือกหมวดใหม่ทั้งหมด ถ้าแผ่นแก้ไขหรือหน้าย่อยเปิดอยู่ ค่าที่เลือกไว้จะหายแล้วบันทึกผิดหมวด
+// จึงรอจนปิด dialog หรือออกจากหน้าย่อยก่อน (กติกาเดียวกับ monthRollover)
+async function reloadForLanguage() {
+  if (document.querySelector('dialog[open]') || activeSubPage) {
+    languageReloadPending = true;
+    return;
+  }
+  languageReloadPending = false;
+  try {
+    await loadAll();
+    applyPendingListFilter();
+  } catch (err) {
+    showLoadError(err);
+  }
+}
+
+function flushLanguageReload() {
+  if (languageReloadPending) void reloadForLanguage();
 }
 
 // SDK edge/2 มี getAppLanguage (ภาษาแอป LINE) รุ่นเก่ามีแค่ getLanguage (ภาษาเบราว์เซอร์)
@@ -674,6 +696,8 @@ els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
+// ไม่ใช้ data-i18n เพราะ applyTranslations ตอนภาษาจาก server มาถึงจะเขียน "กำลังโหลด" ทับสถานะจริง
+els.status.textContent = t(getLang(), 'web.common.loading');
 
 // เก็บค่าเดิมและตัวยกเลิกของแต่ละช่อง เพื่อนับต่อจากค่าเดิมและไม่ให้แอนิเมชันซ้อนกัน
 const shownAmounts = new Map();
@@ -713,8 +737,9 @@ let loadError = null;
 
 function showLoadError(err) {
   const loginRequired = err instanceof ApiError && err.status === 401;
+  // เก็บสาเหตุไม่เก็บข้อความ banner จึงเปลี่ยนภาษาตามได้เมื่อภาษาจาก server มาทีหลัง
   loadError = {
-    text: loginRequired ? loginRequiredMessage() : t(getLang(), 'web.error.loadFailed'),
+    loginRequired,
     // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
     retryable: !loginRequired,
   };
@@ -727,11 +752,15 @@ function showLoadError(err) {
   els.summarySkeleton.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
-  setBanner(loadError.text, { retryable: loadError.retryable });
+  setBanner(loadErrorText(loadError), { retryable: loadError.retryable });
+}
+
+function loadErrorText(error) {
+  return error.loginRequired ? loginRequiredMessage() : t(getLang(), 'web.error.loadFailed');
 }
 
 function showStickyLoadError() {
-  setBanner(loadError ? loadError.text : '', { retryable: loadError ? loadError.retryable : false });
+  setBanner(loadError ? loadErrorText(loadError) : '', { retryable: loadError ? loadError.retryable : false });
 }
 
 function fillGroupedSelect(select, groups, placeholderOption = null) {
@@ -2038,6 +2067,7 @@ function leaveSubPage() {
   document.getElementById(page.panelId).hidden = true;
   // controller ยังจำว่าอยู่แท็บเจ้าของหน้า จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
   tabController.select(page.ownerTab, { force: true });
+  flushLanguageReload();
   page.returnFocus.focus();
   monthRollover.check();
   return true;
@@ -2058,7 +2088,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') monthRollover.check();
 });
 // event close ของ dialog ไม่ bubble จึงต้องฟังแบบ capture
-document.addEventListener('close', () => monthRollover.check(), true);
+document.addEventListener('close', () => {
+  monthRollover.check();
+  flushLanguageReload();
+}, true);
 
 const CATEGORIES_PAGE = {
   panelId: 'panel-categories',
@@ -2346,7 +2379,7 @@ async function boot() {
     // ภาษาจาก server มาถึงระหว่างโหลดรอบแรก ส่วนที่วาดไปแล้วเป็นภาษาเดิม จึงโหลดซ้ำหนึ่งรอบ
     if (reloadAfterBoot) {
       reloadAfterBoot = false;
-      await loadAll();
+      await reloadForLanguage();
     }
     applyPendingListFilter();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
