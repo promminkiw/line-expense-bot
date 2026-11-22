@@ -7,7 +7,7 @@
 - LINE OA ที่ผู้ใช้พิมพ์ภาษาธรรมชาติแล้วบันทึกรายรับรายจ่ายให้ มีสรุป และเว็บ LIFF สำหรับดู/แก้ รองรับหลายผู้ใช้ตั้งแต่แรก
 - LINE Messaging API + LIFF + Rich Menu, Node.js (Express) + @line/bot-sdk, Claude API, Supabase (Postgres + RLS), Render
 - ยอดเงินทุกตัวคิดด้วย SQL ห้ามให้ Claude คิดเลข
-- น้ำเสียงบอท: ผู้ชาย แทนตัวเองว่า "เฮีย" เรียกผู้ใช้ว่า "คุณ" ไม่มีคำลงท้าย ใช้กับข้อความสำเร็จรูปใน LINE, prompt ของ Claude (`src/persona.js`) และเว็บ LIFF ยกเว้นข้อความชวนเพื่อน
+- น้ำเสียงบอท: ผู้ชาย แทนตัวเองว่า "เฮีย" เรียกผู้ใช้ว่า "คุณ" ไม่มีคำลงท้าย ใช้กับข้อความสำเร็จรูปใน LINE, prompt ของ Claude (`src/persona.js`) และเว็บ LIFF ยกเว้นข้อความชวนเพื่อน ภาษาอังกฤษแทนตัวว่า I ไม่มีชื่อ (ข้อ 16)
 
 ## ฟังก์ชัน
 
@@ -118,9 +118,20 @@
 - ความเสี่ยงที่ยอมรับ: ถ้าเปิดส่งต่อตอน follow ไม่สำเร็จ (log ไว้) คนนั้นไม่ได้สรุปรายเดือนจนกว่าจะ unfollow แล้ว follow ใหม่ (ยอมรับเพราะใช้งานจริงคนเดียว)
 - ความเสี่ยงที่ยอมรับ: คนที่ไม่ได้เป็นเพื่อนบอทแต่ flag ยังเป็น true (ไม่เคยเพิ่ม หรือ unfollow ก่อนรัน 026) ได้ push ที่ล้มเหลวเดือนละครั้ง นับเป็น `pushFailed`; ถ้า LINE ส่ง unfollow ซ้ำมาช้ากว่า follow flag จะเป็น false คนนั้นไม่ได้การ์ดและไม่นับเป็น `pushFailed` จนกว่าจะ follow ใหม่ (ยอมรับ 2026-10-31)
 
+### 16. ภาษา (ไทย/อังกฤษ)
+- เก็บที่ `users.language` (`th`/`en`, null = ยังไม่เลือก ใช้ไทย `027`) อ่านมาพร้อม id ตอนหา user ไม่เพิ่ม query ต่อข้อความ บอทและเว็บใช้ค่าเดียวกัน
+- ค่าเริ่มต้น: ภาษาจากโปรไฟล์ LINE ตอนสมัคร ถ้าไม่มี เว็บส่ง `liff.getAppLanguage()` ตอนเปิดครั้งแรก ขึ้นต้น `en` = อังกฤษ อื่นๆ = ไทย
+- แชต: `ภาษา` / `language` / `เปลี่ยนภาษา` / `change language` ตอบปุ่ม ภาษาไทย/English (postback `action=language`), พิมพ์ `English` หรือ `ภาษาไทย` เปลี่ยนทันที ไม่เรียก Claude ไม่นับ rate limit
+- เว็บ: แถว ภาษา / Language ในแท็บ ฉัน เปิดหน้าย่อยเลือก บันทึกด้วย `PATCH /api/settings { language }` แล้วโหลดหน้าใหม่ที่แท็บ ฉัน; `GET /api/settings` คืน `language` ดิบ
+- ชุดแปลเดียว `public/liff/i18n/messages/{th,en}.mjs` บอท (CommonJS) `require` ESM ผ่าน `src/i18n` เทสต์บังคับ key ตรงกันและไม่มีไทยฝังในโค้ด (`src/i18n/no-hardcoded-thai.test.js`)
+- ภาษาอังกฤษ: แทนตัวว่า I เรียก you ไม่มีชื่อ ยอดเงิน `฿1,234` ปี ค.ศ. คำสั่ง `summary`, `help`, `save <เป้า> <ยอด>` ใช้ได้ทุกภาษา prompt Claude แยกตามภาษา (ไทยเหมือนเดิมทุกตัวอักษร)
+- ชื่อหมวด/กระเป๋าตั้งต้นใน DB คงเป็นไทย แปลตอนแสดงและตอนส่งให้ Claude แล้วแปลงคำตอบกลับ ห้ามตั้งชื่อตรงกับชื่อแสดงของชื่อตั้งต้น (`Food`, `Other`, `Cash` ...)
+- push จาก cron และ CSV ใช้ภาษาของผู้รับแต่ละคน ข้อความ error ของลิงก์ CSV เป็นสองภาษา
+- ข้อจำกัด: Rich Menu, Greeting message ของ LINE OA และชื่อแอป LIFF ยังเป็นไทย (ตั้งนอกโค้ด)
+
 ## Database (Supabase)
 
-- users: id, line_user_id, display_name (เติมจาก ID token), friend_code, weekly_summary_enabled, daily_reminder_enabled, monthly_summary_enabled (`026` ค่าตั้งต้น true)
+- users: id, line_user_id, display_name (เติมจาก ID token), friend_code, weekly_summary_enabled, daily_reminder_enabled, monthly_summary_enabled (`026` ค่าตั้งต้น true), language (`027` null = ไทย)
 - categories: id, user_id, name, type, hidden (`017`), icon (`018`)
 - transactions: id, user_id, type, category_id, amount, note, occurred_on, source (text/slip/recurring/bill), line_event_id, created_at, wallet_id
 - wallets: id, user_id, name (unique ต่อผู้ใช้ และแบบ lower ใน `025`), hidden, created_at
