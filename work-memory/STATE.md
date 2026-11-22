@@ -67,7 +67,7 @@ Goal: รอผู้ใช้ลองข้อ 6-19 แล้วเลือ�
 
 ## Done
 - [x] i18n ไทย/อังกฤษ (2026-11-22, PR #10 merge เป็น 594e3f9): users.language (027), คำสั่ง ภาษา, ตัวเลือกในแท็บ ฉัน, ชุดแปลเดียว public/liff/i18n/messages, SPEC ข้อ 16
-    npm test 3238/3238 lint ผ่าน CI ผ่าน; nlu-eval 54/54 (claude-haiku-5-5, ผู้ใช้รัน); แผนและข้อที่ปักไว้ plans/archive/2026-11-21-i18n.md
+    npm test 3238/3238 lint ผ่าน CI ผ่าน; SonarQube 2026-11-22 (30f82d9) issue 0 Quality Gate OK new coverage 95.5%; nlu-eval 54/54 (claude-haiku-5-5, ผู้ใช้รัน); แผนและข้อที่ปักไว้ plans/archive/2026-11-21-i18n.md
 - [x] SonarQube 61 issue + coverage (2026-11-21, PR #8 merge เป็น 592579c ที่ main): regex คำสั่งออมไม่ backtrack, void 39 จุด, heading 13 มีข้อความตั้งต้น, aria-label ที่ file input, respondFromWeb คืนค่าที่เดียว, coverage v8 (npm run test:coverage) และ scripts/sonar-scan.ps1
     สแกนล่าสุด 2026-11-21 14:19 UTC: issue เปิด 0, A/A/A, Quality Gate OK (new coverage 87.0%, ทั้งโปรเจกต์ 92.7%); npm test 2773/2773 CI เขียว; แผน plans/2026-11-21-sonarqube-{fixes,leftovers,minors}.md
 - [x] NLU intents + นิพจน์ยอด (2026-11-08, branch feat/nlu-intents b663d7c..eb8117f ยังไม่ merge/push): Claude ตอบ intent ในครั้งเดียว ยอดคำนวณในโค้ด (amount-expression.js ไม่ใช้ eval) งบถามแล้วส่งลิงก์เว็บ ออมหลวมเข้าเป้า
