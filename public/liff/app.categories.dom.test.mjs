@@ -859,6 +859,21 @@ describe('LIFF categories page in English', () => {
     expect(byId('category-sheet').hasAttribute('open')).toBe(false);
   });
 
+  it('does not rename a built-in category when the language changes while the sheet is open', async () => {
+    const calls = await openPageEnglish();
+    byId('categories-open').click();
+    tileOf('c-food').click();
+    // หลัง boot ต้อง import ใหม่ถึงได้ instance เดียวกับที่ app.mjs ใช้ (harness reset modules)
+    const { setLang } = await import('./i18n/current.mjs');
+    setLang('th');
+
+    submitSheet();
+    await settle();
+
+    expect(byId('category-sheet-name').value).toBe('Food');
+    expect(calls.some((call) => call.startsWith('PATCH'))).toBe(false);
+  });
+
   it('shows the add sheet, a reserved name and the delete check in English', async () => {
     await openPageEnglish((method, path) => {
       if (method === 'POST' && path === '/api/categories') return { status: 400, error: 'Reserved name' };

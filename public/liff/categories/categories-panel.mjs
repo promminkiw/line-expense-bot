@@ -18,6 +18,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   let sheetOpen = false;
   // หมวดที่กำลังแก้ ถ้าเป็น null แปลว่ากำลังเพิ่มหมวดใหม่
   let editing = null;
+  // ชื่อที่ช่องแสดงตอนเปิดแผ่น ถ้าเปลี่ยนภาษาระหว่างเปิดอยู่ ชื่อแปลของภาษาปัจจุบันจะไม่ตรงกับที่ช่องแสดง
+  let openedName = '';
   let pickedIcon = DEFAULT_NEW_ICON;
   // การ์ดถูกสร้างใหม่ทุกครั้งที่ render จึงจำ selector ไว้คืนโฟกัสแทนการจำ element
   let returnFocus = null;
@@ -163,7 +165,8 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
     returnFocus = category ? tileSelector(category) : '[data-action="add"]';
     pickedIcon = category ? effectiveIconKey(category) : DEFAULT_NEW_ICON;
     els.sheetTitle.textContent = t(getLang(), category ? 'web.categories.sheet.edit' : `web.categories.sheet.add.${type}`);
-    els.sheetName.value = category ? categoryDisplayName(getLang(), category) : '';
+    openedName = category ? categoryDisplayName(getLang(), category) : '';
+    els.sheetName.value = openedName;
     els.sheetHidden.checked = category ? category.hidden : false;
     els.sheetHiddenRow.hidden = !category;
     els.sheetError.textContent = '';
@@ -180,6 +183,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   function closeSheet(focusAfter) {
     sheetOpen = false;
     editing = null;
+    openedName = '';
     returnFocus = null;
     els.sheet.close();
     focusSelector(focusAfter);
@@ -210,7 +214,7 @@ export function createCategoriesPanel({ doc, els, getApi, getCategories, onChang
   function changesFor(category, name) {
     const changes = {};
     // ช่องชื่อแสดงชื่อแปลของหมวดตั้งต้น ถ้าไม่ได้แก้ต้องไม่ส่งชื่อแปลไป ไม่งั้น server ตอบ Reserved name
-    if (name !== category.name && name !== categoryDisplayName(getLang(), category)) changes.name = name;
+    if (name !== category.name && name !== openedName && name !== categoryDisplayName(getLang(), category)) changes.name = name;
     if (pickedIcon !== effectiveIconKey(category)) changes.icon = pickedIcon;
     if (els.sheetHidden.checked !== category.hidden) changes.hidden = els.sheetHidden.checked;
     return changes;
