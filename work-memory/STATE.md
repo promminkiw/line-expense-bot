@@ -29,8 +29,8 @@ Goal: รอผู้ใช้ลองข้อ 6-19 แล้วเลือ�
 - ข้อมูลทดสอบในบัญชีผู้ใช้: เป้า เที่ยวญี่ปุ่น (ออม 500), กระเป๋า บัตรเครดิต (ซ่อน) และ บัญชีเงินเดือนธนาคารกรุงเทพ (ซ่อน), รายการ กาแฟ 60 (บัตรเครดิต)
 
 ## Next
-- [ ] i18n ไทย/อังกฤษ (branch feat/i18n แผน plans/2026-11-21-i18n.md, ledger .superpowers/sdd/progress.md ขึ้นต้น I18N): Task 1-18 เสร็จ SPEC ข้อ 16
-    เหลือ final review, ผู้ใช้ลองข้อ 20, nlu-eval; ข้อเล็กที่ปักไว้อยู่ใน ledger (บรรทัด minor/parked)
+- [ ] i18n ไทย/อังกฤษ (feat/i18n ถึง c2fba3b ยังไม่ push, แผน plans/2026-11-21-i18n.md ท้ายไฟล์มีข้อที่ปักไว้): Task 1-18 + final review APPROVE, SPEC ข้อ 16
+    npm test 3238/3238 (--testTimeout=30000) lint ผ่าน; ก่อน merge ต้องรัน 027 (merge = deploy); รอผู้ใช้ข้อ 20 และ nlu-eval
 - [ ] SonarQube follow-up เล็กๆ (PR #8 merge แล้ว): sonar-scan.ps1 จบ exit 0 ตอน scanner ล้ม, repo mount แบบ read-write ใน container, test noLineId ใน service.test.js ไม่ assert ว่า logger.error ไม่ถูกเรียก
     void 39 จุด: ฟังก์ชันจับ error จาก API เอง แต่มี 2 ทางที่ reject ได้เมื่อมี bug (render() ใน load ของ goals-panel/bills-panel, runEdit ตอน editing เป็น null) ยอมรับไว้
 - [ ] NLU intents: merge (63c0fbb) และ push แล้ว 2026-11-08 รอผู้ใช้ลองข้อ 18 ในแอป LINE หลัง Render deploy; nlu-eval 43 ข้อ: 42/43 สองรอบ แล้ว 43/43 สองรอบ
