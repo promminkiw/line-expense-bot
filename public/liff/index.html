@@ -292,7 +292,8 @@
         <button type="button" id="filter-clear" data-i18n="web.list.clearFilters" hidden>ล้างตัวกรอง</button>
         <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
-      <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
+      <!-- ข้อความตั้งต้นที่ JS เขียนทับทีหลังห่อ span ไว้ พอ JS เขียน data-i18n หายไปด้วย เปลี่ยนภาษาทีหลังจึงไม่คืนเป็นข้อความตั้งต้น -->
+      <p id="status" class="status" role="status" aria-live="polite"><span data-i18n="web.common.loading">กำลังโหลด...</span></p>
       <p id="swipe-hint" class="swipe-hint" hidden>
         <span data-i18n="web.list.swipeHint">ปัดแถวไปทางซ้ายเพื่อลบ</span>
         <button type="button" id="swipe-hint-dismiss" data-i18n="web.list.swipeHintDismiss">รับทราบ</button>
@@ -455,8 +456,8 @@
     </div>
     <div id="panel-categories" class="panel" hidden>
       <div class="category-segment" role="group" aria-label="ประเภทหมวด" data-i18n-attr="aria-label:web.categories.typeGroup">
-        <button type="button" id="category-seg-expense" aria-pressed="true">รายจ่าย</button>
-        <button type="button" id="category-seg-income" aria-pressed="false">รายรับ</button>
+        <button type="button" id="category-seg-expense" aria-pressed="true" data-i18n="type.expense">รายจ่าย</button>
+        <button type="button" id="category-seg-income" aria-pressed="false" data-i18n="type.income">รายรับ</button>
       </div>
       <p id="category-status" class="category-status" role="status" aria-live="polite"></p>
       <ul id="category-tiles" class="category-tiles"></ul>
@@ -586,7 +587,7 @@
         <div class="profile-head">
           <span id="profile-avatar" class="profile-avatar" aria-hidden="true"></span>
           <div>
-            <h2 id="profile-name" class="profile-name">ผู้ใช้</h2>
+            <h2 id="profile-name" class="profile-name"><span data-i18n="web.profile.defaultName">ผู้ใช้</span></h2>
             <p id="profile-since" class="profile-since"></p>
           </div>
         </div>
@@ -759,8 +760,7 @@
             <span id="friend-code" class="friend-code"></span>
             <div class="friend-actions">
               <button type="button" id="friend-share" data-i18n="web.friends.share">ส่งลิงก์ชวนเพื่อน</button>
-              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr">แสดง
-                QR</button>
+              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr"><span data-i18n="web.friends.showQr">แสดง QR</span></button>
               <button type="button" id="friend-code-renew" data-i18n="web.friends.renew">เปลี่ยนรหัส</button>
             </div>
             <div id="friend-qr" class="friend-qr" hidden></div>
@@ -846,7 +846,7 @@
     </form>
   </dialog>
   <dialog id="friend-dialog" aria-labelledby="friend-dialog-title">
-    <h2 id="friend-dialog-title">เพื่อน</h2>
+    <h2 id="friend-dialog-title"><span data-i18n="web.friends.title">เพื่อน</span></h2>
     <p id="friend-dialog-text" class="confirm-detail"></p>
     <p id="friend-dialog-busy" class="confirm-detail" role="status" data-i18n="web.common.working" hidden>กำลังดำเนินการ...</p>
     <p id="friend-dialog-error" class="error" role="alert"></p>
@@ -857,7 +857,7 @@
   </dialog>
   <dialog id="category-sheet" class="category-sheet" aria-labelledby="category-sheet-title">
     <form id="category-sheet-form" novalidate>
-      <h2 id="category-sheet-title" tabindex="-1">แก้หมวด</h2>
+      <h2 id="category-sheet-title" tabindex="-1"><span data-i18n="web.categories.sheet.edit">แก้หมวด</span></h2>
       <button type="button" id="category-sheet-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -897,12 +897,12 @@
     </form>
   </dialog>
   <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
-    <h2 id="bill-dialog-title">บิล</h2>
+    <h2 id="bill-dialog-title"><span data-i18n="web.bills.dialog.title">บิล</span></h2>
     <p id="bill-dialog-text" class="confirm-detail"></p>
     <p id="bill-dialog-busy" class="confirm-detail" role="status" data-i18n="web.common.working" hidden>กำลังดำเนินการ...</p>
     <p id="bill-dialog-error" class="error" role="alert"></p>
     <div class="actions">
-      <button type="button" id="bill-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="bill-dialog-cancel"><span data-i18n="web.common.cancel">ยกเลิก</span></button>
       <button type="button" id="bill-dialog-ok" class="danger-solid"></button>
     </div>
   </dialog>
@@ -1038,7 +1038,7 @@
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
-      <h2 id="recurring-editor-title" tabindex="-1" autofocus>รายการประจำ</h2>
+      <h2 id="recurring-editor-title" tabindex="-1" autofocus><span data-i18n="web.title.recurring">รายการประจำ</span></h2>
       <button type="button" id="recurring-cancel" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -1077,7 +1077,7 @@
   </dialog>
   <dialog id="goal-editor" aria-labelledby="goal-editor-title">
     <form id="goal-editor-form">
-      <h2 id="goal-editor-title" tabindex="-1">เป้าออม</h2>
+      <h2 id="goal-editor-title" tabindex="-1"><span data-i18n="web.goals.dialogTitle">เป้าออม</span></h2>
       <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
@@ -1102,7 +1102,7 @@
     </form>
   </dialog>
   <dialog id="goal-detail" aria-labelledby="goal-detail-title">
-    <h2 id="goal-detail-title" tabindex="-1">เป้าออม</h2>
+    <h2 id="goal-detail-title" tabindex="-1"><span data-i18n="web.goals.dialogTitle">เป้าออม</span></h2>
     <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
         aria-hidden="true" focusable="false">
         <use href="#icon-close"></use>

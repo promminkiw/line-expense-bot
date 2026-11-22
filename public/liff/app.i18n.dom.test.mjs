@@ -139,6 +139,26 @@ describe('LIFF page language', () => {
     expect(document.querySelectorAll('#list .row-button').length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe('en');
   });
+
+  it('shows the placeholder headings in the cached language before the data arrives', async () => {
+    localStorage.setItem('lang', 'en');
+
+    await boot({ holdInit: true });
+
+    expect(byId('status').textContent).toBe(en['web.common.loading']);
+    expect(byId('profile-name').textContent).toBe(en['web.profile.defaultName']);
+    expect(byId('goal-detail-title').textContent).toBe(en['web.goals.dialogTitle']);
+    expect(byId('bill-dialog-title').textContent).toBe(en['web.bills.dialog.title']);
+    expect(byId('category-seg-income').textContent).toBe(en['type.income']);
+  });
+
+  it('keeps the real profile name when the server language arrives later', async () => {
+    await boot({ overrides: { '/api/settings': settingsWith('en') } });
+    await settle();
+
+    expect(byId('profile-name').textContent).toBe('สมชาย');
+    expect(byId('status').textContent).not.toBe(en['web.common.loading']);
+  });
 });
 
 const bootEnglish = () => {
