@@ -100,6 +100,12 @@ describe('formatAmount', () => {
     expect(formatAmount('en', 1234.5)).toBe('฿1,234.5');
     expect(formatAmount('en', 50)).toBe('฿50');
   });
+
+  it('puts the minus sign in front of the baht sign in English', () => {
+    expect(formatAmount('en', -300)).toBe('-฿300');
+    expect(formatAmount('en', -1234.5)).toBe('-฿1,234.5');
+    expect(formatAmount('th', -300)).toBe('-300 บาท');
+  });
 });
 
 describe('formatMonth', () => {

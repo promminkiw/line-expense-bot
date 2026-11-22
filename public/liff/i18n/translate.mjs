@@ -40,10 +40,12 @@ export function t(lang, key, params = {}) {
 }
 
 // รูปแบบเดิมของบอท: ตัวเลขแบบ en-US ทั้งสองภาษา ต่างกันที่ template ใน catalog
+// ใส่เครื่องหมายลบไว้หน้าสุด ไม่งั้นแม่แบบ en '฿{amount}' จะได้ '฿-300'
 export function formatAmount(lang, amount) {
-  return t(lang, 'common.amount', {
-    amount: amount.toLocaleString('en-US', { maximumFractionDigits: 2 }),
+  const text = t(lang, 'common.amount', {
+    amount: Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: 2 }),
   });
+  return amount < 0 ? `-${text}` : text;
 }
 
 const BUDDHIST_YEAR_OFFSET = 543;
