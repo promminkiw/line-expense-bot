@@ -1,5 +1,7 @@
 import { formatNumber, groupBudgetRows, levelOfPercent } from './budgets-format.mjs';
 import { stepBudget } from './budget-edit.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 const toSatang = (value) => Math.round(value * 100);
 const percentOf = (budget, spent) => Math.floor((toSatang(spent) * 100) / toSatang(budget));
@@ -20,19 +22,19 @@ export function stepDraft(draft, categoryId, direction) {
   return draft.map((entry) => (entry.categoryId === categoryId ? { ...entry, next: stepBudget(entry.next, direction) } : entry));
 }
 
-export function entryView(entry) {
+export function entryView(entry, lang = getLang()) {
   const oldPercent = entry.original === null ? null : percentOf(entry.original, entry.spent);
   const newPercent = entry.next === null ? null : percentOf(entry.next, entry.spent);
   const dirty = isDirty(entry);
   let wasText = '';
-  if (dirty) wasText = entry.original === null ? 'ใหม่' : `เดิม ${formatNumber(entry.original)}`;
+  if (dirty) wasText = entry.original === null ? t(lang, 'web.budgets.bulk.new') : t(lang, 'web.budgets.bulk.was', { amount: formatNumber(entry.original) });
   return {
     dirty,
     oldPercent,
     newPercent,
     oldLevel: oldPercent === null ? null : levelOfPercent(oldPercent),
     newLevel: newPercent === null ? null : levelOfPercent(newPercent),
-    valueText: entry.next === null ? 'ไม่ตั้งงบ' : formatNumber(entry.next),
+    valueText: entry.next === null ? t(lang, 'web.budgets.bulk.noBudget') : formatNumber(entry.next),
     wasText,
   };
 }

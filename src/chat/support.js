@@ -1,7 +1,7 @@
 const { budgetMonths, findBudgetAlerts } = require('../budgets/alerts');
 const { TEXT_CATEGORIES, DEFAULT_CATEGORIES } = require('../parser/categories');
 const { walletQuestionNames } = require('../wallets/wallets');
-const { NO_ENTRIES_COMMENT } = require('./replies');
+const { t } = require('../i18n');
 
 // เกิน 10 นาทีถือว่าเป็นเรื่องใหม่ กันไม่ให้ข้อความใหม่ถูกรวมกับคำถามเก่าโดยไม่ตั้งใจ
 const PENDING_TTL_MS = 10 * 60 * 1000;
@@ -98,12 +98,12 @@ function createSupport({ repository, users, logger, now, commentSummary }) {
     }
   }
 
-  async function commentOn(summary, userId) {
+  async function commentOn(summary, userId, lang = 'th') {
     if (summary.entryCount === 0) {
-      return NO_ENTRIES_COMMENT;
+      return t(lang, 'chat.noEntriesComment');
     }
     try {
-      return await commentSummary(summary);
+      return await commentSummary(summary, lang);
     } catch (err) {
       // คำอธิบายเป็นส่วนเสริม ยอดจาก SQL ยังส่งได้แม้ Claude ตอบไม่สำเร็จ
       logger.error('Failed to comment summary', { userId }, err);

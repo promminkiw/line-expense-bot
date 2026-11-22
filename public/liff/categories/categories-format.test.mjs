@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { describeCategoryError, describeCategoryUsage } from './categories-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { describeCategoryError, describeCategoryUsage, categoryDisplayName } from './categories-format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { MAX_VISIBLE_CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '../../../src/parser/categories.js';
 
 describe('describeCategoryError', () => {
   it.each([
-    [401, undefined, LOGIN_REQUIRED_MESSAGE],
+    [401, undefined, loginRequiredMessage()],
     [409, 'Duplicate name', 'มีหมวดชื่อนี้อยู่แล้ว'],
     [409, 'Too many categories', 'มีหมวดที่ใช้อยู่ได้ไม่เกิน 30 หมวดต่อประเภท ซ่อนหมวดที่ไม่ใช้ก่อน'],
     [400, 'Invalid name', 'ชื่อหมวดต้องยาว 1-30 ตัวอักษร และห้ามมีเครื่องหมายจุลภาค (,)'],
@@ -44,6 +44,38 @@ describe('describeCategoryUsage', () => {
     expect(describeCategoryUsage(cat, { transactions: 0, recurring: 0, bills: 0 })).toBe('ลบหมวด ค่าแมว? หมวดนี้ยังไม่มีรายการ และงบของหมวดนี้จะหายไป');
     expect(describeCategoryUsage({ name: 'โบนัส', type: 'income' }, { transactions: 1, recurring: 0, bills: 0 })).toBe(
       'ลบหมวด โบนัส? รายการ 1 รายการ จะย้ายไปหมวด อื่นๆ'
+    );
+  });
+});
+
+describe('categoryDisplayName', () => {
+  it('translates a default category by language and leaves custom ones', () => {
+    expect(categoryDisplayName('en', { type: 'expense', name: 'อาหาร' })).toBe('Food');
+    expect(categoryDisplayName('th', { type: 'expense', name: 'อาหาร' })).toBe('อาหาร');
+    expect(categoryDisplayName('en', { type: 'expense', name: 'กาแฟ' })).toBe('กาแฟ');
+  });
+});
+
+describe('categories in English', () => {
+  // server ห้ามชื่อตั้งต้นทั้งไทยและอังกฤษ เช่น Food หรือ Other ข้อความจึงต้องบอกทั้งสองภาษา
+  it('explains that built-in names are taken in either language', () => {
+    expect(describeCategoryError(400, 'Reserved name', 'en')).toBe(
+      'That name belongs to a built-in category (like Food or Other), in English or Thai. Try another one.'
+    );
+    expect(describeCategoryError(400, 'System category', 'en')).toBe("Built-in categories can't be edited.");
+    expect(describeCategoryError(500, undefined, 'en')).toBe("Couldn't save the category. Try again.");
+  });
+
+  it('describes what moves on delete in English', () => {
+    const cat = { name: 'ค่าแมว', type: 'expense' };
+    expect(describeCategoryUsage(cat, { transactions: 2, recurring: 1, bills: 1 }, 'en')).toBe(
+      'Delete ค่าแมว? 2 entries, 1 recurring entry and 1 bill will move to Other, and its budget will go away.'
+    );
+    expect(describeCategoryUsage({ name: 'อาหาร', type: 'expense' }, { transactions: 0, recurring: 0, bills: 0 }, 'en')).toBe(
+      'Delete Food? This category has no entries yet, and its budget will go away.'
+    );
+    expect(describeCategoryUsage({ name: 'โบนัส', type: 'income' }, { transactions: 1, recurring: 0, bills: 0 }, 'en')).toBe(
+      'Delete โบนัส? 1 entry will move to Other.'
     );
   });
 });

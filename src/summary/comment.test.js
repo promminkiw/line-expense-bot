@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 import { createSummaryCommenter } from './comment.js';
 
 const SUMMARY = {
@@ -94,6 +95,59 @@ describe('createSummaryCommenter', () => {
 
     await expect(createSummaryCommenter({ client, model: 'm' })(SUMMARY)).rejects.toThrow(
       'Claude returned no comment'
+    );
+  });
+});
+
+describe('createSummaryCommenter prompts per language', () => {
+  const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+  const SMALL = {
+    label: 'L',
+    incomeTotal: 0,
+    expenseTotal: 1,
+    net: -1,
+    topExpenses: [{ category: 'อาหาร', total: 1 }],
+    otherExpenseTotal: 2,
+    entryCount: 1,
+  };
+
+  // hash ของ prompt และข้อความไทยก่อนเพิ่มภาษาอังกฤษ ต้องเหมือนเดิมทุกตัวอักษร
+  it('keeps the Thai prompt and summary text byte-identical', async () => {
+    const client = fakeClient([{ type: 'text', text: 'ok' }]);
+    const comment = createSummaryCommenter({ client, model: 'm' });
+
+    await comment(SMALL);
+    await comment(SMALL, 'th');
+
+    for (const [params] of client.messages.create.mock.calls) {
+      expect(sha256(params.system)).toBe('ff69642801f006d7a6a87ad056e2ea01218fcd769b218fc091ec0b4595c58a43');
+      expect(sha256(params.messages[0].content)).toBe('d66f74f4a351b06909fb440f495ca5800b1a366c682dd3c516ecb8d1070c60c6');
+    }
+  });
+
+  it('asks an English comment with the English persona and English category names', async () => {
+    const client = fakeClient([{ type: 'text', text: 'ok' }]);
+
+    await createSummaryCommenter({ client, model: 'm' })(
+      { ...SUMMARY, label: 'Today (29/09)', topExpenses: [{ category: 'อาหาร', total: 1250.5 }, { category: 'ค่าแมว', total: 20 }] },
+      'en'
+    );
+
+    const [params] = client.messages.create.mock.calls[0];
+    expect(params.system).toContain('in English');
+    expect(params.system).toContain('refers to himself as "I"');
+    expect(params.system).toContain('Do not calculate');
+    expect(params.system).not.toContain('เฮีย');
+    expect(params.messages[0].content).toBe(
+      [
+        'Period: Today (29/09)',
+        'Income: 0 baht',
+        'Expenses: 1,250.5 baht',
+        'Balance: -1,250.5 baht',
+        'Expenses by category:',
+        '- Food: 1,250.5 baht',
+        '- ค่าแมว: 20 baht',
+      ].join('\n')
     );
   });
 });

@@ -73,3 +73,52 @@ describe('buildEmptyMonthText', () => {
     );
   });
 });
+
+// ผู้ใช้ภาษาอังกฤษต้องได้ครบทั้ง 6 แบบ และชื่อหมวดตั้งต้นต้องแปลด้วย
+describe('pickMonthlyComment in English', () => {
+  it('asks for income when the month has none', () => {
+    expect(pickMonthlyComment(summary({ income: 0, expense: 500, top: [{ category: 'อาหาร', total: 500 }] }), 'October', 'en')).toBe(
+      'No income logged for October yet. If money came in, log it so your balance stays right',
+    );
+  });
+
+  it('names the biggest category in English when spending beat income', () => {
+    const value = summary({ income: 10000, expense: 12000, top: [{ category: 'ช้อปปิ้ง', total: 6000 }, { category: 'อาหาร', total: 6000 }] });
+
+    expect(pickMonthlyComment(value, 'October', 'en')).toBe(
+      'You spent ฿2,000 more than you made in October. Shopping was the biggest one (50%). Try keeping it in check this month',
+    );
+  });
+
+  it('praises a month with no spending', () => {
+    expect(pickMonthlyComment(summary({ income: 25000, expense: 0 }), 'October', 'en')).toBe('No spending at all in October. You kept the whole ฿25,000');
+  });
+
+  it('suggests a budget and keeps a custom category name as typed', () => {
+    const value = summary({ income: 25000, expense: 10000, top: [{ category: 'ค่าเทอม', total: 4000 }] });
+
+    expect(pickMonthlyComment(value, 'October', 'en')).toBe(
+      'You saved ฿15,000, but ค่าเทอม took 40% of your spending this month. Want to try a budget for it?',
+    );
+  });
+
+  it('praises saving 20% or more of income', () => {
+    const value = summary({ income: 25000, expense: 18460, top: [{ category: 'อาหาร', total: 6200 }] });
+
+    expect(pickMonthlyComment(value, 'October', 'en')).toBe('You saved ฿6,540 (26% of your income). Nice work, keep it up');
+  });
+
+  it('nudges toward 20% otherwise', () => {
+    const value = summary({ income: 25000, expense: 20100, top: [{ category: 'อาหาร', total: 6200 }] });
+
+    expect(pickMonthlyComment(value, 'October', 'en')).toBe('You saved ฿4,900 (19% of your income). Try to get to 20% this month');
+  });
+});
+
+describe('buildEmptyMonthText in English', () => {
+  it('invites the user back for the new month', () => {
+    expect(buildEmptyMonthText({ monthName: 'October', nextMonthName: 'November' }, 'en')).toBe(
+      'You did not log anything in October. Fresh start for November: just send me something like "coffee 60"',
+    );
+  });
+});

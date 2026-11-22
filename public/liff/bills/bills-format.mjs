@@ -1,4 +1,6 @@
-import { LOGIN_REQUIRED_MESSAGE, thaiMonthShort } from '../format.mjs';
+import { loginRequiredMessage, thaiMonthShort } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 // ตรงกับ src/bills/validate.js ฝั่ง server เพื่อให้ยอดที่หน้าเว็บแบ่งผ่านการตรวจเสมอ
 export function toSatang(amount) {
@@ -62,19 +64,19 @@ export function isIncomingBillFinished(bill) {
   return bill.status === 'cancelled' || bill.myStatus === 'declined' || (bill.myStatus === 'confirmed' && bill.paid);
 }
 
-export function ownedBillSummary(bill) {
-  if (bill.status === 'cancelled') return 'ยกเลิกแล้ว';
+export function ownedBillSummary(bill, lang = getLang()) {
+  if (bill.status === 'cancelled') return t(lang, 'web.bills.state.cancelled');
   const { paid, count } = paidProgress(bill);
-  if (count === 0) return 'เพื่อนปฏิเสธทั้งหมด';
-  if (paid === count) return 'คืนครบแล้ว';
-  return `ค้างรับ · คืนแล้ว ${paid}/${count} คน`;
+  if (count === 0) return t(lang, 'web.bills.state.allDeclined');
+  if (paid === count) return t(lang, 'web.bills.state.allPaid');
+  return t(lang, 'web.bills.state.owed', { paid, count });
 }
 
-export function incomingBillState(bill) {
-  if (bill.status === 'cancelled') return 'ยกเลิกแล้ว';
-  if (bill.myStatus === 'declined') return 'ปฏิเสธแล้ว';
-  if (bill.myStatus === 'confirmed') return bill.paid ? 'คืนแล้ว' : 'ยังไม่คืน';
-  return 'รอคุณตอบ';
+export function incomingBillState(bill, lang = getLang()) {
+  if (bill.status === 'cancelled') return t(lang, 'web.bills.state.cancelled');
+  if (bill.myStatus === 'declined') return t(lang, 'web.bills.state.declined');
+  if (bill.myStatus === 'confirmed') return t(lang, bill.paid ? 'web.bills.state.paid' : 'web.bills.state.unpaid');
+  return t(lang, 'web.bills.state.awaiting');
 }
 
 export function countAwaitingAnswer(incoming) {
@@ -87,52 +89,64 @@ export function pickInitialBillsView({ incoming, owned }) {
   return owned.length === 0 && incoming.length > 0 ? 'incoming' : 'owned';
 }
 
-export function calendarParts(isoDate) {
-  return { month: thaiMonthShort(isoDate.slice(0, 7)), day: String(Number(isoDate.slice(8, 10))) };
+export function calendarParts(isoDate, lang = getLang()) {
+  return { month: thaiMonthShort(isoDate.slice(0, 7), lang), day: String(Number(isoDate.slice(8, 10))) };
 }
 
 export function needsShareLink(bill) {
   return bill.status === 'open' && bill.members.some((member) => !member.notified && member.status === 'pending');
 }
 
-export const MEMBER_STATUS_LABELS = { pending: 'รอตอบ', confirmed: 'ยืนยันแล้ว', declined: 'ปฏิเสธ' };
+const MEMBER_STATUSES = ['pending', 'confirmed', 'declined'];
 
-export function describeBillError(status, action, error) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
+export function memberStatusLabel(status, lang = getLang()) {
+  return t(lang, `web.bills.member.${status}`);
+}
+
+// ค่าไทยตั้งต้นคงไว้ให้ผู้ใช้เดิมของ export นี้ หน้าเว็บใช้ memberStatusLabel ตามภาษาที่เปิดอยู่
+export const MEMBER_STATUS_LABELS = Object.fromEntries(MEMBER_STATUSES.map((status) => [status, memberStatusLabel(status, 'th')]));
+
+const CREATE_ERRORS = { 'Not friends': 'web.bills.error.notFriends', 'Shares do not add up': 'web.bills.error.sharesMismatch' };
+
+function billErrorKey(status, action, error) {
   if (action === 'create') {
-    if (status === 400 && error === 'Not friends') return 'มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง';
-    if (status === 400 && error === 'Shares do not add up') return 'ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล';
-    if (status === 400) return 'ข้อมูลบิลไม่ถูกต้อง ตรวจชื่อบิล ยอด และวันที่อีกครั้ง';
-    if (status === 429) return 'สร้างบิลบ่อยเกินไป รอสักครู่แล้วลองใหม่';
-    return 'สร้างบิลไม่สำเร็จ ลองใหม่อีกครั้ง';
+    if (status === 400) return CREATE_ERRORS[error] ?? 'web.bills.error.invalid';
+    return status === 429 ? 'web.bills.error.createTooFast' : 'web.bills.error.createFailed';
   }
-  if (action === 'respond') return status === 404 ? 'ไม่พบบิลนี้แล้ว' : 'ตอบบิลไม่สำเร็จ ลองใหม่อีกครั้ง';
-  if (action === 'cancel') return 'ยกเลิกบิลไม่สำเร็จ ลองใหม่อีกครั้ง';
-  if (action === 'paid') return 'บันทึกการคืนเงินไม่สำเร็จ ลองใหม่อีกครั้ง';
-  return 'โหลดบิลไม่สำเร็จ';
+  if (action === 'respond') return status === 404 ? 'web.bills.error.gone' : 'web.bills.error.respondFailed';
+  if (action === 'cancel') return 'web.bills.error.cancelFailed';
+  if (action === 'paid') return 'web.bills.error.paidFailed';
+  return 'web.bills.error.loadFailed';
+}
+
+export function describeBillError(status, action, error, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  return t(lang, billErrorKey(status, action, error));
 }
 
 const RECEIPT_ERRORS = {
-  413: 'รูปใหญ่เกินไป (ไม่เกิน 10 MB)',
-  415: 'ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)',
-  422: 'อ่านยอดจากรูปนี้ไม่ได้ ลองรูปที่ชัดขึ้น หรือพิมพ์ยอดเอง',
-  429: 'อ่านรูปบ่อยเกินไป รอสักครู่แล้วลองใหม่',
+  413: 'web.bills.receipt.tooLarge',
+  415: 'web.bills.receipt.unsupported',
+  422: 'web.bills.receipt.unreadable',
+  429: 'web.bills.receipt.tooFast',
 };
 
-export function describeReceiptError(status) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
-  return RECEIPT_ERRORS[status] || 'อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง';
+export function describeReceiptError(status, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  return t(lang, RECEIPT_ERRORS[status] || 'web.bills.receipt.failed');
 }
 
-const EARLIER_ANSWER_TEXT = {
-  cancelled: 'บิลนี้ถูกยกเลิกแล้ว',
-  already_confirmed: 'คุณยืนยันบิลนี้ไปแล้ว',
-  already_declined: 'คุณปฏิเสธบิลนี้ไปแล้ว',
+// key เดียวกับที่บอทตอบใน postback ข้อความในเว็บกับในแชตจึงตรงกันทุกภาษา
+const EARLIER_ANSWER_KEYS = {
+  cancelled: 'chat.bill.cancelled',
+  already_confirmed: 'chat.bill.alreadyConfirmed',
+  already_declined: 'chat.bill.alreadyDeclined',
 };
 
-// null เมื่อเป็นคำตอบใหม่ ไม่ใช่ก็ใช้ข้อความเดียวกับที่บอทตอบใน postback
-export function describeBillAnswer(resultStatus) {
-  return EARLIER_ANSWER_TEXT[resultStatus] || null;
+// null เมื่อเป็นคำตอบใหม่
+export function describeBillAnswer(resultStatus, lang = getLang()) {
+  const key = EARLIER_ANSWER_KEYS[resultStatus];
+  return key ? t(lang, key) : null;
 }
 
 export function buildBillUrl(liffId, billId) {

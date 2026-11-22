@@ -41,5 +41,16 @@
   { "text": "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500*2", "expect": { "status": "intent", "intent": "saving", "amount": null } },
   { "text": "รวม", "history": [{ "role": "user", "text": "กินข้าว 40+10+20" }, { "role": "assistant", "text": "จะให้เฮียจดรวมเป็นรายการเดียว 70 บาท หรือแยกเป็น 3 รายการ" }], "expect": { "status": "ok", "items": [{ "amount": 70 }] } },
   { "text": "แยก", "history": [{ "role": "user", "text": "กินข้าว 40+10+20" }, { "role": "assistant", "text": "จะให้เฮียจดรวมเป็นรายการเดียว 70 บาท หรือแยกเป็น 3 รายการ" }], "expect": { "status": "ok", "items": [{ "amount": 40 }, { "amount": 10 }, { "amount": 20 }] } },
-  { "text": "60", "history": [{ "role": "user", "text": "ข้าว" }, { "role": "assistant", "text": "ข้าวราคาเท่าไหร่" }], "expect": { "status": "ok", "items": [{ "amount": 60 }] } }
+  { "text": "60", "history": [{ "role": "user", "text": "ข้าว" }, { "role": "assistant", "text": "ข้าวราคาเท่าไหร่" }], "expect": { "status": "ok", "items": [{ "amount": 60 }] } },
+  { "text": "lunch 60", "lang": "en", "expect": { "status": "ok", "items": [{ "type": "expense", "category": "อาหาร", "amount": 60 }] } },
+  { "text": "coffee 45 taxi 120", "lang": "en", "expect": { "status": "ok", "items": [{ "category": "อาหาร", "amount": 45 }, { "category": "เดินทาง", "amount": 120 }] } },
+  { "text": "got my salary 25000", "lang": "en", "expect": { "status": "ok", "items": [{ "type": "income", "category": "เงินเดือน", "amount": 25000 }] } },
+  { "text": "กินข้าว 60", "lang": "en", "expect": { "status": "ok", "items": [{ "category": "อาหาร", "amount": 60 }] } },
+  { "text": "coffee", "lang": "en", "expect": { "status": "clarify" } },
+  { "text": "summary please", "lang": "en", "expect": { "status": "intent", "intent": "summary", "period": "menu" } },
+  { "text": "how do I use this", "lang": "en", "expect": { "status": "intent", "intent": "help" } },
+  { "text": "thanks", "lang": "en", "expect": { "status": "intent", "intent": "greeting" } },
+  { "text": "how much did I spend this month", "lang": "en", "parser": "question", "expect": { "isQuestion": true, "type": "expense" } },
+  { "text": "how much did I spend on coffee", "lang": "en", "parser": "question", "expect": { "isQuestion": true, "keyword": "coffee" } },
+  { "text": "how much budget is left", "lang": "en", "parser": "question", "expect": { "isQuestion": false } }
 ]

@@ -1,31 +1,20 @@
 import { createSvgIcon } from './icons.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
-const EMPTY_STATES = {
-  list: {
-    symbol: 'empty-list',
-    title: 'ยังไม่มีรายการในเดือนที่เลือก',
-    hint: 'พิมพ์ในแชตได้เลย เช่น "กินข้าว 60" เฮียจะบันทึกให้',
-  },
-  search: {
-    symbol: 'empty-search',
-    title: 'ไม่พบรายการที่ค้นหา',
-    hint: 'ลองเปลี่ยนคำค้นหรือล้างตัวกรอง',
-  },
-  summary: {
-    symbol: 'empty-chart',
-    title: 'ยังไม่มีข้อมูลสรุปในเดือนที่เลือก',
-    hint: 'เมื่อมีรายการแล้ว กราฟตามหมวดจะแสดงที่นี่',
-  },
-  recurring: {
-    symbol: 'empty-recurring',
-    title: 'ยังไม่มีรายการประจำ',
-    hint: 'เพิ่มรายรับรายจ่ายที่เกิดทุกเดือน เช่น ค่าเน็ต เงินเดือน แล้วเฮียจะบันทึกให้เอง',
-  },
+// ข้อความอยู่ใน catalog ที่ web.empty.<kind>.title / .hint
+const EMPTY_SYMBOLS = {
+  list: 'empty-list',
+  search: 'empty-search',
+  summary: 'empty-chart',
+  recurring: 'empty-recurring',
 };
 
 export function createEmptyState(doc, kind, tag = 'div') {
-  const state = EMPTY_STATES[kind];
-  if (!state) throw new Error(`Unknown empty state: ${kind}`);
+  const symbol = Object.hasOwn(EMPTY_SYMBOLS, kind) ? EMPTY_SYMBOLS[kind] : null;
+  if (!symbol) throw new Error(`Unknown empty state: ${kind}`);
+  const lang = getLang();
+  const state = { symbol, title: t(lang, `web.empty.${kind}.title`), hint: t(lang, `web.empty.${kind}.hint`) };
   const el = doc.createElement(tag);
   el.className = 'empty-state';
   const title = doc.createElement('p');

@@ -1,8 +1,10 @@
 import { createSvgIcon } from '../ui/icons.mjs';
-import { formatMonthLabel } from '../format.mjs';
+import { formatBaht, formatMonthLabel } from '../format.mjs';
 import { applyResults, createDraft, draftSummary, entryView, saveDraft, stepDraft } from './budget-bulk.mjs';
-import { formatNumber } from './budgets-format.mjs';
-import { stepBudget } from './budget-edit.mjs';
+import { budgetCategoryName, formatNumber } from './budgets-format.mjs';
+import { BUDGET_STEP, stepBudget } from './budget-edit.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 function node(doc, tag, className, text) {
   const el = doc.createElement(tag);
@@ -19,29 +21,32 @@ export function createBudgetBulkPanel({ doc, els, setBudget, onSaved, onDone }) 
   let outcomes = new Map();
 
   function renderRow(entry) {
-    const view = entryView(entry);
+    const lang = getLang();
+    const name = budgetCategoryName(entry.category, lang);
+    const step = formatBaht(BUDGET_STEP, lang);
+    const view = entryView(entry, lang);
     const item = node(doc, 'div', view.dirty ? 'budget-bulk-row dirty' : 'budget-bulk-row');
     item.dataset.categoryId = entry.categoryId;
     const text = node(doc, 'div', 'budget-bulk-text');
     const line = node(doc, 'div', 'budget-bulk-line');
     if (view.oldPercent === null) {
-      line.append(node(doc, 'span', view.dirty ? 'budget-bulk-old struck' : 'budget-bulk-old muted', 'ยังไม่ตั้งงบ'));
+      line.append(node(doc, 'span', view.dirty ? 'budget-bulk-old struck' : 'budget-bulk-old muted', t(lang, 'web.budgets.bulk.unsetOld')));
     } else {
       line.append(node(doc, 'span', `budget-bulk-old level-${view.oldLevel}${view.dirty ? ' struck' : ''}`, `${view.oldPercent}%`));
     }
     if (view.dirty && view.newPercent !== null) {
       line.append(node(doc, 'span', 'budget-bulk-arrow', '→'), node(doc, 'span', `budget-bulk-new level-${view.newLevel}`, `${view.newPercent}%`));
     }
-    text.append(node(doc, 'div', 'budget-bulk-name', entry.category), line);
+    text.append(node(doc, 'div', 'budget-bulk-name', name), line);
 
     const stepper = node(doc, 'div', 'budget-bulk-stepper');
     const minus = node(doc, 'button', 'budget-bulk-minus', '−');
     minus.type = 'button';
-    minus.setAttribute('aria-label', `ลดงบ ${entry.category} 500 บาท`);
+    minus.setAttribute('aria-label', t(lang, 'web.budgets.bulk.minus', { name, amount: step }));
     minus.disabled = busy || stepBudget(entry.next, -1) === entry.next;
     const plus = node(doc, 'button', 'budget-bulk-plus', '+');
     plus.type = 'button';
-    plus.setAttribute('aria-label', `เพิ่มงบ ${entry.category} 500 บาท`);
+    plus.setAttribute('aria-label', t(lang, 'web.budgets.bulk.plus', { name, amount: step }));
     plus.disabled = busy;
     const amount = node(doc, 'div', 'budget-bulk-amount');
     amount.append(node(doc, 'span', 'budget-bulk-value', view.valueText), node(doc, 'span', 'budget-bulk-was', view.wasText));
@@ -62,15 +67,16 @@ export function createBudgetBulkPanel({ doc, els, setBudget, onSaved, onDone }) 
   }
 
   function renderSummary() {
+    const lang = getLang();
     const summary = draftSummary(draft);
     if (summary.dirtyCount === 0) {
-      els.count.textContent = 'ยังไม่ได้แก้อะไร';
+      els.count.textContent = t(lang, 'web.budgets.bulk.noChanges');
       els.delta.textContent = '';
       els.total.textContent = '';
     } else {
-      els.count.textContent = `แก้ ${summary.dirtyCount} หมวด · รวมงบ`;
+      els.count.textContent = t(lang, 'web.budgets.bulk.changed', { count: summary.dirtyCount });
       els.delta.textContent = `${summary.delta >= 0 ? '+' : '-'}${formatNumber(Math.abs(summary.delta))}`;
-      els.total.textContent = `เป็น ${formatNumber(summary.newTotal)}`;
+      els.total.textContent = t(lang, 'web.budgets.bulk.newTotal', { amount: formatNumber(summary.newTotal) });
     }
     els.save.disabled = busy || summary.dirtyCount === 0;
   }
@@ -90,17 +96,23 @@ export function createBudgetBulkPanel({ doc, els, setBudget, onSaved, onDone }) 
 
   function showResult() {
     const results = [...outcomes.values()];
+    const lang = getLang();
     const okCount = results.filter((result) => result.ok).length;
-    els.resultTitle.textContent = `บันทึกได้ ${okCount} จาก ${results.length} หมวด`;
-    els.resultSub.textContent = okCount > 0 ? `${okCount} หมวดที่สำเร็จบันทึกแล้ว ไม่ต้องกดซ้ำ` : 'ยังไม่มีหมวดไหนบันทึกสำเร็จ';
+    els.resultTitle.textContent = t(lang, 'web.budgets.bulk.resultTitle', { ok: okCount, total: results.length });
+    els.resultSub.textContent = okCount > 0
+      ? t(lang, 'web.budgets.bulk.resultSomeSaved', { count: okCount })
+      : t(lang, 'web.budgets.bulk.resultNoneSaved');
     els.resultList.replaceChildren();
     for (const result of results) {
       const item = node(doc, 'div', result.ok ? 'budget-bulk-result-item' : 'budget-bulk-result-item failed');
       const mark = node(doc, 'span', 'budget-bulk-result-mark');
       mark.append(createSvgIcon(doc, result.ok ? 'icon-check' : 'icon-close'));
       const text = node(doc, 'span', 'budget-bulk-result-text');
-      text.append(node(doc, 'span', 'budget-bulk-result-name', result.category), node(doc, 'span', 'budget-bulk-result-say', result.ok ? 'บันทึกแล้ว' : 'บันทึกไม่สำเร็จ'));
-      const from = result.from === null ? 'ไม่มีงบ' : formatNumber(result.from);
+      text.append(
+        node(doc, 'span', 'budget-bulk-result-name', budgetCategoryName(result.category, lang)),
+        node(doc, 'span', 'budget-bulk-result-say', t(lang, result.ok ? 'web.budgets.bulk.saved' : 'web.budgets.bulk.failed')),
+      );
+      const from = result.from === null ? t(lang, 'web.budgets.group.unset') : formatNumber(result.from);
       item.append(mark, text, node(doc, 'span', 'budget-bulk-result-change', `${from} → ${formatNumber(result.to)}`));
       els.resultList.append(item);
     }
@@ -131,7 +143,7 @@ export function createBudgetBulkPanel({ doc, els, setBudget, onSaved, onDone }) 
   function show({ budgets, month: nextMonth, first = 'risk' }) {
     draft = createDraft(budgets, { first });
     month = nextMonth;
-    els.month.textContent = `งบเดือน ${formatMonthLabel(month)}`;
+    els.month.textContent = t(getLang(), 'web.budgets.bulk.month', { month: formatMonthLabel(month) });
     outcomes = new Map();
     busy = false;
     els.cancel.disabled = false;

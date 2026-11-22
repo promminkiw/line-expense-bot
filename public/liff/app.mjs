@@ -28,12 +28,12 @@ import {
   describeExpenseComparison,
   isFilterActive,
   describeFilterResult,
-  LOGIN_REQUIRED_MESSAGE,
+  loginRequiredMessage,
   describeRestoreFailure,
   parseAmountText,
 } from './format.mjs';
 import { createFriendsPanel } from './friends/friends-panel.mjs';
-import { createSettingsPanel } from './settings/settings-panel.mjs';
+import { createSettingsPanel, createLanguagePicker } from './settings/settings-panel.mjs';
 import { createCategoriesPanel } from './categories/categories-panel.mjs';
 import { createWalletsPanel } from './wallets/wallets-panel.mjs';
 import { walletOptions, sortWallets, hasSeveralWallets } from './wallets/wallets-format.mjs';
@@ -56,8 +56,129 @@ import { createBudgetsPanel } from './budgets/budgets-panel.mjs';
 import { createBudgetsAllPanel } from './budgets/budgets-all-panel.mjs';
 import { createBudgetSheet } from './budgets/budget-sheet.mjs';
 import { createBudgetBulkPanel } from './budgets/budget-bulk-panel.mjs';
+import { applyTranslations } from './i18n/dom.mjs';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, languageFromTag, t } from './i18n/translate.mjs';
+import { getLang, setLang } from './i18n/current.mjs';
+import { displayCategoryName, displayWalletName } from './i18n/names.mjs';
 
-const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
+const LANGUAGE_KEY = 'lang';
+
+// storage ใช้ไม่ได้ก็แค่รอภาษาจาก server เหมือนเปิดครั้งแรก
+function readCachedLanguage() {
+  try {
+    const value = localStorage.getItem(LANGUAGE_KEY);
+    return SUPPORTED_LANGUAGES.includes(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberLanguage(language) {
+  try {
+    localStorage.setItem(LANGUAGE_KEY, language);
+  } catch {
+    // ปิด storage ไว้ รอบหน้าจะแวบภาษาไทยก่อนได้คำตอบจาก server
+  }
+}
+
+// apply ตั้งแต่ตอนโหลด module ก่อนรอ LIFF และเครือข่าย ผู้ใช้อังกฤษจะได้ไม่เห็นภาษาไทยแวบ
+// เก็บใน current.mjs เพื่อให้ format.mjs และ ui/* อ่านภาษาเดียวกันตอน render
+setLang(applyTranslations(document, readCachedLanguage() ?? DEFAULT_LANGUAGE));
+
+// แถวภาษาในแท็บ ฉัน บอกภาษาปัจจุบันเป็นข้อความรอง (ชื่อภาษามาจากชุดแปลเดียวกับตัวเลือก)
+function renderLanguageRow() {
+  document.getElementById('language-open-sub').textContent = t(getLang(), `common.language.${getLang()}`);
+}
+renderLanguageRow();
+
+function setLanguage(language) {
+  rememberLanguage(language);
+  if (language === getLang()) return;
+  setLang(applyTranslations(document, language));
+  relocalize();
+}
+
+// โหลดข้อมูลรอบแรกเสร็จแล้วหรือยัง และมีข้อความจาก JS ถูกเขียนไปแล้วหรือยัง ใช้ตัดสินว่าต้องโหลดใหม่หลังเปลี่ยนภาษาไหม
+let initialLoadDone = false;
+let loadAllStarted = false;
+let reloadAfterBoot = false;
+let languageReloadPending = false;
+
+// applyTranslations เปลี่ยนแค่ข้อความใน HTML ส่วนที่ JS เขียนไว้แล้วต้องเขียนใหม่เอง
+function relocalize() {
+  renderLanguageRow();
+  // applyTranslations ทับหัวข้อหน้าด้วยหัวข้อแท็บรายการ จึงต้องตั้งหัวข้อของหน้าที่เปิดอยู่กลับ
+  tabController.relabel();
+  if (activeSubPage) showSubPageLabels(activeSubPage);
+  if (document.getElementById('app').classList.contains('bills-page')) {
+    document.getElementById('page-title').textContent = t(getLang(), 'web.title.bills');
+  }
+  els.summaryEmpty.replaceChildren(createEmptyState(document, 'summary'));
+  els.recurringEmpty.replaceChildren(createEmptyState(document, 'recurring'));
+  // เปิดหน้าภาษาค้างไว้ระหว่างรอคำตอบ server ตัวเลือกต้องตามภาษาใหม่
+  if (activeSubPage?.panelId === 'panel-language') languagePicker.render();
+  // หน้าหารบิลไม่ผ่าน loadAll การ์ดบิลและรายชื่อเพื่อนจึงต้องวาดใหม่เอง
+  billsPanel.relabel();
+  billForm.relabel();
+  friendsPanel.relabel();
+  if (loadError) showStickyLoadError();
+  // รายการ กราฟ และยอดที่วาดไปแล้วเป็นภาษาเดิม โหลดใหม่ครั้งเดียวดีกว่าตามแก้ทีละส่วน
+  if (initialLoadDone) void reloadForLanguage();
+  else if (loadAllStarted) reloadAfterBoot = true;
+}
+
+// loadAll เติมตัวเลือกหมวดใหม่ทั้งหมด ถ้าแผ่นแก้ไขหรือหน้าย่อยเปิดอยู่ ค่าที่เลือกไว้จะหายแล้วบันทึกผิดหมวด
+// จึงรอจนปิด dialog หรือออกจากหน้าย่อยก่อน (กติกาเดียวกับ monthRollover)
+async function reloadForLanguage() {
+  if (document.querySelector('dialog[open]') || activeSubPage) {
+    languageReloadPending = true;
+    return;
+  }
+  languageReloadPending = false;
+  // แท็บออมไม่ผ่าน loadAll การ์ดเป้าจึงต้องวาดใหม่เองจากข้อมูลที่โหลดไว้
+  goalsPanel.relabel();
+  try {
+    await loadAll();
+    applyPendingListFilter();
+  } catch (err) {
+    showLoadError(err);
+  }
+}
+
+function flushLanguageReload() {
+  if (languageReloadPending) void reloadForLanguage();
+}
+
+// SDK edge/2 มี getAppLanguage (ภาษาแอป LINE) รุ่นเก่ามีแค่ getLanguage (ภาษาเบราว์เซอร์)
+function lineAppLanguage() {
+  if (typeof liff.getAppLanguage === 'function') return liff.getAppLanguage();
+  if (typeof liff.getLanguage === 'function') return liff.getLanguage();
+  return undefined;
+}
+
+// เก็บผลอ่านรอบนี้ไว้ให้แผงแจ้งเตือนใช้ต่อ จะได้มีการอ่าน settings ครั้งเดียวต่อการเปิดหน้า
+let bootSettingsRead = null;
+const takeBootSettingsRead = () => {
+  const read = bootSettingsRead;
+  bootSettingsRead = null;
+  return read;
+};
+
+// null = ผู้ใช้ยังไม่เคยเลือก จึงบันทึกภาษาแอป LINE ครั้งเดียวให้บอทใช้ค่าเดียวกัน
+async function syncLanguage() {
+  bootSettingsRead = api.getSettings();
+  // แผงแจ้งเตือนอาจไม่เคยมาหยิบ (ไม่ได้เปิดแท็บ) จึงกัน unhandled rejection ไว้ก่อน
+  bootSettingsRead.catch(() => {});
+  const settings = await bootSettingsRead;
+  if (SUPPORTED_LANGUAGES.includes(settings?.language)) {
+    setLanguage(settings.language);
+    return;
+  }
+  const detected = languageFromTag(lineAppLanguage());
+  setLanguage(detected);
+  await api.updateSettings({ language: detected });
+}
+
 // ต้องตรงกับจำนวน --chart-N ใน tokens.css
 const CHART_COLOR_COUNT = 6;
 
@@ -406,6 +527,26 @@ const settingsPanel = createSettingsPanel({
     },
   },
   getApi: () => api,
+  takeBootRead: takeBootSettingsRead,
+});
+const languagePicker = createLanguagePicker({
+  els: {
+    radios: { th: document.getElementById('language-th'), en: document.getElementById('language-en') },
+    status: document.getElementById('language-status'),
+  },
+  getApi: () => api,
+  getLang,
+  remember: rememberLanguage,
+  // โหลดหน้าใหม่เพื่อให้ทุกแท็บ render ในภาษาใหม่ ใช้ location ของ global เพื่อให้เทสต์ stub ได้
+  reload: () => {
+    // แทน entry หน้าย่อยด้วย entry ที่ไม่มี state และพากลับแท็บ ฉัน ไม่งั้นโหลดใหม่แล้วตกไปแท็บรายการ
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname}?tab=profile`);
+    } catch {
+      // history ใช้ไม่ได้ก็แค่โหลดหน้าเดิมใหม่
+    }
+    location.reload();
+  },
 });
 const categoriesPanel = createCategoriesPanel({
   doc: document,
@@ -548,8 +689,8 @@ const billForm = createBillForm({
   onCreated: async (result) => {
     billsPanel.showStatus(
       result.notNotified.length > 0
-        ? `สร้างบิลแล้ว แจ้งเตือนเพื่อนไม่ถึง ${result.notNotified.length} คน ส่งลิงก์บิลให้เขาได้ในรายการด้านล่าง`
-        : 'สร้างบิลแล้ว ส่งให้เพื่อนยืนยันแล้ว'
+        ? t(getLang(), 'web.bills.createdNotNotified', { count: result.notNotified.length })
+        : t(getLang(), 'web.bills.created')
     );
     await billsPanel.reload({ afterAction: true });
   },
@@ -561,6 +702,8 @@ els.summarySkeleton.replaceChildren(createSkeletonBlocks(document, ['chart']));
 els.listHeadSkeleton.replaceChildren(createSkeletonBlocks(document, ['totals', 'filters']));
 els.summaryEmpty.append(createEmptyState(document, 'summary'));
 els.recurringEmpty.append(createEmptyState(document, 'recurring'));
+// ไม่ใช้ data-i18n เพราะ applyTranslations ตอนภาษาจาก server มาถึงจะเขียน "กำลังโหลด" ทับสถานะจริง
+els.status.textContent = t(getLang(), 'web.common.loading');
 
 // เก็บค่าเดิมและตัวยกเลิกของแต่ละช่อง เพื่อนับต่อจากค่าเดิมและไม่ให้แอนิเมชันซ้อนกัน
 const shownAmounts = new Map();
@@ -600,8 +743,9 @@ let loadError = null;
 
 function showLoadError(err) {
   const loginRequired = err instanceof ApiError && err.status === 401;
+  // เก็บสาเหตุไม่เก็บข้อความ banner จึงเปลี่ยนภาษาตามได้เมื่อภาษาจาก server มาทีหลัง
   loadError = {
-    text: loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง',
+    loginRequired,
     // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
     retryable: !loginRequired,
   };
@@ -614,11 +758,15 @@ function showLoadError(err) {
   els.summarySkeleton.hidden = true;
   // ล้างสถานะโหลดค้างในแท็บรายการ ข้อความ error ไปอยู่ที่ banner ที่เห็นทุกแท็บ
   setStatus('');
-  setBanner(loadError.text, { retryable: loadError.retryable });
+  setBanner(loadErrorText(loadError), { retryable: loadError.retryable });
+}
+
+function loadErrorText(error) {
+  return error.loginRequired ? loginRequiredMessage() : t(getLang(), 'web.error.loadFailed');
 }
 
 function showStickyLoadError() {
-  setBanner(loadError ? loadError.text : '', { retryable: loadError ? loadError.retryable : false });
+  setBanner(loadError ? loadErrorText(loadError) : '', { retryable: loadError ? loadError.retryable : false });
 }
 
 function fillGroupedSelect(select, groups, placeholderOption = null) {
@@ -627,7 +775,7 @@ function fillGroupedSelect(select, groups, placeholderOption = null) {
   if (placeholderOption) select.append(placeholderOption);
   for (const type of ['expense', 'income']) {
     const group = document.createElement('optgroup');
-    group.label = TYPE_LABELS[type];
+    group.label = t(getLang(), `type.${type}`);
     for (const category of groups[type]) {
       const option = document.createElement('option');
       option.value = category.id;
@@ -645,7 +793,7 @@ function fillCategoryOptions() {
   fillGroupedSelect(els.recurringCategory, visible);
   // ตัวกรองต้องเลือกหมวดที่ซ่อนแล้วได้ เพราะรายการเก่ายังอยู่ในหมวดนั้น
   const all = groupCategoryOptions(categories, { includeHidden: true });
-  const selected = fillGroupedSelect(els.filterCategory, all, new Option('ทุกหมวด', ''));
+  const selected = fillGroupedSelect(els.filterCategory, all, new Option(t(getLang(), 'web.list.allCategories'), ''));
   // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
   els.filterCategory.value = selected;
   if (els.filterCategory.value !== selected) els.filterCategory.value = '';
@@ -667,8 +815,8 @@ function setWallets(next) {
   const selected = els.filterWallet.value;
   wallets = next;
   els.filterWallet.replaceChildren(
-    new Option('ทุกกระเป๋า', ''),
-    ...sortWallets(wallets).map((wallet) => new Option(wallet.name, wallet.id))
+    new Option(t(getLang(), 'web.list.allWallets'), ''),
+    ...sortWallets(wallets).map((wallet) => new Option(displayWalletName(getLang(), wallet.name), wallet.id))
   );
   // คืนค่าที่เลือกไว้เฉพาะเมื่อยังมีตัวเลือกนั้น ไม่งั้น select จะว่าง
   els.filterWallet.value = selected;
@@ -678,7 +826,7 @@ function setWallets(next) {
   if (pendingLinkedWallet) {
     const wallet = pendingLinkedWallet;
     pendingLinkedWallet = null;
-    if (els.banner.textContent === WALLET_LINK_UNFILTERED) setBanner('');
+    if (els.banner.textContent === walletLinkUnfiltered()) setBanner('');
     selectLinkedWallet(wallet);
   }
   // เปลี่ยนชื่อต้องโหลดรายการใหม่ เพราะ walletName ในแถวมาจาก server
@@ -700,7 +848,7 @@ function showCategoryOptions(select, keepId) {
 // เลือกกระเป๋าได้เมื่อมีมากกว่าหนึ่งตัวเลือก และรู้กระเป๋าเดิมของรายการ ไม่งั้นบันทึกแล้วย้ายกระเป๋าโดยไม่ตั้งใจ
 function showWalletOptions(item) {
   const options = walletOptions(wallets, item.walletId);
-  els.editWallet.replaceChildren(...options.map((wallet) => new Option(wallet.name, wallet.id)));
+  els.editWallet.replaceChildren(...options.map((wallet) => new Option(displayWalletName(getLang(), wallet.name), wallet.id)));
   els.editWallet.value = item.walletId ?? '';
   els.editWalletRow.hidden = options.length < 2 || els.editWallet.value !== item.walletId;
 }
@@ -708,7 +856,7 @@ function showWalletOptions(item) {
 const SWIPE_REVEAL_WIDTH = 88;
 // เมาส์ยิง click ตามหลังการลากเสร็จ จึงเมินคลิกที่มาติดกับการปัด (นิ้วบนมือถือไม่ยิง click หลังลาก)
 const CLICK_AFTER_DRAG_MS = 300;
-const LINKED_TRANSACTION_MISSING = 'ไม่พบรายการนี้ อาจถูกลบหรือยกเลิกไปแล้ว';
+
 let openSwipeRow = null;
 // แถวที่จะรับ focus หลังโหลดรายการใหม่ (ปุ่มของแถวเดิมถูกถอดไปตอน reload)
 let pendingListFocus = null;
@@ -806,12 +954,12 @@ async function deleteBySwipe(item, button) {
 }
 
 function offerUndoDelete(snapshot) {
-  undoBar.show('ลบรายการแล้ว', () => restoreDeleted(snapshot));
+  undoBar.show(t(getLang(), 'web.undo.deleted'), () => restoreDeleted(snapshot));
 }
 
 async function restoreDeleted(snapshot) {
   showStickyLoadError();
-  const done = undoBar.showBusy('กำลังกู้คืน...');
+  const done = undoBar.showBusy(t(getLang(), 'web.undo.restoring'));
   try {
     await api.restoreTransaction(snapshot);
   } catch (err) {
@@ -864,7 +1012,8 @@ function renderRow(item) {
   text.className = 'row-text';
   const title = document.createElement('span');
   title.className = 'row-title';
-  title.textContent = item.categoryName;
+  const categoryName = displayCategoryName(getLang(), item.type, item.categoryName);
+  title.textContent = categoryName;
   text.append(title);
   if (item.note) {
     const note = document.createElement('span');
@@ -875,7 +1024,7 @@ function renderRow(item) {
   if (hasSeveralWallets(wallets) && item.walletName) {
     const wallet = document.createElement('span');
     wallet.className = 'row-wallet';
-    wallet.textContent = item.walletName;
+    wallet.textContent = displayWalletName(getLang(), item.walletName);
     text.append(wallet);
   }
   const amount = document.createElement('span');
@@ -894,8 +1043,8 @@ function renderRow(item) {
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'row-delete';
-  deleteButton.setAttribute('aria-label', `ลบรายการ ${item.categoryName}`);
-  deleteButton.textContent = 'ลบ';
+  deleteButton.setAttribute('aria-label', t(getLang(), 'web.list.deleteRow', { category: categoryName }));
+  deleteButton.textContent = t(getLang(), 'web.common.delete');
   deleteButton.addEventListener('click', () => deleteBySwipe(item, deleteButton));
   row.append(deleteButton, button);
   attachSwipe(row);
@@ -918,7 +1067,7 @@ function renderChart({ animate = false } = {}) {
   const rows = chartRows(lastSummary, chartType);
   els.chart.hidden = false;
   if (rows.length === 0) {
-    els.chartEmpty.textContent = chartType === 'expense' ? 'ยังไม่มีรายจ่ายในเดือนที่เลือก' : 'ยังไม่มีรายรับในเดือนที่เลือก';
+    els.chartEmpty.textContent = t(getLang(), chartType === 'expense' ? 'web.summary.noExpense' : 'web.summary.noIncome');
     els.chartEmpty.hidden = false;
     return;
   }
@@ -937,7 +1086,7 @@ function renderChart({ animate = false } = {}) {
     const label = document.createElement('span');
     label.className = 'chart-label chart-label-wrap';
     const labelText = document.createElement('span');
-    labelText.textContent = row.category;
+    labelText.textContent = displayCategoryName(getLang(), chartType, row.category);
     label.append(badgeFor(row.category, chartType), labelText);
     const value = document.createElement('span');
     value.className = 'chart-value';
@@ -1016,7 +1165,7 @@ function renderList() {
   if (els.filterStatus.textContent !== filterText) els.filterStatus.textContent = filterText;
   if (lastTransactions.length === 0) {
     // ให้ screen reader ได้ยินว่าเดือนว่าง ส่วนทางสายตาใช้ empty state แทน
-    setStatus('ยังไม่มีรายการในเดือนที่เลือก', { loading: true });
+    setStatus(t(getLang(), 'web.empty.list.title'), { loading: true });
     els.list.append(createEmptyState(document, 'list', 'li'));
     applyPendingListFocus();
     return;
@@ -1065,7 +1214,7 @@ function showBudgetsError(err) {
   els.budgets.hidden = true;
   els.budgetEmpty.hidden = true;
   const loginRequired = err instanceof ApiError && err.status === 401;
-  els.budgetsErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดงบไม่สำเร็จ';
+  els.budgetsErrorText.textContent = loginRequired ? loginRequiredMessage() : t(getLang(), 'web.budget.loadFailed');
   // เข้าสู่ระบบใหม่ไม่ได้แก้ด้วยการลองโหลดซ้ำ
   els.budgetsRetry.hidden = loginRequired;
   els.budgetsError.hidden = false;
@@ -1119,7 +1268,7 @@ function showTrendError(err) {
   els.trendLegend.hidden = true;
   els.trendComparison.hidden = true;
   const loginRequired = err instanceof ApiError && err.status === 401;
-  els.trendErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดกราฟแนวโน้มไม่สำเร็จ';
+  els.trendErrorText.textContent = loginRequired ? loginRequiredMessage() : t(getLang(), 'web.trend.loadFailed');
   els.trendRetry.hidden = loginRequired;
   els.trendError.hidden = false;
 }
@@ -1186,7 +1335,7 @@ function showProfileError(err) {
   profileLoading.set(false);
   const loginRequired = err instanceof ApiError && err.status === 401;
   profileLoginRequired = loginRequired;
-  els.profileErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดโปรไฟล์ไม่สำเร็จ';
+  els.profileErrorText.textContent = loginRequired ? loginRequiredMessage() : t(getLang(), 'web.profile.loadFailed');
   els.profileRetry.hidden = loginRequired;
   els.profileError.hidden = false;
 }
@@ -1274,7 +1423,7 @@ async function loadMonth({ reset = false } = {}) {
     els.trendError.hidden = true;
     trendLoading.set(true);
     els.exportStatus.textContent = '';
-    setStatus('กำลังโหลด...', { loading: true });
+    setStatus(t(getLang(), 'web.common.loading'), { loading: true });
   }
   // โหลดงบพร้อมกันเพราะยอดใช้ในงบเปลี่ยนตามรายการที่แก้/ลบด้วย
   const budgetsLoaded = loadBudgets();
@@ -1321,7 +1470,7 @@ async function openEditor(item) {
   // ผู้ใช้อาจปิดหรือเปิดแถวอื่นระหว่างรอ จึงห้ามแตะ editor ของ open ที่เก่าแล้ว
   if (editing !== item || !els.editor.open) return;
   if (!loaded) {
-    els.error.textContent = 'โหลดหมวดไม่สำเร็จ ลองใหม่อีกครั้ง';
+    els.error.textContent = t(getLang(), 'web.editor.categoriesFailed');
     els.error.hidden = false;
     revealError(els.error);
     return;
@@ -1330,7 +1479,7 @@ async function openEditor(item) {
   els.saveButton.disabled = busy;
   if (!walletsLoaded) {
     // ยังบันทึกช่องอื่นได้ เพราะไม่ส่ง walletId server จึงไม่แตะกระเป๋าเดิม
-    els.error.textContent = 'โหลดกระเป๋าไม่สำเร็จ ลองใหม่อีกครั้ง';
+    els.error.textContent = t(getLang(), 'web.editor.walletsFailed');
     els.error.hidden = false;
     revealError(els.error);
   } else if (!walletsWereLoaded) {
@@ -1345,8 +1494,9 @@ function setBusy(isBusy, kind) {
   els.cancelButton.disabled = isBusy;
   els.confirmCancel.disabled = isBusy;
   els.confirmOk.disabled = isBusy;
-  els.confirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
-  els.busy.textContent = isBusy ? (kind === 'delete' ? 'กำลังลบ...' : 'กำลังบันทึก...') : '';
+  const lang = getLang();
+  els.confirmOk.textContent = t(lang, isBusy && kind === 'delete' ? 'web.common.deleting' : 'web.common.delete');
+  els.busy.textContent = isBusy ? t(lang, kind === 'delete' ? 'web.common.deleting' : 'web.common.saving') : '';
   els.busy.hidden = !isBusy;
   // เริ่มงานใหม่ล้างข้อความผิดพลาดเก่า ส่วนตอนจบให้ผู้เรียกตั้งข้อความผิดพลาดเอง
   if (isBusy) {
@@ -1474,12 +1624,12 @@ els.exportButton.addEventListener('click', async () => {
   if (exporting || !api) return;
   const month = els.month.value;
   if (!month) {
-    els.exportStatus.textContent = 'เลือกเดือนก่อนกด Export CSV';
+    els.exportStatus.textContent = t(getLang(), 'web.export.pickMonth');
     return;
   }
   exporting = true;
   els.exportButton.disabled = true;
-  els.exportStatus.textContent = 'กำลังเตรียมไฟล์...';
+  els.exportStatus.textContent = t(getLang(), 'web.export.preparing');
   // เปลี่ยนเดือนระหว่างรอแล้ว loadMonth ล้างสถานะไปแล้ว อย่าเขียนสถานะของเดือนเก่าทับ
   const setExportStatus = (text) => {
     if (month === els.month.value) els.exportStatus.textContent = text;
@@ -1488,7 +1638,7 @@ els.exportButton.addEventListener('click', async () => {
     const { path } = await api.createExport(month);
     // browser ในแอป LINE ดาวน์โหลดไฟล์ไม่ได้ จึงเปิดลิงก์ใน browser ภายนอก
     liff.openWindow({ url: new URL(path, window.location.origin).href, external: true });
-    setExportStatus('ส่งลิงก์ไปเปิดใน browser แล้ว ถ้าไม่เห็นหน้าดาวน์โหลด กด Export CSV ใหม่ (ลิงก์ใช้ได้ครั้งเดียวภายใน 5 นาที)');
+    setExportStatus(t(getLang(), 'web.export.opened'));
   } catch (err) {
     setExportStatus(describeExportFailure(err instanceof ApiError ? err.status : undefined));
   } finally {
@@ -1566,7 +1716,7 @@ function renderRecurring(rules, focusRuleId = null) {
     cal.className = 'recurring-cal';
     cal.setAttribute('aria-hidden', 'true');
     const calLabel = document.createElement('small');
-    calLabel.textContent = 'ทุกวันที่';
+    calLabel.textContent = t(getLang(), 'web.recurring.dayLabel');
     const calDay = document.createElement('b');
     calDay.textContent = String(row.dayOfMonth);
     cal.append(calLabel, calDay);
@@ -1582,7 +1732,7 @@ function renderRecurring(rules, focusRuleId = null) {
     if (!row.active) {
       const paused = document.createElement('span');
       paused.className = 'recurring-paused';
-      paused.textContent = 'หยุดไว้';
+      paused.textContent = t(getLang(), 'web.recurring.paused');
       sub.append(paused);
     }
     button.append(cal, name, amount, sub);
@@ -1601,7 +1751,7 @@ function showRecurringError(err) {
   els.recurringOpen.disabled = false;
   els.recurring.hidden = false;
   const loginRequired = err instanceof ApiError && err.status === 401;
-  els.recurringErrorText.textContent = loginRequired ? LOGIN_REQUIRED_MESSAGE : 'โหลดรายการประจำไม่สำเร็จ';
+  els.recurringErrorText.textContent = loginRequired ? loginRequiredMessage() : t(getLang(), 'web.recurring.loadFailed');
   els.recurringRetry.hidden = loginRequired;
   els.recurringError.hidden = false;
 }
@@ -1629,7 +1779,7 @@ async function loadRecurring({ focusRuleId = null, focusAdd = false } = {}) {
 
 function openRecurringEditor(row = null) {
   editingRecurring = row;
-  els.recurringEditorTitle.textContent = row ? 'แก้รายการประจำ' : 'เพิ่มรายการประจำ';
+  els.recurringEditorTitle.textContent = t(getLang(), row ? 'web.recurring.editTitle' : 'web.recurring.addTitle');
   showCategoryOptions(els.recurringCategory, row ? row.categoryId : null);
   if (!row && els.recurringCategory.options.length > 0) els.recurringCategory.selectedIndex = 0;
   els.recurringAmount.value = row ? String(row.amount) : '';
@@ -1649,7 +1799,7 @@ function setRecurringBusy(isBusy, kind) {
   els.recurringCancel.disabled = isBusy;
   els.recurringConfirmCancel.disabled = isBusy;
   els.recurringConfirmOk.disabled = isBusy;
-  els.recurringConfirmOk.textContent = isBusy && kind === 'delete' ? 'กำลังลบ...' : 'ลบ';
+  els.recurringConfirmOk.textContent = t(getLang(), isBusy && kind === 'delete' ? 'web.common.deleting' : 'web.common.delete');
   els.recurringBusy.hidden = !isBusy;
   els.recurringEditorError.hidden = true;
 }
@@ -1845,18 +1995,16 @@ function openLinkedTransaction(link) {
   if (item) {
     void openEditor(item);
   } else {
-    setBanner(LINKED_TRANSACTION_MISSING);
+    setBanner(t(getLang(), 'web.list.linkedMissing'));
   }
 }
-
-let initialLoadDone = false;
 
 // หารบิลเป็นฟังก์ชันเสริม เปิดเป็นหน้าแยกที่ไม่มีแท็บของเว็บหลัก และย้ายส่วนเพื่อนมาไว้ในหน้าเดียวกัน
 function enterBillsPage() {
   document.getElementById('app').classList.add('bills-page');
   document.getElementById('bottom-nav').hidden = true;
   for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== 'panel-bills';
-  document.getElementById('page-title').textContent = 'หารบิล';
+  document.getElementById('page-title').textContent = t(getLang(), 'web.title.bills');
   els.month.hidden = true;
   document.getElementById('panel-bills').append(document.getElementById('friends'));
   document.getElementById('bills-home').hidden = false;
@@ -1892,15 +2040,20 @@ function enterSubPage(page) {
   document.getElementById('app').classList.add('sub-page');
   els.bottomNav.hidden = true;
   for (const panel of document.querySelectorAll('.panel')) panel.hidden = panel.id !== page.panelId;
-  document.getElementById('page-title').textContent = page.title;
+  showSubPageLabels(page);
   els.month.hidden = true;
   updateMonthContext();
-  els.pageBack.setAttribute('aria-label', page.backLabel);
   els.pageBack.hidden = false;
   showStickyLoadError();
   window.scrollTo(0, 0);
   page.render?.();
   els.pageBack.focus();
+}
+
+// หน้าย่อยเก็บ key ไม่ใช่ข้อความ หัวข้อจึงตามภาษาตอนเปิดหน้า
+function showSubPageLabels(page) {
+  document.getElementById('page-title').textContent = t(getLang(), page.titleKey);
+  els.pageBack.setAttribute('aria-label', t(getLang(), page.backLabelKey));
 }
 
 function leaveSubPage() {
@@ -1920,6 +2073,7 @@ function leaveSubPage() {
   document.getElementById(page.panelId).hidden = true;
   // controller ยังจำว่าอยู่แท็บเจ้าของหน้า จึงต้อง force ให้แสดง panel และหัวข้อกลับมา
   tabController.select(page.ownerTab, { force: true });
+  flushLanguageReload();
   page.returnFocus.focus();
   monthRollover.check();
   return true;
@@ -1940,12 +2094,15 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') monthRollover.check();
 });
 // event close ของ dialog ไม่ bubble จึงต้องฟังแบบ capture
-document.addEventListener('close', () => monthRollover.check(), true);
+document.addEventListener('close', () => {
+  monthRollover.check();
+  flushLanguageReload();
+}, true);
 
 const CATEGORIES_PAGE = {
   panelId: 'panel-categories',
-  title: 'หมวดของฉัน',
-  backLabel: 'กลับไปจัดการงบ',
+  titleKey: 'web.title.categories',
+  backLabelKey: 'web.back.budgets',
   ownerTab: 'budgets',
   returnFocus: els.categoriesOpen,
   render: () => categoriesPanel.render(),
@@ -1953,8 +2110,8 @@ const CATEGORIES_PAGE = {
 
 const BUDGETS_ALL_PAGE = {
   panelId: 'panel-budget-all',
-  title: 'ดูงบทุกหมวด',
-  backLabel: 'กลับไปหน้างบ',
+  titleKey: 'web.title.budgetsAll',
+  backLabelKey: 'web.back.budgetsHome',
   ownerTab: 'budgets',
   returnFocus: els.budgetAllOpen,
 };
@@ -1977,14 +2134,14 @@ const budgetBulkPanel = createBudgetBulkPanel({
   onSaved: () => loadBudgets(),
   onDone: ({ savedCount }) => {
     backFromSubPage();
-    budgetsAllPanel.setSuccess(`บันทึกงบแล้ว ${savedCount} หมวด`);
+    budgetsAllPanel.setSuccess(t(getLang(), `web.budget.bulkSaved.${savedCount === 1 ? 'one' : 'other'}`, { count: savedCount }));
   },
 });
 
 const BUDGET_BULK_PAGE = {
   panelId: 'panel-budget-bulk',
-  title: 'แก้งบหลายหมวด',
-  backLabel: 'กลับไปดูงบทุกหมวด',
+  titleKey: 'web.title.budgetBulk',
+  backLabelKey: 'web.back.budgetsAll',
   ownerTab: 'budgets',
   returnFocus: els.budgetAllBulkOpen,
   parent: BUDGETS_ALL_PAGE,
@@ -2004,11 +2161,11 @@ function enterCategoriesPage(page) {
 }
 
 // หน้าย่อยที่เปิดจากเมนูในแท็บ ฉัน กลับมาแท็บเดียวกัน
-function mePage(panelId, title, returnFocus) {
-  return { panelId, title, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus };
+function mePage(panelId, titleKey, returnFocus) {
+  return { panelId, titleKey, backLabelKey: 'web.back.me', ownerTab: 'profile', returnFocus };
 }
 
-const ME_CATEGORIES_PAGE = { ...CATEGORIES_PAGE, backLabel: 'กลับไปหน้าฉัน', ownerTab: 'profile', returnFocus: els.meCategoriesOpen };
+const ME_CATEGORIES_PAGE = { ...CATEGORIES_PAGE, backLabelKey: 'web.back.me', ownerTab: 'profile', returnFocus: els.meCategoriesOpen };
 
 els.categoriesOpen.addEventListener('click', () => enterCategoriesPage(CATEGORIES_PAGE));
 els.meCategoriesOpen.addEventListener('click', () => enterCategoriesPage(ME_CATEGORIES_PAGE));
@@ -2034,32 +2191,40 @@ window.addEventListener('popstate', (event) => {
   leaveSubPage();
 });
 
-const RECURRING_PAGE = mePage('panel-recurring', 'รายการประจำ', els.recurringOpen);
+const RECURRING_PAGE = mePage('panel-recurring', 'web.title.recurring', els.recurringOpen);
 
 els.recurringOpen.addEventListener('click', () => enterSubPage(RECURRING_PAGE));
 
 // เปิดแท็บ ฉัน ก่อน liff พร้อม หรือ loadAll ล้ม ส่วนเหล่านี้ยังไม่เคยโหลด จึงโหลดตอนเข้าหน้าถ้ายังไม่มีข้อมูล
 const WALLETS_PAGE = {
-  ...mePage('panel-wallets', 'กระเป๋าเงิน', els.walletsOpen),
+  ...mePage('panel-wallets', 'web.title.wallets', els.walletsOpen),
   render: () => {
     if (!walletsPanel.isLoaded()) void walletsPanel.load();
   },
 };
-const NOTIFY_PAGE = { ...mePage('panel-notify', 'การแจ้งเตือน', els.notifyOpen), render: () => settingsPanel.ensureLoaded() };
+const NOTIFY_PAGE = { ...mePage('panel-notify', 'web.title.notify', els.notifyOpen), render: () => settingsPanel.ensureLoaded() };
 
 els.walletsOpen.addEventListener('click', () => enterSubPage(WALLETS_PAGE));
 els.notifyOpen.addEventListener('click', () => enterSubPage(NOTIFY_PAGE));
 
-const FRIENDS_PAGE = { ...mePage('panel-friends', 'เพื่อนและหารบิล', els.friendsOpen), render: () => friendsPanel.ensureLoaded() };
+const languageOpen = document.getElementById('language-open');
+const LANGUAGE_PAGE = {
+  ...mePage('panel-language', 'web.settings.language.title', languageOpen),
+  render: () => languagePicker.render(),
+};
+languageOpen.addEventListener('click', () => enterSubPage(LANGUAGE_PAGE));
+
+const FRIENDS_PAGE = { ...mePage('panel-friends', 'web.title.friends', els.friendsOpen), render: () => friendsPanel.ensureLoaded() };
 
 els.friendsOpen.addEventListener('click', () => enterSubPage(FRIENDS_PAGE));
 
-const TIPS_PAGE = mePage('panel-tips', 'วิธีใช้งาน', els.tipsOpen);
+const TIPS_PAGE = mePage('panel-tips', 'web.title.tips', els.tipsOpen);
 
 els.tipsOpen.addEventListener('click', () => enterSubPage(TIPS_PAGE));
 
 // โหลดทุกอย่างที่หน้าต้องใช้ตอนเปิด ถ้าล้มกลางทาง ปุ่มลองใหม่ของ banner เรียกซ้ำจากต้น
 async function loadAll() {
+  loadAllStarted = true;
   setCategories((await api.listCategories()).categories);
   // เปิดส่วนรายการประจำพร้อมข้อความโหลดไว้ก่อน จะได้ไม่เด้งเข้ามาทีหลัง
   els.recurringEmpty.hidden = true;
@@ -2075,7 +2240,7 @@ async function loadAll() {
 // ลิงก์จากการ์ดตอบยอดที่ยังไม่ได้เลือกตัวกรอง เก็บไว้ให้ปุ่มลองใหม่ใช้ต่อเมื่อโหลดรอบแรกไม่สำเร็จ
 let pendingListFilter = null;
 let pendingLinkedWallet = null;
-const WALLET_LINK_UNFILTERED = 'โหลดกระเป๋าไม่สำเร็จ รายการที่เห็นยังไม่ได้กรองตามกระเป๋า';
+const walletLinkUnfiltered = () => t(getLang(), 'web.list.walletLinkUnfiltered');
 
 function applyPendingListFilter() {
   if (!pendingListFilter) return;
@@ -2107,7 +2272,7 @@ function applyLinkedWallet({ wallet }) {
     // ข้อความโหลดข้อมูลไม่สำเร็จพร้อมปุ่มลองใหม่สำคัญกว่า ห้ามเขียนทับ
     if (loadError) return;
     // จำนวนรายการจึงอาจไม่ตรงกับการ์ด ต้องบอกผู้ใช้
-    setBanner(WALLET_LINK_UNFILTERED);
+    setBanner(walletLinkUnfiltered());
     return;
   }
   selectLinkedWallet(wallet);
@@ -2118,7 +2283,7 @@ function selectLinkedWallet(wallet) {
   const match = wallets.find((item) => item.name === wallet);
   if (!match) {
     // การ์ดเก่าอาจอ้างชื่อก่อนเปลี่ยนชื่อ จำนวนรายการที่เห็นจึงไม่ตรงกับการ์ด
-    if (!loadError) setBanner(`ไม่พบกระเป๋า ${wallet} (อาจเปลี่ยนชื่อแล้ว) รายการที่เห็นยังไม่ได้กรองตามกระเป๋า`);
+    if (!loadError) setBanner(t(getLang(), 'web.list.walletLinkMissing', { wallet: displayWalletName(getLang(), wallet) }));
     return;
   }
   els.filterWallet.value = match.id;
@@ -2131,10 +2296,12 @@ const menuRowHint = (button) => button.querySelector('.menu-row-sub');
 
 for (const button of API_MENU_ROWS) {
   button.dataset.readyHint = menuRowHint(button).textContent;
-  menuRowHint(button).textContent = 'กำลังเตรียม...';
+  menuRowHint(button).textContent = t(getLang(), 'web.menu.preparing');
 }
 
 function enableApiMenuRows() {
+  // แถวภาษาแสดงชื่อภาษาปัจจุบันเป็นข้อความรองอยู่แล้ว จึงเปิดปุ่มอย่างเดียว ไม่เปลี่ยนข้อความ
+  document.getElementById('language-open').disabled = false;
   for (const button of API_MENU_ROWS) {
     button.disabled = false;
     menuRowHint(button).textContent = button.dataset.readyHint;
@@ -2143,7 +2310,7 @@ function enableApiMenuRows() {
 
 function markApiMenuRowsUnavailable() {
   for (const button of API_MENU_ROWS) {
-    if (button.disabled) menuRowHint(button).textContent = 'เปิดหน้านี้ใหม่อีกครั้ง';
+    if (button.disabled) menuRowHint(button).textContent = t(getLang(), 'web.menu.reopen');
   }
 }
 
@@ -2172,6 +2339,8 @@ async function boot() {
       return;
     }
     api = createApi({ fetchImpl: (...args) => fetch(...args), getIdToken: () => liff.getIDToken() });
+    // ไม่รอผล หน้าหลักจะได้ไม่ช้าลงอีกหนึ่ง request ระหว่างนี้ใช้ภาษาที่ cache ไว้ โหลดไม่สำเร็จก็คงภาษาเดิม
+    syncLanguage().catch(() => {});
     els.exportButton.disabled = false;
     document.getElementById('bill-new').disabled = false;
     // ส่วนเหล่านี้โหลดตอนเข้าแท็บหรือหน้าย่อย ต้องมี api ก่อน ไม่งั้นเปิดมาเป็นหน้าว่าง
@@ -2213,6 +2382,11 @@ async function boot() {
     } else if (tabId && !link && !friendCode && !activeSubPage) tabController.select(tabId);
     pendingListFilter = listFilter;
     await loadAll();
+    // ภาษาจาก server มาถึงระหว่างโหลดรอบแรก ส่วนที่วาดไปแล้วเป็นภาษาเดิม จึงโหลดซ้ำหนึ่งรอบ
+    if (reloadAfterBoot) {
+      reloadAfterBoot = false;
+      await reloadForLanguage();
+    }
     applyPendingListFilter();
     // เปิดแท็บโปรไฟล์ก่อน boot เสร็จ ตอนนั้นยังไม่มี api จึงต้องโหลดเพื่อนและสวิตช์ตอนนี้
     if (tabController.current === 'profile') {

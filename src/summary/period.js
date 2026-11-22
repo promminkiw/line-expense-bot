@@ -1,6 +1,5 @@
 const { toBangkokDateString, shortDate } = require('../utils/date');
-
-const PERIOD_NAMES = { today: 'วันนี้', week: 'สัปดาห์นี้', month: 'เดือนนี้' };
+const { t, formatMonth } = require('../i18n');
 
 function addDays(isoDate, days) {
   const date = new Date(`${isoDate}T00:00:00Z`);
@@ -23,26 +22,24 @@ function startOf(period, today) {
   throw new Error(`Unknown period: ${period}`);
 }
 
-function getPeriodRange(period, now) {
+function getPeriodRange(period, now, lang = 'th') {
   const today = toBangkokDateString(now);
   const from = startOf(period, today);
   const dates = from === today ? shortDate(today) : `${shortDate(from)} - ${shortDate(today)}`;
-  return { from, to: today, label: `${PERIOD_NAMES[period]} (${dates})` };
+  return { from, to: today, label: `${t(lang, `summary.period.${period}`)} (${dates})` };
 }
 
-const THAI_MONTH_NAMES = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-
-function getPreviousMonthRange(now) {
+function getPreviousMonthRange(now, lang = 'th') {
   const firstOfThisMonth = `${toBangkokDateString(now).slice(0, 8)}01`;
   const to = addDays(firstOfThisMonth, -1);
-  const [year, month] = to.split('-').map(Number);
+  const month = Number(to.slice(5, 7));
   return {
     from: `${to.slice(0, 8)}01`,
     to,
     month: to.slice(0, 7),
-    monthName: THAI_MONTH_NAMES[month - 1],
-    nextMonthName: THAI_MONTH_NAMES[month % 12],
-    label: `เดือน${THAI_MONTH_NAMES[month - 1]} ${year + 543}`,
+    monthName: t(lang, `common.month.full.${month}`),
+    nextMonthName: t(lang, `common.month.full.${(month % 12) + 1}`),
+    label: t(lang, 'summary.monthLabel', { month: formatMonth(lang, to.slice(0, 7)) }),
   };
 }
 

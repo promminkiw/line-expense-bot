@@ -1,18 +1,19 @@
 import { qrcode } from '../vendor/qrcode.mjs';
 import { ApiError } from '../api.mjs';
 import { createLoadingIndicator } from '../ui/skeleton.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 import {
   normalizeFriendCodeInput,
   formatFriendCode,
   buildInviteUrl,
   buildInviteMessage,
   describeFriendError,
-  INVALID_CODE_MESSAGE,
-  OWN_CODE_MESSAGE,
-  INVITE_KEPT_LOAD_MESSAGE,
+  displayFriendName,
 } from './friends-format.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
+const tr = (key, params) => t(getLang(), key, params);
 
 // ส่วนเพื่อนในแท็บโปรไฟล์: โหลดเมื่อเข้าแท็บครั้งแรกเท่านั้น ไม่ให้หน้าแรกยิง request เพิ่ม
 export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboard }) {
@@ -35,6 +36,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     variants: ['friends-card', 'friends-row'],
   });
 
+  let lastOverview = null;
   const inviteUrl = () => buildInviteUrl(getLiffId(), code);
 
   function drawQr() {
@@ -42,7 +44,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     qr.addData(inviteUrl());
     qr.make();
     // svg มาจาก library และเนื้อหาเป็นลิงก์ที่เราสร้างเอง ไม่มีข้อความจากผู้ใช้
-    els.qr.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, alt: 'QR code ลิงก์ชวนเพื่อน' });
+    els.qr.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true, alt: tr('web.friends.qrAlt') });
   }
 
   function showCode(next) {
@@ -56,18 +58,30 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     item.className = 'friend-row';
     const name = doc.createElement('span');
     name.className = 'friend-name';
-    name.textContent = friend.displayName;
+    name.textContent = displayFriendName(friend.displayName);
     const remove = doc.createElement('button');
     remove.type = 'button';
     remove.className = 'friend-remove';
-    remove.textContent = 'ลบ';
-    remove.setAttribute('aria-label', `ลบ ${friend.displayName} ออกจากเพื่อน`);
+    remove.textContent = tr('web.friends.remove');
+    remove.setAttribute('aria-label', tr('web.friends.removeLabel', { name: displayFriendName(friend.displayName) }));
     remove.addEventListener('click', () => askRemove(friend));
     item.append(name, remove);
     return item;
   }
 
+  // ปุ่มนี้เปลี่ยนคำตามสถานะ QR จึงตั้งจาก JS แทน data-i18n ไม่งั้นแปลหน้าใหม่จะคืนเป็น แสดง QR ทั้งที่ QR เปิดอยู่
+  function labelQrToggle() {
+    els.qrToggle.textContent = tr(els.qr.hidden ? 'web.friends.showQr' : 'web.friends.hideQr');
+  }
+
+  // ปุ่มนี้เปลี่ยนคำระหว่างค้นหา จึงตั้งจาก JS แทน data-i18n ไม่งั้นแปลหน้าใหม่จะคืนเป็น ค้นหา ทั้งที่ยังค้นอยู่
+  function labelAddSubmit() {
+    els.addSubmit.textContent = tr(lookingUp ? 'web.friends.searching' : 'web.friends.search');
+  }
+
   function render(overview) {
+    // เก็บไว้ให้ relabel วาดรายชื่อใหม่ได้โดยไม่ยิง request
+    lastOverview = overview;
     showCode(overview.code);
     els.rows.replaceChildren(...overview.friends.map(renderRow));
     els.empty.hidden = overview.friends.length > 0;
@@ -76,10 +90,18 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.body.hidden = false;
   }
 
+  // ภาษาจาก server มาถึงหลังวาดรายชื่อแล้ว ข้อความที่ JS เขียนไว้ยังเป็นภาษาเดิม
+  function relabel() {
+    labelQrToggle();
+    labelAddSubmit();
+    if (lastOverview) els.rows.replaceChildren(...lastOverview.friends.map(renderRow));
+    if (!els.qr.hidden) drawQr();
+  }
+
   function showLoadErrorText() {
     // 401 ต้องบอกให้เปิดจาก LINE ใหม่ ข้อความว่าเก็บลิงก์ไว้ให้จึงใช้เฉพาะกรณีอื่น
     const keepsInvite = pendingInviteCode && loadErrorStatus !== 401;
-    els.errorText.textContent = keepsInvite ? INVITE_KEPT_LOAD_MESSAGE : describeFriendError(loadErrorStatus, 'load');
+    els.errorText.textContent = keepsInvite ? tr('web.friends.error.inviteKept') : describeFriendError(loadErrorStatus, 'load');
   }
 
   function showLoadError(err) {
@@ -162,7 +184,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   function setLookingUp(busy) {
     lookingUp = busy;
     els.addSubmit.disabled = busy;
-    els.addSubmit.textContent = busy ? 'กำลังค้นหา...' : 'ค้นหา';
+    labelAddSubmit();
     if (busy) els.form.setAttribute('aria-busy', 'true');
     else els.form.removeAttribute('aria-busy');
   }
@@ -174,7 +196,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.status.textContent = '';
     const normalized = normalizeFriendCodeInput(rawCode);
     if (!normalized) {
-      showAddError(INVALID_CODE_MESSAGE);
+      showAddError(tr('web.friends.error.invalidCode'));
       return;
     }
     if (!getApi()) return;
@@ -189,7 +211,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         return;
       }
       if (normalized === code) {
-        showAddError(OWN_CODE_MESSAGE);
+        showAddError(tr('web.friends.error.ownCode'));
         return;
       }
       ({ friend } = await getApi().lookupFriend(normalized));
@@ -199,10 +221,11 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     } finally {
       setLookingUp(false);
     }
+    const name = displayFriendName(friend.displayName);
     const opened = openDialog({
-      title: 'เพิ่มเพื่อน',
-      text: `เพิ่ม ${friend.displayName} เป็นเพื่อน?`,
-      okLabel: 'เพิ่มเพื่อน',
+      title: tr('web.friends.addTitle'),
+      text: tr('web.friends.addText', { name }),
+      okLabel: tr('web.friends.addTitle'),
       failureMessage: describeFriendError(0, 'add'),
       run: async () => {
         try {
@@ -211,20 +234,20 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
           return describeFriendError(statusOf(err), 'add', err.error);
         }
         els.input.value = '';
-        els.status.textContent = `เพิ่ม ${friend.displayName} เป็นเพื่อนแล้ว`;
+        els.status.textContent = tr('web.friends.added', { name });
         await load();
         return null;
       },
     });
-    if (!opened) showAddError('ปิดหน้าต่างที่เปิดอยู่ก่อน แล้วกดค้นหาอีกครั้ง', normalized);
+    if (!opened) showAddError(tr('web.friends.dialogBusy'), normalized);
   }
 
   function askRemove(friend) {
     els.status.textContent = '';
     openDialog({
-      title: 'ลบเพื่อน',
-      text: `ลบ ${friend.displayName} ออกจากเพื่อน? เพิ่มกลับได้ด้วยรหัสเพื่อน`,
-      okLabel: 'ลบ',
+      title: tr('web.friends.removeTitle'),
+      text: tr('web.friends.removeText', { name: displayFriendName(friend.displayName) }),
+      okLabel: tr('web.friends.remove'),
       failureMessage: describeFriendError(0, 'remove'),
       danger: true,
       run: async () => {
@@ -245,9 +268,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   function askRenew() {
     els.status.textContent = '';
     openDialog({
-      title: 'เปลี่ยนรหัสเพื่อน',
-      text: 'ลิงก์และ QR เดิมจะใช้ไม่ได้ เพื่อนที่เพิ่มไว้แล้วยังอยู่ครบ',
-      okLabel: 'เปลี่ยนรหัส',
+      title: tr('web.friends.renewTitle'),
+      text: tr('web.friends.renewText'),
+      okLabel: tr('web.friends.renew'),
       failureMessage: describeFriendError(0, 'renew'),
       run: async () => {
         try {
@@ -255,7 +278,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
         } catch (err) {
           return describeFriendError(statusOf(err), 'renew');
         }
-        els.status.textContent = 'เปลี่ยนรหัสแล้ว ลิงก์และ QR เดิมใช้ไม่ได้แล้ว';
+        els.status.textContent = tr('web.friends.renewed');
         return null;
       },
     });
@@ -281,7 +304,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
       try {
         const result = await liff.shareTargetPicker([{ type: 'text', text: buildInviteMessage(url) }]);
         // ผู้ใช้ปิดหน้าเลือกแชตเองได้ผลเป็นค่าว่าง ไม่ต้องแจ้งอะไร
-        if (result) els.status.textContent = 'ส่งลิงก์แล้ว';
+        if (result) els.status.textContent = tr('web.friends.linkSent');
         return;
       } catch {
         // เปิดหน้าเลือกแชตไม่ได้ ใช้การคัดลอกลิงก์แทน
@@ -289,9 +312,9 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     }
     try {
       await clipboard.writeText(url);
-      els.status.textContent = 'คัดลอกลิงก์แล้ว ส่งให้เพื่อนได้เลย';
+      els.status.textContent = tr('web.friends.linkCopied');
     } catch {
-      els.status.textContent = `ส่งลิงก์นี้ให้เพื่อน: ${url}`;
+      els.status.textContent = tr('web.friends.linkManual', { url });
     }
   }
 
@@ -339,12 +362,15 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     if (show) drawQr();
     els.qr.hidden = !show;
     els.qrToggle.setAttribute('aria-expanded', String(show));
-    els.qrToggle.textContent = show ? 'ซ่อน QR' : 'แสดง QR';
+    labelQrToggle();
   });
   els.form.addEventListener('submit', (event) => {
     event.preventDefault();
     void openAdd(els.input.value);
   });
 
-  return { ensureLoaded, refresh, openAdd };
+  labelQrToggle();
+  labelAddSubmit();
+
+  return { ensureLoaded, refresh, openAdd, relabel };
 }

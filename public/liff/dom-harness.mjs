@@ -97,7 +97,7 @@ export const RESPONSES = {
   '/api/wallets': {
     wallets: [{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 100, balance: 24900, entryCount: 3 }],
   },
-  '/api/settings': { weeklySummary: false, dailyReminder: false },
+  '/api/settings': { weeklySummary: false, dailyReminder: false, language: 'th' },
 };
 
 export const EMPTY_MONTH = { transactions: [], summary: [], truncated: false };
@@ -126,7 +126,7 @@ export function makeFetch(overrides) {
 }
 
 // returns the fake liff; liff.fetched lists requested paths and liff.loadingSnapshot is the DOM state when transactions were requested
-export async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '', holdInit = false, decodedToken } = {}) {
+export async function boot({ inClient = true, loggedIn = true, overrides = {}, search = '', holdInit = false, decodedToken, liffExtras = {} } = {}) {
   vi.resetModules();
   window.history.replaceState(null, '', `/liff/${search}`);
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -134,6 +134,7 @@ export async function boot({ inClient = true, loggedIn = true, overrides = {}, s
   document.documentElement.innerHTML = html;
   const initOptions = [];
   const fetched = [];
+  const requests = [];
   const liff = {
     init: async (options) => {
       initOptions.push(options);
@@ -149,12 +150,16 @@ export async function boot({ inClient = true, loggedIn = true, overrides = {}, s
     openWindow: vi.fn(),
     initOptions,
     fetched,
+    requests,
     loadingSnapshot: null,
+    // เช่น getAppLanguage ของ SDK รุ่นใหม่ ไม่ใส่ = SDK ที่ไม่มี function นั้น
+    ...liffExtras,
   };
   const innerFetch = makeFetch(overrides);
   const fetchStub = async (url, ...rest) => {
     const path = new URL(url, 'http://localhost').pathname;
     fetched.push(path);
+    requests.push({ method: rest[0]?.method ?? 'GET', path, body: rest[0]?.body });
     if (path === '/api/transactions' && !liff.loadingSnapshot) {
       liff.loadingSnapshot = {
         listSkeletons: document.querySelectorAll('#list .skeleton').length,

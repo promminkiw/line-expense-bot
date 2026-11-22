@@ -1,5 +1,7 @@
 import { ApiError } from '../api.mjs';
 import { describeWalletError, sortWallets, walletRowView } from './wallets-format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 const statusOf = (err) => (err instanceof ApiError ? err.status : 0);
 const errorOf = (err) => (err instanceof ApiError ? err.error : undefined);
@@ -22,7 +24,8 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
   let latestLoad = 0;
 
   function renderRow(wallet) {
-    const view = walletRowView(wallet);
+    const lang = getLang();
+    const view = walletRowView(wallet, lang);
     const row = doc.createElement('li');
     row.className = 'wallet-row';
     row.dataset.walletId = wallet.id;
@@ -49,14 +52,14 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
       const rename = doc.createElement('button');
       rename.type = 'button';
       rename.className = 'wallet-rename';
-      rename.textContent = 'เปลี่ยนชื่อ';
-      rename.setAttribute('aria-label', `เปลี่ยนชื่อกระเป๋า ${wallet.name}`);
+      rename.textContent = t(lang, 'web.wallets.rename');
+      rename.setAttribute('aria-label', t(lang, 'web.wallets.renameLabel', { name: view.name }));
       rename.addEventListener('click', () => openRename(wallet));
       const toggle = doc.createElement('button');
       toggle.type = 'button';
       toggle.className = 'wallet-toggle';
       toggle.textContent = view.hideLabel;
-      toggle.setAttribute('aria-label', `${view.hideLabel}กระเป๋า ${wallet.name}`);
+      toggle.setAttribute('aria-label', t(lang, wallet.hidden ? 'web.wallets.unhideLabel' : 'web.wallets.hideLabel', { name: view.name }));
       toggle.addEventListener('click', () => toggleHidden(wallet, toggle));
       actions.append(rename, toggle);
       row.append(actions);
@@ -72,8 +75,8 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
       status === 401
         ? describeWalletError(401)
         : loaded
-          ? 'อัปเดตยอดกระเป๋าไม่สำเร็จ ยอดที่เห็นอาจไม่ตรงกับล่าสุด'
-          : 'โหลดกระเป๋าไม่สำเร็จ';
+          ? t(getLang(), 'web.wallets.reloadFailed')
+          : t(getLang(), 'web.wallets.loadFailed');
     // 401 ต้องเปิดจาก LINE ใหม่ กดลองใหม่ก็ได้ผลเดิม
     els.retry.hidden = status === 401;
     els.error.hidden = false;
@@ -109,7 +112,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     const name = els.addInput.value.trim();
     els.status.textContent = '';
     if (!name) {
-      els.addError.textContent = 'ใส่ชื่อกระเป๋าก่อน';
+      els.addError.textContent = t(getLang(), 'web.wallets.add.nameMissing');
       return;
     }
     busy = true;
@@ -118,7 +121,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     try {
       await getApi().createWallet({ name });
       els.addInput.value = '';
-      els.status.textContent = `เพิ่มกระเป๋า ${name} แล้ว`;
+      els.status.textContent = t(getLang(), 'web.wallets.added', { name });
       await load();
     } catch (err) {
       els.addError.textContent = describeWalletError(statusOf(err), errorOf(err));
@@ -149,7 +152,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
       renaming = null;
       els.dialog.close();
       els.addError.textContent = '';
-      els.status.textContent = `เปลี่ยนชื่อเป็น ${name} แล้ว`;
+      els.status.textContent = t(getLang(), 'web.wallets.renamed', { name });
       await load(rowSelector(walletId, '.wallet-rename'));
     } catch (err) {
       els.dialogError.textContent = describeWalletError(statusOf(err), errorOf(err));
@@ -169,7 +172,7 @@ export function createWalletsPanel({ doc, els, getApi, onChanged }) {
     els.addError.textContent = '';
     try {
       await getApi().updateWallet(wallet.id, { hidden: !wallet.hidden });
-      els.status.textContent = wallet.hidden ? `เลิกซ่อนกระเป๋า ${wallet.name} แล้ว` : `ซ่อนกระเป๋า ${wallet.name} แล้ว`;
+      els.status.textContent = t(getLang(), wallet.hidden ? 'web.wallets.unhidden' : 'web.wallets.hidden', { name: wallet.name });
       await load(rowSelector(wallet.id, '.wallet-toggle'));
     } catch (err) {
       // ใช้ช่อง alert เดียวกับตอนเพิ่ม เพราะ status ไม่ประกาศเป็นข้อผิดพลาด

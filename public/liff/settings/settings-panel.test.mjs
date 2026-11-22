@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { createSettingsPanel } from './settings-panel.mjs';
+import { createSettingsPanel, createLanguagePicker } from './settings-panel.mjs';
 import { ApiError } from '../api.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const byId = (id) => document.getElementById(id);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // second: เพิ่มสวิตช์ตัวที่สอง (key dailyReminder) เพื่อพิสูจน์ว่าบันทึกตัวหนึ่งไม่ไปทับอีกตัว
-function setup(api, { second = false } = {}) {
+function setup(api, { second = false, takeBootRead } = {}) {
   document.body.innerHTML = `
     <section id="notify" hidden>
       <p id="notify-loading" hidden></p>
@@ -32,6 +32,7 @@ function setup(api, { second = false } = {}) {
       switches,
     },
     getApi: () => api,
+    takeBootRead,
   });
 }
 
@@ -96,7 +97,7 @@ describe('createSettingsPanel', () => {
 
     await panel.ensureLoaded();
 
-    expect(byId('notify-error-text').textContent).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(byId('notify-error-text').textContent).toBe(loginRequiredMessage());
     expect(byId('notify-retry').hidden).toBe(true);
   });
 
@@ -196,6 +197,183 @@ describe('createSettingsPanel', () => {
     await flush();
 
     expect(byId('notify-weekly-summary').checked).toBe(true);
-    expect(byId('notify-status').textContent).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(byId('notify-status').textContent).toBe(loginRequiredMessage());
+  });
+});
+
+describe('createSettingsPanel with the boot settings read', () => {
+  it('reuses the boot read instead of fetching again', async () => {
+    const api = { getSettings: vi.fn() };
+    const takeBootRead = vi.fn().mockReturnValueOnce(Promise.resolve({ weeklySummary: true })).mockReturnValue(null);
+    const panel = setup(api, { takeBootRead });
+
+    await panel.ensureLoaded();
+
+    expect(api.getSettings).not.toHaveBeenCalled();
+    expect(byId('notify-weekly-summary').checked).toBe(true);
+    expect(byId('notify-body').hidden).toBe(false);
+  });
+
+  it('loads again when the boot read failed', async () => {
+    const api = { getSettings: vi.fn().mockResolvedValue({ weeklySummary: true }) };
+    const panel = setup(api, { takeBootRead: () => Promise.reject(new ApiError(500)) });
+
+    await panel.ensureLoaded();
+
+    expect(api.getSettings).toHaveBeenCalledTimes(1);
+    expect(byId('notify-weekly-summary').checked).toBe(true);
+  });
+
+  it('shows the retry when both the boot read and the second read fail', async () => {
+    const api = { getSettings: vi.fn().mockRejectedValue(new ApiError(500)) };
+    const panel = setup(api, { takeBootRead: () => Promise.reject(new ApiError(500)) });
+
+    await panel.ensureLoaded();
+
+    expect(byId('notify-error').hidden).toBe(false);
+  });
+});
+
+describe('createLanguagePicker', () => {
+  function pickerSetup({ api, lang = 'th', remember = vi.fn(), reload = vi.fn() } = {}) {
+    document.body.innerHTML = `
+      <input id="lang-th" type="radio" name="language" value="th">
+      <input id="lang-en" type="radio" name="language" value="en">
+      <p id="lang-status"></p>`;
+    const picker = createLanguagePicker({
+      els: { radios: { th: byId('lang-th'), en: byId('lang-en') }, status: byId('lang-status') },
+      getApi: () => api,
+      getLang: () => lang,
+      remember,
+      reload,
+    });
+    return { picker, remember, reload };
+  }
+
+  function choose(language) {
+    byId(`lang-${language}`).checked = true;
+    byId(`lang-${language}`).dispatchEvent(new Event('change'));
+  }
+
+  it('checks the current language', () => {
+    const { picker } = pickerSetup({ api: {}, lang: 'en' });
+
+    picker.render();
+
+    expect(byId('lang-en').checked).toBe(true);
+    expect(byId('lang-th').checked).toBe(false);
+  });
+
+  it('saves the choice, remembers it and reloads', async () => {
+    const api = { updateSettings: vi.fn().mockResolvedValue({ language: 'en' }) };
+    const { picker, remember, reload } = pickerSetup({ api });
+    picker.render();
+
+    choose('en');
+    await flush();
+
+    expect(api.updateSettings).toHaveBeenCalledWith({ language: 'en' });
+    expect(remember).toHaveBeenCalledWith('en');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the old selection and shows an error in the current language when saving fails', async () => {
+    const api = { updateSettings: vi.fn().mockRejectedValue(new ApiError(500)) };
+    const { picker, remember, reload } = pickerSetup({ api, lang: 'en' });
+    picker.render();
+
+    choose('th');
+    await flush();
+
+    expect(byId('lang-en').checked).toBe(true);
+    expect(byId('lang-th').disabled).toBe(false);
+    expect(byId('lang-status').textContent).toBe("Couldn't save the language. Try again.");
+    expect(remember).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('shows the Thai error when saving fails in Thai', async () => {
+    const api = { updateSettings: vi.fn().mockRejectedValue(new Error('network')) };
+    const { picker } = pickerSetup({ api });
+    picker.render();
+
+    choose('en');
+    await flush();
+
+    expect(byId('lang-th').checked).toBe(true);
+    expect(byId('lang-status').textContent).toBe('บันทึกภาษาไม่สำเร็จ ลองใหม่อีกครั้ง');
+  });
+
+  it('asks to reopen from LINE when saving needs a new login', async () => {
+    const api = { updateSettings: vi.fn().mockRejectedValue(new ApiError(401)) };
+    const { picker } = pickerSetup({ api });
+    picker.render();
+
+    choose('en');
+    await flush();
+
+    expect(byId('lang-status').textContent).toBe(loginRequiredMessage());
+  });
+
+  it('does not save when the current language is picked again', async () => {
+    const api = { updateSettings: vi.fn() };
+    const { picker, reload } = pickerSetup({ api });
+    picker.render();
+
+    choose('th');
+    await flush();
+
+    expect(api.updateSettings).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('locks the options while saving and clears an old error', async () => {
+    let finish;
+    const api = { updateSettings: vi.fn(() => new Promise((resolve) => (finish = resolve))) };
+    const { picker } = pickerSetup({ api });
+    byId('lang-status').textContent = 'old';
+    picker.render();
+
+    choose('en');
+
+    expect(byId('lang-th').disabled).toBe(true);
+    expect(byId('lang-en').disabled).toBe(true);
+    expect(byId('lang-status').textContent).toBe('');
+    finish({ language: 'en' });
+    await flush();
+  });
+});
+
+describe('createLanguagePicker without an api', () => {
+  function build({ getApi, reload = vi.fn() }) {
+    document.body.innerHTML = '<input id="a-th" type="radio"><input id="a-en" type="radio"><p id="a-status"></p>';
+    const picker = createLanguagePicker({
+      els: { radios: { th: byId('a-th'), en: byId('a-en') }, status: byId('a-status') },
+      getApi,
+      getLang: () => 'th',
+      remember: vi.fn(),
+      reload,
+    });
+    picker.render();
+    byId('a-en').checked = true;
+    byId('a-en').dispatchEvent(new Event('change'));
+    return reload;
+  }
+
+  it('does not call the api when getApi() is null', async () => {
+    const reload = build({ getApi: () => null });
+    await flush();
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(byId('a-th').checked).toBe(true);
+    expect(byId('a-status').textContent).toBe('');
+  });
+
+  it('keeps the options locked after a successful save', async () => {
+    build({ getApi: () => ({ updateSettings: vi.fn().mockResolvedValue({}) }) });
+    await flush();
+
+    expect(byId('a-th').disabled).toBe(true);
+    expect(byId('a-en').disabled).toBe(true);
   });
 });

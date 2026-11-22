@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { goalPercent, goalRow, goalsSummary, goalLabel, splitGoals, contributionRows, describeGoalError } from './goals-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 
 const GOAL = { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, targetDate: '2026-12-31', closed: false, saved: 6000, contributionCount: 2 };
 
@@ -109,7 +109,7 @@ describe('contributionRows', () => {
 
 describe('describeGoalError', () => {
   it.each([
-    [401, undefined, LOGIN_REQUIRED_MESSAGE],
+    [401, undefined, loginRequiredMessage()],
     [404, 'Not found', 'ไม่พบเป้าหรือรายการนี้แล้ว ลองเปิดหน้าใหม่'],
     [409, 'Duplicate name', 'มีเป้าชื่อนี้อยู่แล้ว'],
     [409, 'Too many goals', 'มีเป้าที่เปิดอยู่ได้ไม่เกิน 20 เป้า ปิดเป้าที่ไม่ใช้ก่อน'],
@@ -121,5 +121,37 @@ describe('describeGoalError', () => {
     [0, undefined, 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'],
   ])('explains %s %s', (status, error, expected) => {
     expect(describeGoalError(status, error)).toBe(expected);
+  });
+});
+
+describe('goals in English', () => {
+  it('describes a goal row with baht signs and an English date', () => {
+    expect(goalRow(GOAL, 'en')).toMatchObject({
+      text: 'Saved ฿6,000 of ฿50,000 (12%)',
+      amountText: '฿6,000 of ฿50,000',
+      dateText: 'Target date 31 Dec 2026',
+    });
+    expect(goalRow({ ...GOAL, targetDate: null }, 'en').dateText).toBe('No target date');
+  });
+
+  it('summarises the open goals in English', () => {
+    expect(goalsSummary([GOAL], 'en')).toMatchObject({
+      countText: 'Saved across 1 goal',
+      percentText: '12% of ฿50,000 total',
+      remainingText: '฿44,000 to go',
+    });
+    expect(goalsSummary([GOAL, { ...GOAL, id: 'g-2' }], 'en').countText).toBe('Saved across 2 goals');
+  });
+
+  it('describes the history rows in English', () => {
+    expect(contributionRows([{ id: 'gc-1', amount: 1000, occurredOn: '2026-10-14' }], 'en')).toEqual([
+      { id: 'gc-1', text: '14 Oct 2026 · ฿1,000', label: 'Delete the ฿1,000 saving from 14 Oct 2026' },
+    ]);
+  });
+
+  it('explains the refusals in English', () => {
+    expect(describeGoalError(409, 'Duplicate name', 'en')).toBe('You already have a goal with this name.');
+    expect(describeGoalError(404, 'Not found', 'en')).toBe("I can't find this goal or entry anymore. Try reopening the page.");
+    expect(describeGoalError(500, undefined, 'en')).toBe("Couldn't save it. Try again.");
   });
 });

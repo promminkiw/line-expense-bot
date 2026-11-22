@@ -94,10 +94,10 @@ function setup(overrides = {}) {
         status: 'ok',
         wallet: { id, name: fields.name ?? 'บัตรเครดิต', hidden: fields.hidden ?? false, isDefault: false },
       })),
-      getNotificationSettings: vi.fn().mockResolvedValue({ weeklySummary: false, dailyReminder: false }),
+      getNotificationSettings: vi.fn().mockResolvedValue({ weeklySummary: false, dailyReminder: false, language: null }),
       updateNotificationSettings: vi
         .fn()
-        .mockImplementation(async (userId, changes) => ({ weeklySummary: false, dailyReminder: false, ...changes })),
+        .mockImplementation(async (userId, changes) => ({ weeklySummary: false, dailyReminder: false, language: null, ...changes })),
     },
     allowExport: vi.fn().mockReturnValue(true),
     authFailures: { isBlocked: vi.fn().mockReturnValue(false), recordFailure: vi.fn() },
@@ -1837,7 +1837,7 @@ describe('notification settings API', () => {
     const res = await call(base, '/settings');
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: false });
+    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: false, language: null });
     expect(deps.repository.getNotificationSettings).toHaveBeenCalledWith('user-1');
   });
 
@@ -1848,7 +1848,7 @@ describe('notification settings API', () => {
     const res = await call(base, '/settings', { method: 'PATCH', body: { weeklySummary: true, isAdmin: true } });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ weeklySummary: true, dailyReminder: false });
+    expect(await res.json()).toEqual({ weeklySummary: true, dailyReminder: false, language: null });
     expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { weeklySummary: true });
   });
 
@@ -1859,7 +1859,7 @@ describe('notification settings API', () => {
     const res = await call(base, '/settings', { method: 'PATCH', body: { dailyReminder: true } });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: true });
+    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: true, language: null });
     expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { dailyReminder: true });
   });
 
@@ -1867,6 +1867,9 @@ describe('notification settings API', () => {
     [{}, 'Invalid body'],
     [{ isAdmin: true }, 'Invalid body'],
     [{ weeklySummary: 'yes' }, 'Invalid weeklySummary'],
+    [{ language: 'fr' }, 'Invalid language'],
+    [{ language: null }, 'Invalid language'],
+    [{ language: 'fr', weeklySummary: true }, 'Invalid language'],
   ])('refuses %j with 400', async (body, error) => {
     const deps = setup();
     const base = await start(deps);
@@ -1876,6 +1879,25 @@ describe('notification settings API', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error });
     expect(deps.repository.updateNotificationSettings).not.toHaveBeenCalled();
+  });
+
+  it('returns the stored language raw', async () => {
+    const deps = setup();
+    deps.repository.getNotificationSettings.mockResolvedValue({ weeklySummary: false, dailyReminder: false, language: 'en' });
+    const base = await start(deps);
+
+    expect(await (await call(base, '/settings')).json()).toEqual({ weeklySummary: false, dailyReminder: false, language: 'en' });
+  });
+
+  it('saves the language together with a switch', async () => {
+    const deps = setup();
+    const base = await start(deps);
+
+    const res = await call(base, '/settings', { method: 'PATCH', body: { language: 'en', dailyReminder: true } });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ weeklySummary: false, dailyReminder: true, language: 'en' });
+    expect(deps.repository.updateNotificationSettings).toHaveBeenCalledWith('user-1', { dailyReminder: true, language: 'en' });
   });
 
   it('requires login', async () => {

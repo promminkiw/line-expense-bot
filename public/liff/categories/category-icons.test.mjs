@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORY_ICONS, CATEGORY_ICON_KEYS } from './category-icons.mjs';
+import { CATEGORY_ICONS, CATEGORY_ICON_KEYS, categoryIconLabel } from './category-icons.mjs';
 import { CATEGORY_ICONS as SERVER_ICONS } from '../../../src/parser/categories.js';
 
 describe('CATEGORY_ICONS', () => {
@@ -11,5 +11,15 @@ describe('CATEGORY_ICONS', () => {
     expect(CATEGORY_ICONS.map((icon) => icon.key)).toEqual(CATEGORY_ICON_KEYS);
     for (const icon of CATEGORY_ICONS) expect(icon.label.length).toBeGreaterThan(0);
     expect(CATEGORY_ICONS.find((icon) => icon.key === 'pet').label).toBe('สัตว์เลี้ยง');
+  });
+});
+
+describe('categoryIconLabel', () => {
+  it('labels every icon in both languages', () => {
+    for (const { key } of CATEGORY_ICONS) {
+      expect(categoryIconLabel('th', key)).toBe(CATEGORY_ICONS.find((icon) => icon.key === key).label);
+      expect(categoryIconLabel('en', key).length).toBeGreaterThan(0);
+    }
+    expect(categoryIconLabel('en', 'pet')).toBe('Pets');
   });
 });

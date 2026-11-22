@@ -4,6 +4,7 @@ import { settle, boot, byId, routeFetch, clickTab, cleanupGlobals } from './dom-
 
 afterEach(cleanupGlobals);
 
+// ปุ่มย้อนกลับของเครื่อง (Android) และท่าปัดย้อนกลับ (iOS) ต้องพากลับจากหน้าย่อยไปแท็บเจ้าของหน้า ไม่ใช่ออกจาก LIFF
 describe('LIFF device back button on sub pages', () => {
   const pressDeviceBack = () => window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
 
@@ -1033,5 +1034,158 @@ describe('LIFF nested budget sub pages and the back button', () => {
 
     expect(byId('panel-budgets').hidden).toBe(false);
     expect(byId('bottom-nav').hidden).toBe(false);
+  });
+});
+
+describe('LIFF budgets in English', () => {
+  afterEach(() => localStorage.clear());
+  const texts = (selector) => [...document.querySelectorAll(selector)].map((el) => el.textContent);
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+
+  async function openBudgetsEnglish(budgets = BUDGET_SAMPLE) {
+    localStorage.setItem('lang', 'en');
+    await boot({ overrides: { '/api/budgets': budgets, '/api/settings': ENGLISH_SETTINGS } });
+    clickTab('budgets');
+    await settle();
+  }
+
+  it('shows the budget tab in English with English category names', async () => {
+    await openBudgetsEnglish();
+    const cols = [...byId('budget-risk-bars').querySelectorAll('.budget-col')];
+
+    expect(byId('page-title').textContent).toBe('Budgets');
+    expect(document.querySelector('.budget-hero-lead').textContent).toBe("Quick check: you've used");
+    expect(byId('budget-hero-rest').textContent).toBe('฿1,450 left');
+    expect(byId('budget-risk-title').textContent).toBe('Needs attention (2)');
+    expect(document.querySelector('#budget-risk .budget-card-note').textContent).toBe('Tap a bar to edit');
+    expect(cols[0].getAttribute('aria-label')).toBe('Shopping 115% of budget, 450 over');
+    expect(texts('#budget-risk-names .budget-col-name-text')).toEqual(['Shopping', 'Travel']);
+    expect(texts('#budget-risk-names .budget-col-diff')).toEqual(['450 over', '100 left']);
+    expect(byId('budget-calm-title').textContent).toBe('On track (1)');
+    expect(byId('budget-calm-note').textContent).toBe('Under 80% used');
+    expect(texts('#budget-calm-list .budget-calm-item')).toEqual(['Food70%']);
+    expect(byId('budget-all-open').textContent).toBe('See all 3 ›');
+    expect(byId('budget-unset-text').textContent).toBe('No budget yet (2)');
+    expect(byId('budget-unset-open').textContent).toBe('Set budget');
+  });
+
+  it('shows the empty state in English', async () => {
+    await openBudgetsEnglish({ budgets: [{ categoryId: 'c-fun', category: 'บันเทิง', budget: null, spent: 620 }] });
+
+    expect(byId('budget-empty-title').textContent).toBe('No budgets yet');
+    expect(byId('budget-empty-hint').textContent).toBe("Set one up and I'll warn you when it's almost full. Start with one you use a lot below.");
+    expect(document.querySelector('#budget-empty-list .budget-empty-name').textContent).toBe('EntertainmentSpent ฿620 this month');
+    expect(document.querySelector('#budget-empty-list .budget-empty-set').getAttribute('aria-label')).toBe('Set a budget for Entertainment');
+  });
+
+  it('shows the see-all page in English and searches by the English name', async () => {
+    await openBudgetsEnglish();
+    byId('budget-all-open').click();
+    await settle();
+
+    expect(byId('page-title').textContent).toBe('All budgets');
+    expect(texts('#budget-all-tabs button[data-tab]')).toEqual(['Needs attention 2', 'On track 1', 'No budget 2']);
+    expect(texts('#budget-all-list .budget-all-head')).toEqual(['Full or over (1)', 'Almost full (1)']);
+    expect(texts('#budget-all-list .budget-all-sub')).toEqual(['3,450 of 3,000 used', '1,900 of 2,000 used']);
+    expect(byId('budget-all-count').textContent).toBe('10/2026 · showing 2 of 2');
+    expect(byId('budget-all-search').getAttribute('placeholder')).toBe('Search categories');
+    expect(byId('budget-all-bulk-open').textContent).toBe('Edit several budgets at once');
+
+    byId('budget-all-search').value = 'food';
+    byId('budget-all-search').dispatchEvent(new Event('input'));
+
+    expect(texts('#budget-all-tabs button[data-tab]')).toEqual(['Needs attention 0', 'On track 1', 'No budget 0']);
+
+    byId('budget-all-search').value = 'zzz';
+    byId('budget-all-search').dispatchEvent(new Event('input'));
+
+    expect(byId('budget-all-empty-title').textContent).toBe('No category matches "zzz"');
+  });
+
+  it('shows the edit sheet and the remove confirmation in English', async () => {
+    await openBudgetsEnglish();
+    byId('budget-risk-bars').querySelector('[data-category-id="c-shop"]').click();
+
+    expect(byId('budget-title').textContent).toBe('Shopping');
+    expect(byId('budget-sheet-sub').textContent).toBe('Spent ฿3,450 this month · current budget 3,000');
+    expect(byId('budget-preview-before').textContent).toContain('Now');
+    expect(byId('budget-preview-before').textContent).toContain('450 over');
+    expect(byId('budget-preview-after').textContent).toContain('If the budget is 3,000');
+    expect(byId('budget-scope').textContent).toBe('Applies from 10/2026 on');
+    expect(document.querySelector('.budget-sheet-label').textContent).toBe('Monthly budget (baht)');
+    expect(byId('budget-plus').getAttribute('aria-label')).toBe('Raise by ฿500');
+    expect([...byId('budget-chips').querySelectorAll('button')].map((chip) => chip.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+      'What you spent 3,450', '+10% 3,300', '+20% 3,600',
+    ]);
+    expect(byId('budget-remove').textContent).toBe('Remove budget');
+    expect(byId('budget-submit').textContent).toBe('Save');
+
+    byId('budget-amount').value = '';
+    byId('budget-amount').dispatchEvent(new Event('input'));
+    byId('budget-form').dispatchEvent(new Event('submit', { cancelable: true }));
+
+    expect(byId('budget-error-title').textContent).toBe("That amount doesn't work");
+    expect(byId('budget-submit').textContent).toBe('Try saving again');
+
+    byId('budget-amount').value = '3,000';
+    byId('budget-amount').dispatchEvent(new Event('input'));
+    byId('budget-remove').click();
+
+    expect(byId('budget-confirm-title').textContent).toBe('Remove the budget for Shopping?');
+    expect(texts('#budget-confirm-body p')).toEqual([
+      'The ฿3,000 budget goes away from 10/2026 on.',
+      "Earlier months stay the same and your entries stay put. I won't warn you about this category anymore.",
+    ]);
+    expect(byId('budget-confirm-cancel').textContent).toBe('Keep it');
+    expect(byId('budget-confirm-ok').textContent).toBe('Remove budget');
+  });
+
+  it('opens the set-budget sheet in English', async () => {
+    await openBudgetsEnglish();
+    byId('budget-unset-open').click();
+    await settle();
+    byId('budget-all-list').querySelector('.budget-all-set').click();
+
+    expect(byId('budget-title').textContent).toBe('Set a budget for Entertainment');
+    expect(byId('budget-sheet-sub').textContent).toBe('No budget yet · spent ฿620 this month');
+    expect(byId('budget-preview-before').textContent).toContain('No budget');
+    expect(byId('budget-preview-after').textContent).toContain('Enter an amount');
+    expect(byId('budget-scope').textContent).toBe("Applies from 10/2026 on · I'll warn you when you hit 80%");
+    expect(byId('budget-submit').textContent).toBe('Set budget');
+  });
+
+  it('shows the bulk page and its results in English', async () => {
+    await openBudgetsEnglish();
+    byId('budget-all-open').click();
+    await settle();
+    byId('budget-all-bulk-open').click();
+    await settle();
+    const row = (categoryId) => byId('budget-bulk-list').querySelector(`[data-category-id="${categoryId}"]`);
+
+    expect(byId('page-title').textContent).toBe('Edit several budgets');
+    expect(byId('budget-bulk-month').textContent).toBe('Budget for 10/2026');
+    expect(byId('budget-bulk-count').textContent).toBe('Nothing changed yet');
+    expect(texts('#budget-bulk-list .budget-bulk-name')).toEqual(['Shopping', 'Travel', 'Food', 'Entertainment', 'Other']);
+    expect(row('c-fun').querySelector('.budget-bulk-old').textContent).toBe('No budget yet');
+    expect(row('c-shop').querySelector('.budget-bulk-plus').getAttribute('aria-label')).toBe('Raise Shopping by ฿500');
+    expect(byId('budget-bulk-save').textContent).toBe('Save all');
+    expect(byId('budget-bulk-cancel').textContent).toBe('Cancel');
+
+    row('c-shop').querySelector('.budget-bulk-plus').click();
+
+    expect(row('c-shop').querySelector('.budget-bulk-was').textContent).toBe('was 3,000');
+    expect(byId('budget-bulk-count').textContent).toBe('1 changed · total budget');
+    expect(byId('budget-bulk-total').textContent).toBe('now 11,500');
+
+    routeFetch((method) => (method === 'PUT' ? { status: 500 } : undefined));
+    byId('budget-bulk-save').click();
+    await settle();
+
+    expect(byId('budget-bulk-result-title').textContent).toBe('Saved 0 of 1');
+    expect(byId('budget-bulk-result-sub').textContent).toBe('None of them saved yet');
+    expect(texts('#budget-bulk-result-list .budget-bulk-result-name')).toEqual(['Shopping']);
+    expect(texts('#budget-bulk-result-list .budget-bulk-result-say')).toEqual(["Didn't save"]);
+    expect(texts('#budget-bulk-result-list .budget-bulk-result-change')).toEqual(['3,000 → 3,500']);
+    expect(byId('budget-bulk-result-retry').textContent).toBe('Retry the ones that failed');
   });
 });

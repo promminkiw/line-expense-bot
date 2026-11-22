@@ -31,9 +31,27 @@ const SLIP_SCHEMA = {
   additionalProperties: false,
 };
 
-function buildSystemPrompt(today) {
+// ส่วนของ prompt ที่ต่างตามภาษา ค่า th ต้องคงเดิมทุกตัวอักษร
+const PROMPT_COPY = {
+  th: {
+    intro: 'You read a picture sent by a Thai user to a personal finance bot and extract how much money the user paid or received.',
+    note: '- note is a short Thai description: for a receipt the shop name; for a transfer you paid "โอนให้ <recipient name>"; for money you received "รับโอนจาก <sender name>". Never include account numbers or reference numbers.',
+    request: 'อ่านสลิปนี้',
+  },
+  en: {
+    intro: 'You read a picture sent by a user to a personal finance bot and extract how much money the user paid or received. The picture is usually Thai.',
+    note: '- note is a short English description: for a receipt the shop name; for a transfer you paid "Transfer to <recipient name>"; for money you received "Received from <sender name>". Never include account numbers or reference numbers.',
+    request: 'Read this slip.',
+  },
+};
+
+function promptCopy(lang) {
+  return lang === 'en' ? PROMPT_COPY.en : PROMPT_COPY.th;
+}
+
+function buildSystemPrompt(today, lang) {
   return [
-    'You read a picture sent by a Thai user to a personal finance bot and extract how much money the user paid or received.',
+    promptCopy(lang).intro,
     `Today is ${today} (Asia/Bangkok).`,
     '',
     'Rules:',
@@ -43,7 +61,7 @@ function buildSystemPrompt(today) {
     '- amount is the final total the user actually paid, in Thai baht as a positive number: for a receipt the grand total after discounts, VAT and service charge (for example "รวมทั้งสิ้น", "ยอดสุทธิ", "Total"), not the subtotal, not the cash handed over and not the change; for a bank transfer slip or a payment confirmation the transferred or paid amount, without fees and never the account balance. Use 0 when no total is visible.',
     '- direction is "paid" when the user paid money out, which is the usual case. Use "received" only when the slip clearly shows the user received the money.',
     '- date is the transaction date as YYYY-MM-DD in the Gregorian calendar. Thai slips use Buddhist era years, so subtract 543 (for example 2569 is 2026). If the date is not visible or unclear, use an empty string.',
-    '- note is a short Thai description: for a receipt the shop name; for a transfer you paid "โอนให้ <recipient name>"; for money you received "รับโอนจาก <sender name>". Never include account numbers or reference numbers.',
+    promptCopy(lang).note,
   ].join('\n');
 }
 
@@ -89,7 +107,7 @@ function toRejectionKind(value) {
 }
 
 function createSlipParser({ client, model, now = () => new Date(), preprocessImage = async (image) => image }) {
-  return async function parseSlip(image) {
+  return async function parseSlip(image, lang = 'th') {
     const today = toBangkokDateString(now());
     const prepared = await preprocessImage(image);
     if (!prepared) {
@@ -101,13 +119,13 @@ function createSlipParser({ client, model, now = () => new Date(), preprocessIma
         model,
         // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
         max_tokens: 2048,
-        system: buildSystemPrompt(today),
+        system: buildSystemPrompt(today, lang),
         messages: [
           {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageData } },
-              { type: 'text', text: 'อ่านสลิปนี้' },
+              { type: 'text', text: promptCopy(lang).request },
             ],
           },
         ],

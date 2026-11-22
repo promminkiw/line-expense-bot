@@ -1,4 +1,6 @@
 const { formatAmount } = require('../parser/format-reply');
+const { displayCategoryName } = require('../parser/categories');
+const { t } = require('../i18n');
 
 // เทียบเป็นสตางค์แบบจำนวนเต็ม กันทศนิยมของ float ทำให้ข้ามเส้นผิด
 function toSatang(amount) {
@@ -42,48 +44,59 @@ function findBudgetAlerts(rows, statusByMonth) {
   return alerts;
 }
 
-const BUDGET_CHECK_FAILED_NOTICE = 'เฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ';
+function budgetCheckFailedNotice(lang = 'th') {
+  return t(lang, 'budget.checkFailed');
+}
 
-function alertParts(alert) {
+// ไทยมีหน่วยบาทท้ายประโยคครั้งเดียว จึงส่งตัวเลขเปล่าแล้วให้ข้อความในชุดแปลใส่หน่วยเอง
+function alertParts(alert, lang) {
   const [year, month] = alert.month.split('-');
   return {
-    monthText: `${month}/${year}`,
+    month: `${month}/${year}`,
     percent: Math.floor((toSatang(alert.spent) * 100) / toSatang(alert.budget)),
-    label: alert.level === 'over' ? 'เกินงบ' : 'ใกล้เต็มงบ',
+    label: t(lang, `budget.level.${alert.level === 'over' ? 'over' : 'warn'}`),
+    category: displayCategoryName(lang, 'expense', alert.category),
+    spent: formatAmount(alert.spent),
+    budget: formatAmount(alert.budget),
   };
 }
 
-function formatBudgetAlerts(alerts) {
-  return alerts
-    .map((alert) => {
-      const { monthText, percent, label } = alertParts(alert);
-      return `${label} ${alert.category} เดือน ${monthText}: ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (${percent}%)`;
-    })
-    .join('\n');
+function formatBudgetAlerts(alerts, lang = 'th') {
+  return alerts.map((alert) => t(lang, 'budget.alert.line', alertParts(alert, lang))).join('\n');
 }
 
 // รูปแบบสั้นสำหรับการ์ด: ชื่อเรื่องบรรทัดเดียว + รายละเอียดแยกบรรทัดเล็ก
-function describeBudgetAlert(alert) {
-  const { monthText, percent, label } = alertParts(alert);
+function describeBudgetAlert(alert, lang = 'th') {
+  const parts = alertParts(alert, lang);
   return {
     level: alert.level,
-    title: `${label} ${alert.category} ${percent}%`,
-    detail: `ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (เดือน ${monthText})`,
+    title: t(lang, 'budget.alert.title', parts),
+    detail: t(lang, 'budget.alert.detail', parts),
   };
 }
 
 // แถบงบในการ์ดบันทึก: ป้ายซ้าย ตัวเลขขวา คิดยอดเหลือเป็นสตางค์กันทศนิยมเพี้ยน
-function describeBudgetGauge(alert) {
-  const { monthText, percent, label } = alertParts(alert);
+function describeBudgetGauge(alert, lang = 'th') {
+  const parts = alertParts(alert, lang);
   const left = toSatang(alert.budget) - toSatang(alert.spent);
-  const remainder = left >= 0 ? `เหลือ ${formatAmount(left / 100)}` : `เกิน ${formatAmount(-left / 100)}`;
+  const remainder =
+    left >= 0
+      ? t(lang, 'budget.gauge.left', { amount: formatAmount(left / 100) })
+      : t(lang, 'budget.gauge.over', { amount: formatAmount(-left / 100) });
   return {
     level: alert.level,
-    percent,
-    label: `งบ${alert.category} · ${label}`,
-    value: `${percent}% · ${remainder}`,
-    detail: `ใช้ไป ${formatAmount(alert.spent)} จาก ${formatAmount(alert.budget)} บาท (เดือน ${monthText})`,
+    percent: parts.percent,
+    label: t(lang, 'budget.gauge.label', parts),
+    value: `${parts.percent}% · ${remainder}`,
+    detail: t(lang, 'budget.alert.detail', parts),
   };
 }
 
-module.exports = { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge, BUDGET_CHECK_FAILED_NOTICE };
+module.exports = {
+  budgetMonths,
+  findBudgetAlerts,
+  formatBudgetAlerts,
+  describeBudgetAlert,
+  describeBudgetGauge,
+  budgetCheckFailedNotice,
+};

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createEmptyState } from './empty-state.mjs';
+import { setLang } from '../i18n/current.mjs';
 
 describe('createEmptyState', () => {
   it.each([
@@ -30,5 +31,17 @@ describe('createEmptyState', () => {
 
   it('throws for an unknown kind so a typo is caught early', () => {
     expect(() => createEmptyState(document, 'nope')).toThrow('Unknown empty state: nope');
+  });
+});
+
+describe('createEmptyState in English', () => {
+  afterEach(() => setLang('th'));
+
+  it('uses the current language', () => {
+    setLang('en');
+    const el = createEmptyState(document, 'list');
+
+    expect(el.querySelector('.empty-title').textContent).toBe('No entries this month yet');
+    expect(el.querySelector('.empty-hint').textContent).toBe('Just type in the chat, like "lunch 60", and I\'ll log it for you');
   });
 });

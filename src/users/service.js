@@ -1,6 +1,7 @@
 const { DEFAULT_CATEGORIES, SYSTEM_CATEGORIES, toTextCategories } = require('../parser/categories');
 const { categoryKey } = require('../db/transaction-rows');
 const { isDefaultWallet } = require('../wallets/wallets');
+const { languageFromTag, normalizeLanguage } = require('../i18n');
 
 // getProfile ของ LINE SDK ไม่มี timeout ถ้าค้างจะกินเวลาของ reply token
 const PROFILE_TIMEOUT_MS = 3000;
@@ -8,16 +9,16 @@ const SYSTEM_CATEGORY_KEYS = Object.entries(SYSTEM_CATEGORIES).flatMap(([type, n
   names.map((name) => categoryKey(type, name))
 );
 
-function createUserService({ repository, getDisplayName, logger = console, profileTimeoutMs = PROFILE_TIMEOUT_MS }) {
-  async function fetchDisplayName(lineUserId) {
+function createUserService({ repository, getProfile, logger = console, profileTimeoutMs = PROFILE_TIMEOUT_MS }) {
+  async function fetchProfile(lineUserId) {
     let timer;
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => reject(new Error('LINE profile request timed out')), profileTimeoutMs);
     });
     try {
-      return await Promise.race([getDisplayName(lineUserId), timeout]);
+      return await Promise.race([getProfile(lineUserId), timeout]);
     } catch (err) {
-      // ชื่อเป็นแค่ข้อมูลประกอบ ดึงไม่ได้ก็ยังสมัครผู้ใช้ต่อได้
+      // โปรไฟล์เป็นแค่ข้อมูลประกอบ ดึงไม่ได้ก็ยังสมัครผู้ใช้ต่อได้ (ชื่อและภาษาเป็น null)
       logger.error('Failed to fetch LINE profile', { lineUserId }, err);
       return null;
     } finally {
@@ -41,14 +42,17 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     }
   }
 
-  async function ensureUser(lineUserId, { tokenName = null } = {}) {
-    const existingId = await repository.findUserIdByLineId(lineUserId);
-    if (existingId) {
-      await fillNameFromToken(existingId, tokenName);
-      return existingId;
+  async function resolveUser(lineUserId, { tokenName = null } = {}) {
+    const existing = await repository.findUserByLineId(lineUserId);
+    if (existing) {
+      await fillNameFromToken(existing.id, tokenName);
+      return { userId: existing.id, language: normalizeLanguage(existing.language) };
     }
-    const displayName = await fetchDisplayName(lineUserId);
-    const userId = await repository.createUser({ lineUserId, displayName });
+    const profile = await fetchProfile(lineUserId);
+    const displayName = profile?.displayName ?? null;
+    // เก็บ null เมื่อ LINE ไม่ส่งภาษามา เพื่อให้ LIFF เติมจากภาษาแอปทีหลัง
+    const language = typeof profile?.language === 'string' ? languageFromTag(profile.language) : null;
+    const userId = await repository.createUser({ lineUserId, displayName, language });
     await repository.seedDefaultCategories(userId);
     // กระเป๋าตั้งต้นซ่อมทีหลังได้ใน loadWallets จึงไม่ให้การสมัครล้มเพราะสร้างกระเป๋าไม่สำเร็จ
     try {
@@ -59,7 +63,12 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     if (!displayName) {
       await fillNameFromToken(userId, tokenName);
     }
-    return userId;
+    return { userId, language: normalizeLanguage(language) };
+  }
+
+  // ผู้เรียกฝั่ง API ต้องการแค่ id
+  async function ensureUser(lineUserId, options) {
+    return (await resolveUser(lineUserId, options)).userId;
   }
 
   async function loadCategoryIds(userId, options) {
@@ -87,7 +96,7 @@ function createUserService({ repository, getDisplayName, logger = console, profi
     return repository.listWallets(userId);
   }
 
-  return { ensureUser, loadCategoryIds, loadTextCategories, loadWallets };
+  return { resolveUser, ensureUser, loadCategoryIds, loadTextCategories, loadWallets };
 }
 
 module.exports = { createUserService };

@@ -19,3 +19,19 @@ describe('parseSummaryCommand', () => {
     expect(parseSummaryCommand('ช่วยสรุปให้หน่อย')).toBeNull();
   });
 });
+
+describe('parseSummaryCommand in English', () => {
+  it.each([
+    ['summary', 'menu'],
+    ['Summary Today', 'today'],
+    ['  summary   this week ', 'week'],
+    ['SUMMARY THIS MONTH', 'month'],
+  ])('maps %j to its command', (text, expected) => {
+    expect(parseSummaryCommand(text)).toBe(expected);
+  });
+
+  it('returns null for other English messages', () => {
+    expect(parseSummaryCommand('summary last month')).toBeNull();
+    expect(parseSummaryCommand('lunch 60')).toBeNull();
+  });
+});

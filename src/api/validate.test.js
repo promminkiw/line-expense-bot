@@ -141,6 +141,16 @@ describe('validateCategoryCreate', () => {
     expect(validateCategoryCreate({ type: 'income', name: 'ใบเสร็จ/สลิปโอนเงิน' })).toEqual({ ok: false, error: 'Reserved name' });
   });
 
+  // กัน 2 แถวแสดงชื่อเดียวกันเมื่อหมวดตั้งต้นแสดงเป็นอังกฤษ
+  it.each([['Other'], ['other'], [' Food '], ['Receipts & transfer slips'], ['Salary']])('rejects the English default name %j', (name) => {
+    expect(validateCategoryCreate({ type: 'expense', name })).toEqual({ ok: false, error: 'Reserved name' });
+    expect(validateCategoryUpdate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
+  it('keeps allowing a Thai default name that is not a system name', () => {
+    expect(validateCategoryCreate({ type: 'expense', name: 'อาหาร' }).ok).toBe(true);
+  });
+
   it('rejects a bad type or body', () => {
     expect(validateCategoryCreate({ type: 'saving', name: 'x' })).toEqual({ ok: false, error: 'Invalid type' });
     expect(validateCategoryCreate(null)).toEqual({ ok: false, error: 'Invalid body' });
@@ -216,6 +226,20 @@ describe('validateSettingsUpdate', () => {
   it('refuses a daily reminder switch that is not a boolean', () => {
     expect(validateSettingsUpdate({ dailyReminder: 1 })).toEqual({ ok: false, error: 'Invalid dailyReminder' });
   });
+
+  it.each(['th', 'en'])('keeps language %s alone or together with a switch', (language) => {
+    expect(validateSettingsUpdate({ language })).toEqual({ ok: true, value: { language } });
+    expect(validateSettingsUpdate({ language, weeklySummary: true })).toEqual({ ok: true, value: { weeklySummary: true, language } });
+  });
+
+  it.each([['fr'], [null], [''], ['EN'], [1], [['en']]])('refuses language %j', (language) => {
+    expect(validateSettingsUpdate({ language })).toEqual({ ok: false, error: 'Invalid language' });
+    expect(validateSettingsUpdate({ language, weeklySummary: true })).toEqual({ ok: false, error: 'Invalid language' });
+  });
+
+  it('treats a missing language as not changing it', () => {
+    expect(validateSettingsUpdate({ weeklySummary: true })).toEqual({ ok: true, value: { weeklySummary: true } });
+  });
 });
 
 describe('validateTransactionUpdate walletId', () => {
@@ -233,6 +257,10 @@ describe('validateTransactionUpdate walletId', () => {
 });
 
 describe('validateWalletCreate', () => {
+  it.each([['Cash'], ['cash'], [' CASH ']])('rejects the English default wallet name %j', (name) => {
+    expect(validateWalletCreate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
   it('trims the name', () => {
     expect(validateWalletCreate({ name: '  บัตรเครดิต ' })).toEqual({ ok: true, value: { name: 'บัตรเครดิต' } });
   });
@@ -251,6 +279,10 @@ describe('validateWalletCreate', () => {
 });
 
 describe('validateWalletUpdate', () => {
+  it.each([['Cash'], ['cash'], [' CASH ']])('rejects the English default wallet name %j', (name) => {
+    expect(validateWalletUpdate({ name })).toEqual({ ok: false, error: 'Reserved name' });
+  });
+
   it('accepts a name, hidden, or both', () => {
     expect(validateWalletUpdate({ name: 'กสิกร' })).toEqual({ ok: true, value: { name: 'กสิกร' } });
     expect(validateWalletUpdate({ hidden: true })).toEqual({ ok: true, value: { hidden: true } });

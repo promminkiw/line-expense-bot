@@ -137,3 +137,37 @@ describe('createMonthlySummaryRunner', () => {
     expect(result).toEqual({ eligible: 1, sent: 0, nudged: 0, skipped: 0, failed: 0, pushFailed: 1 });
   });
 });
+
+describe('createMonthlySummaryRunner languages', () => {
+  // ผู้รับแต่ละคนต้องได้การ์ดและคอมเมนต์ภาษาของตัวเองในรอบเดียวกัน
+  it('sends each user the card and comment in their own language in the same run', async () => {
+    const { pushFlex, run } = setup({
+      users: [
+        { userId: 'user-1', lineUserId: 'U1', language: 'th' },
+        { userId: 'user-2', lineUserId: 'U2', language: 'en' },
+      ],
+    });
+
+    await run();
+
+    const thai = buildSummary(ROWS, LABEL);
+    const english = buildSummary(ROWS, 'October 2026');
+    expect(pushFlex).toHaveBeenCalledWith('U1', buildSummaryFlex(thai, pickMonthlyComment(thai, 'ตุลาคม'), { summaryUrl: SUMMARY_URL }));
+    expect(pushFlex).toHaveBeenCalledWith(
+      'U2',
+      buildSummaryFlex(english, pickMonthlyComment(english, 'October', 'en'), { summaryUrl: SUMMARY_URL, lang: 'en' }),
+    );
+    expect(JSON.stringify(pushFlex.mock.calls[1][1])).toContain('You saved ฿15,700');
+  });
+
+  it('sends the comeback text in English to an English user', async () => {
+    const { pushText, run } = setup({ users: [{ userId: 'user-1', lineUserId: 'U1', language: 'en' }], rows: [] });
+
+    await run();
+
+    expect(pushText).toHaveBeenCalledWith(
+      'U1',
+      'You did not log anything in October. Fresh start for November: just send me something like "coffee 60"',
+    );
+  });
+});

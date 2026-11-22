@@ -79,3 +79,23 @@ describe('formatSlipConfirmReply', () => {
   });
 
 });
+
+describe('replies in English', () => {
+  it('writes the saved reply with English type and default category names', () => {
+    const reply = formatSavedReply(
+      [
+        { type: 'expense', category: 'อาหาร', amount: 1250.5, date: '2026-09-29', note: 'lunch' },
+        { type: 'income', category: 'ค่าขนม', amount: 100, date: '2026-09-01', note: '' },
+      ],
+      'en'
+    );
+
+    expect(reply).toBe('Saved it\n- Expense | Food | ฿1,250.5 | 29/09 | lunch\n- Income | ค่าขนม | ฿100 | 01/09');
+  });
+
+  it('counts several slip items in English', () => {
+    const item = { type: 'expense', category: 'สุขภาพ', amount: 59, date: '2026-09-28', note: 'toothpaste' };
+
+    expect(formatSlipConfirmReply([item, item], { lang: 'en' }).split('\n')[0]).toBe('I read 2 entries from the slip');
+  });
+});

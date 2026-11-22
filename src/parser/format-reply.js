@@ -1,4 +1,6 @@
-const { TYPE_LABELS } = require('../utils/type-labels');
+const { typeLabel } = require('../utils/type-labels');
+const { displayCategoryName } = require('./categories');
+const { t, formatAmount: formatMoney } = require('../i18n');
 
 function formatAmount(amount) {
   return amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -9,11 +11,11 @@ function formatDate(isoDate) {
   return `${day}/${month}`;
 }
 
-function formatItem(item) {
+function formatItem(item, lang = 'th') {
   const parts = [
-    TYPE_LABELS[item.type],
-    item.category,
-    `${formatAmount(item.amount)} บาท`,
+    typeLabel(lang, item.type),
+    displayCategoryName(lang, item.type, item.category),
+    formatMoney(lang, item.amount),
     formatDate(item.date),
   ];
   if (item.note) {
@@ -22,17 +24,17 @@ function formatItem(item) {
   return `- ${parts.join(' | ')}`;
 }
 
-function formatSavedReply(items) {
-  return ['เฮียบันทึกแล้ว', ...items.map(formatItem)].join('\n');
+function formatSavedReply(items, lang = 'th') {
+  return [t(lang, 'card.saved.title'), ...items.map((item) => formatItem(item, lang))].join('\n');
 }
 
-function formatSlipConfirmReply(items, { dateAssumed = false } = {}) {
-  const header = items.length > 1 ? `เฮียอ่านสลิปได้ ${items.length} รายการ` : 'เฮียอ่านสลิปได้ดังนี้';
-  const lines = [header, ...items.map(formatItem)];
+function formatSlipConfirmReply(items, { dateAssumed = false, lang = 'th' } = {}) {
+  const header = items.length > 1 ? t(lang, 'card.slip.readMany', { count: items.length }) : t(lang, 'card.slip.readList');
+  const lines = [header, ...items.map((item) => formatItem(item, lang))];
   if (dateAssumed) {
-    lines.push('อ่านวันที่ไม่ได้ จึงใช้วันนี้');
+    lines.push(t(lang, 'card.slip.dateAssumed'));
   }
-  lines.push('กดบันทึกเพื่อยืนยัน (หมดเวลาใน 10 นาที)');
+  lines.push(t(lang, 'card.slip.confirmHint'));
   return lines.join('\n');
 }
 

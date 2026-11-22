@@ -79,3 +79,20 @@ describe('getPreviousMonthRange', () => {
     expect(getPreviousMonthRange(new Date('2028-03-01T01:00:00Z'))).toMatchObject({ from: '2028-02-01', to: '2028-02-29' });
   });
 });
+
+describe('period labels in English', () => {
+  it('names the period in English and keeps the dates', () => {
+    expect(getPeriodRange('today', TUESDAY_NOON_BANGKOK, 'en').label).toBe('Today (29/09)');
+    expect(getPeriodRange('week', TUESDAY_NOON_BANGKOK, 'en').label).toBe('This week (28/09 - 29/09)');
+    expect(getPeriodRange('month', TUESDAY_NOON_BANGKOK, 'en').label).toBe('This month (01/09 - 29/09)');
+  });
+
+  it('names the previous month in English with the Gregorian year', () => {
+    expect(getPreviousMonthRange(new Date('2027-01-01T01:00:00Z'), 'en')).toMatchObject({
+      month: '2026-12',
+      monthName: 'December',
+      nextMonthName: 'January',
+      label: 'December 2026',
+    });
+  });
+});

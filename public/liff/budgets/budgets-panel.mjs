@@ -1,4 +1,7 @@
-import { barGeometry, describeDiff, describeHero, groupBudgetRows, pageBudgetRows, summarizeBudgets } from './budgets-format.mjs';
+import { barGeometry, budgetCategoryName, describeDiff, describeHero, groupBudgetRows, pageBudgetRows, summarizeBudgets } from './budgets-format.mjs';
+import { formatBaht } from '../format.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 // ความสูงแท่งที่ 100% ของงบ ต้องเท่ากับค่าเริ่มต้นของ --budget-h100 ใน style.css
 export const BUDGET_H100 = 130;
@@ -36,15 +39,12 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     const total = budgetedCount + groups.unset.length;
     els.many.hidden = total <= MANY_THRESHOLD;
     if (els.many.hidden) return;
-    els.manySearch.textContent = `ค้นหาหมวดจาก ${total} หมวด`;
+    const lang = getLang();
+    els.manySearch.textContent = t(lang, 'web.budgets.many.search', { count: total });
     els.manyChips.replaceChildren();
-    const chips = [
-      ['ต้องดูแล', groups.risk.length, 'risk'],
-      ['ปกติ', groups.calm.length, 'calm'],
-      ['ไม่มีงบ', groups.unset.length, 'unset'],
-    ];
-    for (const [label, count, tab] of chips) {
-      const chip = button(doc, 'budget-many-chip', `${label} ${count}`);
+    for (const tab of ['risk', 'calm', 'unset']) {
+      const label = t(lang, `web.budgets.group.${tab}`);
+      const chip = button(doc, 'budget-many-chip', t(lang, 'web.budgets.groupCount', { label, count: groups[tab].length }));
       chip.addEventListener('click', () => onOpenAll({ tab }));
       els.manyChips.append(chip);
     }
@@ -54,7 +54,8 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     const { risk } = groups;
     els.risk.hidden = risk.length === 0;
     if (risk.length === 0) return;
-    els.riskTitle.textContent = `ต้องดูแล ${risk.length} หมวด`;
+    const lang = getLang();
+    els.riskTitle.textContent = t(lang, 'web.budgets.risk.title', { count: risk.length });
     const { items, page, pageCount } = pageBudgetRows(risk, riskPage, RISK_PAGE_SIZE);
     riskPage = page;
     els.riskPlot.style.setProperty('--budget-h100', `${BUDGET_H100}px`);
@@ -62,9 +63,11 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     els.riskNames.replaceChildren();
     for (const row of items) {
       const geometry = barGeometry(row, { h100: BUDGET_H100 });
+      const name = budgetCategoryName(row.category, lang);
+      const diff = describeDiff(row, lang);
       const col = button(doc, 'budget-col');
       col.dataset.categoryId = row.categoryId;
-      col.setAttribute('aria-label', `${row.category} ${row.percent}% ของงบ ${describeDiff(row)}`);
+      col.setAttribute('aria-label', t(lang, 'web.budgets.risk.barLabel', { name, percent: row.percent, diff }));
       const bar = node(doc, 'span', 'budget-bar');
       bar.style.height = `${geometry.barH}px`;
       const fill = node(doc, 'span', `budget-bar-fill level-${row.level}`);
@@ -77,14 +80,14 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
       col.append(bar, pct);
       col.addEventListener('click', () => onEdit(row));
       els.riskBars.append(col);
-      const name = node(doc, 'div', 'budget-col-name');
-      name.append(node(doc, 'div', 'budget-col-name-text', row.category), node(doc, 'div', `budget-col-diff level-${row.level}`, describeDiff(row)));
-      els.riskNames.append(name);
+      const label = node(doc, 'div', 'budget-col-name');
+      label.append(node(doc, 'div', 'budget-col-name-text', name), node(doc, 'div', `budget-col-diff level-${row.level}`, diff));
+      els.riskNames.append(label);
       // render ใหม่ทำให้ปุ่มเดิมหาย จึงคืน focus ให้แท่งของหมวดที่เพิ่งแก้
       if (focusId === row.categoryId) col.focus();
     }
     els.riskPager.hidden = pageCount <= 1;
-    els.riskPageLabel.textContent = `หน้า ${page + 1} จาก ${pageCount}`;
+    els.riskPageLabel.textContent = t(lang, 'web.budgets.pager.page', { page: page + 1, count: pageCount });
     els.riskPrev.disabled = page === 0;
     els.riskNext.disabled = page === pageCount - 1;
     els.riskDots.replaceChildren();
@@ -98,14 +101,17 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     els.calm.hidden = calm.length === 0;
     els.calmHead.hidden = calm.length === 0;
     els.calmList.hidden = calm.length === 0;
-    els.calmTitle.textContent = `ปกติ ${calm.length} หมวด`;
-    els.calmNote.textContent = calm.length > CALM_PREVIEW_LIMIT ? `แสดง ${CALM_PREVIEW_LIMIT} หมวดที่ใช้มากสุด` : 'ใช้ไม่ถึง 80%';
+    const lang = getLang();
+    els.calmTitle.textContent = t(lang, 'web.budgets.calm.title', { count: calm.length });
+    els.calmNote.textContent = calm.length > CALM_PREVIEW_LIMIT
+      ? t(lang, 'web.budgets.calm.top', { count: CALM_PREVIEW_LIMIT })
+      : t(lang, 'web.budgets.calm.under80');
     els.calmList.replaceChildren();
     for (const row of calm.slice(0, CALM_PREVIEW_LIMIT)) {
       const item = button(doc, 'budget-calm-item');
       item.dataset.categoryId = row.categoryId;
       const line = node(doc, 'span', 'budget-calm-line');
-      line.append(node(doc, 'span', 'budget-calm-name', row.category), node(doc, 'span', 'budget-calm-pct', `${row.percent}%`));
+      line.append(node(doc, 'span', 'budget-calm-name', budgetCategoryName(row.category, lang)), node(doc, 'span', 'budget-calm-pct', `${row.percent}%`));
       const track = node(doc, 'span', 'budget-calm-track');
       const fill = node(doc, 'span', 'budget-calm-fill');
       fill.style.width = `${Math.max(row.percent, 2)}%`;
@@ -116,7 +122,7 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
       // คืน focus ให้แถวปกติที่เพิ่งแก้ เหมือนแท่งในส่วนต้องดูแล
       if (focusId === row.categoryId) item.focus();
     }
-    els.calmAll.textContent = `ดูทั้งหมด ${budgetedCount} หมวด ›`;
+    els.calmAll.textContent = t(lang, 'web.budgets.seeAll', { count: budgetedCount });
     // ปุ่มอยู่การ์ดต้องดูแลถ้ามี ไม่งั้นอยู่การ์ดปกติ เพื่อไม่ให้แยกเป็นการ์ดลอย
     (groups.risk.length > 0 ? els.risk : els.calm).append(els.calmAll);
   }
@@ -125,21 +131,21 @@ export function createBudgetsPanel({ doc, els, onEdit, onOpenAll }) {
     const { unset } = groups;
     els.unset.hidden = unset.length === 0;
     if (unset.length === 0) return;
-    els.unsetText.textContent = `ยังไม่ตั้งงบ ${unset.length} หมวด`;
+    els.unsetText.textContent = t(getLang(), 'web.budgets.unset.count', { count: unset.length });
   }
 
   function renderEmpty() {
     const suggestions = groups.unset.filter((row) => row.spent > 0).slice(0, EMPTY_SUGGESTION_LIMIT);
-    els.emptyHint.textContent = suggestions.length > 0
-      ? 'ตั้งสักหมวด เฮียจะเตือนตอนใกล้เต็ม เริ่มจากหมวดที่ใช้บ่อยด้านล่างได้เลย'
-      : 'ตั้งสักหมวด เฮียจะเตือนตอนใกล้เต็ม ลองจดรายจ่ายในแชตก่อน แล้วกลับมาตั้งงบ';
+    const lang = getLang();
+    els.emptyHint.textContent = t(lang, suggestions.length > 0 ? 'web.budgets.empty.hintSuggest' : 'web.budgets.empty.hintLogFirst');
     els.emptyList.replaceChildren();
     for (const row of suggestions) {
       const item = node(doc, 'li', 'budget-empty-item');
-      const name = node(doc, 'span', 'budget-empty-name', row.category);
-      name.append(node(doc, 'span', 'budget-empty-spent', `ใช้ไปเดือนนี้ ${row.spent.toLocaleString('en-US', { maximumFractionDigits: 2 })} บาท`));
-      const set = button(doc, 'budget-empty-set', 'ตั้งงบ');
-      set.setAttribute('aria-label', `ตั้งงบ ${row.category}`);
+      const shown = budgetCategoryName(row.category, lang);
+      const name = node(doc, 'span', 'budget-empty-name', shown);
+      name.append(node(doc, 'span', 'budget-empty-spent', t(lang, 'web.budgets.spentThisMonth', { amount: formatBaht(row.spent, lang) })));
+      const set = button(doc, 'budget-empty-set', t(lang, 'web.budgets.set'));
+      set.setAttribute('aria-label', t(lang, 'web.budgets.setFor', { name: shown }));
       set.addEventListener('click', () => onEdit(row));
       item.append(name, set);
       els.emptyList.append(item);

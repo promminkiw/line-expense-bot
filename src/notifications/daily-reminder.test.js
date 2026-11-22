@@ -8,6 +8,7 @@ function setup(users = [{ userId: 'user-1', lineUserId: 'U1' }]) {
   const repository = {
     listUsersToRemind: vi.fn().mockResolvedValue(users),
     reserveNotification: vi.fn().mockResolvedValue(true),
+    getLineUserIds: vi.fn().mockResolvedValue(new Map()),
   };
   const pushText = vi.fn().mockResolvedValue();
   const logger = { error: vi.fn() };
@@ -82,5 +83,47 @@ describe('createDailyReminderRunner', () => {
 
     expect(await run()).toEqual({ eligible: 0, sent: 0, skipped: 0, failed: 0, pushFailed: 0 });
     expect(repository.reserveNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe('createDailyReminderRunner languages', () => {
+  // users_to_remind คืนแค่ id กับ line id จึงดึงภาษาครั้งเดียวต่อรอบ ไม่ใช่ต่อคน
+  it('looks up languages once per run and reminds each user in their own language', async () => {
+    const { repository, pushText, run } = setup([
+      { userId: 'user-1', lineUserId: 'U1' },
+      { userId: 'user-2', lineUserId: 'U2' },
+    ]);
+    repository.getLineUserIds = vi.fn().mockResolvedValue(
+      new Map([
+        ['user-1', { lineUserId: 'U1', language: null }],
+        ['user-2', { lineUserId: 'U2', language: 'en' }],
+      ]),
+    );
+
+    await run();
+
+    expect(repository.getLineUserIds).toHaveBeenCalledTimes(1);
+    expect(repository.getLineUserIds).toHaveBeenCalledWith(['user-1', 'user-2']);
+    expect(pushText).toHaveBeenCalledWith('U1', DAILY_REMINDER_TEXT);
+    expect(pushText).toHaveBeenCalledWith('U2', 'Haven\'t seen anything from you today. What did you spend on? Just tell me, like "lunch 60"');
+  });
+
+  it('does not look up languages when nobody needs a reminder', async () => {
+    const { repository, run } = setup([]);
+    repository.getLineUserIds = vi.fn();
+
+    await run();
+
+    expect(repository.getLineUserIds).not.toHaveBeenCalled();
+  });
+
+  // ภาษาเป็นแค่ความสวยงาม อ่านไม่ได้ก็ยังต้องเตือนเป็นไทยตามเดิม
+  it('falls back to Thai when the language lookup fails', async () => {
+    const { repository, pushText, logger, run } = setup();
+    repository.getLineUserIds = vi.fn().mockRejectedValue(new Error('db down'));
+
+    expect(await run()).toEqual({ eligible: 1, sent: 1, skipped: 0, failed: 0, pushFailed: 0 });
+    expect(pushText).toHaveBeenCalledWith('U1', DAILY_REMINDER_TEXT);
+    expect(logger.error).toHaveBeenCalledWith('Failed to read reminder languages', { reason: 'db down' });
   });
 });

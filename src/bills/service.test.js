@@ -35,7 +35,7 @@ function setup(overrides = {}) {
     ]),
     getDisplayName: vi.fn().mockResolvedValue('เอ'),
     createBill: vi.fn().mockResolvedValue(BILL),
-    getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, 'U-F1'], [F2, 'U-F2']])),
+    getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: null }], [F2, { lineUserId: 'U-F2', language: null }]])),
     markBillMemberNotified: vi.fn().mockResolvedValue(true),
     listOwnedBills: vi.fn().mockResolvedValue([]),
     listIncomingBills: vi.fn().mockResolvedValue([]),
@@ -353,5 +353,52 @@ describe('billService.respondFromWeb', () => {
     }
     expect((await noLineId.service.respondFromWeb(F1, BILL, 'confirm')).status).toBe('confirmed');
     expect(noLineId.pushText).not.toHaveBeenCalled();
+  });
+});
+
+describe('billService languages', () => {
+  // เจ้าของกับเพื่อนอาจใช้คนละภาษา การ์ดต้องตามภาษาของเพื่อนแต่ละคน
+  it('pushes each member the bill card in their own language', async () => {
+    const { service, pushFlex } = setup({
+      getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'th' }], [F2, { lineUserId: 'U-F2', language: 'en' }]])),
+    });
+
+    await service.create(OWNER, body());
+
+    const [thaiCard, englishCard] = pushFlex.mock.calls.map(([, flex]) => flex);
+    expect(thaiCard.altText).toBe('เอ ขอให้ยืนยันส่วนแบ่งบิล เนื้อย่าง 300 บาท');
+    expect(englishCard.altText).not.toContain('ขอให้ยืนยัน');
+    expect(englishCard.altText).toContain('฿300');
+    expect(JSON.stringify(englishCard)).toContain('· Food');
+  });
+
+  // เจ้าของไม่มีชื่อ LINE ต้องไม่โชว์ชื่อไทยให้เพื่อนที่ใช้อังกฤษ
+  it('names an owner without a display name in the language of each member', async () => {
+    const { service, pushFlex } = setup({
+      getDisplayName: vi.fn().mockResolvedValue(null),
+      getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'th' }], [F2, { lineUserId: 'U-F2', language: 'en' }]])),
+    });
+
+    await service.create(OWNER, body());
+
+    const [thaiCard, englishCard] = pushFlex.mock.calls.map(([, flex]) => flex);
+    expect(thaiCard.altText).toContain('ผู้ใช้ LINE');
+    expect(englishCard.altText).toContain('LINE user');
+    expect(JSON.stringify(englishCard)).not.toContain('ผู้ใช้ LINE');
+  });
+
+  it('tells an English user in English that the bill was confirmed or declined on the web', async () => {
+    const english = { getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'en' }]])) };
+    const confirmed = setup(english);
+    const declined = setup(english);
+
+    await confirmed.service.respondFromWeb(F1, BILL, 'confirm');
+    await declined.service.respondFromWeb(F1, BILL, 'decline');
+
+    expect(confirmed.pushText).toHaveBeenCalledWith(
+      'U-F1',
+      'You confirmed เนื้อย่าง on the web. I logged your share of ฿300 under Food. No need to tap the bill card again',
+    );
+    expect(declined.pushText).toHaveBeenCalledWith('U-F1', 'You declined เนื้อย่าง on the web. No need to tap the bill card again');
   });
 });

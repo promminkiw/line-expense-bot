@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   barGeometry,
+  budgetCategoryName,
   describeDiff,
   describeHero,
   filterBudgetRows,
@@ -206,5 +207,43 @@ describe('formatNumber', () => {
   it('groups thousands and keeps at most two decimals', () => {
     expect(formatNumber(10460)).toBe('10,460');
     expect(formatNumber(0.05)).toBe('0.05');
+  });
+});
+
+describe('budgets in English', () => {
+  it('names default categories in English and keeps custom ones as typed', () => {
+    expect(budgetCategoryName('ช้อปปิ้ง', 'en')).toBe('Shopping');
+    expect(budgetCategoryName('ช้อปปิ้ง', 'th')).toBe('ช้อปปิ้ง');
+    expect(budgetCategoryName('กาแฟ', 'en')).toBe('กาแฟ');
+  });
+
+  it('describes the hero and the diff in English', () => {
+    expect(describeHero(summarizeBudgets(BUDGETS), 'en').restText).toBe('฿1,450 left');
+    const over = summarizeBudgets([{ categoryId: 'a', category: 'อาหาร', budget: 1000, spent: 1500 }]);
+    expect(describeHero(over, 'en').restText).toBe('฿500 over your total budget');
+    const row = (budget, spent) => ({ budget, spent });
+    expect(describeDiff(row(3000, 3450), 'en')).toBe('450 over');
+    expect(describeDiff(row(900, 900), 'en')).toBe('Right at the limit');
+    expect(describeDiff(row(2000, 1900), 'en')).toBe('100 left');
+  });
+
+  it('finds a default category by its English or Thai name', () => {
+    const rows = [{ category: 'อาหาร' }, { category: 'Gym' }];
+
+    expect(filterBudgetRows(rows, 'food', 'en')).toEqual([rows[0]]);
+    expect(filterBudgetRows(rows, 'อาหาร', 'en')).toEqual([rows[0]]);
+  });
+
+  it('sorts by the English name the user sees', () => {
+    const sorted = sortBudgetRows([{ category: 'อาหาร' }, { category: 'เดินทาง' }, { category: 'ช้อปปิ้ง' }], 'name', 'en');
+
+    expect(sorted.map((row) => row.category)).toEqual(['อาหาร', 'ช้อปปิ้ง', 'เดินทาง']);
+  });
+
+  it('titles the sections in English', () => {
+    const { risk } = groupBudgetRows(BUDGETS);
+
+    expect(sectionsForTab('risk', risk, 'en').map((section) => section.title)).toEqual(['Full or over', 'Almost full']);
+    expect(sectionsForTab('calm', [{ percent: 70 }, { percent: 49 }], 'en').map((section) => section.title)).toEqual(['Used 50-79%', 'Used under 50%']);
   });
 });

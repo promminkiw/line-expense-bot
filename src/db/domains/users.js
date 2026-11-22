@@ -1,21 +1,22 @@
 const { throwIfError } = require('../errors');
 
 function createUsersRepository(supabase) {
-  async function findUserIdByLineId(lineUserId) {
+  // คืน language ดิบ (อาจเป็น null) ผู้เรียกฝั่งแชตค่อย normalize เอง
+  async function findUserByLineId(lineUserId) {
     const { data, error } = await supabase
       .from('users')
-      .select('id')
+      .select('id, language')
       .eq('line_user_id', lineUserId)
       .maybeSingle();
-    throwIfError('findUserIdByLineId', error);
-    return data ? data.id : null;
+    throwIfError('findUserByLineId', error);
+    return data ? { id: data.id, language: data.language } : null;
   }
 
-  async function createUser({ lineUserId, displayName }) {
+  async function createUser({ lineUserId, displayName, language }) {
     // upsert กันกรณี event แรกของผู้ใช้ใหม่มาพร้อมกันหลายอัน
     const { data, error } = await supabase
       .from('users')
-      .upsert({ line_user_id: lineUserId, display_name: displayName }, { onConflict: 'line_user_id' })
+      .upsert({ line_user_id: lineUserId, display_name: displayName, language }, { onConflict: 'line_user_id' })
       .select('id')
       .single();
     throwIfError('createUser', error);
@@ -38,17 +39,31 @@ function createUsersRepository(supabase) {
     return data ? data.display_name : null;
   }
 
+  async function getUserLanguage(userId) {
+    const { data, error } = await supabase.from('users').select('language').eq('id', userId).maybeSingle();
+    throwIfError('getUserLanguage', error);
+    return data ? data.language : null;
+  }
+
+  async function setUserLanguage(userId, language) {
+    const { error } = await supabase.from('users').update({ language }).eq('id', userId);
+    throwIfError('setUserLanguage', error);
+  }
+
+  // ส่ง language มาด้วยเพื่อให้ push ข้อความถึงผู้ใช้ได้ถูกภาษาโดยไม่ต้อง query เพิ่ม
   async function getLineUserIds(userIds) {
-    const { data, error } = await supabase.from('users').select('id, line_user_id').in('id', userIds);
+    const { data, error } = await supabase.from('users').select('id, line_user_id, language').in('id', userIds);
     throwIfError('getLineUserIds', error);
-    return new Map(data.map((row) => [row.id, row.line_user_id]));
+    return new Map(data.map((row) => [row.id, { lineUserId: row.line_user_id, language: row.language }]));
   }
 
   return {
-    findUserIdByLineId,
+    findUserByLineId,
     createUser,
     fillMissingDisplayName,
     getDisplayName,
+    getUserLanguage,
+    setUserLanguage,
     getLineUserIds,
   };
 }

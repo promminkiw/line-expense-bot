@@ -1,4 +1,7 @@
-// หน้าเว็บ (public/liff/app.mjs) มีชุดเดียวกันของตัวเอง เพราะเป็น ES module ที่ไม่มี build step แชร์กับ CommonJS ไม่ได้
-const TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
+const { t } = require('../i18n');
 
-module.exports = { TYPE_LABELS };
+function typeLabel(lang, type) {
+  return t(lang, `type.${type}`);
+}
+
+module.exports = { typeLabel };

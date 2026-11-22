@@ -206,3 +206,24 @@ describe('createRecurringRunner', () => {
     expect(logger.error).toHaveBeenCalledWith('Failed to push recurring notice', { ruleId: 'r1', reason: 'boom' });
   });
 });
+
+describe('createRecurringRunner languages', () => {
+  // แต่ละกฎเป็นของผู้ใช้คนละคน จึงแจ้งตามภาษาของเจ้าของกฎ
+  it('pushes the notice and undo button in the rule owner\'s language', async () => {
+    const { pushText, run } = setup([
+      rule({ language: null }),
+      rule({ id: 'r2', userId: 'user-2', lineUserId: 'U2', categoryName: 'อาหาร', note: null, language: 'en' }),
+    ]);
+
+    await run();
+
+    expect(pushText.mock.calls[0][1]).toBe('เฮียบันทึกรายการประจำให้อัตโนมัติ\n- รายจ่าย | ค่าสาธารณูปโภค | 590 บาท | 05/10 | ค่าเน็ต');
+    expect(pushText.mock.calls[0][2][0].action.label).toBe('ลบ');
+    expect(pushText).toHaveBeenCalledWith('U2', 'Logged your recurring entry automatically\n- Expense | Food | ฿590 | 05/10', [
+      {
+        type: 'action',
+        action: { type: 'postback', label: 'Delete', data: 'action=undo&event=recurring%3Ar2%3A2026-10', displayText: 'Delete' },
+      },
+    ]);
+  });
+});

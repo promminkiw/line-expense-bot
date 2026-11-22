@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { TRANSACTIONS, RESPONSES, settle, makeFetch, boot, byId, clickTab, submitEditOfFirstRow, cleanupGlobals } from './dom-harness.mjs';
+import { TRANSACTIONS, RESPONSES, settle, makeFetch, boot, byId, routeFetch, clickTab, submitEditOfFirstRow, cleanupGlobals } from './dom-harness.mjs';
 
 afterEach(cleanupGlobals);
 
@@ -466,4 +466,73 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
   });
 });
 
-// ปุ่มย้อนกลับของเครื่อง (Android) และท่าปัดย้อนกลับ (iOS) ต้องพากลับจากหน้าย่อยไปแท็บเจ้าของหน้า ไม่ใช่ออกจาก LIFF
+describe('LIFF wallets page in English', () => {
+  afterEach(() => localStorage.clear());
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+  const TWO_WALLETS = {
+    wallets: [
+      { id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true, income: 25000, expense: 400, balance: 24600, entryCount: 2 },
+      { id: 'w-card', name: 'บัตรเครดิต', hidden: false, isDefault: false, income: 0, expense: 300, balance: -300, entryCount: 1 },
+    ],
+  };
+  const rowOf = (id) => document.querySelector(`.wallet-row[data-wallet-id="${id}"]`);
+
+  async function openWalletsEnglish() {
+    localStorage.setItem('lang', 'en');
+    await boot({ overrides: { '/api/wallets': TWO_WALLETS, '/api/settings': ENGLISH_SETTINGS } });
+    clickTab('profile');
+    await settle();
+    byId('wallets-open').click();
+    await settle();
+  }
+
+  it('shows the wallets in English with the default wallet translated', async () => {
+    await openWalletsEnglish();
+
+    expect(byId('page-title').textContent).toBe('Wallets');
+    expect(byId('wallets-title').textContent).toBe('Wallets');
+    expect([...document.querySelectorAll('.wallets-hint span')].map((el) => el.textContent)).toEqual([
+      "Each wallet's balance = income minus expenses logged in it",
+      'Entries without a wallet go to Cash',
+    ]);
+    expect(rowOf('w-cash').querySelector('.wallet-name').textContent).toBe('CashDefault');
+    expect(rowOf('w-cash').querySelector('.wallet-rename')).toBeNull();
+    expect(rowOf('w-cash').querySelector('.wallet-detail').textContent).toBe('Income ฿25,000 · Expenses ฿400 · 2 entries');
+    expect(rowOf('w-card').querySelector('.wallet-name').textContent).toBe('บัตรเครดิต');
+    expect(rowOf('w-card').querySelector('.wallet-detail').textContent).toBe('Income ฿0 · Expenses ฿300 · 1 entry');
+    expect(rowOf('w-card').querySelector('.wallet-rename').textContent).toBe('Rename');
+    expect(rowOf('w-card').querySelector('.wallet-rename').getAttribute('aria-label')).toBe('Rename บัตรเครดิต');
+    expect(rowOf('w-card').querySelector('.wallet-toggle').textContent).toBe('Hide');
+    expect(rowOf('w-card').querySelector('.wallet-toggle').getAttribute('aria-label')).toBe('Hide บัตรเครดิต');
+    expect(document.querySelector('label[for="wallet-add-input"]').textContent).toBe('Add a wallet');
+    expect(byId('wallet-add-input').getAttribute('placeholder')).toBe('e.g. Credit card');
+    expect(byId('wallet-add-submit').textContent).toBe('Add');
+    expect(document.querySelector('#menu-data-title + .menu-list .menu-row-sub').textContent).toBe('Manage wallets and see each balance');
+  });
+
+  it('explains a reserved name and an empty name in English', async () => {
+    await openWalletsEnglish();
+    const submit = () => byId('wallet-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+
+    submit();
+    expect(byId('wallet-add-error').textContent).toBe('Enter a wallet name first');
+
+    routeFetch((method, path) => (method === 'POST' && path === '/api/wallets' ? { status: 400, error: 'Reserved name' } : undefined));
+    byId('wallet-add-input').value = 'Cash';
+    submit();
+    await settle();
+
+    expect(byId('wallet-add-error').textContent).toBe('That name belongs to the default wallet (Cash), in English or Thai. Try another one.');
+  });
+
+  it('shows the rename dialog in English', async () => {
+    await openWalletsEnglish();
+    rowOf('w-card').querySelector('.wallet-rename').click();
+
+    expect(byId('wallet-dialog-title').textContent).toBe('Rename wallet');
+    expect(byId('wallet-dialog-form').querySelector('label > span').textContent).toBe('Wallet name');
+    expect(byId('wallet-dialog-name').value).toBe('บัตรเครดิต');
+    expect(byId('wallet-dialog-cancel').textContent).toBe('Cancel');
+    expect(byId('wallet-dialog-save').textContent).toBe('Save');
+  });
+});

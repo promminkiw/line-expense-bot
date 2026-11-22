@@ -8,20 +8,20 @@ describe('repository notification settings', () => {
   it('reads the switches of this user', async () => {
     const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
 
-    expect(await createNotificationsRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: true, dailyReminder: false });
+    expect(await createNotificationsRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: true, dailyReminder: false, language: null });
     expect(calls).toEqual([['from', 'users'], ['select', SETTINGS_COLUMNS], ['eq', 'id', 'user-1'], ['maybeSingle']]);
   });
 
   it('treats a missing user row as everything off', async () => {
     const { supabase } = fakeSupabase({ data: null, error: null });
 
-    expect(await createNotificationsRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: false, dailyReminder: false });
+    expect(await createNotificationsRepository(supabase).getNotificationSettings('user-1')).toEqual({ weeklySummary: false, dailyReminder: false, language: null });
   });
 
   it('updates only the given switches of this user and returns the saved values', async () => {
     const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: true }, error: null });
 
-    expect(await createNotificationsRepository(supabase).updateNotificationSettings('user-1', { weeklySummary: true })).toEqual({ weeklySummary: true, dailyReminder: false });
+    expect(await createNotificationsRepository(supabase).updateNotificationSettings('user-1', { weeklySummary: true })).toEqual({ weeklySummary: true, dailyReminder: false, language: null });
     expect(calls).toEqual([
       ['from', 'users'],
       ['update', { weekly_summary_enabled: true }],
@@ -45,8 +45,29 @@ describe('repository notification settings', () => {
     expect(await createNotificationsRepository(supabase).updateNotificationSettings('user-1', { dailyReminder: true })).toEqual({
       weeklySummary: false,
       dailyReminder: true,
+      language: null,
     });
     expect(calls[1]).toEqual(['update', { daily_reminder_enabled: true }]);
+  });
+});
+
+describe('repository notification settings language', () => {
+  it('returns the raw language from the same read', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { weekly_summary_enabled: false, daily_reminder_enabled: false, language: 'en' }, error: null });
+
+    expect(await createNotificationsRepository(supabase).getNotificationSettings('user-1')).toEqual({
+      weeklySummary: false,
+      dailyReminder: false,
+      language: 'en',
+    });
+    expect(calls[1]).toEqual(['select', expect.stringContaining('language')]);
+  });
+
+  it('saves the language to its own column and returns it', async () => {
+    const { supabase, calls } = fakeSupabase({ data: { language: 'th' }, error: null });
+
+    expect(await createNotificationsRepository(supabase).updateNotificationSettings('user-1', { language: 'th' })).toMatchObject({ language: 'th' });
+    expect(calls[1]).toEqual(['update', { language: 'th' }]);
   });
 });
 
@@ -74,12 +95,12 @@ describe('repository.disableNotifications', () => {
 
 describe('repository.listWeeklySummaryUsers', () => {
   it('lists only users who turned the weekly summary on', async () => {
-    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1', language: 'en' }], error: null });
 
-    expect(await createNotificationsRepository(supabase).listWeeklySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);
+    expect(await createNotificationsRepository(supabase).listWeeklySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1', language: 'en' }]);
     expect(calls).toEqual([
       ['from', 'users'],
-      ['select', 'id, line_user_id'],
+      ['select', 'id, line_user_id, language'],
       ['eq', 'weekly_summary_enabled', true],
       ['order', 'id'],
     ]);
@@ -94,12 +115,12 @@ describe('repository.listWeeklySummaryUsers', () => {
 
 describe('repository.listMonthlySummaryUsers', () => {
   it('lists users with the monthly summary enabled ordered by id', async () => {
-    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1' }], error: null });
+    const { supabase, calls } = fakeSupabase({ data: [{ id: 'user-1', line_user_id: 'U1', language: 'en' }], error: null });
 
-    expect(await createNotificationsRepository(supabase).listMonthlySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1' }]);
+    expect(await createNotificationsRepository(supabase).listMonthlySummaryUsers()).toEqual([{ userId: 'user-1', lineUserId: 'U1', language: 'en' }]);
     expect(calls).toEqual([
       ['from', 'users'],
-      ['select', 'id, line_user_id'],
+      ['select', 'id, line_user_id, language'],
       ['eq', 'monthly_summary_enabled', true],
       ['order', 'id'],
     ]);

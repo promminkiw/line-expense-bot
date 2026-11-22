@@ -74,7 +74,10 @@ const supabase = createClient(config.supabaseUrl, config.supabaseServiceRoleKey,
 const repository = createRepository(supabase);
 const users = createUserService({
   repository,
-  getDisplayName: async (lineUserId) => (await lineClient.getProfile(lineUserId)).displayName,
+  getProfile: async (lineUserId) => {
+    const { displayName, language } = await lineClient.getProfile(lineUserId);
+    return { displayName, language };
+  },
 });
 // ตัวนับอยู่ในหน่วยความจำ พอสำหรับ server instance เดียว
 const allowRequest = createRateLimiter(RATE_LIMIT);

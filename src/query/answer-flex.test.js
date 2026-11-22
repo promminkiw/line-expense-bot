@@ -79,3 +79,38 @@ describe('buildTotalsFlex', () => {
     expect(buildTotalsFlex(BASE, EXPENSE_ROWS, {}).contents.footer).toBeUndefined();
   });
 });
+
+describe('buildTotalsFlex in English', () => {
+  it('writes the header, chips, count and average in English', () => {
+    const flex = buildTotalsFlex({ ...BASE, keyword: 'coffee' }, EXPENSE_ROWS, { listUrl: 'https://liff.line.me/1?tab=list', lang: 'en' });
+
+    expect(texts(flex.contents.header)).toEqual(['Totals 1-19 Oct 2026', 'Spent ฿450']);
+    expect(texts(flex.contents.body)).toEqual(['Search: coffee', 'All categories', 'Entries', '6 entries', 'Average per entry', '฿75']);
+    expect(flex.altText).toBe('For 1-19 Oct 2026 matching "coffee": Expense ฿450 (6 entries)');
+    expect(flex.contents.footer.contents[0].action.label).toBe('See entries on web');
+  });
+
+  it('translates default category and wallet names on the chips', () => {
+    const flex = buildTotalsFlex({ ...BASE, type: 'income', category: 'เงินเดือน', wallet: 'เงินสด' }, INCOME_ROWS, { lang: 'en' });
+
+    expect(texts(flex.contents.header)[1]).toBe('Received ฿25,000');
+    expect(texts(flex.contents.body.contents[0])).toEqual(['Salary', 'Wallet: Cash']);
+    expect(texts(flex.contents.body).slice(-4)).toEqual(['Entries', '1 entry', 'Average per entry', '฿25,000']);
+  });
+
+  it('compares both types and says what is left or over in English', () => {
+    const flex = buildTotalsFlex({ ...BASE, type: 'both' }, [...EXPENSE_ROWS, ...INCOME_ROWS], { lang: 'en' });
+    const over = buildTotalsFlex({ ...BASE, type: 'both' }, [{ type: 'income', total: 100, entryCount: 1 }, ...EXPENSE_ROWS], { lang: 'en' });
+
+    expect(texts(flex.contents.header)[1]).toBe('Left ฿24,550');
+    expect(texts(flex.contents.body).slice(-4)).toEqual(['Income · 1 entry', '25,000', 'Expense · 6 entries', '450']);
+    expect(texts(over.contents.header)[1]).toBe('Over ฿350');
+    expect(texts(buildTotalsFlex(BASE, [], { lang: 'en' }).contents.body).slice(-2)).toEqual(['Entries', 'No entries']);
+  });
+
+  it.each(['th', 'en'])('caps the longest totals altText in %s', (lang) => {
+    const long = buildTotalsFlex({ ...BASE, type: 'both', category: 'ค'.repeat(200), wallet: 'w'.repeat(200), keyword: 'k'.repeat(500) }, EXPENSE_ROWS, { lang });
+
+    expect(long.altText).toHaveLength(400);
+  });
+});

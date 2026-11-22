@@ -1337,3 +1337,105 @@ describe('LIFF bills tab', () => {
     expect(document.querySelector('#bill-form-members input[type="checkbox"]').checked).toBe(true);
   });
 });
+
+describe('LIFF bills page in English', () => {
+  afterEach(() => localStorage.clear());
+  const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };
+  const texts = (selector) => [...document.querySelectorAll(selector)].map((el) => el.textContent);
+  const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
+  const ownedCard = () => document.querySelector('#bills-owned .bill-card');
+
+  async function openBillsEnglish(route = () => undefined) {
+    localStorage.setItem('lang', 'en');
+    const liff = await boot({ search: '?tab=bills', holdInit: true });
+    const calls = routeFetch((method, path) => route(method, path) ?? (method === 'GET' && path === '/api/settings' ? ENGLISH_SETTINGS : undefined));
+    liff.releaseInit();
+    await settle();
+    return calls;
+  }
+
+  it('shows the page, the switch and the incoming card in English', async () => {
+    await openBillsEnglish();
+
+    expect(byId('page-title').textContent).toBe('Split bills');
+    expect(byId('bills-home').textContent.trim()).toBe('Home');
+    expect(document.querySelector('.bills-hero-title').textContent).toBe('Splitting bills made easy');
+    expect(byId('bill-new').textContent).toBe('New bill');
+    expect(byId('bills-show-incoming').textContent).toBe('From friends1');
+    expect(byId('bills-show-incoming').getAttribute('aria-label')).toBe('From friends, 1 waiting for your answer');
+    expect(byId('bills-show-owned').textContent).toBe('Mine');
+    expect(byId('bills-incoming-title').textContent).toBe('Bills from friends');
+    expect(incomingCard().querySelector('.bill-summary').textContent).toBe('ดี · Waiting for you');
+    expect(incomingCard().querySelector('.bill-cal').textContent).toBe('Oct7');
+    expect(incomingCard().querySelector('.bill-amount').textContent).toBe('฿200');
+    expect(incomingCard().querySelector('.bill-meta').textContent).toBe('Food · Total ฿600');
+    expect(incomingCard().querySelector('.bill-confirm').textContent).toBe('Confirm');
+    expect(incomingCard().querySelector('.bill-confirm').getAttribute('aria-label')).toBe('Confirm bill ชาบู');
+    expect(incomingCard().querySelector('.bill-decline').textContent).toBe('Decline');
+  });
+
+  it('shows my bill with its members in English', async () => {
+    await openBillsEnglish();
+    byId('bills-show-owned').click();
+
+    expect(byId('bills-owned-title').textContent).toBe('Bills I created');
+    expect(ownedCard().querySelector('.bill-summary').textContent).toBe('Owed to you · 0/2 paid back');
+    expect(ownedCard().querySelector('.bill-meta').textContent).toBe('Food · Total ฿900');
+    expect(texts('#bills-owned .bill-member-status')).toEqual(['Confirmed', 'Waiting']);
+    expect(texts('#bills-owned .bill-member-paid')).toEqual(['Paid back', 'Paid back']);
+    expect(ownedCard().querySelector('.bill-member-paid input').getAttribute('aria-label')).toBe('บี paid back');
+    expect(ownedCard().querySelector('.bill-member-note').textContent).toBe("Couldn't notify them. Send them the bill link instead.");
+    expect(ownedCard().querySelector('.bill-cancel').textContent).toBe('Cancel bill');
+    expect(ownedCard().querySelector('.bill-share-link').textContent).toBe('Send bill link');
+  });
+
+  it('asks before cancelling and confirms an incoming bill in English', async () => {
+    await openBillsEnglish((method, path) => (path === '/api/bills/b-in/confirm' ? { status: 'confirmed' } : undefined));
+    byId('bills-show-owned').click();
+
+    ownedCard().querySelector('.bill-cancel').click();
+    expect(byId('bill-dialog-title').textContent).toBe('Cancel bill');
+    expect(byId('bill-dialog-text').textContent).toBe(
+      "Cancel เนื้อย่าง? Friends who haven't answered won't be able to confirm, and I'll delete your own share from your expenses. Shares already confirmed stay."
+    );
+    expect(byId('bill-dialog-ok').textContent).toBe('Cancel bill');
+    expect(byId('bill-dialog-cancel').textContent).toBe('Go back');
+    byId('bill-dialog-cancel').click();
+
+    byId('bills-show-incoming').click();
+    incomingCard().querySelector('.bill-confirm').click();
+    await settle();
+
+    expect(byId('bills-status').textContent).toBe('Confirmed. I logged it as your expense.');
+  });
+
+  it('shows the bill form and its checks in English', async () => {
+    await openBillsEnglish();
+    byId('bill-new').click();
+    await settle();
+
+    expect(byId('bill-form-heading').textContent).toBe('New bill');
+    expect(byId('bill-form-title').closest('label').querySelector('span').textContent).toBe('Bill name');
+    expect(byId('bill-form-title').getAttribute('placeholder')).toBe('e.g. BBQ night');
+    expect(byId('bill-form-total').closest('label').querySelector('span').textContent).toBe('Total (baht)');
+    expect(byId('bill-form-receipt-button').textContent).toBe('Read the total from a receipt photo');
+    expect(document.querySelector('.bill-form-split legend').textContent).toBe('Split with friends');
+    expect(byId('bill-form-category').selectedOptions[0].textContent).toBe('Food');
+    expect(document.querySelector('#bill-form-members input[type="number"]').getAttribute('aria-label')).toBe("บี's share (baht)");
+    expect(byId('bill-form-even').textContent).toBe('Split evenly');
+    expect(byId('bill-form-submit').textContent).toBe('Split bill');
+
+    byId('bill-form-title').value = 'BBQ';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    expect(byId('bill-form-error').textContent).toBe('Pick at least 1 friend');
+
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+    const share = document.querySelector('#bill-form-members input[type="number"]');
+    share.value = '600';
+    share.dispatchEvent(new Event('input'));
+    expect(byId('bill-form-error').textContent).toBe('The shares are ฿100 over the bill total');
+  });
+});

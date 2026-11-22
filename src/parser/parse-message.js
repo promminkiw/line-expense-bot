@@ -1,11 +1,28 @@
-const { TEXT_CATEGORIES, normalizeCategory } = require('./categories');
+const {
+  TEXT_CATEGORIES,
+  FALLBACK_CATEGORY,
+  normalizeCategory,
+  displayCategoryName,
+  categoryNameFromDisplay,
+} = require('./categories');
+const { displayWalletName, walletNameFromDisplay } = require('../wallets/wallets');
 const { toBangkokDateString, isValidCalendarDate } = require('../utils/date');
 const { withLowEffort } = require('../utils/claude-effort');
-const { PERSONA_PROMPT } = require('../persona');
+const { personaPrompt } = require('../persona');
 const { evaluateAmountExpression } = require('./amount-expression');
+const { t } = require('../i18n');
 
-const DEFAULT_CLARIFY_QUESTION = 'บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"';
-const AMOUNT_TOO_LARGE_QUESTION = 'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)';
+function defaultClarifyQuestion(lang) {
+  return t(lang, 'parser.clarifyDefault');
+}
+
+function amountTooLargeQuestion(lang) {
+  return t(lang, 'parser.amountTooLarge');
+}
+
+// ค่าไทยคงไว้ให้ผู้เรียกที่ยังไม่ส่งภาษา
+const DEFAULT_CLARIFY_QUESTION = defaultClarifyQuestion('th');
+const AMOUNT_TOO_LARGE_QUESTION = amountTooLargeQuestion('th');
 // reply token ของ LINE หมดอายุเร็ว จึงต้องจำกัดเวลารอ Claude ให้ทันตอบข้อความ fallback
 const REQUEST_TIMEOUT_MS = 20000;
 const MAX_RETRIES = 1;
@@ -75,17 +92,81 @@ class ParseError extends Error {
   }
 }
 
-function buildSystemPrompt(today, categories, wallets = []) {
+const FOOD_CATEGORY = 'อาหาร';
+
+// ส่วนของ prompt ที่ต่างตามภาษา ค่า th ต้องคงเดิมทุกตัวอักษร เพราะ prompt ไทยจูนกับ nlu-eval ไว้แล้ว
+const PROMPT_COPY = {
+  th: {
+    intro: 'You extract income and expense entries from a Thai user message for a personal finance bot.',
+    languageRule: null,
+    walletExample: '"รูดบัตร" or "บัตรเครดิต"',
+    walletCategoryExample: `"กาแฟ 60 รูดบัตรเครดิต" is ${FOOD_CATEGORY}`,
+    note: '- note is a short Thai description taken from the message, e.g. "กินข้าว".',
+    clarify:
+      '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
+    intent:
+      '- intent says what the user wants: "record" to record entries; "question" to ask the total of past entries, e.g. "ยอดเดือนนี้", "เดือนนี้ใช้เงินไปเยอะไหม"; "summary" to ask for a summary or report, e.g. "สรุปหน่อย", "ดูสรุป", "สรุปเดือนที่แล้ว", "รายงาน"; "help" to ask how to use the bot, e.g. "ใช้ยังไง", "ช่วยด้วย", "help"; "saving" to put money into a saving goal, e.g. "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500"; "greeting" for greetings, thanks or small talk, e.g. "สวัสดี", "ขอบคุณ", "555"; "unsupported" for any other request the bot cannot do in chat.',
+  },
+  en: {
+    intro: 'You extract income and expense entries from a user message for a personal finance bot.',
+    languageRule: 'The message may be in Thai or English. Write note and question in English.',
+    walletExample: '"credit card" or "รูดบัตร"',
+    walletCategoryExample: `"coffee 60 on credit card" is ${displayCategoryName('en', 'expense', FOOD_CATEGORY)}`,
+    note: '- note is a short English description taken from the message, e.g. "lunch".',
+    clarify:
+      '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short English question in question.',
+    intent:
+      '- intent says what the user wants: "record" to record entries; "question" to ask the total of past entries, e.g. "how much did I spend this month", "ยอดเดือนนี้"; "summary" to ask for a summary or report, e.g. "summary", "show the report for last month", "สรุปหน่อย"; "help" to ask how to use the bot, e.g. "how do I use this", "help", "ใช้ยังไง"; "saving" to put money into a saving goal, e.g. "save 500 to Japan trip", "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500"; "greeting" for greetings, thanks or small talk, e.g. "hi", "thanks", "สวัสดี", "555"; "unsupported" for any other request the bot cannot do in chat.',
+  },
+};
+
+function promptCopy(lang) {
+  return lang === 'en' ? PROMPT_COPY.en : PROMPT_COPY.th;
+}
+
+// รายชื่อที่ส่งให้ Claude เป็นชื่อแสดงของภาษานั้น ผู้ใช้ไทยได้ object เดิมเพื่อใช้ PARSE_SCHEMA ที่สร้างไว้ได้
+function displayCategories(lang, categories) {
+  if (lang !== 'en') return categories;
+  const pick = (type) => categories[type].map((name) => displayCategoryName(lang, type, name));
+  return { expense: pick('expense'), income: pick('income') };
+}
+
+function displayWallets(lang, wallets) {
+  return lang === 'en' ? wallets.map((name) => displayWalletName(lang, name)) : wallets;
+}
+
+function asOwnedCategories(categories) {
+  return ['expense', 'income'].flatMap((type) => categories[type].map((name) => ({ type, name })));
+}
+
+// คำตอบของ Claude เป็นชื่อแสดง ต้องแปลงกลับเป็นชื่อใน DB ก่อน normalizeCategory และหา wallet_id
+function itemsFromDisplay(data, lang, categories, wallets) {
+  if (lang !== 'en') return data;
+  const owned = asOwnedCategories(categories);
+  return {
+    ...data,
+    items: data.items.map((item) => ({
+      ...item,
+      category: typeof item.category === 'string' ? categoryNameFromDisplay(lang, item.type, item.category, owned) : item.category,
+      ...(typeof item.wallet === 'string' ? { wallet: walletNameFromDisplay(lang, item.wallet, wallets) } : {}),
+    })),
+  };
+}
+
+function buildSystemPrompt(today, categories, wallets = [], lang = 'th') {
+  const copy = promptCopy(lang);
+  const shownCategories = displayCategories(lang, categories);
   const walletRules =
     wallets.length > 0
       ? [
-          `- Wallets: ${wallets.join(', ')}`,
-          '- wallet is the wallet from the list that the user paid with or received money into, only when the message names it, e.g. "รูดบัตร" or "บัตรเครดิต". Otherwise "".',
-          '- Wallet words never change the category. Pick the category from what was bought or received, e.g. "กาแฟ 60 รูดบัตรเครดิต" is อาหาร.',
+          `- Wallets: ${displayWallets(lang, wallets).join(', ')}`,
+          `- wallet is the wallet from the list that the user paid with or received money into, only when the message names it, e.g. ${copy.walletExample}. Otherwise "".`,
+          `- Wallet words never change the category. Pick the category from what was bought or received, e.g. ${copy.walletCategoryExample}.`,
         ]
       : [];
   return [
-    'You extract income and expense entries from a Thai user message for a personal finance bot.',
+    copy.intro,
+    ...(copy.languageRule ? [copy.languageRule] : []),
     `Today is ${today} (Asia/Bangkok).`,
     '',
     'Rules:',
@@ -95,16 +176,16 @@ function buildSystemPrompt(today, categories, wallets = []) {
     '- Several items each with its own amount are separate entries, e.g. "กินข้าว 40+น้ำ 10+ขนม 20" is three entries. Never add amounts of different items together.',
     '- When one item is followed by several amounts joined with "+" and no item names between them, e.g. "กินข้าว 40+10+20", set needs_clarification to true and ask whether to record one total or separate entries.',
     '- date is YYYY-MM-DD. Resolve relative words such as "เมื่อวาน" or "เมื่อวานซืน" from today. Use today when no date is given.',
-    '- note is a short Thai description taken from the message, e.g. "กินข้าว".',
-    `- Expense categories: ${categories.expense.join(', ')}`,
-    `- Income categories: ${categories.income.join(', ')}`,
-    '- Pick the category from the list that matches the item type. Use "อื่นๆ" when nothing fits.',
+    copy.note,
+    `- Expense categories: ${shownCategories.expense.join(', ')}`,
+    `- Income categories: ${shownCategories.income.join(', ')}`,
+    `- Pick the category from the list that matches the item type. Use "${displayCategoryName(lang, 'expense', FALLBACK_CATEGORY)}" when nothing fits.`,
     ...walletRules,
-    '- If any entry has no amount, or you cannot tell what it is, set needs_clarification to true, items to [], and write one short Thai question in question.',
-    `- ${PERSONA_PROMPT}`,
+    copy.clarify,
+    `- ${personaPrompt(lang)}`,
     '- Never ask about the date in question. A missing date always means today.',
     '- Earlier turns are context only. Return entries from the latest user message; use earlier turns only to complete an entry the assistant asked about.',
-    '- intent says what the user wants: "record" to record entries; "question" to ask the total of past entries, e.g. "ยอดเดือนนี้", "เดือนนี้ใช้เงินไปเยอะไหม"; "summary" to ask for a summary or report, e.g. "สรุปหน่อย", "ดูสรุป", "สรุปเดือนที่แล้ว", "รายงาน"; "help" to ask how to use the bot, e.g. "ใช้ยังไง", "ช่วยด้วย", "help"; "saving" to put money into a saving goal, e.g. "เก็บเงินเข้าเป้า เที่ยวญี่ปุ่น 500"; "greeting" for greetings, thanks or small talk, e.g. "สวัสดี", "ขอบคุณ", "555"; "unsupported" for any other request the bot cannot do in chat.',
+    copy.intent,
     '- A message that names an item and an amount is "record" even when it has a question word, e.g. "ข้าวมันไก่ 50 แพงเท่าไหร่". A message that names only an item or only an amount, e.g. "ข้าว" or "60", is "record" and needs clarification.',
     '- When the latest message answers a question the assistant asked, intent is "record".',
     '- "ออมสิน" is a bank name; "ออมสิน 1000" or paying at ออมสิน is "record", not "saving". "ออมสิน 1000" is a complete expense entry and needs no clarification.',
@@ -143,13 +224,13 @@ function normalizeItem(item, today, categories, wallets) {
   return normalized;
 }
 
-function toParseResult(data, today, categories, wallets = []) {
+function toParseResult(data, today, categories, wallets = [], lang = 'th') {
   if (data.needs_clarification === true) {
-    return { status: 'clarify', question: data.question || DEFAULT_CLARIFY_QUESTION };
+    return { status: 'clarify', question: data.question || defaultClarifyQuestion(lang) };
   }
 
   if (data.items.some((item) => Number.isFinite(item.amount) && item.amount > MAX_AMOUNT)) {
-    return { status: 'clarify', question: AMOUNT_TOO_LARGE_QUESTION };
+    return { status: 'clarify', question: amountTooLargeQuestion(lang) };
   }
 
   const hasInvalidAmount = data.items.some(
@@ -160,7 +241,7 @@ function toParseResult(data, today, categories, wallets = []) {
       Math.round(item.amount * 100) === 0
   );
   if (data.items.length === 0 || hasInvalidAmount) {
-    return { status: 'clarify', question: DEFAULT_CLARIFY_QUESTION };
+    return { status: 'clarify', question: defaultClarifyQuestion(lang) };
   }
 
   return { status: 'ok', items: data.items.map((item) => normalizeItem(item, today, categories, wallets)) };
@@ -221,11 +302,13 @@ function resolveAmountExpressions(data) {
 }
 
 function createMessageParser({ client, model, now = () => new Date() }) {
-  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = []) {
+  return async function parseMessage(text, history = [], categories = TEXT_CATEGORIES, wallets = [], lang = 'th') {
     const today = toBangkokDateString(now());
     // ใช้ schema ที่สร้างไว้แล้วเมื่อเป็นหมวดเริ่มต้นและไม่มีกระเป๋า ไม่ต้องสร้างใหม่ทุกข้อความ
     const schema =
-      categories === TEXT_CATEGORIES && wallets.length === 0 ? PARSE_SCHEMA : buildParseSchema(categories, wallets);
+      categories === TEXT_CATEGORIES && wallets.length === 0 && lang !== 'en'
+        ? PARSE_SCHEMA
+        : buildParseSchema(displayCategories(lang, categories), displayWallets(lang, wallets));
     const messages = [
       ...history.map((turn) => ({ role: turn.role, content: turn.text })),
       { role: 'user', content: text },
@@ -235,7 +318,7 @@ function createMessageParser({ client, model, now = () => new Date() }) {
         model,
         // เผื่อที่ให้การคิดของ Haiku 5.5 ซึ่งนับรวมใน max_tokens
         max_tokens: 2048,
-        system: buildSystemPrompt(today, categories, wallets),
+        system: buildSystemPrompt(today, categories, wallets, lang),
         messages,
         output_config: withLowEffort(model, { format: { type: 'json_schema', schema } }),
       },
@@ -270,7 +353,7 @@ function createMessageParser({ client, model, now = () => new Date() }) {
     if (intentResult) {
       return intentResult;
     }
-    return toParseResult(resolveAmountExpressions(data), today, categories, wallets);
+    return toParseResult(resolveAmountExpressions(itemsFromDisplay(data, lang, categories, wallets)), today, categories, wallets, lang);
   };
 }
 
@@ -281,6 +364,8 @@ module.exports = {
   buildParseSchema,
   DEFAULT_CLARIFY_QUESTION,
   AMOUNT_TOO_LARGE_QUESTION,
+  defaultClarifyQuestion,
+  amountTooLargeQuestion,
   MAX_AMOUNT,
   REQUEST_TIMEOUT_MS,
   MAX_RETRIES,

@@ -1,14 +1,11 @@
-import { barGeometry, formatNumber } from './budgets-format.mjs';
+import { barGeometry, budgetCategoryName, formatNumber } from './budgets-format.mjs';
 import { BUDGET_STEP, parseBudgetAmount, previewBudget, quickChips, stepBudget } from './budget-edit.mjs';
-import { describeBudgetFailure, formatMonthLabel } from '../format.mjs';
+import { describeBudgetFailure, formatBaht, formatMonthLabel } from '../format.mjs';
 import { revealError } from '../ui/reveal.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
 
 const PREVIEW_H100 = 80;
-const GENERIC_FAILURE_TITLE = 'บันทึกงบไม่สำเร็จ';
-const INVALID_TITLE = 'จำนวนเงินไม่ถูกต้อง';
-const SAVE_LABEL = 'บันทึก';
-const NEW_LABEL = 'ตั้งงบ';
-const RETRY_LABEL = 'ลองบันทึกอีกครั้ง';
 
 function node(doc, tag, className, text) {
   const el = doc.createElement(tag);
@@ -22,7 +19,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
   let month = null;
   let busy = false;
 
-  const idleLabel = () => (row && row.budget === null ? NEW_LABEL : SAVE_LABEL);
+  const idleLabel = () => t(getLang(), row && row.budget === null ? 'web.budgets.set' : 'web.common.save');
 
   function side(target, caption, data, emptyText) {
     target.replaceChildren();
@@ -57,10 +54,16 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
   }
 
   function sync() {
+    const lang = getLang();
     const amount = currentAmount();
-    const preview = previewBudget(row, amount);
-    side(els.previewBefore, 'ตอนนี้', preview.before, 'ไม่มีงบ');
-    side(els.previewAfter, amount === null ? '' : `ถ้างบ ${formatNumber(amount)}`, preview.after, 'ใส่จำนวนเงิน');
+    const preview = previewBudget(row, amount, lang);
+    side(els.previewBefore, t(lang, 'web.budgets.sheet.now'), preview.before, t(lang, 'web.budgets.group.unset'));
+    side(
+      els.previewAfter,
+      amount === null ? '' : t(lang, 'web.budgets.sheet.ifBudget', { amount: formatNumber(amount) }),
+      preview.after,
+      t(lang, 'web.budgets.sheet.enterAmount'),
+    );
     els.minus.disabled = busy || amount === null || stepBudget(amount, -1) === amount;
     els.plus.disabled = busy;
   }
@@ -81,7 +84,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
     els.errorText.textContent = text;
     els.error.hidden = false;
     els.amount.setAttribute('aria-invalid', 'true');
-    els.submit.textContent = RETRY_LABEL;
+    els.submit.textContent = t(getLang(), 'web.budgets.sheet.retry');
     revealError(els.error);
   }
 
@@ -93,7 +96,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
 
   function renderChips() {
     els.chips.replaceChildren();
-    for (const chip of quickChips(row)) {
+    for (const chip of quickChips(row, getLang())) {
       const button = node(doc, 'button');
       button.type = 'button';
       // เว้นวรรคหลังป้ายเพื่อให้ screen reader อ่านแยกจากตัวเลข
@@ -119,32 +122,34 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
       await onSaved({ row });
       return;
     }
+    const lang = getLang();
     if (amount === null) {
-      showError('เลิกตั้งงบไม่สำเร็จ', describeBudgetFailure(result.status));
+      showError(t(lang, 'web.budgets.sheet.removeFailedTitle'), describeBudgetFailure(result.status, lang));
       // ปุ่มหลักยังเป็นบันทึกค่าในช่อง ไม่ใช่ลองเลิกตั้งงบซ้ำ จึงไม่เปลี่ยนเป็น "ลองบันทึกอีกครั้ง"
       els.submit.textContent = idleLabel();
       return;
     }
     const generic = ![400, 401, 404].includes(result.status);
     const text = generic
-      ? `ตัวเลข ${formatNumber(amount)} ยังอยู่ในช่อง ลองบันทึกอีกครั้งได้เลย`
-      : describeBudgetFailure(result.status);
-    showError(GENERIC_FAILURE_TITLE, text);
+      ? t(lang, 'web.budgets.sheet.keptAmount', { amount: formatNumber(amount) })
+      : describeBudgetFailure(result.status, lang);
+    showError(t(lang, 'web.budgets.sheet.saveFailedTitle'), text);
   }
 
   function open(nextRow) {
     row = nextRow;
     month = getMonth();
+    const lang = getLang();
     const isNew = row.budget === null;
-    els.title.textContent = isNew ? `ตั้งงบ ${row.category}` : row.category;
+    const name = budgetCategoryName(row.category, lang);
+    const spent = formatBaht(row.spent, lang);
+    els.title.textContent = isNew ? t(lang, 'web.budgets.setFor', { name }) : name;
     els.sub.textContent = isNew
-      ? `ยังไม่เคยตั้งงบ · ใช้ไปเดือนนี้ ${formatNumber(row.spent)} บาท`
-      : `ใช้ไปเดือนนี้ ${formatNumber(row.spent)} บาท · งบเดิม ${formatNumber(row.budget)}`;
+      ? t(lang, 'web.budgets.sheet.subNew', { spent })
+      : t(lang, 'web.budgets.sheet.sub', { spent, budget: formatNumber(row.budget) });
     els.badge.replaceChildren(badgeFor(row.category, 'expense'));
     const label = formatMonthLabel(month);
-    els.scope.textContent = isNew
-      ? `มีผลตั้งแต่เดือน ${label} เป็นต้นไป · เฮียจะเตือนเมื่อใช้ถึง 80%`
-      : `มีผลตั้งแต่เดือน ${label} เป็นต้นไป`;
+    els.scope.textContent = t(lang, isNew ? 'web.budgets.sheet.scopeNew' : 'web.budgets.sheet.scope', { month: label });
     els.remove.hidden = isNew;
     els.busy.hidden = true;
     els.error.hidden = true;
@@ -165,7 +170,7 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
     event.preventDefault();
     const amount = currentAmount();
     if (amount === null) {
-      showError(INVALID_TITLE, describeBudgetFailure(400));
+      showError(t(getLang(), 'web.budgets.sheet.invalidTitle'), describeBudgetFailure(400));
       return;
     }
     void run(amount);
@@ -178,10 +183,11 @@ export function createBudgetSheet({ doc, els, badgeFor, getMonth, onSubmit, onSa
   els.minus.addEventListener('click', () => setAmount(stepBudget(currentAmount(), -1, BUDGET_STEP)));
   els.close.addEventListener('click', () => els.dialog.close());
   els.remove.addEventListener('click', () => {
-    els.confirmTitle.textContent = `เลิกตั้งงบ ${row.category} ใช่ไหม`;
+    const lang = getLang();
+    els.confirmTitle.textContent = t(lang, 'web.budgets.confirm.titleFor', { name: budgetCategoryName(row.category, lang) });
     els.confirmBody.replaceChildren(
-      node(doc, 'p', '', `งบ ${formatNumber(row.budget)} บาท จะถูกลบตั้งแต่เดือน ${formatMonthLabel(month)} เป็นต้นไป`),
-      node(doc, 'p', '', 'เดือนก่อนหน้าไม่เปลี่ยน และรายการที่จดไว้ไม่หาย เฮียจะไม่เตือนหมวดนี้อีก'),
+      node(doc, 'p', '', t(lang, 'web.budgets.confirm.removed', { amount: formatBaht(row.budget, lang), month: formatMonthLabel(month) })),
+      node(doc, 'p', '', t(lang, 'web.budgets.confirm.kept')),
     );
     els.confirm.showModal();
   });

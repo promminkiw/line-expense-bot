@@ -28,21 +28,22 @@ function createNotificationsRepository(supabase) {
     throwIfError('disableNotifications', error);
   }
 
+  // อ่าน language มาพร้อมรายชื่อ ให้ push ตามภาษาของแต่ละคนโดยไม่ต้อง query เพิ่ม
   async function listWeeklySummaryUsers() {
     const { data, error } = await supabase
       .from('users')
-      .select('id, line_user_id')
+      .select('id, line_user_id, language')
       .eq('weekly_summary_enabled', true)
       .order('id');
     throwIfError('listWeeklySummaryUsers', error);
-    return data.map((row) => ({ userId: row.id, lineUserId: row.line_user_id }));
+    return data.map((row) => ({ userId: row.id, lineUserId: row.line_user_id, language: row.language }));
   }
 
   // สรุปรายเดือนไม่มีสวิตช์ในหน้าเว็บ คอลัมน์นี้ปิดเฉพาะตอน unfollow
   async function listMonthlySummaryUsers() {
-    const { data, error } = await supabase.from('users').select('id, line_user_id').eq('monthly_summary_enabled', true).order('id');
+    const { data, error } = await supabase.from('users').select('id, line_user_id, language').eq('monthly_summary_enabled', true).order('id');
     throwIfError('listMonthlySummaryUsers', error);
-    return data.map((row) => ({ userId: row.id, lineUserId: row.line_user_id }));
+    return data.map((row) => ({ userId: row.id, lineUserId: row.line_user_id, language: row.language }));
   }
 
   // กลับมา follow แล้วส่งสรุปรายเดือนต่อได้เอง เพราะผู้ใช้ไม่มีสวิตช์ให้เปิด

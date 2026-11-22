@@ -167,3 +167,16 @@ describe('applyResults', () => {
     expect(next.find((entry) => entry.categoryId === 'fun').original).toBe(500);
   });
 });
+
+describe('bulk budget view in English', () => {
+  it('labels changed, new and unset entries in English', () => {
+    const draft = createDraft(BUDGETS);
+    const changed = stepDraft(draft, 'shop', 1).find((item) => item.categoryId === 'shop');
+    const fresh = stepDraft(draft, 'fun', 1).find((item) => item.categoryId === 'fun');
+    const unset = draft.find((item) => item.categoryId === 'fun');
+
+    expect(entryView(changed, 'en').wasText).toBe('was 3,000');
+    expect(entryView(fresh, 'en').wasText).toBe('New');
+    expect(entryView(unset, 'en').valueText).toBe('No budget');
+  });
+});

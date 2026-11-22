@@ -1,19 +1,20 @@
 const { validateBillInput } = require('./validate');
 const { buildBillRequestFlex } = require('./flex');
 const { FALLBACK_DISPLAY_NAME } = require('../friends/service');
-const { FALLBACK_CATEGORY, shareableCategoryName } = require('../parser/categories');
+const { FALLBACK_CATEGORY, shareableCategoryName, displayCategoryName } = require('../parser/categories');
 const { categoryKey } = require('../db/transaction-rows');
-const { formatAmount } = require('../parser/format-reply');
+const { t, formatAmount, normalizeLanguage } = require('../i18n');
 
 // ข้อความที่ส่งเข้าแชตเมื่อตอบบิลในเว็บ เพราะการ์ดบิลเดิมในแชตแก้ไม่ได้
-function buildWebAnswerText(result) {
+function buildWebAnswerText(result, lang) {
   if (result.status === 'confirmed') {
-    return `ยืนยันบิล ${result.title} ในเว็บแล้ว เฮียบันทึกส่วนของคุณ ${formatAmount(result.share)} บาท ในหมวด ${result.categoryName} แล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
+    return t(lang, 'bill.push.webConfirmed', {
+      title: result.title,
+      amount: formatAmount(lang, result.share),
+      category: displayCategoryName(lang, 'expense', result.categoryName),
+    });
   }
-  if (result.status === 'declined') {
-    return `ปฏิเสธบิล ${result.title} ในเว็บแล้ว ไม่ต้องกดปุ่มในการ์ดบิลอีก`;
-  }
-  return null;
+  return t(lang, 'bill.push.webDeclined', { title: result.title });
 }
 
 function createBillService({ repository, users, pushFlex, pushText, liffUrl, logger = console }) {
@@ -35,16 +36,19 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     const notified = await Promise.all(
       bill.members.map(async (member) => {
         try {
+          // เจ้าของกับเพื่อนอาจใช้คนละภาษา การ์ดจึงตามภาษาของเพื่อนแต่ละคน
+          const memberLang = normalizeLanguage(lineIds.get(member.userId)?.language);
           const flex = buildBillRequestFlex({
             billId,
             title: bill.title,
-            ownerName: ownerName || FALLBACK_DISPLAY_NAME,
+            ownerName: ownerName || t(memberLang, 'bill.fallbackName'),
             share: member.share,
             occurredOn: bill.occurredOn,
             categoryName,
             liffUrl,
+            lang: memberLang,
           });
-          await pushFlex(lineIds.get(member.userId), flex);
+          await pushFlex(lineIds.get(member.userId)?.lineUserId, flex);
         } catch (err) {
           logger.error('Failed to push bill request', { billId, memberId: member.userId }, err);
           return false;
@@ -134,12 +138,12 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
   }
 
   async function pushWebAnswer(userId, billId, result) {
-    const text = buildWebAnswerText(result);
-    if (!text) return;
+    // สถานะอื่นไม่มีอะไรเปลี่ยน จึงไม่ต้องอ่านผู้รับให้เสีย query
+    if (result.status !== 'confirmed' && result.status !== 'declined') return;
     // บันทึกคำตอบแล้ว ส่งข้อความไม่ถึงต้องไม่ทำให้เว็บขึ้นว่าไม่สำเร็จ
     try {
-      const lineId = (await repository.getLineUserIds([userId])).get(userId);
-      if (lineId) await pushText(lineId, text);
+      const recipient = (await repository.getLineUserIds([userId])).get(userId);
+      if (recipient?.lineUserId) await pushText(recipient.lineUserId, buildWebAnswerText(result, normalizeLanguage(recipient.language)));
     } catch (err) {
       logger.error('Failed to push bill answer', { billId, userId }, err);
     }

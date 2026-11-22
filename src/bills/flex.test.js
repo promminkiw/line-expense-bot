@@ -46,3 +46,29 @@ describe('buildBillRequestFlex', () => {
     expect(buildBillRequestFlex({ ...ARGS, title: 'ก'.repeat(60), ownerName: 'ข'.repeat(400) }).altText.length).toBeLessThanOrEqual(400);
   });
 });
+
+describe('buildBillRequestFlex in English', () => {
+  const EN_ARGS = { ...ARGS, title: 'BBQ', ownerName: 'Pat', lang: 'en' };
+
+  it('writes the card in English with the date and default category translated', () => {
+    const flex = buildBillRequestFlex(EN_ARGS);
+
+    expect(flex.altText).toBe('Pat wants you to confirm a bill share BBQ ฿1,250.5');
+    expect(texts(flex.contents.header)).toEqual(['Pat wants you to confirm a bill share', 'BBQ']);
+    expect(texts(flex.contents.body)).toEqual(['8 Oct 2026 · Food', 'Your share', '฿1,250.5', "Once you confirm, I'll record it as your expense"]);
+  });
+
+  it('labels the buttons in English and keeps the postback data', () => {
+    const [row, link] = buildBillRequestFlex(EN_ARGS).contents.footer.contents;
+
+    expect(row.contents.map((node) => node.action)).toEqual([
+      { type: 'postback', label: 'Decline', data: `action=${BILL_DECLINE_ACTION}&bill=${ARGS.billId}`, displayText: 'Decline' },
+      { type: 'postback', label: 'Confirm', data: `action=${BILL_CONFIRM_ACTION}&bill=${ARGS.billId}`, displayText: 'Confirm' },
+    ]);
+    expect(link.action.label).toBe('View on web');
+  });
+
+  it.each(['th', 'en'])('caps the longest bill altText in %s', (lang) => {
+    expect(buildBillRequestFlex({ ...ARGS, lang, title: 'ก'.repeat(60), ownerName: 'ข'.repeat(400) }).altText.length).toBeLessThanOrEqual(400);
+  });
+});

@@ -1,11 +1,28 @@
 import { createSvgIcon } from './icons.mjs';
+import { t } from '../i18n/translate.mjs';
+import { getLang } from '../i18n/current.mjs';
+
+// label/title เป็น getter อ่านภาษาตอนใช้ ไม่ใช่ตอนโหลด module เพราะภาษาอาจเปลี่ยนหลังได้คำตอบจาก server
+function tab(id, icon, showMonth) {
+  return {
+    id,
+    icon,
+    showMonth,
+    get label() {
+      return t(getLang(), `web.nav.${id}`);
+    },
+    get title() {
+      return t(getLang(), `web.title.${id}`);
+    },
+  };
+}
 
 export const TABS = [
-  { id: 'list', label: 'รายการ', title: 'รายการของฉัน', icon: 'tab-list', showMonth: true },
-  { id: 'summary', label: 'สรุป', title: 'สรุปรายเดือน', icon: 'tab-chart', showMonth: true },
-  { id: 'budgets', label: 'งบ', title: 'จัดการงบประมาณ', icon: 'tab-budget', showMonth: true },
-  { id: 'goals', label: 'ออม', title: 'เป้าหมายการออม', icon: 'tab-goal', showMonth: false },
-  { id: 'profile', label: 'ฉัน', title: 'ฉัน', icon: 'tab-user', showMonth: false },
+  tab('list', 'tab-list', true),
+  tab('summary', 'tab-chart', true),
+  tab('budgets', 'tab-budget', true),
+  tab('goals', 'tab-goal', false),
+  tab('profile', 'tab-user', false),
 ];
 
 export const DEFAULT_TAB = 'list';
@@ -57,8 +74,17 @@ export function createTabController({ doc, nav, titleEl, monthEl, panelFor, onCh
     if (button) select(button.dataset.tab);
   });
 
+  // ใช้หลังเปลี่ยนภาษา หัวข้อเขียนเฉพาะเมื่ออยู่ที่แท็บ ผู้เรียกที่เปิดหน้าย่อยอยู่ต้องตั้งหัวข้อของหน้านั้นเอง
+  function relabel() {
+    for (const button of nav.querySelectorAll('button[data-tab]')) {
+      button.querySelector('span').textContent = findTab(button.dataset.tab).label;
+    }
+    if (current) titleEl.textContent = findTab(current).title;
+  }
+
   return {
     select,
+    relabel,
     get current() {
       return current;
     },

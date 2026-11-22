@@ -3,7 +3,10 @@ import express from 'express';
 import { createExportRouter } from './router.js';
 import { createLinkToken, hashLinkToken } from './link-token.js';
 
-const EXPIRED = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง';
+// ส่งก่อนรู้ว่าเป็นใคร จึงมีทั้งสองภาษา ไทยขึ้นก่อน
+const EXPIRED = 'ลิงก์นี้หมดอายุหรือถูกใช้ไปแล้ว กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง / This link has expired or was already used. Go back and tap Export CSV on the web again';
+const FAILED = 'Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง / Export failed. Go back and tap Export CSV on the web again';
+const NOT_FOUND = 'ไม่พบหน้านี้ / Page not found';
 
 let server;
 
@@ -15,6 +18,7 @@ function setup(overrides = {}) {
         { id: 't1', type: 'expense', amount: 60, note: 'กินข้าว', occurredOn: '2026-09-29', categoryId: 'c-food' },
       ]),
       listCategories: vi.fn().mockResolvedValue([{ id: 'c-food', name: 'อาหาร', type: 'expense' }]),
+      getUserLanguage: vi.fn().mockResolvedValue(null),
     },
     now: () => new Date('2026-09-30T03:01:00.000Z'),
     logger: { error: vi.fn() },
@@ -57,6 +61,34 @@ describe('GET /exports/:token', () => {
     expect(deps.repository.listCategories).toHaveBeenCalledWith('user-1');
   });
 
+  // หัวคอลัมน์ตามภาษาของเจ้าของลิงก์ ไม่ใช่ภาษา browser เพราะเปิดนอก LINE
+  it('writes the CSV in the language of the user who made the link', async () => {
+    const deps = setup();
+    deps.repository.getUserLanguage.mockResolvedValue('en');
+    const base = await start(deps);
+    const { token } = createLinkToken();
+
+    const res = await fetch(`${base}/${token}`);
+
+    const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array(await res.arrayBuffer()));
+    expect(text).toBe('﻿Date,Type,Category,Amount,Note\r\n2026-09-29,Expense,Food,60.00,กินข้าว\r\n');
+    expect(deps.repository.getUserLanguage).toHaveBeenCalledWith('user-1');
+  });
+
+  // ลิงก์ถูกใช้ไปแล้วตอน claim ถ้าพังเพราะอ่านภาษาไม่ได้ ผู้ใช้จะเสียลิงก์ไปเปล่าๆ
+  it('falls back to Thai CSV when the language lookup fails', async () => {
+    const deps = setup();
+    deps.repository.getUserLanguage.mockRejectedValue(new Error('db down'));
+    const base = await start(deps);
+    const { token } = createLinkToken();
+
+    const res = await fetch(`${base}/${token}`);
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('วันที่,ประเภท,หมวด,จำนวนเงิน,โน้ต\r\n2026-09-29,รายจ่าย,อาหาร,60.00,กินข้าว\r\n');
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to read export language', { userId: 'user-1', reason: 'db down' });
+  });
+
   it('returns 410 for a malformed token without touching the database', async () => {
     const deps = setup();
     const base = await start(deps);
@@ -90,7 +122,7 @@ describe('GET /exports/:token', () => {
     const res = await fetch(`${base}/${createLinkToken().token}`);
 
     expect(res.status).toBe(500);
-    expect(await res.text()).toBe('Export ไม่สำเร็จ กลับไปกด Export CSV ในหน้าเว็บอีกครั้ง');
+    expect(await res.text()).toBe(FAILED);
     expect(deps.logger.error).toHaveBeenCalledWith('Export failed', error);
   });
 
@@ -163,7 +195,7 @@ describe('other paths under /exports', () => {
       expect(res.status).toBe(404);
       expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
       expect(res.headers.get('cache-control')).toBe('no-store');
-      expect(await res.text()).toBe('ไม่พบหน้านี้');
+      expect(await res.text()).toBe(NOT_FOUND);
       expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     }
   });

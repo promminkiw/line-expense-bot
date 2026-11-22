@@ -2,7 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { parseSavingCommand, hasOpenGoal, findOpenGoal, formatSavingReply, formatGoalNotFoundReply, formatGoalNameMissingReply, SAVING_AMOUNT_REPLY } = require('./chat.js');
+const {
+  parseSavingCommand,
+  hasOpenGoal,
+  findOpenGoal,
+  formatSavingReply,
+  formatGoalNotFoundReply,
+  formatGoalNameMissingReply,
+  SAVING_AMOUNT_REPLY,
+  savingAmountReply,
+  goalGoneReply,
+} = require('./chat.js');
 
 const GOALS = [
   { id: 'g-1', name: 'เที่ยวญี่ปุ่น', targetAmount: 50000, closed: false },
@@ -118,5 +128,51 @@ describe('formatGoalNameMissingReply', () => {
 describe('SAVING_AMOUNT_REPLY', () => {
   it('keeps the range and tells how to write the amount', () => {
     expect(SAVING_AMOUNT_REPLY).toBe('จำนวนเงินออมต้องมากกว่า 0 และไม่เกิน 10,000,000 บาท\nเขียนยอดแบบ 1,500 หรือ 60.50');
+  });
+});
+
+describe('English saving command', () => {
+  it.each([
+    ['save Japan Trip 1000', { name: 'Japan Trip', amount: 1000 }],
+    ['  Save เที่ยวญี่ปุ่น 1,500.50 บาท ', { name: 'เที่ยวญี่ปุ่น', amount: 1500.5 }],
+    ['SAVE trip 0', { name: 'trip', amount: null }],
+    ['save 1000', { name: '', amount: 1000 }],
+    ['save 1,000 บาท', { name: '', amount: 1000 }],
+  ])('reads %j', (text, expected) => {
+    expect(parseSavingCommand(text)).toEqual(expected);
+  });
+
+  // ต้องมีช่องว่างหลัง save ไม่งั้นข้อความอย่าง savings 500 จะกลายเป็นคำสั่งออม
+  it.each(['savings 500', 'saved 500', 'save', 'save trip', 'saveTrip 500'])('ignores %j', (text) => {
+    expect(parseSavingCommand(text)).toBeNull();
+  });
+
+  it('stays fast on long runs of spaces', () => {
+    const started = Date.now();
+    parseSavingCommand(`save ${' '.repeat(50000)}x`);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('saving replies in English', () => {
+  it('formats the saved reply in English', () => {
+    expect(formatSavingReply({ name: 'Trip', amount: 500, saved: 1000, target: 1000 }, 'en')).toBe(
+      'Saved ฿500 toward Trip.\nSaved so far: ฿1,000 / ฿1,000 (100%)\nGoal reached! You can close it in the Savings tab of the web app.'
+    );
+  });
+
+  it('lists the open goals with an English example', () => {
+    expect(formatGoalNotFoundReply('Condo', GOALS, 'en')).toBe(
+      'I can\'t find the goal "Condo".\nOpen goals: เที่ยวญี่ปุ่น, Japan Trip\nType something like: save เที่ยวญี่ปุ่น 1000'
+    );
+    expect(formatGoalNameMissingReply(GOALS, 'en')).toBe(
+      'Tell me the goal name too, like: save เที่ยวญี่ปุ่น 1000\nOpen goals: เที่ยวญี่ปุ่น, Japan Trip'
+    );
+  });
+
+  it('has English amount and goal-gone replies', () => {
+    expect(savingAmountReply('en')).toBe('The saving amount must be more than 0 and no more than ฿10,000,000.\nWrite it like 1,500 or 60.50.');
+    expect(goalGoneReply('th')).toBe('เฮียไม่พบเป้านี้แล้ว อาจถูกปิดไปแล้ว ดูเป้าที่เปิดอยู่ในหน้าเว็บ แท็บ ออม');
+    expect(goalGoneReply('en')).toBe("I can't find this goal anymore. It may have been closed. Check your open goals in the Savings tab of the web app.");
   });
 });

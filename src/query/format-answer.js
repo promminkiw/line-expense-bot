@@ -1,17 +1,18 @@
-const { formatAmount } = require('../parser/format-reply');
-const { TYPE_LABELS } = require('../utils/type-labels');
+const { typeLabel } = require('../utils/type-labels');
+const { displayCategoryName } = require('../parser/categories');
+const { displayWalletName } = require('../wallets/wallets');
+const { t, formatAmount, formatDate } = require('../i18n');
 
-const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
-function splitDate(isoDate) {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return { day, month: THAI_MONTHS[month - 1], year: year + 543 };
+// ใช้ formatDate ของชุดแปลเพื่อให้ชื่อเดือนและปี (พ.ศ./ค.ศ.) ตรงกับที่อื่น ชื่อเดือนย่อไม่มีช่องว่างจึงแยกด้วยช่องว่างได้
+function splitDate(lang, isoDate) {
+  const [day, month, year] = formatDate(lang, isoDate).split(' ');
+  return { day, month, year };
 }
 
-// ตัดเดือนและปีที่ซ้ำออก ให้อ่านง่ายเหมือนที่คนไทยเขียนช่วงวันที่
-function formatThaiRange(from, to) {
-  const start = splitDate(from);
-  const end = splitDate(to);
+// ตัดเดือนและปีที่ซ้ำออก ให้อ่านง่ายเหมือนที่คนเขียนช่วงวันที่
+function formatDateRange(lang, from, to) {
+  const start = splitDate(lang, from);
+  const end = splitDate(lang, to);
   const endText = `${end.day} ${end.month} ${end.year}`;
   if (from === to) return endText;
   if (start.year !== end.year) return `${start.day} ${start.month} ${start.year} - ${endText}`;
@@ -19,20 +20,32 @@ function formatThaiRange(from, to) {
   return `${start.day}-${endText}`;
 }
 
-function describeTotal(type, rows) {
+// คำถามแบบ both ไม่บอกชนิดของหมวด จึงลองแปลแบบรายจ่ายก่อนแล้วค่อยรายรับ
+function displayQuestionCategory(lang, question) {
+  if (question.type !== 'both') return displayCategoryName(lang, question.type, question.category);
+  const asExpense = displayCategoryName(lang, 'expense', question.category);
+  return asExpense !== question.category ? asExpense : displayCategoryName(lang, 'income', question.category);
+}
+
+function formatEntryCount(lang, count) {
+  if (count === 0) return t(lang, 'query.noEntries');
+  return t(lang, count === 1 ? 'query.entries.one' : 'query.entries.other', { count });
+}
+
+function describeTotal(type, rows, lang) {
   const row = rows.find((item) => item.type === type);
   const total = row ? row.total : 0;
   const count = row ? row.entryCount : 0;
-  return `${TYPE_LABELS[type]} ${formatAmount(total)} บาท (${count > 0 ? `${count} รายการ` : 'ไม่มีรายการ'})`;
+  return t(lang, 'query.answer.total', { type: typeLabel(lang, type), amount: formatAmount(lang, total), entries: formatEntryCount(lang, count) });
 }
 
-function formatTotalsAnswer(question, rows) {
-  const scope = [`ช่วง ${formatThaiRange(question.from, question.to)}`];
-  if (question.category) scope.push(`หมวด ${question.category}`);
-  if (question.wallet) scope.push(`กระเป๋า ${question.wallet}`);
-  if (question.keyword) scope.push(`คำว่า "${question.keyword}"`);
+function formatTotalsAnswer(question, rows, lang = 'th') {
+  const scope = [t(lang, 'query.answer.range', { range: formatDateRange(lang, question.from, question.to) })];
+  if (question.category) scope.push(t(lang, 'query.answer.category', { category: displayQuestionCategory(lang, question) }));
+  if (question.wallet) scope.push(t(lang, 'query.answer.wallet', { wallet: displayWalletName(lang, question.wallet) }));
+  if (question.keyword) scope.push(t(lang, 'query.answer.keyword', { keyword: question.keyword }));
   const types = question.type === 'both' ? ['income', 'expense'] : [question.type];
-  return `${scope.join(' ')}: ${types.map((type) => describeTotal(type, rows)).join(', ')}`;
+  return `${scope.join(' ')}: ${types.map((type) => describeTotal(type, rows, lang)).join(', ')}`;
 }
 
-module.exports = { formatThaiRange, formatTotalsAnswer };
+module.exports = { formatDateRange, formatTotalsAnswer, formatEntryCount, displayQuestionCategory };

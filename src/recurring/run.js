@@ -2,6 +2,7 @@ const { toBangkokDateString } = require('../utils/date');
 const { dueDateFor, isDue } = require('./schedule');
 const { formatItem } = require('../parser/format-reply');
 const { buildUndoQuickReply } = require('../chat/bot');
+const { t, normalizeLanguage } = require('../i18n');
 
 function createRecurringRunner({ repository, pushText, now = () => new Date(), logger = console }) {
   return async function run() {
@@ -28,18 +29,22 @@ function createRecurringRunner({ repository, pushText, now = () => new Date(), l
         continue;
       }
       result.created += 1;
+      const lang = normalizeLanguage(rule.language);
       try {
         const text = [
-          'เฮียบันทึกรายการประจำให้อัตโนมัติ',
-          formatItem({
-            type: rule.type,
-            category: rule.categoryName,
-            amount: rule.amount,
-            date: dueOn,
-            note: rule.note,
-          }),
+          t(lang, 'push.recurring.saved'),
+          formatItem(
+            {
+              type: rule.type,
+              category: rule.categoryName,
+              amount: rule.amount,
+              date: dueOn,
+              note: rule.note,
+            },
+            lang
+          ),
         ].join('\n');
-        await pushText(rule.lineUserId, text, buildUndoQuickReply(eventId));
+        await pushText(rule.lineUserId, text, buildUndoQuickReply(eventId, lang));
       } catch (err) {
         // บันทึกสำเร็จแล้ว push พังไม่ต้องย้อนรายการ และไม่ log err ทั้งก้อนเพราะ cause.details อาจมียอดเงิน
         logger.error('Failed to push recurring notice', { ruleId: rule.id, reason: err?.message ?? String(err) });

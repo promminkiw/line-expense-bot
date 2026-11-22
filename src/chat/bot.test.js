@@ -6,7 +6,6 @@ import {
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
-  NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,
@@ -28,6 +27,7 @@ import { HELP_MENU_REPLY, HELP_SECTIONS, WEB_COMING_SOON_REPLY, getHelpReply } f
 import { TEXT_CATEGORIES } from '../parser/categories.js';
 import { SAVING_AMOUNT_REPLY, GOAL_GONE_REPLY } from '../goals/chat.js';
 import { DEFAULT_CLARIFY_QUESTION } from '../parser/parse-message.js';
+import { t } from '../i18n/index.js';
 
 const NOW_MS = Date.parse('2026-09-29T05:00:00Z');
 
@@ -141,10 +141,13 @@ function setup(overrides = {}) {
       claimPendingSlip: vi.fn().mockResolvedValue({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }),
       disableNotifications: vi.fn().mockResolvedValue(),
       resumeMonthlySummary: vi.fn().mockResolvedValue(),
+      setUserLanguage: vi.fn().mockResolvedValue(),
     },
     now: () => NOW_MS,
     users: {
-      ensureUser: vi.fn().mockResolvedValue('user-1'),
+      resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'th' }),
+      // handler ต้องใช้ userId ที่ bot หามาแล้ว ห้ามเรียก ensureUser ซ้ำ เทสต์ตรวจว่าไม่ถูกเรียก
+      ensureUser: vi.fn(),
       loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
       loadCategoryIds: vi.fn().mockResolvedValue(
         new Map([
@@ -168,9 +171,9 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev1', 'user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalledWith([
       {
         user_id: 'user-1',
@@ -227,7 +230,7 @@ describe('bot text message', () => {
     await bot.handleEvent(textEvent('500000'));
 
     expect(deps.repository.getPendingClarification).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('500000', history, USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.clearPendingClarification).toHaveBeenCalledWith('user-1');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
@@ -255,7 +258,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
     expect(deps.replyFlex).toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
@@ -353,7 +356,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
   });
 
   it('keeps only the last 6 turns while the user keeps being asked', async () => {
@@ -428,7 +431,7 @@ describe('bot text message', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60', { source: { type: 'group', groupId: 'G1', userId: 'U1' } }));
 
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -443,7 +446,7 @@ describe('bot text message', () => {
       message: { type: 'sticker' },
     });
 
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -550,7 +553,8 @@ describe('bot summary command', () => {
 
     expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-29', '2026-09-29');
     expect(deps.commentSummary).toHaveBeenCalledWith(
-      expect.objectContaining({ label: 'วันนี้ (29/09)', expenseTotal: 105, entryCount: 2 })
+      expect.objectContaining({ label: 'วันนี้ (29/09)', expenseTotal: 105, entryCount: 2 }),
+      'th'
     );
     const [replyToken, flex] = deps.replyFlex.mock.calls[0];
     expect(replyToken).toBe('r1');
@@ -584,7 +588,7 @@ describe('bot summary command', () => {
     await bot.handleEvent(textEvent('สรุปวันนี้'));
 
     expect(deps.commentSummary).not.toHaveBeenCalled();
-    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).toContain(NO_ENTRIES_COMMENT);
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).toContain(t('th', 'chat.noEntriesComment'));
   });
 
   it('still replies the card without a comment when Claude fails', async () => {
@@ -639,9 +643,9 @@ describe('bot follow event', () => {
 
     await bot.handleEvent(followEvent());
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.resumeMonthlySummary).toHaveBeenCalledWith('U1');
-    expect(deps.users.ensureUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
+    expect(deps.users.resolveUser.mock.invocationCallOrder[0]).toBeLessThan(deps.repository.resumeMonthlySummary.mock.invocationCallOrder[0]);
     expect(deps.replyText).not.toHaveBeenCalled();
   });
 
@@ -661,7 +665,7 @@ describe('bot follow event', () => {
   });
 
   it('logs but does not reply when registration fails', async () => {
-    const users = { ensureUser: vi.fn().mockRejectedValue(new Error('db down')), loadCategoryIds: vi.fn() };
+    const users = { resolveUser: vi.fn().mockRejectedValue(new Error('db down')), loadCategoryIds: vi.fn() };
     const { deps, bot } = setup({ users });
 
     await bot.handleEvent(followEvent());
@@ -682,7 +686,7 @@ describe('bot unfollow event', () => {
     await bot.handleEvent(unfollowEvent());
 
     expect(deps.repository.disableNotifications).toHaveBeenCalledWith('U1');
-    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+    expect(deps.users.resolveUser).not.toHaveBeenCalled();
     expect(deps.replyText).not.toHaveBeenCalled();
     expect(deps.replyFlex).not.toHaveBeenCalled();
   });
@@ -709,19 +713,19 @@ describe('bot undo postback', () => {
 
     await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
     expect(deps.replyText).toHaveBeenCalledWith('r2', UNDO_DONE_REPLY, undefined);
   });
 
   it('resolves the owner from the event sender, not from postback data', async () => {
-    const ensureUser = vi.fn(async (id) => (id === 'U1' ? 'user-1' : 'user-other'));
-    const { deps, bot } = setup({ users: { ensureUser, loadCategoryIds: vi.fn() } });
+    const resolveUser = vi.fn(async (id) => ({ userId: id === 'U1' ? 'user-1' : 'user-other', language: 'th' }));
+    const { deps, bot } = setup({ users: { resolveUser, loadCategoryIds: vi.fn() } });
 
     await bot.handleEvent(postbackEvent('action=undo&event=ev1&user=U2'));
 
     expect(deps.repository.deleteTransactionsByEvent).toHaveBeenCalledWith('user-1', 'ev1');
-    expect(ensureUser).not.toHaveBeenCalledWith('U2');
+    expect(resolveUser).not.toHaveBeenCalledWith('U2');
   });
 
   it('tells the user when nothing was deleted', async () => {
@@ -871,7 +875,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.repository.addGoalContribution).not.toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออมสิน 1000', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -883,7 +887,7 @@ describe('bot saving command', () => {
 
     expect(deps.repository.listGoals).toHaveBeenCalledWith('user-1');
     expect(deps.replyText).not.toHaveBeenCalledWith('r1', SAVING_AMOUNT_REPLY, undefined);
-    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ออม ทริป 0', [], USER_TEXT_CATEGORIES, [], 'th');
   });
 
   it('counts the rate limit once the message falls through to the normal flow', async () => {
@@ -1081,7 +1085,7 @@ describe('bot budget alerts', () => {
     const { deps, bot } = setup({
       parseMessage,
       users: {
-        ensureUser: vi.fn().mockResolvedValue('user-1'),
+        resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'th' }),
         loadTextCategories: vi.fn().mockResolvedValue(USER_TEXT_CATEGORIES),
         loadCategoryIds: vi.fn().mockResolvedValue(new Map([['income:อื่นๆ', 'cat-income-other']])),
         loadWallets: vi.fn().mockResolvedValue([{ id: 'w-cash', name: 'เงินสด', hidden: false, isDefault: true }]),
@@ -1104,7 +1108,7 @@ describe('bot text categories', () => {
     await bot.handleEvent(textEvent('อาหารแมว 300'));
 
     expect(deps.users.loadTextCategories).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('อาหารแมว 300', [], categories, [], 'th');
   });
 
   // อ่านหมวดและกระเป๋าไปพร้อมกับบริบทแชต ไม่ต้องรอทีละอย่างก่อนเรียก Claude
@@ -1130,7 +1134,7 @@ describe('bot text categories', () => {
 
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], TEXT_CATEGORIES, [], 'th');
     expect(deps.logger.error).toHaveBeenCalledWith(
       'Failed to load text categories',
       { userId: 'user-1' },
@@ -1268,7 +1272,7 @@ describe('bot totals questions', () => {
 
     await bot.handleEvent(textEvent('ค่าแมวเท่าไหร่'));
 
-    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], []);
+    expect(deps.parseQuestion).toHaveBeenCalledWith('ค่าแมวเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], [], 'th');
   });
 
   it('uses the default category names when loading them fails', async () => {
@@ -1291,7 +1295,7 @@ describe('bot totals questions', () => {
     await bot.handleEvent(textEvent('ข้าวมันไก่ 50 แพงเท่าไหร่'));
 
     expect(deps.parseQuestion).toHaveBeenCalled();
-    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything(), []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('ข้าวมันไก่ 50 แพงเท่าไหร่', [], expect.anything(), [], 'th');
     expect(deps.repository.insertTransactions).toHaveBeenCalled();
   });
 
@@ -1361,7 +1365,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('กาแฟ 60 บัตรเครดิต'));
 
     expect(deps.users.loadWallets).toHaveBeenCalledWith('user-1');
-    expect(deps.parseMessage).toHaveBeenCalledWith('กาแฟ 60 บัตรเครดิต', [], USER_TEXT_CATEGORIES, ['เงินสด', 'บัตรเครดิต']);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กาแฟ 60 บัตรเครดิต', [], USER_TEXT_CATEGORIES, ['เงินสด', 'บัตรเครดิต'], 'th');
   });
 
   it('saves the chosen wallet id, cash as null, and shows the wallet on the card', async () => {
@@ -1401,7 +1405,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('กินข้าว 60'));
 
     expect(deps.logger.error).toHaveBeenCalledWith('Failed to load wallets', { userId: 'user-1' }, expect.any(Error));
-    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, []);
+    expect(deps.parseMessage).toHaveBeenCalledWith('กินข้าว 60', [], USER_TEXT_CATEGORIES, [], 'th');
     expect(deps.repository.insertTransactions.mock.calls[0][0][0]).not.toHaveProperty('wallet_id');
     expect(JSON.stringify(deps.replyFlex.mock.calls[0][1].contents.body)).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
     expect(deps.replyFlex.mock.calls[0][1].altText).toContain('เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ');
@@ -1422,7 +1426,7 @@ describe('bot wallets', () => {
     await bot.handleEvent(textEvent('บัญชีเก่าใช้ไปเท่าไหร่'));
 
     expect(deps.repository.listWallets).toHaveBeenCalledWith('user-1');
-    expect(deps.parseQuestion).toHaveBeenCalledWith('บัญชีเก่าใช้ไปเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], ['เงินสด', 'บัญชีเก่า']);
+    expect(deps.parseQuestion).toHaveBeenCalledWith('บัญชีเก่าใช้ไปเท่าไหร่', ['อาหาร', 'ค่าแมว', 'อื่นๆ'], ['เงินสด', 'บัญชีเก่า'], 'th');
   });
 
   it('asks without wallets when they cannot be loaded for a question', async () => {
@@ -1445,10 +1449,10 @@ describe('bot slip image', () => {
 
     await bot.handleEvent(imageEvent());
 
-    expect(deps.users.ensureUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
     expect(deps.repository.claimEvent).toHaveBeenCalledWith('ev-img', 'user-1');
     expect(deps.downloadImage).toHaveBeenCalledWith('m1');
-    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' });
+    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' }, 'th');
     expect(deps.repository.savePendingSlip).toHaveBeenCalledWith('user-1', 'ev-img', [SLIP_ITEM]);
     expect(deps.repository.insertTransactions).not.toHaveBeenCalled();
     expect(replyFlexOf(deps)).toEqual({ replyToken: 'r-img', text: SLIP_CONFIRM_TEXT, quickReply: [SLIP_QUICK_REPLY[1], SLIP_QUICK_REPLY[0]] });
@@ -1779,7 +1783,7 @@ describe('bot slip confirmation', () => {
   it("slip save and cancel claim with the pressing user's id, never the slip owner's", async () => {
     for (const data of [SAVE, CANCEL]) {
       const { deps, bot } = setup();
-      deps.users.ensureUser.mockImplementation((id) => ({ U1: 'user-1', U2: 'user-2' })[id]);
+      deps.users.resolveUser.mockImplementation(async (id) => ({ userId: { U1: 'user-1', U2: 'user-2' }[id], language: 'th' }));
       deps.repository.claimPendingSlip.mockImplementation(async (userId) =>
         userId === 'user-2' ? null : { webhookEventId: 'ev-img', items: [SLIP_ITEM] }
       );
@@ -2169,7 +2173,7 @@ describe('bot reply deadline', () => {
   it('sends nothing for a follow event that passes the deadline', async () => {
     vi.useFakeTimers();
     const { deps, bot } = setup({ replyDeadlineMs: 1000 });
-    deps.users.ensureUser.mockImplementation(() => new Promise(() => {}));
+    deps.users.resolveUser.mockImplementation(() => new Promise(() => {}));
 
     const handled = bot.handleEvent(followEvent());
     await vi.advanceTimersByTimeAsync(1000);
@@ -2527,5 +2531,489 @@ describe('bot intents', () => {
 
     expect(deps.repository.clearPendingClarification).toHaveBeenCalled();
     expect(deps.replyText).toHaveBeenCalledWith('r1', GREETING_REPLY, undefined);
+  });
+});
+
+describe('bot language switch', () => {
+  const MENU_QUICK_REPLY = [
+    { type: 'action', action: { type: 'postback', label: 'ภาษาไทย', data: 'action=language&lang=th', displayText: 'ภาษาไทย' } },
+    { type: 'action', action: { type: 'postback', label: 'English', data: 'action=language&lang=en', displayText: 'English' } },
+  ];
+  const usersFor = (resolveUser) => ({ users: { ...setup().deps.users, resolveUser } });
+  const withLanguage = (language) => usersFor(vi.fn().mockResolvedValue({ userId: 'user-1', language }));
+
+  it.each(['ภาษา', 'language', 'เปลี่ยนภาษา', 'change language', ' Change  Language '])(
+    'answers %j with two language buttons without calling Claude or the rate limiter',
+    async (text) => {
+      const { deps, bot } = setup();
+
+      await bot.handleEvent(textEvent(text));
+
+      expect(deps.replyText).toHaveBeenCalledWith('r1', 'เลือกภาษาที่อยากให้เฮียใช้', MENU_QUICK_REPLY);
+      expect(deps.allowRequest).not.toHaveBeenCalled();
+      expect(deps.parseMessage).not.toHaveBeenCalled();
+      expect(deps.parseQuestion).not.toHaveBeenCalled();
+    }
+  );
+
+  it('asks in English for an English user', async () => {
+    const { deps, bot } = setup(withLanguage('en'));
+
+    await bot.handleEvent(textEvent('language'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Pick the language you want me to use', MENU_QUICK_REPLY);
+  });
+
+  it('keeps answering the menu when the rate limit is exhausted', async () => {
+    const { deps, bot } = setup({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('ภาษา'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เลือกภาษาที่อยากให้เฮียใช้', MENU_QUICK_REPLY);
+  });
+
+  it('switches directly when the user types English', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('english'));
+
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Switched to English. The web app uses English too.', undefined);
+    expect(deps.allowRequest).not.toHaveBeenCalled();
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('switches directly back to Thai when the user types ภาษาไทย', async () => {
+    const { deps, bot } = setup(withLanguage('en'));
+
+    await bot.handleEvent(textEvent('ภาษาไทย'));
+
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'th');
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เฮียเปลี่ยนเป็นภาษาไทยแล้ว หน้าเว็บก็ใช้ภาษาไทยด้วย', undefined);
+  });
+
+  it('does not act on a redelivered language command', async () => {
+    const { deps, bot } = setup();
+    deps.repository.claimEvent.mockResolvedValue(false);
+
+    await bot.handleEvent(textEvent('English'));
+
+    expect(deps.repository.setUserLanguage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('switches from the postback button and confirms in the new language', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=language&lang=en'));
+
+    expect(deps.repository.setUserLanguage).toHaveBeenCalledWith('user-1', 'en');
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'Switched to English. The web app uses English too.', undefined);
+  });
+
+  it('ignores a language postback with an unknown language', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(postbackEvent('action=language&lang=fr'));
+    await bot.handleEvent(postbackEvent('action=language'));
+
+    expect(deps.repository.setUserLanguage).not.toHaveBeenCalled();
+    expect(deps.replyText).not.toHaveBeenCalled();
+  });
+
+  it('replies with a failure in the current language and logs when saving fails', async () => {
+    const { deps, bot } = setup();
+    deps.repository.setUserLanguage.mockRejectedValue(new Error('db down'));
+
+    await bot.handleEvent(textEvent('English'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'เฮียเปลี่ยนภาษาไม่สำเร็จ ลองใหม่อีกครั้ง', undefined);
+    expect(deps.logger.error).toHaveBeenCalledWith('Failed to change language', { userId: 'user-1', language: 'en' }, expect.any(Error));
+  });
+
+  it('uses the language resolved for the next message', async () => {
+    const resolveUser = vi
+      .fn()
+      .mockResolvedValueOnce({ userId: 'user-1', language: 'th' })
+      .mockResolvedValue({ userId: 'user-1', language: 'en' });
+    const { deps, bot } = setup(usersFor(resolveUser));
+
+    await bot.handleEvent(textEvent('English'));
+    await bot.handleEvent(textEvent('language', { replyToken: 'r2', eventId: 'ev2' }));
+
+    expect(deps.replyText).toHaveBeenLastCalledWith('r2', 'Pick the language you want me to use', MENU_QUICK_REPLY);
+  });
+
+  it.each([
+    ['text', () => textEvent('กินข้าว 60')],
+    ['language text', () => textEvent('English')],
+    ['image', () => imageEvent()],
+    ['undo postback', () => postbackEvent('action=undo&event=ev1')],
+    ['undo saving postback', () => postbackEvent('action=undo_saving&event=ev1')],
+    ['slip save postback', () => postbackEvent(`action=slip_save&slip=${SLIP_ID}`)],
+    ['slip cancel postback', () => postbackEvent(`action=slip_cancel&slip=${SLIP_ID}`)],
+    ['bill postback', () => postbackEvent('action=bill_confirm&bill=7b1c9d5e-3f2a-4c8b-9a6d-1e2f3a4b5c6d')],
+    ['language postback', () => postbackEvent('action=language&lang=en')],
+    ['follow', () => followEvent()],
+  ])('resolves the user once and never calls ensureUser for a %s event', async (_name, makeEvent) => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(makeEvent());
+
+    expect(deps.users.resolveUser).toHaveBeenCalledTimes(1);
+    expect(deps.users.resolveUser).toHaveBeenCalledWith('U1');
+    expect(deps.users.ensureUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('bot replies in English', () => {
+  const LIFF_URL = 'https://liff.line.me/liff-1';
+  const BILL = '55555555-5555-5555-5555-555555555555';
+  const english = () => vi.fn().mockResolvedValue({ userId: 'user-1', language: 'en' });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function deferred() {
+    let resolve;
+    const promise = new Promise((res) => {
+      resolve = res;
+    });
+    return { promise, resolve };
+  }
+
+  function setupEn(overrides = {}) {
+    const base = setup().deps;
+    return setup({ ...overrides, users: { ...base.users, resolveUser: english(), ...overrides.users } });
+  }
+
+  function setupEnIntent(result, overrides = {}) {
+    return setupEn({ parseMessage: vi.fn().mockResolvedValue({ status: 'intent', ...result }), ...overrides });
+  }
+
+  it('says the rate limit in English', async () => {
+    const { deps, bot } = setupEn({ allowRequest: vi.fn().mockReturnValue(false) });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.rateLimited'), undefined);
+  });
+
+  it('says the system error in English once the user is known', async () => {
+    const { deps, bot } = setupEn({ parseMessage: vi.fn().mockRejectedValue(new Error('boom')) });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.systemError'), undefined);
+  });
+
+  it('falls back to Thai for the system error when the user cannot be resolved', async () => {
+    const { deps, bot } = setupEn({ users: { resolveUser: vi.fn().mockRejectedValue(new Error('db down')) } });
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SYSTEM_ERROR_REPLY, undefined);
+  });
+
+  it('says the slow message in English at the deadline', async () => {
+    vi.useFakeTimers();
+    const parse = deferred();
+    const { deps, bot } = setupEn({ parseMessage: vi.fn(() => parse.promise), replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('lunch 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.slowProcessing'), undefined);
+    parse.resolve({ status: 'ok', items: [FOOD_ITEM] });
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('says the slow message in Thai when the user lookup itself hangs', async () => {
+    vi.useFakeTimers();
+    const { deps, bot } = setupEn({ users: { resolveUser: vi.fn(() => new Promise(() => {})) }, replyDeadlineMs: 1000 });
+
+    const handled = bot.handleEvent(textEvent('lunch 60'));
+    await vi.advanceTimersByTimeAsync(1000);
+    await handled;
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', SLOW_PROCESSING_REPLY, undefined);
+  });
+
+  it('answers the undo buttons in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.deleteGoalContributionsByEvent.mockResolvedValue(0);
+
+    await bot.handleEvent(postbackEvent('action=undo&event=ev1'));
+    await bot.handleEvent(postbackEvent('action=undo_saving&event=ev1'));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'Deleted it for you.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.undoSaving.notFound'), undefined);
+  });
+
+  it('confirms a bill share in English with the default category name translated', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r2', 'Recorded your share of ฿300 under Food.', undefined);
+  });
+
+  it('answers the other bill outcomes in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.bills.respond.mockResolvedValueOnce({ status: 'already_confirmed', title: 'BBQ', share: 200 });
+    deps.bills.respond.mockResolvedValueOnce({ status: 'declined' });
+
+    await bot.handleEvent(postbackEvent(`action=bill_confirm&bill=${BILL}`));
+    await bot.handleEvent(postbackEvent(`action=bill_decline&bill=${BILL}`));
+    await bot.handleEvent(postbackEvent('action=bill_confirm&bill=nope'));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'You already confirmed the bill BBQ (your share is ฿200). No need to tap again.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.bill.declined'), undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(3, 'r2', "I can't find this bill.", undefined);
+  });
+
+  it('answers slip problems in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.downloadImage.mockResolvedValueOnce({ status: 'too_large' }).mockResolvedValueOnce({ status: 'unsupported' });
+    deps.parseSlip.mockResolvedValueOnce({ status: 'unreadable', reason: 'blurry' });
+
+    await bot.handleEvent(imageEvent({ eventId: 'a' }));
+    await bot.handleEvent(imageEvent({ eventId: 'b' }));
+    await bot.handleEvent(imageEvent({ eventId: 'c' }));
+
+    expect(deps.replyText.mock.calls.map((call) => call[1])).toEqual([
+      t('en', 'chat.slip.tooLarge'),
+      t('en', 'chat.slip.unsupported'),
+      t('en', 'chat.slip.unreadable'),
+    ]);
+  });
+
+  it('labels the slip buttons in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(imageEvent());
+
+    expect(replyFlexOf(deps).quickReply.map((button) => button.action.displayText).sort()).toEqual(['Cancel', 'Save']);
+  });
+
+  it('answers slip cancel and expired slips in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.claimPendingSlip.mockResolvedValueOnce({ webhookEventId: 'ev-img', items: [SLIP_ITEM] }).mockResolvedValueOnce(null);
+
+    await bot.handleEvent(postbackEvent(`action=slip_cancel&slip=${SLIP_ID}`));
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+
+    expect(deps.replyText).toHaveBeenNthCalledWith(1, 'r2', 'Cancelled the slip. Nothing was saved.', undefined);
+    expect(deps.replyText).toHaveBeenNthCalledWith(2, 'r2', t('en', 'chat.slip.expired'), undefined);
+  });
+
+  it('shows the summary menu in English with English command buttons', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('summary'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Which period should I sum up?', [
+      { type: 'action', action: { type: 'message', label: 'Today', text: 'summary today' } },
+      { type: 'action', action: { type: 'message', label: 'This week', text: 'summary this week' } },
+      { type: 'action', action: { type: 'message', label: 'This month', text: 'summary this month' } },
+    ]);
+  });
+
+  it.each(['summary this week', 'สรุปสัปดาห์นี้'])('sums up the week for %j without asking Claude to parse it', async (text) => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent(text));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-28', '2026-09-29');
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('takes the English summary command from a Thai user too', async () => {
+    const { deps, bot } = setup();
+
+    await bot.handleEvent(textEvent('Summary Today'));
+
+    expect(deps.repository.summarizeTransactions).toHaveBeenCalledWith('user-1', '2026-09-29', '2026-09-29');
+  });
+
+  it('answers help with the English help menu', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('help'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'help.menu'), expect.any(Array));
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('saves to a goal with the English save command', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 1000'));
+
+    expect(deps.repository.addGoalContribution).toHaveBeenCalledWith('user-1', 'g-1', { amount: 1000, occurredOn: '2026-09-29', lineEventId: 'ev1' });
+    expect(deps.parseMessage).not.toHaveBeenCalled();
+  });
+
+  it('answers saving problems in English', async () => {
+    const { deps, bot } = setupEn();
+    deps.repository.addGoalContribution.mockResolvedValueOnce({ status: 'closed' });
+
+    await bot.handleEvent(textEvent('save Condo 1000', { eventId: 'a' }));
+    await bot.handleEvent(textEvent('save 1000', { eventId: 'b' }));
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 0', { eventId: 'c' }));
+    await bot.handleEvent(textEvent('save เที่ยวญี่ปุ่น 10', { eventId: 'd' }));
+
+    expect(deps.replyText.mock.calls.map((call) => call[1])).toEqual([
+      'I can\'t find the goal "Condo".\nOpen goals: เที่ยวญี่ปุ่น\nType something like: save เที่ยวญี่ปุ่น 1000',
+      'Tell me the goal name too, like: save เที่ยวญี่ปุ่น 1000\nOpen goals: เที่ยวญี่ปุ่น',
+      t('en', 'goals.savingAmountInvalid'),
+      t('en', 'goals.gone'),
+    ]);
+  });
+
+  it.each([
+    [{ intent: 'greeting' }, () => t('en', 'chat.greeting')],
+    [{ intent: 'unsupported', kind: 'other' }, () => t('en', 'chat.unsupported.other')],
+    [{ intent: 'unsupported', kind: 'budget' }, () => `${t('en', 'chat.unsupported.budget')}\n${LIFF_URL}?tab=budgets`],
+    [{ intent: 'unsupported', kind: 'edit' }, () => `${t('en', 'chat.unsupported.edit')}\n${LIFF_URL}?tab=list`],
+    [{ intent: 'unsupported', kind: 'web' }, () => t('en', 'menu.webLink', { url: LIFF_URL })],
+  ])('answers the intent %j in English', async (result, expected) => {
+    const { deps, bot } = setupEnIntent(result, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent('something'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', expected(), undefined);
+  });
+
+  it('says there is no open goal in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'saving', name: 'Trip', amount: 500 });
+    deps.repository.listGoals.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('put 500 in my trip goal'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.noOpenGoal'), undefined);
+  });
+
+  it('points other summary periods to the web in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'summary', period: 'other' }, { liffUrl: LIFF_URL });
+
+    await bot.handleEvent(textEvent('summary for last year'));
+
+    expect(deps.replyText).toHaveBeenCalledWith(
+      'r1',
+      `Which period should I sum up?\n${t('en', 'chat.summary.otherPeriodHint')}\n${LIFF_URL}?tab=summary`,
+      expect.any(Array)
+    );
+  });
+
+  it('asks again in English when a question intent cannot be answered', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+
+    await bot.handleEvent(textEvent('hmm'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', 'Tell me again what you want to record and how much, like "lunch 60".', undefined);
+  });
+
+  it('says a failed totals question in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+    deps.repository.queryTotals.mockRejectedValue(new Error('db down'));
+    deps.parseQuestion.mockResolvedValue({ isQuestion: true, type: 'expense', category: '', keyword: '', from: '2026-09-01', to: '2026-09-29' });
+
+    await bot.handleEvent(textEvent('spending this month'));
+
+    expect(deps.replyText).toHaveBeenCalledWith('r1', t('en', 'chat.questionFailed'), undefined);
+  });
+
+  const headerTexts = (flex) => [flex.contents.header.contents[0].text, flex.contents.header.contents[1].text];
+
+  it('replies the saved card in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(replyFlexOf(deps)).toEqual({
+      replyToken: 'r1',
+      text: 'Saved it\n- Expense | Food | ฿60 | 29/09 | กินข้าว',
+      quickReply: [{ type: 'action', action: { type: 'postback', label: 'Delete this', data: 'action=undo&event=ev1', displayText: 'Delete' } }],
+    });
+  });
+
+  it('replies the slip card and the saved slip card in English', async () => {
+    const { deps, bot } = setupEn();
+
+    await bot.handleEvent(imageEvent());
+    await bot.handleEvent(postbackEvent(`action=slip_save&slip=${SLIP_ID}`));
+
+    expect(headerTexts(deps.replyFlex.mock.calls[0][1])).toEqual(['I read the slip · not saved yet', '-฿120']);
+    expect(deps.replyFlex.mock.calls[0][1].altText).toMatch(/^Here is what I read from the slip\n- Expense \| Food \| ฿120/);
+    expect(deps.replyFlex.mock.calls[1][1].altText).toBe('Saved it\n- Expense | Food | ฿120 | 28/09 | โอนให้ ร้านข้าวแกง');
+  });
+
+  it('replies the summary card in English with the no entries comment', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'summary', period: 'today' });
+    deps.repository.summarizeTransactions.mockResolvedValue([]);
+
+    await bot.handleEvent(textEvent('summary today'));
+
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(flex.altText).toBe('Summary: Today (29/09): income ฿0, expense ฿0');
+    expect(JSON.stringify(flex.contents.body)).toContain(t('en', 'chat.noEntriesComment'));
+  });
+
+  it('replies the totals card in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'question' });
+    deps.parseQuestion.mockResolvedValue({ isQuestion: true, type: 'expense', category: '', keyword: '', from: '2026-09-01', to: '2026-09-29' });
+
+    await bot.handleEvent(textEvent('spending this month'));
+
+    expect(headerTexts(deps.replyFlex.mock.calls[0][1])).toEqual(['Totals 1-29 Sep 2026', 'Spent ฿450']);
+  });
+
+  it('replies the saving card in English', async () => {
+    const { deps, bot } = setupEnIntent({ intent: 'saving', name: 'เที่ยวญี่ปุ่น', amount: 500 });
+
+    await bot.handleEvent(textEvent('put 500 into my trip fund'));
+
+    const flex = deps.replyFlex.mock.calls[0][1];
+    expect(flex.altText).toBe('Saved ฿500 toward เที่ยวญี่ปุ่น.\nSaved so far: ฿6,000 / ฿50,000 (12%)');
+    expect(flex.contents.header.contents[0].text).toBe('Saved toward goal');
+  });
+});
+
+describe('bot passes the user language to Claude', () => {
+  const english = () => ({ users: { ...setup().deps.users, resolveUser: vi.fn().mockResolvedValue({ userId: 'user-1', language: 'en' }) } });
+
+  it('parses a record with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('lunch 60'));
+
+    expect(deps.parseMessage).toHaveBeenCalledWith('lunch 60', [], USER_TEXT_CATEGORIES, [], 'en');
+  });
+
+  it('reads an English totals question with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('how much did I spend this month'));
+
+    expect(deps.parseQuestion).toHaveBeenCalledWith('how much did I spend this month', expect.any(Array), [], 'en');
+  });
+
+  it('comments on a summary in English', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(textEvent('สรุปวันนี้'));
+
+    expect(deps.commentSummary).toHaveBeenCalledWith(expect.objectContaining({ expenseTotal: 105 }), 'en');
+  });
+
+  it('reads a slip with the English prompt', async () => {
+    const { deps, bot } = setup(english());
+
+    await bot.handleEvent(imageEvent());
+
+    expect(deps.parseSlip).toHaveBeenCalledWith({ data: 'QUJD', mediaType: 'image/jpeg' }, 'en');
   });
 });

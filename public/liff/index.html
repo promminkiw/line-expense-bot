@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1157c5">
-  <title>รายการรายรับรายจ่าย</title>
+  <title data-i18n="web.page.title">รายการรายรับรายจ่าย</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -224,6 +224,10 @@
     <symbol id="icon-bell" viewBox="0 0 24 24">
       <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 21h4" />
     </symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z" />
+    </symbol>
     <symbol id="icon-users" viewBox="0 0 24 24">
       <circle cx="9" cy="8" r="3.2" />
       <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5a3 3 0 0 1 0 6M18 14.5c1.8.7 3 2.5 3 4.5" />
@@ -235,78 +239,80 @@
   <main id="app">
     <div class="top-sticky">
       <header class="bar">
-        <button type="button" id="page-back" class="bar-back" aria-label="กลับไปจัดการงบ" hidden><svg class="icon"
+        <button type="button" id="page-back" class="bar-back" aria-label="กลับไปจัดการงบ" data-i18n-attr="aria-label:web.back.budgets" hidden><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-back"></use>
           </svg></button>
         <a id="bills-home" class="bar-home" href="./" hidden><svg class="icon" aria-hidden="true"
             focusable="false">
             <use href="#icon-back"></use>
-          </svg>หน้าหลัก</a>
+          </svg><span data-i18n="web.bills.home">หน้าหลัก</span></a>
         <img class="bar-mascot" src="assets/mascot.webp" alt="" width="44" height="44">
-        <h1 id="page-title" tabindex="-1">รายการของฉัน</h1>
-        <input type="month" id="month" aria-label="เลือกเดือน">
+        <h1 id="page-title" tabindex="-1" data-i18n="web.title.list">รายการของฉัน</h1>
+        <input type="month" id="month" aria-label="เลือกเดือน" data-i18n-attr="aria-label:web.month.pick">
       </header>
       <div id="month-context" class="month-context" hidden>
         <span id="month-context-text"></span>
-        <button type="button" id="month-context-today">กลับเดือนนี้</button>
+        <button type="button" id="month-context-today" data-i18n="web.month.today">กลับเดือนนี้</button>
       </div>
       <div class="banner-area">
         <p id="banner" class="notice banner" role="status" aria-live="polite" hidden></p>
-        <button type="button" id="banner-retry" hidden>ลองใหม่</button>
+        <button type="button" id="banner-retry" data-i18n="web.common.retry" hidden>ลองใหม่</button>
       </div>
     </div>
     <div id="panel-list" class="panel">
       <ul id="list-head-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="totals" class="stat-cards" hidden>
-        <div class="stat balance"><span class="stat-label">คงเหลือ</span><span id="stat-balance"
-            class="stat-value"></span><span class="stat-note">รายรับหักรายจ่าย <span class="nowrap">ของเดือนที่เลือก</span></span></div>
+        <div class="stat balance"><span class="stat-label" data-i18n="web.list.balance">คงเหลือ</span><span id="stat-balance"
+            class="stat-value"></span><span class="stat-note"><span data-i18n="web.list.balanceNote">รายรับหักรายจ่าย</span> <span class="nowrap"
+                data-i18n="web.list.balanceNoteMonth">ของเดือนที่เลือก</span></span></div>
         <div class="stat-sub">
-          <div class="stat income"><span class="stat-label">รายรับ</span><span id="stat-income"
+          <div class="stat income"><span class="stat-label" data-i18n="type.income">รายรับ</span><span id="stat-income"
               class="stat-value"></span></div>
-          <div class="stat expense"><span class="stat-label">รายจ่าย</span><span id="stat-expense"
+          <div class="stat expense"><span class="stat-label" data-i18n="type.expense">รายจ่าย</span><span id="stat-expense"
               class="stat-value"></span></div>
         </div>
       </div>
-      <p id="truncated" class="notice" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ
-        ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
+      <p id="truncated" class="notice" data-i18n="web.list.truncated" hidden>เดือนที่เลือกมีรายการมากกว่าที่แสดงได้ ยอดรวมและกราฟนับครบทุกรายการ ดูรายการทั้งหมดได้จาก Export CSV ในแท็บสรุป</p>
       <div id="filters" class="filters" hidden>
         <div class="filter-search">
           <svg class="icon" aria-hidden="true" focusable="false">
             <use href="#icon-search"></use>
           </svg>
-          <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ" maxlength="50">
+          <input type="search" id="search" placeholder="ค้นหาจากหมวดหรือโน้ต" aria-label="ค้นหารายการ"
+            data-i18n-attr="placeholder:web.list.searchPlaceholder;aria-label:web.list.search" maxlength="50">
         </div>
-        <select id="filter-type" aria-label="กรองตามประเภท">
-          <option value="">ทุกประเภท</option>
-          <option value="expense">รายจ่าย</option>
-          <option value="income">รายรับ</option>
+        <select id="filter-type" aria-label="กรองตามประเภท" data-i18n-attr="aria-label:web.list.filterType">
+          <option value="" data-i18n="web.list.allTypes">ทุกประเภท</option>
+          <option value="expense" data-i18n="type.expense">รายจ่าย</option>
+          <option value="income" data-i18n="type.income">รายรับ</option>
         </select>
-        <select id="filter-category" aria-label="กรองตามหมวด"></select>
-        <select id="filter-wallet" aria-label="กรองตามกระเป๋า" hidden></select>
-        <button type="button" id="filter-clear" hidden>ล้างตัวกรอง</button>
+        <select id="filter-category" aria-label="กรองตามหมวด" data-i18n-attr="aria-label:web.list.filterCategory"></select>
+        <select id="filter-wallet" aria-label="กรองตามกระเป๋า" data-i18n-attr="aria-label:web.list.filterWallet" hidden></select>
+        <button type="button" id="filter-clear" data-i18n="web.list.clearFilters" hidden>ล้างตัวกรอง</button>
         <p id="filter-status" class="filter-status" role="status" aria-live="polite"></p>
       </div>
-      <p id="status" class="status" role="status" aria-live="polite">กำลังโหลด...</p>
+      <!-- ข้อความตั้งต้นที่ JS เขียนทับทีหลังห่อ span ไว้ พอ JS เขียน data-i18n หายไปด้วย เปลี่ยนภาษาทีหลังจึงไม่คืนเป็นข้อความตั้งต้น -->
+      <p id="status" class="status" role="status" aria-live="polite"><span data-i18n="web.common.loading">กำลังโหลด...</span></p>
       <p id="swipe-hint" class="swipe-hint" hidden>
-        <span>ปัดแถวไปทางซ้ายเพื่อลบ</span>
-        <button type="button" id="swipe-hint-dismiss">รับทราบ</button>
+        <span data-i18n="web.list.swipeHint">ปัดแถวไปทางซ้ายเพื่อลบ</span>
+        <button type="button" id="swipe-hint-dismiss" data-i18n="web.list.swipeHintDismiss">รับทราบ</button>
       </p>
       <ul id="list" class="list"></ul>
     </div>
     <div id="panel-summary" class="panel" hidden>
       <div class="export">
-        <button type="button" id="export-button" disabled>Export CSV</button>
+        <button type="button" id="export-button" data-i18n="web.export.button" disabled>Export CSV</button>
         <p id="export-status" class="export-status" role="status" aria-live="polite"></p>
       </div>
       <div id="summary-empty" hidden></div>
       <ul id="summary-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <section id="chart" class="chart" aria-labelledby="chart-title" hidden>
         <div class="chart-head">
-          <h2 id="chart-title">สรุปตามหมวด</h2>
-          <div class="tabs" role="group" aria-label="ประเภทกราฟ">
-            <button type="button" data-type="expense" aria-pressed="true">รายจ่าย</button>
-            <button type="button" data-type="income" aria-pressed="false">รายรับ</button>
+          <h2 id="chart-title" data-i18n="web.summary.byCategory">สรุปตามหมวด</h2>
+          <div class="tabs" role="group" aria-label="ประเภทกราฟ" data-i18n-attr="aria-label:web.summary.chartType">
+            <button type="button" data-type="expense" aria-pressed="true" data-i18n="type.expense">รายจ่าย</button>
+            <button type="button" data-type="income" aria-pressed="false" data-i18n="type.income">รายรับ</button>
           </div>
         </div>
         <div id="chart-stack" class="chart-stack" aria-hidden="true"></div>
@@ -314,32 +320,32 @@
         <p id="chart-empty" class="chart-empty" hidden></p>
       </section>
       <section id="trend" class="trend" aria-labelledby="trend-title">
-        <h2 id="trend-title">แนวโน้ม 6 เดือนล่าสุด</h2>
+        <h2 id="trend-title" data-i18n="web.trend.title">แนวโน้ม 6 เดือนล่าสุด</h2>
         <p id="trend-comparison" class="trend-comparison" hidden></p>
-        <p id="trend-empty" class="chart-empty" hidden>ยังไม่มีรายการใน 6 เดือนล่าสุด</p>
-        <p id="trend-loading" class="sr-only" role="status" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
+        <p id="trend-empty" class="chart-empty" data-i18n="web.trend.empty" hidden>ยังไม่มีรายการใน 6 เดือนล่าสุด</p>
+        <p id="trend-loading" class="sr-only" role="status" data-i18n="web.trend.loading" hidden>กำลังโหลดกราฟแนวโน้ม...</p>
         <ul id="trend-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <ul id="trend-bars" class="trend-bars" role="list" hidden></ul>
-        <p id="trend-legend" class="trend-legend" hidden><span class="legend income">รายรับ</span><span
-            class="legend expense">รายจ่าย</span></p>
+        <p id="trend-legend" class="trend-legend" hidden><span class="legend income" data-i18n="type.income">รายรับ</span><span
+            class="legend expense" data-i18n="type.expense">รายจ่าย</span></p>
         <div id="trend-error" class="budgets-error" hidden>
           <p id="trend-error-text"></p>
-          <button type="button" id="trend-retry">ลองใหม่</button>
+          <button type="button" id="trend-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
       </section>
     </div>
     <div id="panel-budgets" class="panel" hidden>
-      <p id="budgets-loading" class="sr-only" role="status" hidden>กำลังโหลดงบ...</p>
+      <p id="budgets-loading" class="sr-only" role="status" data-i18n="web.budgets.loading" hidden>กำลังโหลดงบ...</p>
       <ul id="budgets-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="budgets-error" class="budget-error-card" hidden>
-        <p class="budget-error-title">ตอนนี้เฮียโหลดงบให้ไม่ได้</p>
+        <p class="budget-error-title" data-i18n="web.budgets.loadFailedTitle">ตอนนี้เฮียโหลดงบให้ไม่ได้</p>
         <p id="budgets-error-text" class="budget-error-text"></p>
-        <button type="button" id="budgets-retry" class="budget-cta">ลองใหม่</button>
+        <button type="button" id="budgets-retry" class="budget-cta" data-i18n="web.common.retry">ลองใหม่</button>
       </div>
-      <section id="budgets" class="budgets-page" aria-label="งบประมาณรายจ่าย" hidden>
+      <section id="budgets" class="budgets-page" aria-label="งบประมาณรายจ่าย" data-i18n-attr="aria-label:web.budgets.pageLabel" hidden>
         <div id="budget-hero" class="budget-hero">
           <div class="budget-hero-bubble">
-            <p class="budget-hero-lead"><b>เฮียสมัครบอกว่า</b> ใช้งบไปแล้ว</p>
+            <p class="budget-hero-lead"><b data-i18n="web.budgets.hero.speaker">เฮียสมัครบอกว่า</b> <span data-i18n="web.budgets.hero.lead">ใช้งบไปแล้ว</span></p>
             <p class="budget-hero-value"><span id="budget-hero-percent" class="budget-hero-percent"></span> <span id="budget-hero-rest" class="budget-hero-rest"></span></p>
           </div>
         </div>
@@ -349,8 +355,8 @@
         </div>
         <section id="budget-risk" class="budget-card" aria-labelledby="budget-risk-title" hidden>
           <div class="budget-card-head">
-            <h2 id="budget-risk-title">ต้องดูแล</h2>
-            <span class="budget-card-note">แตะแท่งเพื่อแก้งบ</span>
+            <h2 id="budget-risk-title" data-i18n="web.budgets.group.risk">ต้องดูแล</h2>
+            <span class="budget-card-note" data-i18n="web.budgets.risk.hint">แตะแท่งเพื่อแก้งบ</span>
           </div>
           <div id="budget-risk-plot" class="budget-plot">
             <span class="budget-axis budget-axis-100">100%</span>
@@ -361,17 +367,17 @@
           </div>
           <div id="budget-risk-names" class="budget-names"></div>
           <div id="budget-risk-pager" class="budget-pager" hidden>
-            <button type="button" id="budget-risk-prev" class="budget-pager-button" aria-label="หน้าก่อนหน้า">‹</button>
+            <button type="button" id="budget-risk-prev" class="budget-pager-button" aria-label="หน้าก่อนหน้า" data-i18n-attr="aria-label:web.budgets.pager.prev">‹</button>
             <div class="budget-pager-middle">
               <span id="budget-risk-page"></span>
               <span id="budget-risk-dots" class="budget-dots" aria-hidden="true"></span>
             </div>
-            <button type="button" id="budget-risk-next" class="budget-pager-button" aria-label="หน้าถัดไป">›</button>
+            <button type="button" id="budget-risk-next" class="budget-pager-button" aria-label="หน้าถัดไป" data-i18n-attr="aria-label:web.budgets.pager.next">›</button>
           </div>
         </section>
         <section id="budget-calm" class="budget-card" aria-labelledby="budget-calm-title" hidden>
           <div id="budget-calm-head" class="budget-card-head">
-            <h2 id="budget-calm-title">ปกติ</h2>
+            <h2 id="budget-calm-title" data-i18n="web.budgets.group.calm">ปกติ</h2>
             <span id="budget-calm-note" class="budget-card-note"></span>
           </div>
           <div id="budget-calm-list" class="budget-calm-list"></div>
@@ -379,11 +385,11 @@
         </section>
         <div id="budget-unset" class="budget-unset" hidden>
           <span id="budget-unset-text"></span>
-          <button type="button" id="budget-unset-open">ตั้งงบ</button>
+          <button type="button" id="budget-unset-open" data-i18n="web.budgets.set">ตั้งงบ</button>
         </div>
       </section>
       <section id="budget-empty" class="budget-card budget-empty" aria-labelledby="budget-empty-title" hidden>
-        <h2 id="budget-empty-title">ยังไม่ได้ตั้งงบเลย</h2>
+        <h2 id="budget-empty-title" data-i18n="web.budgets.empty.title">ยังไม่ได้ตั้งงบเลย</h2>
         <p id="budget-empty-hint" class="budget-card-note"></p>
         <ul id="budget-empty-list" class="budget-empty-list"></ul>
       </section>
@@ -391,8 +397,8 @@
         <button type="button" id="categories-open" class="categories-open" disabled><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-categories"></use>
-          </svg>จัดการหมวดหมู่</button>
-        <p class="categories-entry-hint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด</p>
+          </svg><span data-i18n="web.categories.open">จัดการหมวดหมู่</span></button>
+        <p class="categories-entry-hint" data-i18n="web.categories.openHint">เพิ่ม เปลี่ยนชื่อ เลือกไอคอน ซ่อน หรือลบหมวด</p>
       </div>
     </div>
     <div id="panel-budget-all" class="panel" hidden>
@@ -400,57 +406,58 @@
         <svg class="icon" aria-hidden="true" focusable="false">
           <use href="#icon-search"></use>
         </svg>
-        <input id="budget-all-search" type="search" placeholder="ค้นหาหมวด" aria-label="ค้นหาหมวด" autocomplete="off">
-        <button type="button" id="budget-all-clear" aria-label="ล้างคำค้น" hidden>
+        <input id="budget-all-search" type="search" placeholder="ค้นหาหมวด" aria-label="ค้นหาหมวด" autocomplete="off"
+          data-i18n-attr="placeholder:web.budgets.all.search;aria-label:web.budgets.all.search">
+        <button type="button" id="budget-all-clear" aria-label="ล้างคำค้น" data-i18n-attr="aria-label:web.budgets.all.clearSearch" hidden>
           <svg class="icon" aria-hidden="true" focusable="false">
             <use href="#icon-close"></use>
           </svg>
         </button>
       </div>
-      <div id="budget-all-tabs" class="budget-all-tabs" role="group" aria-label="กลุ่มของหมวด">
+      <div id="budget-all-tabs" class="budget-all-tabs" role="group" aria-label="กลุ่มของหมวด" data-i18n-attr="aria-label:web.budgets.all.groups">
         <button type="button" data-tab="risk" aria-pressed="true"></button>
         <button type="button" data-tab="calm" aria-pressed="false"></button>
         <button type="button" data-tab="unset" aria-pressed="false"></button>
       </div>
       <div class="budget-all-bar">
         <span id="budget-all-count" role="status" aria-live="polite"></span>
-        <label class="budget-all-sort">เรียง:
-          <select id="budget-all-sort" aria-label="เรียงลำดับ">
-            <option value="usage">ใช้มากสุด</option>
-            <option value="name">ชื่อ</option>
+        <label class="budget-all-sort"><span data-i18n="web.budgets.all.sortLabel">เรียง:</span>
+          <select id="budget-all-sort" aria-label="เรียงลำดับ" data-i18n-attr="aria-label:web.budgets.all.sort">
+            <option value="usage" data-i18n="web.budgets.all.sortUsage">ใช้มากสุด</option>
+            <option value="name" data-i18n="web.budgets.all.sortName">ชื่อ</option>
           </select>
         </label>
       </div>
-      <p id="budget-all-tab-empty" class="budget-all-tab-empty" hidden>ไม่มีหมวดในกลุ่มนี้</p>
+      <p id="budget-all-tab-empty" class="budget-all-tab-empty" data-i18n="web.budgets.all.tabEmpty" hidden>ไม่มีหมวดในกลุ่มนี้</p>
       <div id="budget-all-list" class="budget-all-list"></div>
       <div id="budget-all-empty" class="budget-all-empty" hidden>
         <img class="budget-all-empty-art" src="assets/mascot.webp" alt="" width="88" height="88">
-        <h2 id="budget-all-empty-title">ไม่พบหมวด</h2>
-        <p>ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
-        <button type="button" id="budget-all-empty-clear" class="budget-cta">ล้างคำค้น</button>
+        <h2 id="budget-all-empty-title" data-i18n="web.budgets.all.notFoundDefault">ไม่พบหมวด</h2>
+        <p data-i18n="web.budgets.all.notFoundHint">ลองพิมพ์ให้สั้นลง หรือดูทุกกลุ่มเพื่อหาเอง</p>
+        <button type="button" id="budget-all-empty-clear" class="budget-cta" data-i18n="web.budgets.all.clearSearch">ล้างคำค้น</button>
       </div>
       <p id="budget-all-status" class="budget-all-status" role="status" aria-live="polite"></p>
       <div class="budget-all-foot">
-        <button type="button" id="budget-all-bulk-open" class="budget-cta">แก้งบหลายหมวดพร้อมกัน</button>
+        <button type="button" id="budget-all-bulk-open" class="budget-cta" data-i18n="web.budgets.all.bulkEdit">แก้งบหลายหมวดพร้อมกัน</button>
       </div>
     </div>
     <div id="panel-budget-bulk" class="panel" hidden>
       <p id="budget-bulk-month" class="budget-bulk-month"></p>
-      <p class="budget-bulk-hint">กด − / + ปรับทีละ 500 แล้วบันทึกทีเดียว % ใหม่ขึ้นให้ดูทันที แถวที่แก้จะมีเส้นน้ำเงินด้านซ้าย</p>
+      <p class="budget-bulk-hint" data-i18n="web.budgets.bulk.hint">กด − / + ปรับทีละ 500 แล้วบันทึกทีเดียว % ใหม่ขึ้นให้ดูทันที แถวที่แก้จะมีเส้นน้ำเงินด้านซ้าย</p>
       <div id="budget-bulk-list" class="budget-bulk-list"></div>
       <div class="budget-bulk-bar">
         <div class="budget-bulk-summary">
-          <span id="budget-bulk-count" role="status" aria-live="polite">ยังไม่ได้แก้อะไร</span>
+          <span id="budget-bulk-count" role="status" aria-live="polite" data-i18n="web.budgets.bulk.noChanges">ยังไม่ได้แก้อะไร</span>
           <span><strong id="budget-bulk-delta"></strong> <span id="budget-bulk-total"></span></span>
         </div>
-        <button type="button" id="budget-bulk-cancel" class="budget-bulk-cancel">ยกเลิก</button>
-        <button type="button" id="budget-bulk-save" class="budget-cta" disabled>บันทึกทั้งหมด</button>
+        <button type="button" id="budget-bulk-cancel" class="budget-bulk-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
+        <button type="button" id="budget-bulk-save" class="budget-cta" data-i18n="web.budgets.bulk.saveAll" disabled>บันทึกทั้งหมด</button>
       </div>
     </div>
     <div id="panel-categories" class="panel" hidden>
-      <div class="category-segment" role="group" aria-label="ประเภทหมวด">
-        <button type="button" id="category-seg-expense" aria-pressed="true">รายจ่าย</button>
-        <button type="button" id="category-seg-income" aria-pressed="false">รายรับ</button>
+      <div class="category-segment" role="group" aria-label="ประเภทหมวด" data-i18n-attr="aria-label:web.categories.typeGroup">
+        <button type="button" id="category-seg-expense" aria-pressed="true" data-i18n="type.expense">รายจ่าย</button>
+        <button type="button" id="category-seg-income" aria-pressed="false" data-i18n="type.income">รายรับ</button>
       </div>
       <p id="category-status" class="category-status" role="status" aria-live="polite"></p>
       <ul id="category-tiles" class="category-tiles"></ul>
@@ -462,49 +469,48 @@
           <use href="#icon-chevron"></use>
         </svg></button>
       <ul id="category-hidden-tiles" class="category-tiles category-hidden-tiles" hidden></ul>
-      <p class="category-page-hint">แตะหมวดเพื่อเปลี่ยนชื่อ ไอคอน หรือซ่อน หมวดที่มีรูปกุญแจเป็นของระบบ แก้ไม่ได้</p>
+      <p class="category-page-hint" data-i18n="web.categories.pageHint">แตะหมวดเพื่อเปลี่ยนชื่อ ไอคอน หรือซ่อน หมวดที่มีรูปกุญแจเป็นของระบบ แก้ไม่ได้</p>
     </div>
     <div id="panel-recurring" class="panel" hidden>
       <section id="recurring" class="recurring" aria-labelledby="recurring-title" hidden>
-        <h2 id="recurring-title">รายการประจำ</h2>
-        <p class="recurring-hint"><span class="nowrap">เฮียจด</span>ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</p>
+        <h2 id="recurring-title" data-i18n="web.title.recurring">รายการประจำ</h2>
+        <p class="recurring-hint"><span class="nowrap" data-i18n="web.recurring.hintWho">เฮียจด</span><span data-i18n="web.recurring.hintRest">ให้อัตโนมัติเดือนละครั้ง และแจ้งใน LINE</span></p>
         <details class="recurring-more">
-          <summary>เริ่มจดเมื่อไร</summary>
-          <p>ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว จะเริ่มเดือนหน้า (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้รายการที่หยุดไว้)
-            ทุกครั้งที่จดจะแจ้งใน LINE และกดลบได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
+          <summary data-i18n="web.recurring.moreTitle">เริ่มจดเมื่อไร</summary>
+          <p data-i18n="web.recurring.moreBody">ถ้าวันที่ตั้งคือวันนี้หรือผ่านไปแล้ว จะเริ่มเดือนหน้า (รวมถึงตอนเปลี่ยนวันที่หรือเปิดใช้รายการที่หยุดไว้) ทุกครั้งที่จดจะแจ้งใน LINE และกดลบได้ ถ้าตั้งวันที่ 29-31 เดือนที่สั้นกว่าจะใช้วันสุดท้ายของเดือน</p>
         </details>
-        <p id="recurring-loading" class="recurring-loading sr-only" role="status" hidden>กำลังโหลดรายการประจำ...</p>
+        <p id="recurring-loading" class="recurring-loading sr-only" role="status" data-i18n="web.recurring.loading" hidden>กำลังโหลดรายการประจำ...</p>
         <ul id="recurring-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="recurring-empty" hidden></div>
         <ul id="recurring-rows" class="recurring-rows"></ul>
         <div id="recurring-error" class="budgets-error" hidden>
           <p id="recurring-error-text"></p>
-          <button type="button" id="recurring-retry">ลองใหม่</button>
+          <button type="button" id="recurring-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
-        <button type="button" id="recurring-add" disabled>เพิ่มรายการประจำ</button>
+        <button type="button" id="recurring-add" data-i18n="web.recurring.addTitle" disabled>เพิ่มรายการประจำ</button>
       </section>
     </div>
     <div id="panel-goals" class="panel" hidden>
       <section id="goals" class="goals-page" aria-labelledby="goals-title">
-        <h2 id="goals-title" tabindex="-1">เป้าหมายการออม</h2>
-        <p class="goals-hint">ออมผ่านแชตได้ เช่น <span class="nowrap">ออม เที่ยวญี่ปุ่น 1000</span></p>
-        <p class="goals-hint">ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน</p>
+        <h2 id="goals-title" tabindex="-1" data-i18n="web.title.goals">เป้าหมายการออม</h2>
+        <p class="goals-hint"><span data-i18n="web.goals.hint.chat">ออมผ่านแชตได้ เช่น</span> <span class="nowrap" data-i18n="web.goals.hint.chatExample">ออม เที่ยวญี่ปุ่น 1000</span></p>
+        <p class="goals-hint" data-i18n="web.goals.hint.separate">ยอดออมเก็บแยก ไม่หักจากยอดคงเหลือหรือกระเป๋าเงิน</p>
         <p id="goals-status" class="goals-status" role="status" aria-live="polite"></p>
-        <p id="goals-loading" class="sr-only" role="status" hidden>กำลังโหลดเป้าออม...</p>
+        <p id="goals-loading" class="sr-only" role="status" data-i18n="web.goals.loading" hidden>กำลังโหลดเป้าออม...</p>
         <ul id="goals-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="goals-error" class="budgets-error" hidden>
           <p id="goals-error-text" role="alert"></p>
-          <button type="button" id="goals-retry">ลองใหม่</button>
+          <button type="button" id="goals-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
         <div id="goals-body" hidden>
           <div id="goals-hero" class="goals-hero" hidden>
             <p id="goals-hero-count" class="goals-hero-lead"></p>
-            <p class="goals-hero-value"><span id="goals-hero-saved"></span> <span class="goals-hero-unit">บาท</span></p>
+            <p class="goals-hero-value"><span id="goals-hero-saved"></span> <span class="goals-hero-unit" data-i18n="common.baht">บาท</span></p>
             <div class="goals-hero-track" aria-hidden="true"><span id="goals-hero-fill" class="goals-hero-fill"></span></div>
             <p class="goals-hero-foot"><span id="goals-hero-percent"></span><span id="goals-hero-rest"></span></p>
           </div>
           <ul id="goal-rows" class="goal-rows"></ul>
-          <p id="goals-empty" class="goals-empty" hidden>ยังไม่มีเป้าออม กดปุ่มด้านล่างเพื่อสร้างเป้าแรก</p>
+          <p id="goals-empty" class="goals-empty" data-i18n="web.goals.empty" hidden>ยังไม่มีเป้าออม กดปุ่มด้านล่างเพื่อสร้างเป้าแรก</p>
           <details id="goals-closed" class="goals-closed" hidden>
             <summary id="goals-closed-count"></summary>
             <ul id="goal-closed-rows" class="goal-rows"></ul>
@@ -513,41 +519,41 @@
         <button type="button" id="goal-add" class="goal-add" disabled><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-plus"></use>
-          </svg>สร้างเป้าใหม่</button>
+          </svg><span data-i18n="web.goals.new">สร้างเป้าใหม่</span></button>
       </section>
     </div>
     <div id="panel-bills" class="panel" hidden>
       <div class="bills-hero">
         <div class="bills-hero-text">
-          <p class="bills-hero-title">หารบิล ง่ายนิดเดียว</p>
-          <p class="bills-hero-sub">กินด้วยกัน จ่ายด้วยกัน แชร์ค่าใช้จ่ายกับเพื่อน</p>
+          <p class="bills-hero-title" data-i18n="web.bills.heroTitle">หารบิล ง่ายนิดเดียว</p>
+          <p class="bills-hero-sub" data-i18n="web.bills.heroSub">กินด้วยกัน จ่ายด้วยกัน แชร์ค่าใช้จ่ายกับเพื่อน</p>
         </div>
         <img class="bills-hero-mascot" src="assets/mascot.webp" alt="" width="72" height="72">
         <div class="bills-toolbar">
-          <button type="button" id="bill-new" class="bill-new" disabled>สร้างบิล</button>
+          <button type="button" id="bill-new" class="bill-new" data-i18n="web.bills.new" disabled>สร้างบิล</button>
         </div>
       </div>
       <p id="bills-status" class="export-status bills-status" role="status" aria-live="polite"></p>
-      <p id="bills-loading" class="sr-only" role="status" hidden>กำลังโหลดบิล...</p>
+      <p id="bills-loading" class="sr-only" role="status" data-i18n="web.bills.loading" hidden>กำลังโหลดบิล...</p>
       <ul id="bills-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="bills-error" class="budgets-error bills-error" role="alert" hidden>
         <p id="bills-error-text"></p>
-        <button type="button" id="bills-retry">ลองใหม่</button>
+        <button type="button" id="bills-retry" data-i18n="web.common.retry">ลองใหม่</button>
       </div>
       <div id="bills-body" hidden>
-        <div class="bills-switch" role="group" aria-label="เลือกบิลที่จะดู">
+        <div class="bills-switch" role="group" aria-label="เลือกบิลที่จะดู" data-i18n-attr="aria-label:web.bills.switchLabel">
           <button type="button" id="bills-show-incoming" aria-pressed="false"
-            aria-controls="bills-incoming-section">เพื่อนส่งมา<span id="bills-awaiting" class="bills-awaiting"
+            aria-controls="bills-incoming-section"><span data-i18n="web.bills.showIncoming">เพื่อนส่งมา</span><span id="bills-awaiting" class="bills-awaiting"
               hidden></span></button>
           <button type="button" id="bills-show-owned" aria-pressed="true"
-            aria-controls="bills-owned-section">ฉันสร้าง</button>
+            aria-controls="bills-owned-section" data-i18n="web.bills.showOwned">ฉันสร้าง</button>
         </div>
         <section id="bills-incoming-section" class="bills-section" aria-labelledby="bills-incoming-title" hidden>
-          <h2 id="bills-incoming-title">บิลที่เพื่อนส่งมา</h2>
+          <h2 id="bills-incoming-title" data-i18n="web.bills.incomingTitle">บิลที่เพื่อนส่งมา</h2>
           <ul id="bills-incoming" class="bill-list"></ul>
           <p id="bills-incoming-empty" class="bills-empty" hidden></p>
           <details id="bills-incoming-done" class="bills-done" hidden>
-            <summary><span>บิลที่จบแล้ว</span><span id="bills-incoming-done-count" class="bills-done-count"></span><svg
+            <summary><span data-i18n="web.bills.done">บิลที่จบแล้ว</span><span id="bills-incoming-done-count" class="bills-done-count"></span><svg
                 class="icon bill-chevron" aria-hidden="true" focusable="false">
                 <use href="#icon-chevron"></use>
               </svg></summary>
@@ -556,11 +562,11 @@
           <p id="bills-incoming-limit" class="bills-limit" hidden></p>
         </section>
         <section id="bills-owned-section" class="bills-section" aria-labelledby="bills-owned-title">
-          <h2 id="bills-owned-title">บิลที่ฉันสร้าง</h2>
+          <h2 id="bills-owned-title" data-i18n="web.bills.ownedTitle">บิลที่ฉันสร้าง</h2>
           <ul id="bills-owned" class="bill-list"></ul>
           <p id="bills-owned-empty" class="bills-empty" hidden></p>
           <details id="bills-owned-done" class="bills-done" hidden>
-            <summary><span>บิลที่จบแล้ว</span><span id="bills-owned-done-count" class="bills-done-count"></span><svg
+            <summary><span data-i18n="web.bills.done">บิลที่จบแล้ว</span><span id="bills-owned-done-count" class="bills-done-count"></span><svg
                 class="icon bill-chevron" aria-hidden="true" focusable="false">
                 <use href="#icon-chevron"></use>
               </svg></summary>
@@ -571,47 +577,45 @@
       </div>
     </div>
     <div id="panel-profile" class="panel" hidden>
-      <p id="profile-loading" class="sr-only" role="status" hidden>กำลังโหลดโปรไฟล์...</p>
+      <p id="profile-loading" class="sr-only" role="status" data-i18n="web.profile.loading" hidden>กำลังโหลดโปรไฟล์...</p>
       <ul id="profile-skeleton" class="skeleton-list skeleton-padded" aria-hidden="true" hidden></ul>
       <div id="profile-error" class="budgets-error profile-error" hidden>
         <p id="profile-error-text"></p>
-        <button type="button" id="profile-retry">ลองใหม่</button>
+        <button type="button" id="profile-retry" data-i18n="web.common.retry">ลองใหม่</button>
       </div>
       <section id="profile-card" class="profile-card" aria-labelledby="profile-name" hidden>
         <div class="profile-head">
           <span id="profile-avatar" class="profile-avatar" aria-hidden="true"></span>
           <div>
-            <h2 id="profile-name" class="profile-name">ผู้ใช้</h2>
+            <h2 id="profile-name" class="profile-name"><span data-i18n="web.profile.defaultName">ผู้ใช้</span></h2>
             <p id="profile-since" class="profile-since"></p>
           </div>
         </div>
         <div class="balance-card">
-          <span class="stat-label">ยอดสะสมทั้งหมด</span>
+          <span class="stat-label" data-i18n="web.profile.totalBalance">ยอดสะสมทั้งหมด</span>
           <span id="profile-balance" class="balance-value"></span>
-          <span class="balance-note">รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม
-            ไม่ใช่ยอดเงินในบัญชีจริง</span>
-          <p id="profile-stale" class="profile-stale" role="status" hidden>อัปเดตยอดไม่สำเร็จ
-            ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
+          <span class="balance-note" data-i18n="web.profile.balanceNote">รายรับหักรายจ่าย ทุกรายการที่บันทึกกับเฮียตั้งแต่เริ่ม ไม่ใช่ยอดเงินในบัญชีจริง</span>
+          <p id="profile-stale" class="profile-stale" role="status" data-i18n="web.profile.stale" hidden>อัปเดตยอดไม่สำเร็จ ยอดที่เห็นอาจไม่ตรงกับล่าสุด</p>
         </div>
         <div class="profile-stats">
-          <div class="stat income"><span class="stat-label">รายรับสะสม</span><span id="profile-income"
+          <div class="stat income"><span class="stat-label" data-i18n="web.profile.income">รายรับสะสม</span><span id="profile-income"
               class="stat-value"></span></div>
-          <div class="stat expense"><span class="stat-label">รายจ่ายสะสม</span><span id="profile-expense"
+          <div class="stat expense"><span class="stat-label" data-i18n="web.profile.expense">รายจ่ายสะสม</span><span id="profile-expense"
               class="stat-value"></span></div>
-          <div class="stat"><span class="stat-label">จำนวนรายการ</span><span id="profile-count"
+          <div class="stat"><span class="stat-label" data-i18n="web.profile.count">จำนวนรายการ</span><span id="profile-count"
               class="stat-value"></span></div>
         </div>
       </section>
       <div class="menu-groups">
         <section class="menu-group" aria-labelledby="menu-data-title">
-          <h2 id="menu-data-title">การจัดการข้อมูล</h2>
+          <h2 id="menu-data-title" data-i18n="web.profile.menu.data">การจัดการข้อมูล</h2>
           <ul class="menu-list">
             <li><button type="button" id="wallets-open" class="menu-row" disabled>
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#icon-wallet"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">กระเป๋าเงิน</span> <span
-                    class="menu-row-sub">จัดการกระเป๋าและดูยอดแยก</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.title.wallets">กระเป๋าเงิน</span> <span
+                    class="menu-row-sub" data-i18n="web.wallets.menuSub">จัดการกระเป๋าและดูยอดแยก</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -619,22 +623,22 @@
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#icon-categories"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">จัดการหมวดหมู่</span> <span
-                    class="menu-row-sub">เพิ่ม แก้ไข ซ่อน และลบหมวด</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.categories.open">จัดการหมวดหมู่</span> <span
+                    class="menu-row-sub" data-i18n="web.categories.menuSub">เพิ่ม แก้ไข ซ่อน และลบหมวด</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
           </ul>
         </section>
         <section class="menu-group" aria-labelledby="menu-auto-title">
-          <h2 id="menu-auto-title">ระบบอัตโนมัติและการตั้งค่า</h2>
+          <h2 id="menu-auto-title" data-i18n="web.profile.menu.auto">ระบบอัตโนมัติและการตั้งค่า</h2>
           <ul class="menu-list">
             <li><button type="button" id="recurring-open" class="menu-row" disabled>
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#tab-repeat"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">รายการประจำ</span> <span
-                    class="menu-row-sub">รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.profile.menu.recurring">รายการประจำ</span> <span
+                    class="menu-row-sub" data-i18n="web.profile.menu.recurringSub">รายรับรายจ่ายที่เกิดทุกเดือน เฮียจดให้เอง</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -642,22 +646,31 @@
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#icon-bell"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">การแจ้งเตือน</span> <span
-                    class="menu-row-sub">สรุปรายสัปดาห์และเตือนลืมจด</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.title.notify">การแจ้งเตือน</span> <span
+                    class="menu-row-sub" data-i18n="web.profile.menu.notifySub">สรุปรายสัปดาห์และเตือนลืมจด</span></span>
+                <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
+                  <use href="#icon-chevron"></use>
+                </svg></button></li>
+            <li><button type="button" id="language-open" class="menu-row" disabled>
+                <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
+                    <use href="#icon-globe"></use>
+                  </svg></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.settings.language.title">ภาษา / Language</span> <span
+                    id="language-open-sub" class="menu-row-sub"></span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
           </ul>
         </section>
         <section class="menu-group" aria-labelledby="menu-help-title">
-          <h2 id="menu-help-title">ความช่วยเหลือและการใช้งานร่วมกัน</h2>
+          <h2 id="menu-help-title" data-i18n="web.profile.menu.help">ความช่วยเหลือและการใช้งานร่วมกัน</h2>
           <ul class="menu-list">
             <li><button type="button" id="friends-open" class="menu-row" disabled>
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#icon-users"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">เพื่อนและหารบิล</span> <span
-                    class="menu-row-sub">จัดการเพื่อนและไปหารบิล</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.title.friends">เพื่อนและหารบิล</span> <span
+                    class="menu-row-sub" data-i18n="web.profile.menu.friendsSub">จัดการเพื่อนและไปหารบิล</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -665,8 +678,8 @@
                 <span class="menu-row-icon"><svg class="icon" aria-hidden="true" focusable="false">
                     <use href="#icon-book"></use>
                   </svg></span>
-                <span class="menu-row-text"><span class="menu-row-title">วิธีใช้งาน</span> <span
-                    class="menu-row-sub">วิธีใช้เฮียและคำสั่งในแชต</span></span>
+                <span class="menu-row-text"><span class="menu-row-title" data-i18n="web.title.tips">วิธีใช้งาน</span> <span
+                    class="menu-row-sub" data-i18n="web.profile.menu.tipsSub">วิธีใช้เฮียและคำสั่งในแชต</span></span>
                 <svg class="icon menu-row-chevron" aria-hidden="true" focusable="false">
                   <use href="#icon-chevron"></use>
                 </svg></button></li>
@@ -674,96 +687,111 @@
         </section>
       </div>
       <div class="profile-close-wrap">
-        <button type="button" id="profile-close" class="profile-close" hidden>กลับไปแชต</button>
+        <button type="button" id="profile-close" class="profile-close" data-i18n="web.profile.close" hidden>กลับไปแชต</button>
       </div>
     </div>
     <div id="panel-wallets" class="panel" hidden>
       <section id="wallets" class="wallets" aria-labelledby="wallets-title" hidden>
-        <h2 id="wallets-title">กระเป๋าเงิน</h2>
-        <p class="wallets-hint">ยอดของแต่ละกระเป๋า = รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น<br>
-          รายการที่ไม่ได้ระบุกระเป๋าอยู่ใน เงินสด</p>
-        <p id="wallets-loading" class="notify-loading" role="status" hidden>กำลังโหลดกระเป๋า...</p>
+        <h2 id="wallets-title" data-i18n="web.title.wallets">กระเป๋าเงิน</h2>
+        <p class="wallets-hint"><span data-i18n="web.wallets.hint.balance">ยอดของแต่ละกระเป๋า = รายรับหักรายจ่ายที่บันทึกในกระเป๋านั้น</span><br>
+          <span data-i18n="web.wallets.hint.default">รายการที่ไม่ได้ระบุกระเป๋าอยู่ใน เงินสด</span></p>
+        <p id="wallets-loading" class="notify-loading" role="status" data-i18n="web.wallets.loading" hidden>กำลังโหลดกระเป๋า...</p>
         <div id="wallets-error" class="budgets-error" hidden>
           <p id="wallets-error-text" role="alert"></p>
-          <button type="button" id="wallets-retry">ลองใหม่</button>
+          <button type="button" id="wallets-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
         <ul id="wallet-rows" class="wallet-rows"></ul>
         <p id="wallet-status" class="export-status" role="status" aria-live="polite"></p>
         <form id="wallet-add-form" class="wallet-add" novalidate>
-          <label for="wallet-add-input">เพิ่มกระเป๋า</label>
-          <input id="wallet-add-input" type="text" autocomplete="off" maxlength="30" placeholder="เช่น บัตรเครดิต">
-          <button type="submit" id="wallet-add-submit">เพิ่ม</button>
+          <label for="wallet-add-input" data-i18n="web.wallets.add.label">เพิ่มกระเป๋า</label>
+          <input id="wallet-add-input" type="text" autocomplete="off" maxlength="30" placeholder="เช่น บัตรเครดิต" data-i18n-attr="placeholder:web.wallets.add.placeholder">
+          <button type="submit" id="wallet-add-submit" data-i18n="web.wallets.add.submit">เพิ่ม</button>
           <p id="wallet-add-error" class="error" role="alert"></p>
         </form>
       </section>
     </div>
     <div id="panel-notify" class="panel" hidden>
       <section id="notify" class="notify-settings" aria-labelledby="notify-title" hidden>
-        <h2 id="notify-title">การแจ้งเตือน</h2>
-        <p class="notify-hint">เฮียส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
-        <p id="notify-loading" class="notify-loading" role="status" hidden>กำลังโหลดการตั้งค่า...</p>
+        <h2 id="notify-title" data-i18n="web.title.notify">การแจ้งเตือน</h2>
+        <p class="notify-hint" data-i18n="web.settings.notify.hint">เฮียส่งข้อความหาคุณเองตามเวลา เปิดเฉพาะที่อยากได้</p>
+        <p id="notify-loading" class="notify-loading" role="status" data-i18n="web.settings.notify.loading" hidden>กำลังโหลดการตั้งค่า...</p>
         <div id="notify-error" class="budgets-error" hidden>
           <p id="notify-error-text" role="alert"></p>
-          <button type="button" id="notify-retry">ลองใหม่</button>
+          <button type="button" id="notify-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
         <div id="notify-body" class="notify-body" hidden>
-          <label class="notify-switch"><span class="notify-switch-text"><span>ส่งสรุปทุกวันอาทิตย์</span><small>การ์ดสรุปสัปดาห์
-                จันทร์-อาทิตย์ ส่งเวลา 19:00 สัปดาห์ที่ไม่มีรายการจะไม่ส่ง</small></span><input id="notify-weekly-summary"
+          <label class="notify-switch"><span class="notify-switch-text"><span data-i18n="web.settings.notify.weeklySummary">ส่งสรุปทุกวันอาทิตย์</span><small
+                data-i18n="web.settings.notify.weeklySummaryHint">การ์ดสรุปสัปดาห์ จันทร์-อาทิตย์ ส่งเวลา 19:00 สัปดาห์ที่ไม่มีรายการจะไม่ส่ง</small></span><input id="notify-weekly-summary"
               type="checkbox" role="switch"></label>
-          <label class="notify-switch"><span class="notify-switch-text"><span>เตือนถ้าวันนี้ยังไม่ได้จด</span><small>ส่งข้อความเวลา
-                21:00 ถ้าวันนั้นยังไม่ได้พิมพ์รายการ ส่งสลิป หรือหารบิล รายการประจำไม่นับ</small></span><input id="notify-daily-reminder"
+          <label class="notify-switch"><span class="notify-switch-text"><span data-i18n="web.settings.notify.dailyReminder">เตือนถ้าวันนี้ยังไม่ได้จด</span><small
+                data-i18n="web.settings.notify.dailyReminderHint">ส่งข้อความเวลา 21:00 ถ้าวันนั้นยังไม่ได้พิมพ์รายการ ส่งสลิป หรือหารบิล รายการประจำไม่นับ</small></span><input id="notify-daily-reminder"
               type="checkbox" role="switch"></label>
         </div>
         <p id="notify-status" class="notify-status" role="status" aria-live="polite"></p>
       </section>
     </div>
+    <div id="panel-language" class="panel" hidden>
+      <section class="notify-settings" aria-labelledby="language-title">
+        <h2 id="language-title" data-i18n="web.settings.language.title">ภาษา / Language</h2>
+        <p class="notify-hint" data-i18n="web.settings.language.hint">เลือกภาษาที่เฮียใช้คุยกับคุณ ทั้งในแชตและในหน้าเว็บ</p>
+        <div id="language-group" class="language-options" role="radiogroup" aria-labelledby="language-title">
+          <label class="language-option"><input id="language-th" type="radio" name="language" value="th"><span id="language-th-label"
+              data-i18n="common.language.th">ภาษาไทย</span></label>
+          <label class="language-option"><input id="language-en" type="radio" name="language" value="en"><span id="language-en-label"
+              data-i18n="common.language.en">English</span></label>
+        </div>
+        <p id="language-status" class="notify-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
     <div id="panel-friends" class="panel" hidden>
       <section id="friends" class="friends" aria-labelledby="friends-title" hidden>
-        <h2 id="friends-title" tabindex="-1">เพื่อน</h2>
-        <p class="friends-hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
-        <a id="friends-bills-link" class="friends-bills-link" href="./?tab=bills">ไปหารบิลกับเพื่อน</a>
-        <p id="friends-loading" class="sr-only" role="status" hidden>กำลังโหลดเพื่อน...</p>
+        <h2 id="friends-title" tabindex="-1" data-i18n="web.friends.title">เพื่อน</h2>
+        <p class="friends-hint" data-i18n="web.friends.hint">เพิ่มเพื่อนไว้ก่อน แล้วจะเลือกเพื่อนมาหารบิลได้</p>
+        <a id="friends-bills-link" class="friends-bills-link" href="./?tab=bills" data-i18n="web.friends.billsLink">ไปหารบิลกับเพื่อน</a>
+        <p id="friends-loading" class="sr-only" role="status" data-i18n="web.friends.loading" hidden>กำลังโหลดเพื่อน...</p>
         <ul id="friends-skeleton" class="skeleton-list" aria-hidden="true" hidden></ul>
         <div id="friends-error" class="budgets-error" hidden>
           <p id="friends-error-text" role="alert"></p>
-          <button type="button" id="friends-retry">ลองใหม่</button>
+          <button type="button" id="friends-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
         <div id="friends-body" hidden>
           <div class="friend-code-card">
-            <span class="stat-label">รหัสเพื่อนของฉัน</span>
+            <span class="stat-label" data-i18n="web.friends.myCode">รหัสเพื่อนของฉัน</span>
             <span id="friend-code" class="friend-code"></span>
             <div class="friend-actions">
-              <button type="button" id="friend-share">ส่งลิงก์ชวนเพื่อน</button>
-              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr">แสดง
-                QR</button>
-              <button type="button" id="friend-code-renew">เปลี่ยนรหัส</button>
+              <button type="button" id="friend-share" data-i18n="web.friends.share">ส่งลิงก์ชวนเพื่อน</button>
+              <button type="button" id="friend-qr-toggle" aria-expanded="false" aria-controls="friend-qr"><span data-i18n="web.friends.showQr">แสดง QR</span></button>
+              <button type="button" id="friend-code-renew" data-i18n="web.friends.renew">เปลี่ยนรหัส</button>
             </div>
             <div id="friend-qr" class="friend-qr" hidden></div>
           </div>
           <p id="friend-status" class="export-status" role="status" aria-live="polite"></p>
           <form id="friend-add-form" class="friend-add" novalidate>
-            <label for="friend-code-input">เพิ่มเพื่อนด้วยรหัส</label>
+            <label for="friend-code-input" data-i18n="web.friends.addLabel">เพิ่มเพื่อนด้วยรหัส</label>
             <input id="friend-code-input" type="text" autocomplete="off" autocapitalize="characters"
-              enterkeyhint="search" maxlength="12" placeholder="เช่น ABCD-2345">
-            <button type="submit" id="friend-add-submit">ค้นหา</button>
+              enterkeyhint="search" maxlength="12" placeholder="เช่น ABCD-2345" data-i18n-attr="placeholder:web.friends.codePlaceholder">
+            <button type="submit" id="friend-add-submit"><span data-i18n="web.friends.search">ค้นหา</span></button>
             <p id="friend-add-error" class="error" role="alert"></p>
           </form>
           <ul id="friend-rows" class="friend-rows"></ul>
-          <p id="friends-empty" class="friends-empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
+          <p id="friends-empty" class="friends-empty" data-i18n="web.friends.empty" hidden>ยังไม่มีเพื่อน ส่งลิงก์หรือให้เพื่อนสแกน QR เพื่อเริ่ม</p>
         </div>
       </section>
     </div>
     <div id="panel-tips" class="panel" hidden>
       <section class="profile-tips" aria-labelledby="tips-title">
-        <h3 id="tips-title">วิธีใช้เฮีย</h3>
+        <h3 id="tips-title" data-i18n="web.help.title">วิธีใช้เฮีย</h3>
         <ul>
-          <li>พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45" <span class="nowrap">เฮียบันทึก</span>ให้ทันที</li>
-          <li>พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
-          <li>ส่งรูปสลิปหรือใบเสร็จ <span class="nowrap">เฮียอ่าน</span>ยอดแล้วถามยืนยันก่อนบันทึก</li>
-          <li>พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่" <span class="nowrap">เฮียตอบยอด</span>ให้</li>
-          <li>บันทึกผิด กดปุ่มลบบนการ์ดที่เฮียตอบกลับได้เลย</li>
-          <li>ในหน้ารายการ แตะแถวเพื่อแก้ไข หรือปัดแถวไปทางซ้ายเพื่อลบ</li>
-          <li>พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
+          <li><span data-i18n="web.help.record.before">พิมพ์รายการในแชต เช่น "กินข้าว 60 กาแฟ 45"</span> <span class="nowrap"
+              data-i18n="web.help.record.who">เฮียบันทึก</span><span data-i18n="web.help.record.after">ให้ทันที</span></li>
+          <li data-i18n="web.help.summary">พิมพ์ "สรุป" เพื่อดูยอดวันนี้ สัปดาห์นี้ หรือเดือนนี้</li>
+          <li><span data-i18n="web.help.slip.before">ส่งรูปสลิปหรือใบเสร็จ</span> <span class="nowrap"
+              data-i18n="web.help.slip.who">เฮียอ่าน</span><span data-i18n="web.help.slip.after">ยอดแล้วถามยืนยันก่อนบันทึก</span></li>
+          <li><span data-i18n="web.help.ask.before">พิมพ์ถาม เช่น "เดือนนี้กินกาแฟไปเท่าไหร่"</span> <span class="nowrap"
+              data-i18n="web.help.ask.who">เฮียตอบยอด</span><span data-i18n="web.help.ask.after">ให้</span></li>
+          <li data-i18n="web.help.undo">บันทึกผิด กดปุ่มลบบนการ์ดที่เฮียตอบกลับได้เลย</li>
+          <li data-i18n="web.help.list">ในหน้ารายการ แตะแถวเพื่อแก้ไข หรือปัดแถวไปทางซ้ายเพื่อลบ</li>
+          <li data-i18n="web.help.more">พิมพ์ "ช่วยเหลือ" หรือกดปุ่ม วิธีการใช้ ในเมนูแชต เพื่อดูวิธีใช้ทั้งหมด</li>
         </ul>
       </section>
     </div>
@@ -771,177 +799,178 @@
   <p id="undo-bar-status" class="sr-only" role="status" aria-live="polite"></p>
   <div id="undo-bar" class="undo-bar" hidden>
     <span id="undo-bar-text"></span>
-    <button type="button" id="undo-bar-button">เลิกทำ</button>
+    <button type="button" id="undo-bar-button" data-i18n="web.undo.button">เลิกทำ</button>
   </div>
-  <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก"></nav>
+  <nav id="bottom-nav" class="bottom-nav" aria-label="เมนูหลัก" data-i18n-attr="aria-label:web.nav.label"></nav>
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
-      <h2 id="editor-title">แก้ไขรายการ</h2>
-      <button type="button" id="cancel-button" class="dialog-close" aria-label="ปิด"><svg class="icon"
+      <h2 id="editor-title" data-i18n="web.editor.title">แก้ไขรายการ</h2>
+      <button type="button" id="cancel-button" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
         </svg></button>
-      <label>จำนวนเงิน (บาท)
-        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
+      <label><span data-i18n="web.editor.amount">จำนวนเงิน (บาท)</span>
+        <input id="edit-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" data-i18n-attr="title:web.editor.amountHint" required>
       </label>
-      <label>หมวด
+      <label><span data-i18n="web.editor.category">หมวด</span>
         <select id="edit-category" required></select>
       </label>
-      <label id="edit-wallet-row" hidden>กระเป๋า
+      <label id="edit-wallet-row" hidden><span data-i18n="web.editor.wallet">กระเป๋า</span>
         <select id="edit-wallet"></select>
       </label>
-      <label>วันที่
+      <label><span data-i18n="web.editor.date">วันที่</span>
         <input id="edit-date" type="date" required>
       </label>
-      <label>โน้ต
+      <label><span data-i18n="web.editor.note">โน้ต</span>
         <input id="edit-note" type="text" maxlength="200">
       </label>
       <p id="edit-busy" class="confirm-detail" role="status" hidden></p>
       <p id="edit-error" class="error" role="alert" hidden></p>
       <div class="actions">
-        <button type="button" id="delete-button" class="danger">ลบ</button>
-        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" id="delete-button" class="danger" data-i18n="web.common.delete">ลบ</button>
+        <button type="submit" class="primary" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="wallet-dialog" aria-labelledby="wallet-dialog-title">
     <form id="wallet-dialog-form" novalidate>
-      <h2 id="wallet-dialog-title">เปลี่ยนชื่อกระเป๋า</h2>
-      <label>ชื่อกระเป๋า
+      <h2 id="wallet-dialog-title" data-i18n="web.wallets.dialog.title">เปลี่ยนชื่อกระเป๋า</h2>
+      <label><span data-i18n="web.wallets.dialog.name">ชื่อกระเป๋า</span>
         <input id="wallet-dialog-name" type="text" maxlength="30" autocomplete="off">
       </label>
       <p id="wallet-dialog-error" class="error" role="alert" hidden></p>
       <div class="actions">
-        <button type="button" id="wallet-dialog-cancel">ยกเลิก</button>
-        <button type="submit" id="wallet-dialog-save" class="primary">บันทึก</button>
+        <button type="button" id="wallet-dialog-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
+        <button type="submit" id="wallet-dialog-save" class="primary" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="friend-dialog" aria-labelledby="friend-dialog-title">
-    <h2 id="friend-dialog-title">เพื่อน</h2>
+    <h2 id="friend-dialog-title"><span data-i18n="web.friends.title">เพื่อน</span></h2>
     <p id="friend-dialog-text" class="confirm-detail"></p>
-    <p id="friend-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
+    <p id="friend-dialog-busy" class="confirm-detail" role="status" data-i18n="web.common.working" hidden>กำลังดำเนินการ...</p>
     <p id="friend-dialog-error" class="error" role="alert"></p>
     <div class="actions">
-      <button type="button" id="friend-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="friend-dialog-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
       <button type="button" id="friend-dialog-ok" class="primary"></button>
     </div>
   </dialog>
   <dialog id="category-sheet" class="category-sheet" aria-labelledby="category-sheet-title">
     <form id="category-sheet-form" novalidate>
-      <h2 id="category-sheet-title" tabindex="-1">แก้หมวด</h2>
-      <button type="button" id="category-sheet-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+      <h2 id="category-sheet-title" tabindex="-1"><span data-i18n="web.categories.sheet.edit">แก้หมวด</span></h2>
+      <button type="button" id="category-sheet-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
         </svg></button>
       <div class="category-sheet-head">
         <span id="category-sheet-preview" class="category-sheet-preview" aria-hidden="true"></span>
-        <label class="category-sheet-label">ชื่อหมวด
-          <input id="category-sheet-name" type="text" maxlength="30" autocomplete="off" placeholder="เช่น ค่าแมว">
+        <label class="category-sheet-label"><span data-i18n="web.categories.sheet.name">ชื่อหมวด</span>
+          <input id="category-sheet-name" type="text" maxlength="30" autocomplete="off" placeholder="เช่น ค่าแมว" data-i18n-attr="placeholder:web.categories.sheet.namePlaceholder">
         </label>
       </div>
       <fieldset class="category-icon-field">
-        <legend>ไอคอน</legend>
+        <legend data-i18n="web.categories.sheet.icon">ไอคอน</legend>
         <div id="category-sheet-icons" class="category-icon-grid"></div>
       </fieldset>
       <div id="category-sheet-hidden-row" class="category-hidden-row">
-        <label class="category-switch"><span class="category-switch-text"><span>ซ่อนหมวดนี้</span><small>รายการเก่ายังอยู่
-              แค่ไม่ให้เลือกใหม่</small></span><input id="category-sheet-hidden" type="checkbox" role="switch"></label>
+        <label class="category-switch"><span class="category-switch-text"><span data-i18n="web.categories.sheet.hide">ซ่อนหมวดนี้</span><small
+              data-i18n="web.categories.sheet.hideHint">รายการเก่ายังอยู่ แค่ไม่ให้เลือกใหม่</small></span><input id="category-sheet-hidden" type="checkbox" role="switch"></label>
       </div>
       <p id="category-sheet-error" class="error" role="alert"></p>
       <div id="category-sheet-delete-row" class="category-delete-row">
-        <button type="button" id="category-sheet-delete" class="category-delete">ลบหมวด</button>
+        <button type="button" id="category-sheet-delete" class="category-delete" data-i18n="web.categories.sheet.delete">ลบหมวด</button>
       </div>
       <div id="category-sheet-confirm" class="category-delete-confirm" hidden>
         <p id="category-sheet-confirm-text" class="confirm-detail"></p>
         <div class="actions">
-          <button type="button" id="category-sheet-confirm-cancel">ไม่ลบ</button>
-          <button type="button" id="category-sheet-confirm-ok" class="danger-solid">ลบเลย</button>
+          <button type="button" id="category-sheet-confirm-cancel" data-i18n="web.common.keep">ไม่ลบ</button>
+          <button type="button" id="category-sheet-confirm-ok" class="danger-solid" data-i18n="web.categories.sheet.confirmDelete">ลบเลย</button>
         </div>
       </div>
       <div class="category-sheet-footer">
-        <p id="category-sheet-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+        <p id="category-sheet-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
         <div class="actions">
-          <button type="button" id="category-sheet-cancel">ยกเลิก</button>
-          <button type="submit" id="category-sheet-save" class="primary">บันทึก</button>
+          <button type="button" id="category-sheet-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
+          <button type="submit" id="category-sheet-save" class="primary" data-i18n="web.common.save">บันทึก</button>
         </div>
       </div>
     </form>
   </dialog>
   <dialog id="bill-dialog" aria-labelledby="bill-dialog-title">
-    <h2 id="bill-dialog-title">บิล</h2>
+    <h2 id="bill-dialog-title"><span data-i18n="web.bills.dialog.title">บิล</span></h2>
     <p id="bill-dialog-text" class="confirm-detail"></p>
-    <p id="bill-dialog-busy" class="confirm-detail" role="status" hidden>กำลังดำเนินการ...</p>
+    <p id="bill-dialog-busy" class="confirm-detail" role="status" data-i18n="web.common.working" hidden>กำลังดำเนินการ...</p>
     <p id="bill-dialog-error" class="error" role="alert"></p>
     <div class="actions">
-      <button type="button" id="bill-dialog-cancel">ยกเลิก</button>
+      <button type="button" id="bill-dialog-cancel"><span data-i18n="web.common.cancel">ยกเลิก</span></button>
       <button type="button" id="bill-dialog-ok" class="danger-solid"></button>
     </div>
   </dialog>
   <dialog id="bill-form-dialog" class="bill-form-dialog" aria-labelledby="bill-form-heading">
     <form id="bill-form" novalidate>
-      <h2 id="bill-form-heading" tabindex="-1">สร้างบิล</h2>
-      <label>ชื่อบิล
-        <input id="bill-form-title" type="text" placeholder="เช่น เนื้อย่าง" aria-describedby="bill-form-error"
+      <h2 id="bill-form-heading" tabindex="-1" data-i18n="web.bills.new">สร้างบิล</h2>
+      <label><span data-i18n="web.bills.form.title">ชื่อบิล</span>
+        <input id="bill-form-title" type="text" placeholder="เช่น เนื้อย่าง" data-i18n-attr="placeholder:web.bills.form.titlePlaceholder" aria-describedby="bill-form-error"
           required>
       </label>
       <div class="bill-form-card">
-        <label>ยอดรวม (บาท)
+        <label><span data-i18n="web.bills.form.total">ยอดรวม (บาท)</span>
           <input id="bill-form-total" type="text" inputmode="decimal" autocomplete="off"
             aria-describedby="bill-form-error" required>
         </label>
         <div class="bill-form-receipt">
-          <button type="button" id="bill-form-receipt-button" class="bill-form-even">อ่านยอดจากรูปใบเสร็จ</button>
-          <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true" aria-label="เลือกรูปใบเสร็จ">
+          <button type="button" id="bill-form-receipt-button" class="bill-form-even" data-i18n="web.bills.form.receipt">อ่านยอดจากรูปใบเสร็จ</button>
+          <input id="bill-form-receipt" class="sr-only" type="file" accept="image/*" tabindex="-1" aria-hidden="true" aria-label="เลือกรูปใบเสร็จ"
+            data-i18n-attr="aria-label:web.bills.form.receiptPick">
           <p id="bill-form-receipt-status" class="bills-empty" role="status" aria-live="polite"></p>
         </div>
       </div>
-      <label>วันที่
+      <label><span data-i18n="web.editor.date">วันที่</span>
         <input id="bill-form-date" type="date" aria-describedby="bill-form-error" required>
       </label>
-      <label>หมวด
+      <label><span data-i18n="web.editor.category">หมวด</span>
         <select id="bill-form-category" required></select>
       </label>
       <div id="bill-form-categories-error" class="budgets-error" hidden>
         <p id="bill-form-categories-error-text" role="alert"></p>
-        <button type="button" id="bill-form-categories-retry">ลองใหม่</button>
+        <button type="button" id="bill-form-categories-retry" data-i18n="web.common.retry">ลองใหม่</button>
       </div>
       <fieldset class="bill-form-split">
-        <legend>หารกับเพื่อน</legend>
-        <p id="bill-form-friends-loading" class="bills-empty" role="status" hidden>กำลังโหลดรายชื่อเพื่อน...</p>
+        <legend data-i18n="web.bills.form.split">หารกับเพื่อน</legend>
+        <p id="bill-form-friends-loading" class="bills-empty" role="status" data-i18n="web.bills.form.friendsLoading" hidden>กำลังโหลดรายชื่อเพื่อน...</p>
         <div id="bill-form-friends-error" class="budgets-error" hidden>
           <p id="bill-form-friends-error-text" role="alert"></p>
-          <button type="button" id="bill-form-friends-retry">ลองใหม่</button>
+          <button type="button" id="bill-form-friends-retry" data-i18n="web.common.retry">ลองใหม่</button>
         </div>
-        <p id="bill-form-no-friends" class="bills-empty" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนในส่วนเพื่อนด้านล่างก่อน</p>
-        <button type="button" id="bill-form-go-profile" class="bill-form-even" hidden>ไปเพิ่มเพื่อน</button>
+        <p id="bill-form-no-friends" class="bills-empty" data-i18n="web.bills.form.noFriends" hidden>ยังไม่มีเพื่อน เพิ่มเพื่อนในส่วนเพื่อนด้านล่างก่อน</p>
+        <button type="button" id="bill-form-go-profile" class="bill-form-even" data-i18n="web.bills.form.goAddFriends" hidden>ไปเพิ่มเพื่อน</button>
         <ul id="bill-form-members" class="bill-form-members"></ul>
         <div id="bill-form-split-controls">
-          <label class="bill-form-owner">ส่วนของฉัน (บาท)
+          <label class="bill-form-owner"><span data-i18n="web.bills.form.ownerShare">ส่วนของฉัน (บาท)</span>
             <input id="bill-form-owner-share" type="number" inputmode="decimal" step="0.01" min="0"
               aria-describedby="bill-form-error">
           </label>
-          <button type="button" id="bill-form-even" class="bill-form-even">แบ่งเท่ากัน</button>
+          <button type="button" id="bill-form-even" class="bill-form-even" data-i18n="web.bills.form.even">แบ่งเท่ากัน</button>
         </div>
       </fieldset>
       <div class="bill-form-footer">
         <p id="bill-form-error" class="error" role="status" aria-live="polite"></p>
         <div class="actions">
-          <button type="button" id="bill-form-cancel">ยกเลิก</button>
-          <button type="submit" id="bill-form-submit" class="primary">หารบิล</button>
+          <button type="button" id="bill-form-cancel" data-i18n="web.common.cancel">ยกเลิก</button>
+          <button type="submit" id="bill-form-submit" class="primary"><span data-i18n="web.bills.form.submit">หารบิล</span></button>
         </div>
       </div>
     </form>
   </dialog>
   <dialog id="confirm-delete" aria-labelledby="confirm-title">
-    <h2 id="confirm-title">ลบรายการนี้?</h2>
+    <h2 id="confirm-title" data-i18n="web.confirm.title">ลบรายการนี้?</h2>
     <p id="confirm-category" class="confirm-category"></p>
     <p id="confirm-amount" class="confirm-amount"></p>
     <p id="confirm-date" class="confirm-detail"></p>
     <p id="confirm-note" class="confirm-detail" hidden></p>
     <div class="actions">
-      <button type="button" id="confirm-cancel" autofocus>ยกเลิก</button>
-      <button type="button" id="confirm-ok" class="danger-solid">ลบ</button>
+      <button type="button" id="confirm-cancel" data-i18n="web.common.cancel" autofocus>ยกเลิก</button>
+      <button type="button" id="confirm-ok" class="danger-solid" data-i18n="web.common.delete">ลบ</button>
     </div>
   </dialog>
   <dialog id="budget-editor" class="budget-sheet" aria-labelledby="budget-title">
@@ -950,10 +979,10 @@
       <div class="budget-sheet-head">
         <span id="budget-sheet-badge" class="budget-sheet-badge"></span>
         <div class="budget-sheet-heading">
-          <h2 id="budget-title">ตั้งงบ</h2>
+          <h2 id="budget-title" data-i18n="web.budgets.set">ตั้งงบ</h2>
           <p id="budget-sheet-sub"></p>
         </div>
-        <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
+        <button type="button" id="budget-cancel" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
             aria-hidden="true" focusable="false">
             <use href="#icon-close"></use>
           </svg></button>
@@ -966,32 +995,32 @@
         <div id="budget-preview-after" class="budget-preview-side" aria-live="polite"></div>
       </div>
       <div class="budget-sheet-field">
-        <label for="budget-amount" class="budget-sheet-label">งบต่อเดือน (บาท)</label>
+        <label for="budget-amount" class="budget-sheet-label" data-i18n="web.budgets.sheet.amountLabel">งบต่อเดือน (บาท)</label>
         <div class="budget-stepper">
-          <button type="button" id="budget-minus" aria-label="ลดงบ 500 บาท">−</button>
+          <button type="button" id="budget-minus" aria-label="ลดงบ 500 บาท" data-i18n-attr="aria-label:web.budgets.sheet.minus">−</button>
           <input id="budget-amount" type="text" inputmode="decimal" autocomplete="off" aria-describedby="budget-scope">
-          <button type="button" id="budget-plus" aria-label="เพิ่มงบ 500 บาท">+</button>
+          <button type="button" id="budget-plus" aria-label="เพิ่มงบ 500 บาท" data-i18n-attr="aria-label:web.budgets.sheet.plus">+</button>
         </div>
       </div>
       <div id="budget-chips" class="budget-chips"></div>
       <p id="budget-scope" class="confirm-detail"></p>
-      <p id="budget-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="budget-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
       <div id="budget-error" class="budget-sheet-error" role="alert" hidden>
         <strong id="budget-error-title"></strong>
         <span id="budget-error-text"></span>
       </div>
       <div class="budget-sheet-actions">
-        <button type="button" id="budget-remove" class="budget-remove">ไม่ตั้งงบ</button>
-        <button type="submit" id="budget-submit" class="budget-cta">บันทึก</button>
+        <button type="button" id="budget-remove" class="budget-remove" data-i18n="web.budgets.sheet.remove">ไม่ตั้งงบ</button>
+        <button type="submit" id="budget-submit" class="budget-cta" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="budget-remove-confirm" class="budget-confirm" aria-labelledby="budget-confirm-title">
-    <h2 id="budget-confirm-title">เลิกตั้งงบ</h2>
+    <h2 id="budget-confirm-title" data-i18n="web.budgets.confirm.title">เลิกตั้งงบ</h2>
     <div id="budget-confirm-body" class="budget-confirm-body"></div>
     <div class="budget-confirm-actions">
-      <button type="button" id="budget-confirm-cancel">ไม่ลบ</button>
-      <button type="button" id="budget-confirm-ok" class="danger">เลิกตั้งงบ</button>
+      <button type="button" id="budget-confirm-cancel" data-i18n="web.budgets.confirm.cancel">ไม่ลบ</button>
+      <button type="button" id="budget-confirm-ok" class="danger" data-i18n="web.budgets.confirm.title">เลิกตั้งงบ</button>
     </div>
   </dialog>
   <dialog id="budget-bulk-result" class="budget-sheet" aria-labelledby="budget-bulk-result-title">
@@ -999,108 +1028,108 @@
     <div class="budget-bulk-result-head">
       <img src="assets/mascot.webp" alt="" width="56" height="56">
       <div>
-        <h2 id="budget-bulk-result-title">ผลการบันทึกงบ</h2>
+        <h2 id="budget-bulk-result-title" data-i18n="web.budgets.bulk.resultHeading">ผลการบันทึกงบ</h2>
         <p id="budget-bulk-result-sub"></p>
       </div>
     </div>
     <div id="budget-bulk-result-list" class="budget-bulk-result-list"></div>
-    <button type="button" id="budget-bulk-result-retry" class="budget-cta">ลองบันทึกหมวดที่ไม่สำเร็จ</button>
-    <button type="button" id="budget-bulk-result-close" class="budget-bulk-result-close">ปิด</button>
+    <button type="button" id="budget-bulk-result-retry" class="budget-cta" data-i18n="web.budgets.bulk.retryFailed">ลองบันทึกหมวดที่ไม่สำเร็จ</button>
+    <button type="button" id="budget-bulk-result-close" class="budget-bulk-result-close" data-i18n="web.common.close">ปิด</button>
   </dialog>
   <dialog id="recurring-editor" aria-labelledby="recurring-editor-title">
     <form id="recurring-form">
-      <h2 id="recurring-editor-title" tabindex="-1" autofocus>รายการประจำ</h2>
-      <button type="button" id="recurring-cancel" class="dialog-close" aria-label="ปิด"><svg class="icon"
+      <h2 id="recurring-editor-title" tabindex="-1" autofocus><span data-i18n="web.title.recurring">รายการประจำ</span></h2>
+      <button type="button" id="recurring-cancel" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
         </svg></button>
-      <label>หมวด
+      <label><span data-i18n="web.editor.category">หมวด</span>
         <select id="recurring-category" required></select>
       </label>
-      <label>จำนวนเงิน (บาท)
-        <input id="recurring-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
+      <label><span data-i18n="web.editor.amount">จำนวนเงิน (บาท)</span>
+        <input id="recurring-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" data-i18n-attr="title:web.editor.amountHint" required>
       </label>
-      <label>ทุกวันที่ (1-31)
+      <label><span data-i18n="web.recurring.dayField">ทุกวันที่ (1-31)</span>
         <input id="recurring-day" type="number" inputmode="numeric" step="1" min="1" max="31" required>
       </label>
-      <label>โน้ต
+      <label><span data-i18n="web.editor.note">โน้ต</span>
         <input id="recurring-note" type="text" maxlength="200">
       </label>
       <label class="check">
-        <input id="recurring-active" type="checkbox" checked> ใช้งาน
+        <input id="recurring-active" type="checkbox" checked> <span data-i18n="web.recurring.active">ใช้งาน</span>
       </label>
-      <p id="recurring-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="recurring-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
       <p id="recurring-editor-error" class="error" role="alert" hidden></p>
       <div class="actions">
-        <button type="button" id="recurring-delete" class="danger">ลบ</button>
-        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" id="recurring-delete" class="danger" data-i18n="web.common.delete">ลบ</button>
+        <button type="submit" class="primary" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="recurring-confirm-delete" aria-labelledby="recurring-confirm-title">
-    <h2 id="recurring-confirm-title">ลบรายการประจำนี้?</h2>
+    <h2 id="recurring-confirm-title" data-i18n="web.recurring.confirmTitle">ลบรายการประจำนี้?</h2>
     <p id="recurring-confirm-category" class="confirm-category"></p>
     <p id="recurring-confirm-text" class="confirm-detail"></p>
     <div class="actions">
-      <button type="button" id="recurring-confirm-cancel" autofocus>ยกเลิก</button>
-      <button type="button" id="recurring-confirm-ok" class="danger-solid">ลบ</button>
+      <button type="button" id="recurring-confirm-cancel" data-i18n="web.common.cancel" autofocus>ยกเลิก</button>
+      <button type="button" id="recurring-confirm-ok" class="danger-solid" data-i18n="web.common.delete">ลบ</button>
     </div>
   </dialog>
   <dialog id="goal-editor" aria-labelledby="goal-editor-title">
     <form id="goal-editor-form">
-      <h2 id="goal-editor-title" tabindex="-1">เป้าออม</h2>
-      <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+      <h2 id="goal-editor-title" tabindex="-1"><span data-i18n="web.goals.dialogTitle">เป้าออม</span></h2>
+      <button type="button" id="goal-editor-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
           aria-hidden="true" focusable="false">
           <use href="#icon-close"></use>
         </svg></button>
-      <label>ชื่อเป้า
+      <label><span data-i18n="web.goals.editor.name">ชื่อเป้า</span>
         <input id="goal-editor-name" type="text" maxlength="30" required>
       </label>
-      <label>ยอดเป้า (บาท)
-        <input id="goal-editor-target" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
+      <label><span data-i18n="web.goals.editor.target">ยอดเป้า (บาท)</span>
+        <input id="goal-editor-target" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" data-i18n-attr="title:web.editor.amountHint" required>
       </label>
-      <label>อยากถึงเป้าภายในวันที่ (ไม่บังคับ)
+      <label><span data-i18n="web.goals.editor.date">อยากถึงเป้าภายในวันที่ (ไม่บังคับ)</span>
         <input id="goal-editor-date" type="date">
       </label>
       <label id="goal-editor-closed-row" class="check" hidden>
-        <input id="goal-editor-closed" type="checkbox"> ปิดเป้านี้ (ไม่รับยอดออมเพิ่ม และไม่ขึ้นในแชต)
+        <input id="goal-editor-closed" type="checkbox"> <span data-i18n="web.goals.editor.closeGoal">ปิดเป้านี้ (ไม่รับยอดออมเพิ่ม และไม่ขึ้นในแชต)</span>
       </label>
-      <p id="goal-editor-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+      <p id="goal-editor-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
       <p id="goal-editor-error" class="error" role="alert" hidden></p>
       <div class="actions">
-        <button type="submit" id="goal-editor-save" class="primary">บันทึก</button>
+        <button type="submit" id="goal-editor-save" class="primary" data-i18n="web.common.save">บันทึก</button>
       </div>
     </form>
   </dialog>
   <dialog id="goal-detail" aria-labelledby="goal-detail-title">
-    <h2 id="goal-detail-title" tabindex="-1">เป้าออม</h2>
-    <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด"><svg class="icon"
+    <h2 id="goal-detail-title" tabindex="-1"><span data-i18n="web.goals.dialogTitle">เป้าออม</span></h2>
+    <button type="button" id="goal-detail-close" class="dialog-close" aria-label="ปิด" data-i18n-attr="aria-label:web.common.close"><svg class="icon"
         aria-hidden="true" focusable="false">
         <use href="#icon-close"></use>
       </svg></button>
     <p id="goal-detail-progress" class="confirm-detail"></p>
-    <button type="button" id="goal-detail-edit" class="goal-detail-edit">แก้เป้า</button>
-    <p id="goal-detail-closed-note" class="confirm-detail" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
+    <button type="button" id="goal-detail-edit" class="goal-detail-edit" data-i18n="web.goals.edit">แก้เป้า</button>
+    <p id="goal-detail-closed-note" class="confirm-detail" data-i18n="web.goals.detail.closedNote" hidden>เป้านี้ปิดแล้ว ถ้าจะออมเพิ่ม กด แก้เป้า แล้วเอาติ๊ก ปิดเป้านี้ ออก</p>
     <form id="goal-detail-form">
-      <label>ออมเพิ่ม (บาท)
-        <input id="goal-detail-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" required>
+      <label><span data-i18n="web.goals.detail.amount">ออมเพิ่ม (บาท)</span>
+        <input id="goal-detail-amount" type="text" inputmode="decimal" autocomplete="off" pattern="\s*(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})\s*" title="ใส่ตัวเลข เช่น 1,500 หรือ 60.50 ทศนิยมไม่เกิน 2 ตำแหน่ง" data-i18n-attr="title:web.editor.amountHint" required>
       </label>
-      <label>วันที่
+      <label><span data-i18n="web.editor.date">วันที่</span>
         <input id="goal-detail-date" type="date" required>
       </label>
       <div class="actions">
-        <button type="submit" id="goal-detail-save" class="primary">ออมเพิ่ม</button>
+        <button type="submit" id="goal-detail-save" class="primary" data-i18n="web.goals.detail.add">ออมเพิ่ม</button>
       </div>
     </form>
-    <p id="goal-detail-busy" class="confirm-detail" role="status" hidden>กำลังบันทึก...</p>
+    <p id="goal-detail-busy" class="confirm-detail" role="status" data-i18n="web.common.saving" hidden>กำลังบันทึก...</p>
     <p id="goal-detail-status" class="goals-status" role="status" aria-live="polite"></p>
     <p id="goal-detail-error" class="error" role="alert" hidden></p>
-    <h3 class="goal-history-title">ประวัติการออม</h3>
-    <p id="goal-history-loading" class="confirm-detail" role="status" hidden>กำลังโหลดประวัติ...</p>
+    <h3 class="goal-history-title" data-i18n="web.goals.history.title">ประวัติการออม</h3>
+    <p id="goal-history-loading" class="confirm-detail" role="status" data-i18n="web.goals.history.loading" hidden>กำลังโหลดประวัติ...</p>
     <p id="goal-history-error" class="error" role="alert" hidden></p>
     <ul id="goal-history" class="friend-rows"></ul>
-    <p id="goal-history-empty" class="confirm-detail" hidden>ยังไม่มีรายการออม</p>
-    <p id="goal-history-limit" class="confirm-detail" hidden>แสดง 100 รายการล่าสุด</p>
+    <p id="goal-history-empty" class="confirm-detail" data-i18n="web.goals.history.empty" hidden>ยังไม่มีรายการออม</p>
+    <p id="goal-history-limit" class="confirm-detail" data-i18n="web.goals.history.limit" hidden>แสดง 100 รายการล่าสุด</p>
   </dialog>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script type="module" src="app.mjs"></script>

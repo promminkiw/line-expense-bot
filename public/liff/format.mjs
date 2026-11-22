@@ -1,9 +1,14 @@
-export function formatBaht(amount) {
-  return `${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })} บาท`;
+import { t, formatAmount, formatMonth, formatDate } from './i18n/translate.mjs';
+import { getLang } from './i18n/current.mjs';
+import { displayCategoryName } from './i18n/names.mjs';
+
+// lang ไม่ส่ง = ภาษาของหน้าตอน render ส่วนเทสต์ส่งเองได้
+export function formatBaht(amount, lang = getLang()) {
+  return formatAmount(lang, amount);
 }
 
-export function formatSignedBaht(item) {
-  return `${item.type === 'income' ? '+' : '-'}${formatBaht(item.amount)}`;
+export function formatSignedBaht(item, lang = getLang()) {
+  return `${item.type === 'income' ? '+' : '-'}${formatBaht(item.amount, lang)}`;
 }
 
 export function formatThaiDate(isoDate) {
@@ -47,8 +52,12 @@ export function groupByDate(transactions) {
 }
 
 // ปัดเป็นสตางค์ก่อนเทียบ กัน float noise เช่น 0.1 + 0.2
+function netCents(items) {
+  return items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+}
+
 export function formatDayNet(items) {
-  const cents = items.reduce((sum, item) => sum + (item.type === 'income' ? 1 : -1) * Math.round(item.amount * 100), 0);
+  const cents = netCents(items);
   if (cents === 0) return '0';
   const text = (Math.abs(cents) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
   return `${cents > 0 ? '+' : '-'}${text}`;
@@ -64,11 +73,15 @@ export function groupCategoryOptions(categories, { includeHidden = false, keepId
 }
 
 // หมวดที่ซ่อนโผล่ในตัวกรองและฟอร์มแก้ไข จึงบอกเหตุผลที่ตัวเลือกนี้ไม่อยู่ในฟอร์มเพิ่มใหม่
-export function categoryOptionLabel(category) {
-  return category.hidden ? `${category.name} (ซ่อนอยู่)` : category.name;
+export function categoryOptionLabel(category, lang = getLang()) {
+  const name = displayCategoryName(lang, category.type, category.name);
+  return category.hidden ? t(lang, 'web.category.hiddenOption', { name }) : name;
 }
 
-export const LOGIN_REQUIRED_MESSAGE = 'กรุณาเปิดหน้านี้จากแอป LINE อีกครั้ง';
+// เป็น function ไม่ใช่ค่าคงที่ เพราะภาษาของหน้าอาจเปลี่ยนหลัง module โหลดแล้ว
+export function loginRequiredMessage(lang = getLang()) {
+  return t(lang, 'web.error.loginRequired');
+}
 
 // ต้องตรงกับ pattern ใน index.html คอมมายอมเฉพาะเป็นตัวคั่นหลักพัน
 const AMOUNT_TEXT_SHAPE = /^(\d{1,3}(,\d{3})+(\.\d{1,2})?|\d+(\.\d{1,2})?|\.\d{1,2})$/;
@@ -86,31 +99,34 @@ export function parseAmountText(text) {
   return AMOUNT_TEXT_SHAPE.test(trimmed) ? Number(trimmed.replaceAll(',', '')) : Number.NaN;
 }
 
-export function describeEditFailure(status, action) {
+function actionFailed(lang, action) {
+  return t(lang, action === 'delete' ? 'web.error.deleteFailed' : 'web.error.saveFailed');
+}
+
+export function describeEditFailure(status, action, lang = getLang()) {
   if (status === 401) {
-    return { message: LOGIN_REQUIRED_MESSAGE, closeAndReload: false };
+    return { message: loginRequiredMessage(lang), closeAndReload: false };
   }
   if (status === 404) {
-    return { message: 'ไม่พบรายการนี้แล้ว', closeAndReload: true };
+    return { message: t(lang, 'web.editor.notFound'), closeAndReload: true };
   }
   if (status === 400 && action === 'save') {
-    return { message: 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่อีกครั้ง', closeAndReload: false };
+    return { message: t(lang, 'web.editor.invalid'), closeAndReload: false };
   }
-  const failed = action === 'delete' ? 'ลบไม่สำเร็จ' : 'บันทึกไม่สำเร็จ';
-  return { message: `${failed} ลองใหม่อีกครั้ง`, closeAndReload: false };
+  return { message: actionFailed(lang, action), closeAndReload: false };
 }
 
-export function describeRestoreFailure(status) {
-  if (status === 401) return { message: LOGIN_REQUIRED_MESSAGE, retryable: false };
-  if (status === 400) return { message: 'กู้คืนไม่ได้ หมวดหรือกระเป๋าของรายการนี้อาจถูกลบไปแล้ว', retryable: false };
-  return { message: 'เลิกทำไม่สำเร็จ ลองใหม่อีกครั้ง', retryable: true };
+export function describeRestoreFailure(status, lang = getLang()) {
+  if (status === 401) return { message: loginRequiredMessage(lang), retryable: false };
+  if (status === 400) return { message: t(lang, 'web.undo.restoreGone'), retryable: false };
+  return { message: t(lang, 'web.undo.restoreFailed'), retryable: true };
 }
 
-export function describeDeleteTarget(item) {
+export function describeDeleteTarget(item, lang = getLang()) {
   return {
-    title: 'ลบรายการนี้?',
-    category: item.categoryName,
-    amount: formatSignedBaht(item),
+    title: t(lang, 'web.confirm.title'),
+    category: displayCategoryName(lang, item.type, item.categoryName),
+    amount: formatSignedBaht(item, lang),
     date: formatThaiDate(item.occurredOn),
     note: item.note || '',
   };
@@ -131,10 +147,12 @@ export function summaryTotals(summary) {
   return { income: income / 100, expense: expense / 100 };
 }
 
-export function chartRows(summary, type) {
+// ยอดเท่ากันเรียงตามชื่อที่ผู้ใช้เห็นในภาษานั้น ไม่ใช่ชื่อไทยใน DB
+export function chartRows(summary, type, lang = getLang()) {
+  const shown = (row) => displayCategoryName(lang, type, row.category);
   const rows = summary
     .filter((row) => row.type === type && row.total > 0)
-    .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category, 'th'));
+    .sort((a, b) => b.total - a.total || shown(a).localeCompare(shown(b), lang));
   const sum = rows.reduce((acc, row) => acc + row.total, 0);
   const max = rows.length > 0 ? rows[0].total : 0;
   return rows.map((row) => {
@@ -167,10 +185,10 @@ export function hasChartData(summary) {
   return summary.some((row) => row.total > 0);
 }
 
-export function describeExportFailure(status) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
-  if (status === 429) return 'กด Export ถี่เกินไป รอสักครู่แล้วลองใหม่';
-  return 'Export ไม่สำเร็จ ลองใหม่อีกครั้ง';
+export function describeExportFailure(status, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  if (status === 429) return t(lang, 'web.export.tooFast');
+  return t(lang, 'web.export.failed');
 }
 
 export function formatMonthLabel(month) {
@@ -188,7 +206,7 @@ export function createLatestGuard() {
 }
 
 // ปัด % ลงและเทียบเป็นสตางค์ ให้ตรงกับเส้นที่บอทใช้เตือนในแชต
-export function budgetRows(budgets) {
+export function budgetRows(budgets, lang = getLang()) {
   const rows = budgets.map((row) => {
     // งบ 0 บาทเทียบเป็นเปอร์เซ็นต์ไม่ได้ จึงถือว่าไม่ได้ตั้งงบ
     if (row.budget === null || row.budget <= 0) {
@@ -200,7 +218,7 @@ export function budgetRows(budgets) {
         level: 'none',
         percent: null,
         width: 0,
-        text: `ใช้ไป ${formatBaht(row.spent)} · ยังไม่ตั้งงบ`,
+        text: t(lang, 'web.budget.rowNoBudget', { spent: formatBaht(row.spent, lang) }),
       };
     }
     const percent = Math.floor((Math.round(row.spent * 100) * 100) / Math.round(row.budget * 100));
@@ -212,33 +230,31 @@ export function budgetRows(budgets) {
       level: percent >= 100 ? 'over' : percent >= 80 ? 'warn' : 'ok',
       percent,
       width: Math.min(percent, 100),
-      text: `ใช้ไป ${formatBaht(row.spent)} จาก ${formatBaht(row.budget)} (${percent}%)`,
+      text: t(lang, 'web.budget.rowUsage', { spent: formatBaht(row.spent, lang), budget: formatBaht(row.budget, lang), percent }),
     };
   });
   // หมวดที่ตั้งงบแล้วขึ้นก่อน เพราะเป็นส่วนที่ผู้ใช้ต้องติดตาม
   return [...rows.filter((row) => row.budget !== null), ...rows.filter((row) => row.budget === null)];
 }
 
-export function describeBudgetFailure(status) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
-  if (status === 400) return 'จำนวนเงินไม่ถูกต้อง ใส่ได้ไม่เกิน 10,000,000 บาท ทศนิยมไม่เกิน 2 ตำแหน่ง';
-  if (status === 404) return 'ไม่พบหมวดนี้แล้ว';
-  return 'บันทึกงบไม่สำเร็จ ลองใหม่อีกครั้ง';
+export function describeBudgetFailure(status, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  if (status === 400) return t(lang, 'web.budget.invalidAmount');
+  if (status === 404) return t(lang, 'web.budget.categoryGone');
+  return t(lang, 'web.budget.saveFailed');
 }
 
-const RECURRING_TYPE_LABELS = { expense: 'รายจ่าย', income: 'รายรับ' };
-
-export function describeRecurringDay(day) {
-  return day > 28 ? `ทุกวันที่ ${day} (เดือนที่สั้นกว่านั้นใช้วันสุดท้าย)` : `ทุกวันที่ ${day}`;
+export function describeRecurringDay(day, lang = getLang()) {
+  return t(lang, day > 28 ? 'web.recurring.dayClamped' : 'web.recurring.day', { day });
 }
 
-export function recurringRows(rules, categories) {
-  const names = new Map(categories.map((category) => [category.id, category.name]));
+export function recurringRows(rules, categories, lang = getLang()) {
+  const names = new Map(categories.map((category) => [category.id, displayCategoryName(lang, category.type, category.name)]));
   return rules.map((rule) => {
-    const parts = [`${RECURRING_TYPE_LABELS[rule.type]} ${formatBaht(rule.amount)}`, describeRecurringDay(rule.dayOfMonth)];
+    const parts = [`${t(lang, `type.${rule.type}`)} ${formatBaht(rule.amount, lang)}`, describeRecurringDay(rule.dayOfMonth, lang)];
     if (rule.note) parts.push(rule.note);
-    if (!rule.active) parts.push('หยุดไว้');
-    const title = names.get(rule.categoryId) || 'ไม่ทราบหมวด';
+    if (!rule.active) parts.push(t(lang, 'web.recurring.paused'));
+    const title = names.get(rule.categoryId) || t(lang, 'web.recurring.unknownCategory');
     return {
       id: rule.id,
       categoryId: rule.categoryId,
@@ -252,31 +268,33 @@ export function recurringRows(rules, categories) {
       // แถวแบบปฏิทินใช้โน้ตเป็นชื่อหลัก ถ้าไม่มีโน้ตใช้ชื่อหมวดและเว้นบรรทัดรองไว้ไม่ให้ซ้ำ
       name: rule.note || title,
       subtitle: rule.note ? title : '',
-      amountText: formatSignedBaht(rule),
+      amountText: formatSignedBaht(rule, lang),
     };
   });
 }
 
-export function describeRecurringFailure(status, action) {
-  if (status === 401) return LOGIN_REQUIRED_MESSAGE;
-  if (status === 404) return 'ไม่พบรายการประจำนี้แล้ว';
-  if (status === 409) return 'มีรายการประจำครบ 50 รายการแล้ว ลบอันเก่าก่อนเพิ่มใหม่';
-  if (status === 400) return 'ข้อมูลไม่ถูกต้อง ตรวจจำนวนเงิน หมวด และวันที่ (1-31)';
-  return action === 'delete' ? 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง' : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง';
+export function describeRecurringFailure(status, action, lang = getLang()) {
+  if (status === 401) return loginRequiredMessage(lang);
+  if (status === 404) return t(lang, 'web.recurring.notFound');
+  if (status === 409) return t(lang, 'web.recurring.limit');
+  if (status === 400) return t(lang, 'web.recurring.invalid');
+  return actionFailed(lang, action);
 }
 
 export function shouldCloseRecurringEditor(status) {
   return status === 404;
 }
 
-export function filterTransactions(transactions, { query = '', categoryId = '', type = '', walletId = '' } = {}) {
+// ค้นได้ทั้งชื่อที่แสดงและชื่อใน DB ผู้ใช้อังกฤษพิมพ์ food หรือ อาหาร ก็เจอ
+export function filterTransactions(transactions, { query = '', categoryId = '', type = '', walletId = '' } = {}, lang = getLang()) {
   const needle = query.trim().toLowerCase();
   return transactions.filter((item) => {
     if (type && item.type !== type) return false;
     if (categoryId && item.categoryId !== categoryId) return false;
     if (walletId && item.walletId !== walletId) return false;
     if (!needle) return true;
-    return `${item.categoryName} ${item.note || ''}`.toLowerCase().includes(needle);
+    const shown = displayCategoryName(lang, item.type, item.categoryName);
+    return `${item.categoryName} ${shown} ${item.note || ''}`.toLowerCase().includes(needle);
   });
 }
 
@@ -284,27 +302,29 @@ export function isFilterActive({ query = '', categoryId = '', type = '', walletI
   return Boolean(query.trim() || categoryId || type || walletId);
 }
 
-export function describeFilterResult(shown, total, truncated) {
-  const count = `พบ ${shown.length} จาก ${total} รายการ`;
-  const text = shown.length > 0 ? `${count} รวม ${formatDayNet(shown)} บาท` : count;
-  return truncated ? `${text} (ค้นเฉพาะรายการที่แสดง)` : text;
+export function describeFilterResult(shown, total, truncated, lang = getLang()) {
+  const counts = { shown: shown.length, total };
+  const cents = netCents(shown);
+  // เครื่องหมายอยู่หน้าสกุลเงิน ไทยได้ +60 บาท อังกฤษได้ +฿60 ตามรูปแบบยอดเงินของแต่ละภาษา
+  const net = `${cents > 0 ? '+' : cents < 0 ? '-' : ''}${formatBaht(Math.abs(cents) / 100, lang)}`;
+  const text = shown.length > 0
+    ? t(lang, 'web.list.filterResultNet', { ...counts, net })
+    : t(lang, 'web.list.filterResult', counts);
+  return truncated ? t(lang, 'web.list.filterTruncated', { text }) : text;
 }
 
-const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
-export function thaiMonthShort(month) {
-  return THAI_MONTHS[Number(month.split('-')[1]) - 1];
+// ชื่อเดิมคงไว้ให้ call site เดิม ส่วนภาษาอังกฤษได้ชื่อเดือนอังกฤษ
+export function thaiMonthShort(month, lang = getLang()) {
+  return t(lang, `common.month.short.${Number(month.split('-')[1])}`);
 }
 
-const BUDDHIST_YEAR_OFFSET = 543;
-
-export function describeViewedMonth(month) {
-  return `กำลังดูเดือน ${thaiMonthShort(month)} ${Number(month.split('-')[0]) + BUDDHIST_YEAR_OFFSET}`;
+export function describeViewedMonth(month, lang = getLang()) {
+  return t(lang, 'web.month.viewing', { month: formatMonth(lang, month, { short: true }) });
 }
 
-export function formatFullThaiDate(isoDate) {
-  const [year, month, day] = isoDate.split('-');
-  return `${Number(day)} ${thaiMonthShort(`${year}-${month}`)} ${Number(year) + 543}`;
+// ไทยใช้ พ.ศ. อังกฤษใช้ ค.ศ. ตาม formatDate ของชุดแปล
+export function formatFullThaiDate(isoDate, lang = getLang()) {
+  return formatDate(lang, isoDate);
 }
 
 // ค่าที่มากกว่า 0 แต่เล็กมากต้องยังเห็นเป็นแท่ง ไม่ให้ดูเหมือนไม่มียอด
@@ -313,10 +333,10 @@ function barHeight(value, max) {
   return Math.max((value / max) * 100, 2);
 }
 
-export function trendBars(months) {
+export function trendBars(months, lang = getLang()) {
   const max = Math.max(0, ...months.flatMap((entry) => [entry.income, entry.expense]));
   return months.map((entry) => {
-    const label = thaiMonthShort(entry.month);
+    const label = thaiMonthShort(entry.month, lang);
     return {
       month: entry.month,
       label,
@@ -324,26 +344,26 @@ export function trendBars(months) {
       expense: entry.expense,
       incomeHeight: barHeight(entry.income, max),
       expenseHeight: barHeight(entry.expense, max),
-      description: `${label} รายรับ ${formatBaht(entry.income)} รายจ่าย ${formatBaht(entry.expense)}`,
+      description: t(lang, 'web.trend.barDescription', { month: label, income: formatBaht(entry.income, lang), expense: formatBaht(entry.expense, lang) }),
     };
   });
 }
 
 // เทียบเป็นสตางค์เพื่อไม่ให้ทศนิยมลอยตัวทำให้เปอร์เซ็นต์เพี้ยน
-export function describeExpenseComparison(months) {
+export function describeExpenseComparison(months, lang = getLang()) {
   if (months.length < 2) return { level: 'none', text: '' };
   const current = Math.round(months[months.length - 1].expense * 100);
   const previous = Math.round(months[months.length - 2].expense * 100);
-  if (previous === 0) return { level: 'none', text: 'เดือนก่อนไม่มีรายจ่ายให้เทียบ' };
+  if (previous === 0) return { level: 'none', text: t(lang, 'web.trend.noPrevious') };
   const diff = current - previous;
-  if (diff === 0) return { level: 'same', text: 'รายจ่ายเท่ากับเดือนก่อน' };
+  if (diff === 0) return { level: 'same', text: t(lang, 'web.trend.same') };
   const percent = Math.round((Math.abs(diff) / previous) * 100);
-  const amount = formatBaht(Math.abs(diff) / 100);
+  const amount = formatBaht(Math.abs(diff) / 100, lang);
   // เดือนก่อนจ่ายน้อยมาก % จะพุ่งเป็นหลักพันจนอ่านไม่ได้ความหมาย จึงบอกแค่จำนวนเงิน
-  if (diff > 0 && percent > 200) return { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${amount}` };
+  if (diff > 0 && percent > 200) return { level: 'up', text: t(lang, 'web.trend.upAmount', { amount }) };
   return diff > 0
-    ? { level: 'up', text: `รายจ่ายมากกว่าเดือนก่อน ${percent}% (+${amount})` }
-    : { level: 'down', text: `รายจ่ายน้อยกว่าเดือนก่อน ${percent}% (-${amount})` };
+    ? { level: 'up', text: t(lang, 'web.trend.up', { percent, amount }) }
+    : { level: 'down', text: t(lang, 'web.trend.down', { percent, amount }) };
 }
 
 const graphemeSegmenter = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
@@ -363,17 +383,19 @@ export function profilePictureUrl(decodedToken) {
   return typeof picture === 'string' && picture.startsWith('https://') ? picture : null;
 }
 
-export function profileView(profile) {
-  const name = (profile.displayName || '').trim() || 'ผู้ใช้';
+export function profileView(profile, lang = getLang()) {
+  const name = (profile.displayName || '').trim() || t(lang, 'web.profile.defaultName');
   return {
     name,
     initial: firstGrapheme(name).toUpperCase(),
     balance: profile.balance,
-    balanceText: formatBaht(profile.balance),
+    balanceText: formatBaht(profile.balance, lang),
     negative: profile.balance < 0,
-    incomeText: formatBaht(profile.income),
-    expenseText: formatBaht(profile.expense),
-    countText: `${profile.entryCount.toLocaleString('en-US')} รายการ`,
-    sinceText: profile.firstDate ? `เริ่มบันทึกตั้งแต่ ${formatFullThaiDate(profile.firstDate)}` : 'ยังไม่เคยบันทึกรายการ',
+    incomeText: formatBaht(profile.income, lang),
+    expenseText: formatBaht(profile.expense, lang),
+    countText: t(lang, `web.profile.entries.${profile.entryCount === 1 ? 'one' : 'other'}`, { count: profile.entryCount.toLocaleString('en-US') }),
+    sinceText: profile.firstDate
+      ? t(lang, 'web.profile.since', { date: formatFullThaiDate(profile.firstDate, lang) })
+      : t(lang, 'web.profile.noEntries'),
   };
 }

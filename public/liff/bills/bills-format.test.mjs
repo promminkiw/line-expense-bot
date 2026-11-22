@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { memberStatusLabel } from './bills-format.mjs';
 import {
   toSatang,
   splitEvenly,
@@ -22,7 +23,7 @@ import {
   needsShareLink,
   needsExpenseCleanup,
 } from './bills-format.mjs';
-import { LOGIN_REQUIRED_MESSAGE } from '../format.mjs';
+import { loginRequiredMessage } from '../format.mjs';
 import { toSatang as serverToSatang, splitEvenly as serverSplitEvenly } from '../../../src/bills/validate.js';
 
 describe('split helpers', () => {
@@ -67,7 +68,7 @@ describe('labels and messages', () => {
   });
 
   it('explains failures per action', () => {
-    expect(describeBillError(401, 'create')).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeBillError(401, 'create')).toBe(loginRequiredMessage());
     expect(describeBillError(400, 'create', 'Not friends')).toBe('มีคนที่ไม่ได้เป็นเพื่อนกันแล้ว โหลดรายชื่อใหม่แล้วลองอีกครั้ง');
     expect(describeBillError(400, 'create', 'Shares do not add up')).toBe('ยอดของทุกคนรวมกันไม่เท่ากับยอดบิล');
     expect(describeBillError(400, 'create', 'Invalid title')).toBe('ข้อมูลบิลไม่ถูกต้อง ตรวจชื่อบิล ยอด และวันที่อีกครั้ง');
@@ -109,7 +110,7 @@ describe('describeReceiptError', () => {
     expect(describeReceiptError(415)).toBe('ไฟล์นี้ไม่ใช่รูปที่อ่านได้ (รองรับ JPEG, PNG, GIF, WebP)');
     expect(describeReceiptError(413)).toBe('รูปใหญ่เกินไป (ไม่เกิน 10 MB)');
     expect(describeReceiptError(429)).toBe('อ่านรูปบ่อยเกินไป รอสักครู่แล้วลองใหม่');
-    expect(describeReceiptError(401)).toBe(LOGIN_REQUIRED_MESSAGE);
+    expect(describeReceiptError(401)).toBe(loginRequiredMessage());
     expect(describeReceiptError(500)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
     expect(describeReceiptError(0)).toBe('อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้ง หรือพิมพ์ยอดเอง');
   });
@@ -192,5 +193,30 @@ describe('bill list helpers', () => {
     expect(needsShareLink(owned({ members: [member({ status: 'pending', notified: false })] }))).toBe(true);
     expect(needsShareLink(owned({ members: [member({ status: 'confirmed', notified: false })] }))).toBe(false);
     expect(needsShareLink(owned({ status: 'cancelled', members: [member({ status: 'pending', notified: false })] }))).toBe(false);
+  });
+});
+
+describe('bill texts in English', () => {
+  const member = (over) => ({ userId: 'f', displayName: 'บี', share: 100, status: 'confirmed', paid: false, notified: true, ...over });
+  const owned = (over) => ({ status: 'open', members: [member()], ...over });
+  const incoming = (over) => ({ status: 'open', myStatus: 'pending', paid: false, ...over });
+
+  it('sums up bills and members in English', () => {
+    expect(ownedBillSummary(owned({ members: [member({ paid: true }), member()] }), 'en')).toBe('Owed to you · 1/2 paid back');
+    expect(ownedBillSummary(owned({ status: 'cancelled' }), 'en')).toBe('Cancelled');
+    expect(incomingBillState(incoming(), 'en')).toBe('Waiting for you');
+    expect(incomingBillState(incoming({ myStatus: 'confirmed' }), 'en')).toBe('Not paid back yet');
+    expect(memberStatusLabel('pending', 'en')).toBe('Waiting');
+    expect(memberStatusLabel('declined', 'th')).toBe('ปฏิเสธ');
+    expect(calendarParts('2026-10-08', 'en')).toEqual({ month: 'Oct', day: '8' });
+  });
+
+  it('explains failures in English', () => {
+    expect(describeBillError(400, 'create', 'Shares do not add up', 'en')).toBe("Everyone's shares don't add up to the bill total");
+    expect(describeBillError(404, 'respond', undefined, 'en')).toBe("This bill isn't here anymore.");
+    expect(describeBillError(401, 'load', undefined, 'en')).toBe(loginRequiredMessage('en'));
+    expect(describeReceiptError(413, 'en')).toBe('That image is too big (10 MB max)');
+    expect(describeReceiptError(500, 'en')).toBe("Couldn't read the photo. Try again, or type the total yourself.");
+    expect(describeBillAnswer('already_confirmed', 'en')).toBe('You already confirmed this bill.');
   });
 });

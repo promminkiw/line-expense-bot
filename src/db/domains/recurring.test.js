@@ -127,15 +127,15 @@ describe('repository recurring rules', () => {
   });
 
   it('lists due rules with the line user id and category name, filtered by day before the last day of the month', async () => {
-    const dueRow = { ...ROW, user_id: 'user-1', users: { line_user_id: 'U1' }, categories: { name: 'ค่าสาธารณูปโภค' } };
+    const dueRow = { ...ROW, user_id: 'user-1', users: { line_user_id: 'U1', language: 'en' }, categories: { name: 'ค่าสาธารณูปโภค' } };
     const { supabase, calls } = fakeSupabase({ data: [dueRow], error: null });
 
     const rules = await createRecurringRepository(supabase).listDueRecurringRules('2026-10-15');
 
-    expect(rules).toEqual([{ ...RULE, userId: 'user-1', lineUserId: 'U1', categoryName: 'ค่าสาธารณูปโภค' }]);
+    expect(rules).toEqual([{ ...RULE, userId: 'user-1', lineUserId: 'U1', language: 'en', categoryName: 'ค่าสาธารณูปโภค' }]);
     expect(calls).toEqual([
       ['from', 'recurring_rules'],
-      ['select', `${COLUMNS}, user_id, users(line_user_id), categories(name)`],
+      ['select', `${COLUMNS}, user_id, users(line_user_id, language), categories(name)`],
       ['eq', 'active', true],
       ['or', 'last_run_on.is.null,last_run_on.lt.2026-10-01'],
       ['lte', 'day_of_month', 15],

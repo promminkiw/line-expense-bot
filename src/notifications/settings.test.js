@@ -4,18 +4,26 @@ import { NOTIFICATION_SETTINGS, SETTINGS_COLUMNS, toNotificationSettings, toSett
 describe('notification settings', () => {
   it('maps each API field to its users column', () => {
     expect(NOTIFICATION_SETTINGS).toEqual({ weeklySummary: 'weekly_summary_enabled', dailyReminder: 'daily_reminder_enabled' });
-    expect(SETTINGS_COLUMNS).toBe('weekly_summary_enabled, daily_reminder_enabled');
+    expect(SETTINGS_COLUMNS).toBe('weekly_summary_enabled, daily_reminder_enabled, language');
   });
 
   it('reads a users row into API fields, and a missing row as everything off', () => {
     expect(toNotificationSettings({ weekly_summary_enabled: true, daily_reminder_enabled: false })).toEqual({
       weeklySummary: true,
       dailyReminder: false,
+      language: null,
     });
-    expect(toNotificationSettings(null)).toEqual({ weeklySummary: false, dailyReminder: false });
+    expect(toNotificationSettings(null)).toEqual({ weeklySummary: false, dailyReminder: false, language: null });
+  });
+
+  it('returns the stored language raw, and null when none is stored', () => {
+    expect(toNotificationSettings({ language: 'en' }).language).toBe('en');
+    expect(toNotificationSettings({ language: 'th' }).language).toBe('th');
+    expect(toNotificationSettings({ language: null }).language).toBeNull();
   });
 
   it('turns API fields into users columns', () => {
     expect(toSettingsColumns({ dailyReminder: true })).toEqual({ daily_reminder_enabled: true });
+    expect(toSettingsColumns({ language: 'en', weeklySummary: false })).toEqual({ language: 'en', weekly_summary_enabled: false });
   });
 });

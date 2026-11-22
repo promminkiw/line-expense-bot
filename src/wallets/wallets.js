@@ -1,3 +1,7 @@
+// ฟังก์ชันแปลชื่อแสดงอยู่ในไฟล์ ESM เดียวกับที่เว็บใช้ เพราะ LIFF import src/ (CommonJS) ไม่ได้
+const { displayWalletName } = require('../../public/liff/i18n/names.mjs');
+const { t } = require('../i18n');
+
 // รายการที่ wallet_id เป็น null อยู่ในกระเป๋านี้ ต้องตรงกับชื่อใน supabase/024_wallets.sql
 const DEFAULT_WALLET_NAME = 'เงินสด';
 const MAX_WALLET_NAME_LENGTH = 30;
@@ -7,7 +11,9 @@ const MAX_VISIBLE_WALLETS = 10;
 const MAX_TOTAL_WALLETS = 20;
 
 // ขึ้นบนการ์ดบันทึกเมื่ออ่านกระเป๋าไม่ได้และรายการไปอยู่ในกระเป๋าตั้งต้น
-const WALLETS_UNREADABLE_NOTICE = 'เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ในเงินสด แก้ได้ในเว็บ';
+function walletsUnreadableNotice(lang) {
+  return t(lang, 'wallet.unreadableNotice', { wallet: displayWalletName(lang, DEFAULT_WALLET_NAME) });
+}
 
 function isDefaultWallet(name) {
   return name === DEFAULT_WALLET_NAME;
@@ -33,14 +39,23 @@ function walletIdsByName(wallets) {
   );
 }
 
+// แปลงชื่อกระเป๋าที่ Claude ตอบมา (ชื่อแสดงหรือชื่อ DB) กลับเป็นชื่อใน DB ชื่อที่ผู้ใช้ตั้งตรงตัวมาก่อน
+function walletNameFromDisplay(lang, shown, names) {
+  if (names.includes(shown)) return shown;
+  const wanted = shown.trim().toLowerCase();
+  return names.find((name) => displayWalletName(lang, name).trim().toLowerCase() === wanted) ?? shown;
+}
+
 module.exports = {
   DEFAULT_WALLET_NAME,
   MAX_WALLET_NAME_LENGTH,
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
-  WALLETS_UNREADABLE_NOTICE,
+  walletsUnreadableNotice,
   isDefaultWallet,
   walletChoices,
   walletQuestionNames,
   walletIdsByName,
+  displayWalletName,
+  walletNameFromDisplay,
 };

@@ -3,6 +3,8 @@ const { createSupport } = require('./support');
 const { createSlipHandlers, SLIP_TTL_MS } = require('./slip');
 const { createPostbackHandlers } = require('./postback');
 const { createTextHandlers } = require('./text');
+const { createLanguageHandlers } = require('./language');
+const { t } = require('../i18n');
 const {
   SYSTEM_ERROR_REPLY,
   SLOW_PROCESSING_REPLY,
@@ -18,7 +20,6 @@ const {
   GREETING_REPLY,
   NO_OPEN_GOAL_REPLY,
   UNSUPPORTED_REPLIES,
-  NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,
@@ -69,38 +70,45 @@ function createBot({
   const deps = { parseMessage, parseQuestion, commentSummary, downloadImage, parseSlip, repository, users, bills, allowRequest, liffUrl, now, logger };
   const support = createSupport(deps);
   const urls = createUrlBuilders({ liffUrl });
+  const language = createLanguageHandlers(deps);
   const slip = createSlipHandlers({ ...deps, urls, support });
   const { handleImage } = slip;
-  const { handlePostback } = createPostbackHandlers({ ...deps, slip });
-  const text = createTextHandlers({ ...deps, urls, support });
+  const { handlePostback } = createPostbackHandlers({ ...deps, slip, language });
+  const text = createTextHandlers({ ...deps, urls, support, language });
   const { handleText } = text;
 
-  async function buildReply(event, lineUserId, deadline) {
-    if (event.type === 'follow') {
-      await users.ensureUser(lineUserId);
-      await repository.resumeMonthlySummary(lineUserId);
-      return null;
-    }
+  // replyContext.lang ถูกตั้งหลังหา user ได้ ข้อความระบบจึงตอบตามภาษาผู้ใช้ ถ้าหา user ไม่ได้ใช้ไทย
+  async function buildReply(event, lineUserId, deadline, replyContext) {
     if (event.type === 'unfollow') {
       await repository.disableNotifications(lineUserId);
       return null;
     }
+    const isHandled = event.type === 'follow' || event.type === 'postback' || isTextMessage(event) || isImageMessage(event);
+    // event ที่ไม่ตอบอะไร (เช่น สติกเกอร์) ไม่ต้องแตะ DB
+    if (!isHandled) {
+      return null;
+    }
+    // หา user ครั้งเดียวต่อ event แล้วส่ง id กับภาษาต่อให้ handler จะได้ไม่ query ซ้ำ
+    const { userId, language: lang } = await users.resolveUser(lineUserId);
+    const user = { userId, lang };
+    replyContext.lang = lang;
+    if (event.type === 'follow') {
+      await repository.resumeMonthlySummary(lineUserId);
+      return null;
+    }
     if (isTextMessage(event)) {
-      return handleText(event, lineUserId, deadline);
+      return handleText(event, lineUserId, deadline, user);
     }
     if (isImageMessage(event)) {
-      return handleImage(event, lineUserId);
+      return handleImage(event, lineUserId, user);
     }
-    if (event.type === 'postback') {
-      return handlePostback(event, lineUserId);
-    }
-    return null;
+    return handlePostback(event, user);
   }
 
   // งานที่ค้างยังทำต่อจนจบ ผลที่มาช้าถูกทิ้งเพราะ reply token อาจหมดอายุแล้ว
-  async function buildReplyBeforeDeadline(event, lineUserId) {
+  async function buildReplyBeforeDeadline(event, lineUserId, replyContext) {
     const deadlineState = { passed: false };
-    const work = buildReply(event, lineUserId, deadlineState);
+    const work = buildReply(event, lineUserId, deadlineState, replyContext);
     let timer;
     const deadline = new Promise((resolve) => {
       timer = setTimeout(() => {
@@ -122,7 +130,7 @@ function createBot({
       () => logger.info('Dropped a reply that finished after the deadline', context),
       (err) => logger.error('Failed to process event after the reply deadline', context, err)
     );
-    return isSilentEvent(event) ? null : { text: SLOW_PROCESSING_REPLY };
+    return isSilentEvent(event) ? null : { text: t(replyContext.lang, 'chat.slowProcessing') };
   }
 
   async function handleEvent(event) {
@@ -138,11 +146,12 @@ function createBot({
       showLoading(lineUserId).catch((err) => logger.error('Failed to show loading animation', { lineUserId }, err));
     }
     let reply;
+    const replyContext = { lang: 'th' };
     try {
-      reply = await buildReplyBeforeDeadline(event, lineUserId);
+      reply = await buildReplyBeforeDeadline(event, lineUserId, replyContext);
     } catch (err) {
       logger.error('Failed to process event', { lineUserId, eventType: event.type }, err);
-      reply = isSilentEvent(event) ? null : { text: SYSTEM_ERROR_REPLY };
+      reply = isSilentEvent(event) ? null : { text: t(replyContext.lang, 'chat.systemError') };
     }
     if (reply) {
       try {
@@ -186,7 +195,6 @@ module.exports = {
   GREETING_REPLY,
   NO_OPEN_GOAL_REPLY,
   UNSUPPORTED_REPLIES,
-  NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,
