@@ -466,8 +466,6 @@ describe('LIFF page opened from a totals card that names a wallet', () => {
   });
 });
 
-// ปุ่มย้อนกลับของเครื่อง (Android) และท่าปัดย้อนกลับ (iOS) ต้องพากลับจากหน้าย่อยไปแท็บเจ้าของหน้า ไม่ใช่ออกจาก LIFF
-
 describe('LIFF wallets page in English', () => {
   afterEach(() => localStorage.clear());
   const ENGLISH_SETTINGS = { weeklySummary: false, dailyReminder: false, language: 'en' };

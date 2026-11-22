@@ -4,6 +4,7 @@ import { settle, boot, byId, routeFetch, clickTab, cleanupGlobals } from './dom-
 
 afterEach(cleanupGlobals);
 
+// ปุ่มย้อนกลับของเครื่อง (Android) และท่าปัดย้อนกลับ (iOS) ต้องพากลับจากหน้าย่อยไปแท็บเจ้าของหน้า ไม่ใช่ออกจาก LIFF
 describe('LIFF device back button on sub pages', () => {
   const pressDeviceBack = () => window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
 
