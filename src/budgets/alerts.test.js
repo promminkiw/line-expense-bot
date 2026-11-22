@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge, budgetCheckFailedNotice, BUDGET_CHECK_FAILED_NOTICE } from './alerts.js';
+import { budgetMonths, findBudgetAlerts, formatBudgetAlerts, describeBudgetAlert, describeBudgetGauge, budgetCheckFailedNotice } from './alerts.js';
 
 function row({ type = 'expense', categoryId = 'c-food', amount = 60, date = '2026-09-29' } = {}) {
   return { type, category_id: categoryId, amount, occurred_on: date };
@@ -202,7 +202,7 @@ describe('budget alerts in English', () => {
   });
 
   it('says the budget check failed in both languages', () => {
-    expect(budgetCheckFailedNotice('th')).toBe(BUDGET_CHECK_FAILED_NOTICE);
+    expect(budgetCheckFailedNotice('th')).toBe('เฮียเช็กงบไม่สำเร็จ ดูสถานะงบได้ในหน้าเว็บ');
     expect(budgetCheckFailedNotice('en')).toBe("I couldn't check your budget. See your budget status on the web.");
   });
 });

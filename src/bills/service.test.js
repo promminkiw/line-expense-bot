@@ -372,6 +372,21 @@ describe('billService languages', () => {
     expect(JSON.stringify(englishCard)).toContain('· Food');
   });
 
+  // เจ้าของไม่มีชื่อ LINE ต้องไม่โชว์ชื่อไทยให้เพื่อนที่ใช้อังกฤษ
+  it('names an owner without a display name in the language of each member', async () => {
+    const { service, pushFlex } = setup({
+      getDisplayName: vi.fn().mockResolvedValue(null),
+      getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'th' }], [F2, { lineUserId: 'U-F2', language: 'en' }]])),
+    });
+
+    await service.create(OWNER, body());
+
+    const [thaiCard, englishCard] = pushFlex.mock.calls.map(([, flex]) => flex);
+    expect(thaiCard.altText).toContain('ผู้ใช้ LINE');
+    expect(englishCard.altText).toContain('LINE user');
+    expect(JSON.stringify(englishCard)).not.toContain('ผู้ใช้ LINE');
+  });
+
   it('tells an English user in English that the bill was confirmed or declined on the web', async () => {
     const english = { getLineUserIds: vi.fn().mockResolvedValue(new Map([[F1, { lineUserId: 'U-F1', language: 'en' }]])) };
     const confirmed = setup(english);

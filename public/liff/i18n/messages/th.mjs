@@ -743,6 +743,7 @@ export default {
   'bill.card.confirm': 'ยืนยัน',
   'bill.card.decline': 'ปฏิเสธ',
   'bill.card.view': 'ดูในเว็บ',
+  'bill.fallbackName': 'ผู้ใช้ LINE',
   'wallet.unreadableNotice': 'เฮียอ่านกระเป๋าไม่ได้ รายการนี้อยู่ใน{wallet} แก้ได้ในเว็บ',
   'parser.clarifyDefault': 'บอกเฮียอีกครั้งได้ไหมว่าจดรายการอะไร จำนวนเท่าไร เช่น "กินข้าว 60"',
   'parser.amountTooLarge': 'จำนวนเงินเกินเพดานที่เฮียจดได้ (ไม่เกิน 10,000,000 บาทต่อรายการ)',

@@ -36,16 +36,17 @@ function createBillService({ repository, users, pushFlex, pushText, liffUrl, log
     const notified = await Promise.all(
       bill.members.map(async (member) => {
         try {
+          // เจ้าของกับเพื่อนอาจใช้คนละภาษา การ์ดจึงตามภาษาของเพื่อนแต่ละคน
+          const memberLang = normalizeLanguage(lineIds.get(member.userId)?.language);
           const flex = buildBillRequestFlex({
             billId,
             title: bill.title,
-            ownerName: ownerName || FALLBACK_DISPLAY_NAME,
+            ownerName: ownerName || t(memberLang, 'bill.fallbackName'),
             share: member.share,
             occurredOn: bill.occurredOn,
             categoryName,
             liffUrl,
-            // เจ้าของกับเพื่อนอาจใช้คนละภาษา การ์ดจึงตามภาษาของเพื่อนแต่ละคน
-            lang: normalizeLanguage(lineIds.get(member.userId)?.language),
+            lang: memberLang,
           });
           await pushFlex(lineIds.get(member.userId)?.lineUserId, flex);
         } catch (err) {

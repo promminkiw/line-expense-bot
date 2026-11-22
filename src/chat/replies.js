@@ -26,7 +26,6 @@ const NO_OPEN_GOAL_REPLY = t('th', 'chat.noOpenGoal');
 // คำสั่งที่ยังไม่มีในแชต ตอบทางที่ทำได้จริง ไม่ทำเหมือนหารายการไม่เจอ
 const UNSUPPORTED_KINDS = ['delete', 'edit', 'budget', 'other'];
 const UNSUPPORTED_REPLIES = Object.fromEntries(UNSUPPORTED_KINDS.map((kind) => [kind, t('th', `chat.unsupported.${kind}`)]));
-const NO_ENTRIES_COMMENT = t('th', 'chat.noEntriesComment');
 const SLIP_UNREADABLE_REPLY = t('th', 'chat.slip.unreadable');
 const SLIP_TOO_LARGE_REPLY = t('th', 'chat.slip.tooLarge');
 const SLIP_UNSUPPORTED_REPLY = t('th', 'chat.slip.unsupported');
@@ -99,7 +98,6 @@ module.exports = {
   GREETING_REPLY,
   NO_OPEN_GOAL_REPLY,
   UNSUPPORTED_REPLIES,
-  NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,

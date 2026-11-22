@@ -15,9 +15,6 @@ function walletsUnreadableNotice(lang) {
   return t(lang, 'wallet.unreadableNotice', { wallet: displayWalletName(lang, DEFAULT_WALLET_NAME) });
 }
 
-// ค่าไทยคงไว้ให้การ์ดที่ยังไม่ส่งภาษา
-const WALLETS_UNREADABLE_NOTICE = walletsUnreadableNotice('th');
-
 function isDefaultWallet(name) {
   return name === DEFAULT_WALLET_NAME;
 }
@@ -54,7 +51,6 @@ module.exports = {
   MAX_WALLET_NAME_LENGTH,
   MAX_VISIBLE_WALLETS,
   MAX_TOTAL_WALLETS,
-  WALLETS_UNREADABLE_NOTICE,
   walletsUnreadableNotice,
   isDefaultWallet,
   walletChoices,

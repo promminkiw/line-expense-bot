@@ -2,16 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { formatThaiRange, formatDateRange, formatTotalsAnswer } = require('./format-answer.js');
+const { formatDateRange, formatTotalsAnswer } = require('./format-answer.js');
 
-describe('formatThaiRange', () => {
+describe('formatDateRange in Thai', () => {
   it.each([
     ['2026-10-18', '2026-10-18', '18 ต.ค. 2569'],
     ['2026-10-01', '2026-10-18', '1-18 ต.ค. 2569'],
     ['2026-09-25', '2026-10-05', '25 ก.ย. - 5 ต.ค. 2569'],
     ['2025-12-25', '2026-01-05', '25 ธ.ค. 2568 - 5 ม.ค. 2569'],
   ])('formats %s to %s', (from, to, expected) => {
-    expect(formatThaiRange(from, to)).toBe(expected);
+    expect(formatDateRange('th', from, to)).toBe(expected);
   });
 });
 

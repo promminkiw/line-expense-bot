@@ -20,10 +20,6 @@ function formatDateRange(lang, from, to) {
   return `${start.day}-${endText}`;
 }
 
-function formatThaiRange(from, to) {
-  return formatDateRange('th', from, to);
-}
-
 // คำถามแบบ both ไม่บอกชนิดของหมวด จึงลองแปลแบบรายจ่ายก่อนแล้วค่อยรายรับ
 function displayQuestionCategory(lang, question) {
   if (question.type !== 'both') return displayCategoryName(lang, question.type, question.category);
@@ -52,4 +48,4 @@ function formatTotalsAnswer(question, rows, lang = 'th') {
   return `${scope.join(' ')}: ${types.map((type) => describeTotal(type, rows, lang)).join(', ')}`;
 }
 
-module.exports = { formatThaiRange, formatDateRange, formatTotalsAnswer, formatEntryCount, displayQuestionCategory };
+module.exports = { formatDateRange, formatTotalsAnswer, formatEntryCount, displayQuestionCategory };

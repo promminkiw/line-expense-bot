@@ -48,9 +48,6 @@ function budgetCheckFailedNotice(lang = 'th') {
   return t(lang, 'budget.checkFailed');
 }
 
-// ค่าไทยคงไว้ให้ผู้เรียกที่ยังไม่ส่งภาษา
-const BUDGET_CHECK_FAILED_NOTICE = budgetCheckFailedNotice('th');
-
 // ไทยมีหน่วยบาทท้ายประโยคครั้งเดียว จึงส่งตัวเลขเปล่าแล้วให้ข้อความในชุดแปลใส่หน่วยเอง
 function alertParts(alert, lang) {
   const [year, month] = alert.month.split('-');
@@ -102,5 +99,4 @@ module.exports = {
   describeBudgetAlert,
   describeBudgetGauge,
   budgetCheckFailedNotice,
-  BUDGET_CHECK_FAILED_NOTICE,
 };

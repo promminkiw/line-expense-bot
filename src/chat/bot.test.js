@@ -6,7 +6,6 @@ import {
   UNDO_DONE_REPLY,
   UNDO_NOT_FOUND_REPLY,
   SUMMARY_MENU_REPLY,
-  NO_ENTRIES_COMMENT,
   SLIP_UNREADABLE_REPLY,
   SLIP_TOO_LARGE_REPLY,
   SLIP_UNSUPPORTED_REPLY,
@@ -589,7 +588,7 @@ describe('bot summary command', () => {
     await bot.handleEvent(textEvent('สรุปวันนี้'));
 
     expect(deps.commentSummary).not.toHaveBeenCalled();
-    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).toContain(NO_ENTRIES_COMMENT);
+    expect(JSON.stringify(deps.replyFlex.mock.calls[0][1])).toContain(t('th', 'chat.noEntriesComment'));
   });
 
   it('still replies the card without a comment when Claude fails', async () => {

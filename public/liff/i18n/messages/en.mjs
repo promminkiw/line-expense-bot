@@ -743,6 +743,7 @@ export default {
   'bill.card.confirm': 'Confirm',
   'bill.card.decline': 'Decline',
   'bill.card.view': 'View on web',
+  'bill.fallbackName': 'LINE user',
   'wallet.unreadableNotice': "I couldn't read your wallets, so this entry went into {wallet}. You can change it on the web.",
   'parser.clarifyDefault': 'Tell me again what you want to record and how much, like "lunch 60".',
   'parser.amountTooLarge': "That's over the limit I can record (฿10,000,000 max per entry).",
