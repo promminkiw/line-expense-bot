@@ -119,6 +119,7 @@ function relocalize() {
   if (activeSubPage?.panelId === 'panel-language') languagePicker.render();
   // หน้าหารบิลไม่ผ่าน loadAll การ์ดบิลและรายชื่อเพื่อนจึงต้องวาดใหม่เอง
   billsPanel.relabel();
+  billForm.relabel();
   friendsPanel.relabel();
   if (loadError) showStickyLoadError();
   // รายการ กราฟ และยอดที่วาดไปแล้วเป็นภาษาเดิม โหลดใหม่ครั้งเดียวดีกว่าตามแก้ทีละส่วน
@@ -134,6 +135,8 @@ async function reloadForLanguage() {
     return;
   }
   languageReloadPending = false;
+  // แท็บออมไม่ผ่าน loadAll การ์ดเป้าจึงต้องวาดใหม่เองจากข้อมูลที่โหลดไว้
+  goalsPanel.relabel();
   try {
     await loadAll();
     applyPendingListFilter();

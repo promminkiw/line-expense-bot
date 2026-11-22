@@ -74,6 +74,11 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
     els.qrToggle.textContent = tr(els.qr.hidden ? 'web.friends.showQr' : 'web.friends.hideQr');
   }
 
+  // ปุ่มนี้เปลี่ยนคำระหว่างค้นหา จึงตั้งจาก JS แทน data-i18n ไม่งั้นแปลหน้าใหม่จะคืนเป็น ค้นหา ทั้งที่ยังค้นอยู่
+  function labelAddSubmit() {
+    els.addSubmit.textContent = tr(lookingUp ? 'web.friends.searching' : 'web.friends.search');
+  }
+
   function render(overview) {
     // เก็บไว้ให้ relabel วาดรายชื่อใหม่ได้โดยไม่ยิง request
     lastOverview = overview;
@@ -88,7 +93,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   // ภาษาจาก server มาถึงหลังวาดรายชื่อแล้ว ข้อความที่ JS เขียนไว้ยังเป็นภาษาเดิม
   function relabel() {
     labelQrToggle();
-    if (!lookingUp) els.addSubmit.textContent = tr('web.friends.search');
+    labelAddSubmit();
     if (lastOverview) els.rows.replaceChildren(...lastOverview.friends.map(renderRow));
     if (!els.qr.hidden) drawQr();
   }
@@ -179,7 +184,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   function setLookingUp(busy) {
     lookingUp = busy;
     els.addSubmit.disabled = busy;
-    els.addSubmit.textContent = tr(busy ? 'web.friends.searching' : 'web.friends.search');
+    labelAddSubmit();
     if (busy) els.form.setAttribute('aria-busy', 'true');
     else els.form.removeAttribute('aria-busy');
   }
@@ -365,6 +370,7 @@ export function createFriendsPanel({ doc, els, getApi, liff, getLiffId, clipboar
   });
 
   labelQrToggle();
+  labelAddSubmit();
 
   return { ensureLoaded, refresh, openAdd, relabel };
 }

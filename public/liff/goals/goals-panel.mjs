@@ -78,7 +78,7 @@ export function createGoalsPanel({ doc, els, getApi }) {
     els.heroRest.textContent = summary.remainingText;
   }
 
-  function render() {
+  function renderGoals() {
     const { open, closed } = splitGoals(goals);
     renderHero();
     els.rows.replaceChildren(...open.map(renderRow));
@@ -86,6 +86,10 @@ export function createGoalsPanel({ doc, els, getApi }) {
     els.closed.hidden = closed.length === 0;
     els.closedCount.textContent = t(getLang(), `web.goals.closedCount.${closed.length === 1 ? 'one' : 'other'}`, { count: closed.length });
     els.closedRows.replaceChildren(...closed.map(renderRow));
+  }
+
+  function render() {
+    renderGoals();
     loadingIndicator.set(false);
     els.error.hidden = true;
     els.body.hidden = false;
@@ -414,5 +418,10 @@ export function createGoalsPanel({ doc, els, getApi }) {
     viewing = null;
   });
 
-  return { refresh };
+  // ภาษาจาก server มาถึงหลังวาดการ์ดแล้ว วาดใหม่จากข้อมูลเดิมโดยไม่ยิง request และไม่แตะสถานะโหลด
+  function relabel() {
+    if (loaded) renderGoals();
+  }
+
+  return { refresh, relabel };
 }

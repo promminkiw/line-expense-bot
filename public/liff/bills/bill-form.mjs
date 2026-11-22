@@ -290,13 +290,18 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     await Promise.all([loadFriends(), loadCategories()]);
   }
 
+  // ปุ่มนี้เปลี่ยนคำระหว่างส่ง จึงตั้งจาก JS แทน data-i18n ไม่งั้นแปลหน้าใหม่จะคืนเป็น หารบิล ทั้งที่ยังส่งอยู่
+  function labelSubmit() {
+    els.submit.textContent = t(getLang(), submitting ? 'web.bills.form.submitting' : 'web.bills.form.submit');
+  }
+
   async function submit() {
     validate();
     if (els.submit.disabled) return;
     const token = openToken;
     submitting = true;
     validate();
-    els.submit.textContent = t(getLang(), 'web.bills.form.submitting');
+    labelSubmit();
     const body = {
       title: els.title.value.trim(),
       total: readTotal(els.total.value).amount,
@@ -321,7 +326,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
       }
     }
     submitting = false;
-    els.submit.textContent = t(getLang(), 'web.bills.form.submit');
+    labelSubmit();
     validate();
     if (result) {
       els.dialog.close();
@@ -364,5 +369,7 @@ export function createBillForm({ doc, els, getApi, getCategories, ensureCategori
     void submit();
   });
 
-  return { open };
+  labelSubmit();
+
+  return { open, relabel: labelSubmit };
 }

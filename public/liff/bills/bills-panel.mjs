@@ -240,7 +240,7 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     else els.showIncoming.removeAttribute('aria-label');
   }
 
-  function render() {
+  function renderLists() {
     renderSection(data.incoming, {
       list: els.incoming,
       empty: els.incomingEmpty,
@@ -268,6 +268,10 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
     renderAwaiting();
     if (!view) view = pickInitialBillsView(data);
     applyView();
+  }
+
+  function render() {
+    renderLists();
     loadingIndicator.set(false);
     els.error.hidden = true;
     els.body.hidden = false;
@@ -517,8 +521,9 @@ export function createBillsPanel({ doc, els, getApi, liff, getLiffId, clipboard 
   els.showOwned.addEventListener('click', () => setView('owned'));
 
   // ภาษาจาก server มาถึงหลังวาดการ์ดแล้ว วาดใหม่จากข้อมูลเดิมโดยไม่ยิง request
+  // ไม่แตะตัวโหลดและกล่อง error เพราะอาจมีการโหลดหรือ error ของรอบอื่นค้างอยู่
   function relabel() {
-    if (data) render();
+    if (data) renderLists();
   }
 
   return { ensureLoaded, reload: load, focusBill, showStatus: setStatus, relabel };

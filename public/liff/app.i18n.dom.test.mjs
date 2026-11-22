@@ -333,4 +333,135 @@ describe('late server language', () => {
     expect(byId('status').hidden).toBe(true);
     expect(byId('status').textContent).toBe('');
   });
+
+  const reads = (liff, path) => liff.requests.filter((request) => request.method === 'GET' && request.path === path).length;
+
+  it('keeps the searching label when the server language arrives during a friend lookup', async () => {
+    const settings = deferredSettings();
+    const lookup = deferredSettings();
+    const overrides = { '/api/settings': settings.pending };
+    await boot({ overrides });
+    clickTab('profile');
+    await settle();
+    overrides['/api/friends/lookup'] = lookup.pending;
+    byId('friend-code-input').value = 'WXYZ2345';
+    byId('friend-add-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe(en['web.friends.searching']);
+
+    lookup.resolve({ friend: { id: 'f-2', displayName: 'ซี' } });
+    await settle();
+    expect(byId('friend-add-submit').textContent).toBe(en['web.friends.search']);
+  });
+
+  it('relabels the idle lookup button once the server language arrives', async () => {
+    const settings = deferredSettings();
+    await boot({ overrides: { '/api/settings': settings.pending } });
+    expect(byId('friend-add-submit').textContent).toBe(th['web.friends.search']);
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(byId('friend-add-submit').textContent).toBe(en['web.friends.search']);
+  });
+
+  function fillBillForm() {
+    byId('bill-form-title').value = 'BBQ';
+    byId('bill-form-total').value = '1000';
+    byId('bill-form-total').dispatchEvent(new Event('input'));
+    const pick = document.querySelector('#bill-form-members input[type="checkbox"]');
+    pick.checked = true;
+    pick.dispatchEvent(new Event('change'));
+  }
+
+  it('keeps the creating label when the server language arrives while a bill is being created', async () => {
+    const settings = deferredSettings();
+    const created = deferredSettings();
+    const overrides = { '/api/settings': settings.pending };
+    await boot({ search: '?tab=bills', overrides });
+    byId('bill-new').click();
+    await settle();
+    fillBillForm();
+    overrides['/api/bills'] = created.pending;
+    byId('bill-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await settle();
+    expect(byId('bill-form-submit').textContent).toBe(th['web.bills.form.submitting']);
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+    expect(byId('bill-form-submit').textContent).toBe(en['web.bills.form.submitting']);
+
+    // GET รายการบิลหลังสร้างต้องได้คำตอบปกติ ไม่ใช่คำตอบของ POST
+    delete overrides['/api/bills'];
+    created.resolve({ id: 'b-new', notNotified: [] });
+    await settle();
+    expect(byId('bill-form-submit').textContent).toBe(en['web.bills.form.submit']);
+  });
+
+  it('relabels the idle bill form button once the server language arrives', async () => {
+    const settings = deferredSettings();
+    await boot({ search: '?tab=bills', overrides: { '/api/settings': settings.pending } });
+    expect(byId('bill-form-submit').textContent).toBe(th['web.bills.form.submit']);
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(byId('bill-form-submit').textContent).toBe(en['web.bills.form.submit']);
+  });
+
+  it('redraws the bill cards in English from the loaded data once the server language arrives', async () => {
+    const settings = deferredSettings();
+    const liff = await boot({ search: '?tab=bills', overrides: { '/api/settings': settings.pending } });
+    const incomingCard = () => document.querySelector('#bills-incoming .bill-card');
+    expect(incomingCard().querySelector('.bill-confirm').textContent).toBe(th['web.bills.confirm']);
+    const billReads = reads(liff, '/api/bills');
+    const friendReads = reads(liff, '/api/friends');
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(incomingCard().querySelector('.bill-confirm').textContent).toBe('Confirm');
+    expect(incomingCard().querySelector('.bill-meta').textContent).toBe('Food · Total ฿600');
+    expect(reads(liff, '/api/bills')).toBe(billReads);
+    expect(reads(liff, '/api/friends')).toBe(friendReads);
+  });
+
+  it('redraws the goal cards in English from the loaded data once the server language arrives', async () => {
+    const settings = deferredSettings();
+    const liff = await boot({ overrides: { '/api/settings': settings.pending } });
+    clickTab('goals');
+    await settle();
+    expect(texts('#goal-rows .goal-date')).toEqual(['ถึงเป้า 31 ธ.ค. 2569']);
+    const goalReads = reads(liff, '/api/goals');
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+
+    expect(texts('#goal-rows .goal-date')[0]).toMatch(/^Target date /);
+    expect(texts('#goal-rows .goal-done')).toEqual([en['web.goals.done']]);
+    expect(byId('goals-closed-count').textContent).toBe('1 closed goal');
+    expect(byId('goals-hero-count').textContent).toBe('Saved across 2 goals');
+    expect(reads(liff, '/api/goals')).toBe(goalReads);
+  });
+
+  it('waits for the goal detail to close before redrawing the goal cards', async () => {
+    const settings = deferredSettings();
+    await boot({ overrides: { '/api/settings': settings.pending } });
+    clickTab('goals');
+    await settle();
+    document.querySelector('#goal-rows .goal-card').click();
+    await settle();
+
+    settings.resolve(settingsWith('en'));
+    await settle();
+    expect(texts('#goal-rows .goal-date')).toEqual(['ถึงเป้า 31 ธ.ค. 2569']);
+
+    byId('goal-detail').close();
+    byId('goal-detail').dispatchEvent(new Event('close'));
+    await settle();
+    expect(texts('#goal-rows .goal-date')[0]).toMatch(/^Target date /);
+  });
 });
