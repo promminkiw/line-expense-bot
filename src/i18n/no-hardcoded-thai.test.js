@@ -215,17 +215,13 @@ const ALLOWLIST = [
   { file: 'src/slip/parse-slip.js', pattern: /^'- amount is the final total the user actually paid/, reason: PROMPT },
   { file: 'src/summary/comment.js', pattern: /^(period|income|expense|net|byCategory|otherCategories|currency): '/, reason: 'th summary labels sent to Claude, not shown to the user' },
   { file: 'src/wallets/wallets.js', text: "const DEFAULT_WALLET_NAME = 'เงินสด';", reason: DB_KEY },
+  { file: 'public/liff/bills/bill-form.mjs', text: "const DEFAULT_CATEGORY = 'อาหาร';", reason: 'DB category name, only compared to pick option.selected; never shown' },
+  { file: 'public/liff/friends/friends-format.mjs', text: "const SERVER_FALLBACK_NAME = 'ผู้ใช้ LINE';", reason: 'must match server FALLBACK_DISPLAY_NAME to detect and translate it' },
   { file: 'public/liff/categories/categories-format.mjs', pattern: /displayCategoryName\(lang, category\.type, 'อื่นๆ'\)/, reason: DB_KEY },
   { file: 'public/liff/categories/categories.mjs', pattern: /^\['[^']+', '\w+'\],$/, reason: 'icon lookup by default category name (DB key)' },
   { file: 'public/liff/i18n/messages/en.mjs', text: "'common.language.th': 'ภาษาไทย',", reason: 'language names are written in their own language' },
   { file: 'public/liff/i18n/names.mjs', pattern: /^'?[฀-๿/]+'?: '\w+',$/, reason: 'maps DB default names to catalog keys' },
   { file: 'public/liff/i18n/names.mjs', text: "const WALLET_IDS = { เงินสด: 'cash' };", reason: 'maps DB default names to catalog keys' },
-];
-
-// บรรทัดในไฟล์ที่ Task 16 กำลังถูก review อยู่ รอแก้รอบถัดไป แล้วลบออกจากตรงนี้
-const PENDING_TASK16 = [
-  { file: 'public/liff/bills/bill-form.mjs', text: "const DEFAULT_CATEGORY = 'อาหาร';", reason: 'to be fixed after Task 16 review' },
-  { file: 'public/liff/friends/friends-format.mjs', text: "const SERVER_FALLBACK_NAME = 'ผู้ใช้ LINE';", reason: 'to be fixed after Task 16 review' },
 ];
 
 function allowedBy(entry, finding) {
@@ -264,7 +260,7 @@ describe('stripComments', () => {
 
 describe('hard-coded Thai in source', () => {
   const findings = scannedFiles().flatMap(thaiLines);
-  const entries = [...ALLOWLIST, ...PENDING_TASK16];
+  const entries = ALLOWLIST;
 
   it('only appears on allowlisted lines', () => {
     const unexpected = findings
